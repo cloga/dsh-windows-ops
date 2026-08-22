@@ -1,6 +1,7 @@
 # dsh-windows-ops
 
 > DeepSeek Harness (DSH) Windows 打包版实战运维经验 + 工具集。
+>  English: [README.en.md](README.en.md) / [简体中文](README.md)
 
 本仓库收录在 **Windows 桌面版 DeepSeek Harness**（社区打包 `hairyf/deepseek-harness-desktop`，runtime `@deepseek-ai/dsh` 0.1.x）上实机踩坑、验证、修复后的经验与可复用脚本。
 

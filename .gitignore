@@ -1,0 +1,12 @@
+# secrets / sensitive
+.env
+.credentials.yaml
+*.bak-*
+*.old-*
+*.key
+*.pem
+*_TOKEN=*
+# local
+node_modules/
+dist/
+*.log

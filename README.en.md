@@ -16,6 +16,7 @@ This repository collects lessons learned, root-cause analyses, and reusable scri
 | PowerShell pitfalls | 5.1 needs explicit `Add-Type System.Net.Http` (scheduled-task health checks silently fail) | `docs/powershell-5.1-pitfalls.md` |
 | GitHub network | ghfast mirror git config + release/raw download script | `tools/gh-dl.ps1`, `docs/github-network.md` |
 | Security | Credentials only via env; asar only via the official tool; read-only MCP by default | `docs/security-notes.md` |
+| Agent-native dev | **`dsh-dev-tools` plugin**: `dsh_status` / `dsh_patch` / `dsh_build` / `dsh_upgrade` - the agent drives status/patch/build/upgrade natively inside the session | `tools/dsh-dev-tools/` |
 
 ## Usage
 

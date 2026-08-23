@@ -1,0 +1,19 @@
+{
+  "note": "dsh_patch applies these on the source tree / runtime. Copy to $DSH_HOME/tools/dsh-updater/patches.json and edit paths per your machine. 'file' is relative to DSH_SOURCE_TREE; items matching nothing are skipped with a warning.",
+  "patches": [
+    {
+      "id": "brand-title",
+      "description": "Window title: local-build marker -> product name + runtime version (idempotent; version read from runtime package.json at apply time via the {} placeholder)",
+      "file": "packages/client/ui-renderer/src/client/DocumentTitle.tsx",
+      "find": "DSH Local Build",
+      "replace": "DeepSeek Harness"
+    },
+    {
+      "id": "example-skip-me",
+      "description": "IMPORTANT: delete this entry after copying the file. It exists only to show the schema.",
+      "file": "DO-NOT-MATCH",
+      "find": "never-ever",
+      "replace": "never-ever"
+    }
+  ]
+}

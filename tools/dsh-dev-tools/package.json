@@ -1,0 +1,26 @@
+{
+  "name": "dsh-dev-tools",
+  "version": "0.1.0",
+  "description": "DSH agent-native development tools: dsh_status / dsh_patch / dsh_build / dsh_upgrade. Lets the agent inspect the source tree, manage local patches, build a staging runtime, and check for new upstream versions - without leaving the session.",
+  "type": "module",
+  "main": "index.js",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "dev-tools",
+    "upgrade",
+    "patch"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "index.js",
+    "patches.example.json",
+    "cordis.patch.yml",
+    "README.md"
+  ]
+}

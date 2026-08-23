@@ -101,6 +101,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp'
 | `dsh-backup.ps1 -status` | A/B 状态与最后晋升时间 |
 | `dsh-rescue.ps1` | 用 B home 拉起完整实例（A 必须先关） |
 | `dsh-restart-detached.ps1` | 脱树重启（杀→起→健康检查） |
+| `dsh-restart-patched.ps1` | 脱树重启 + asar 补丁版（杀→打 `--no-open` 补丁→起→健康检查；路径用 `DSH_APP_EXE`/`DSH_NODE_BIN`/`DSH_ASAR_PATCHER`/`DSH_TOOLS_DIR` 环境变量覆盖默认值） |
 | `dsh-swap.ps1 -build / -commit` | 事务化升级（准备/提交/回滚） |
 
 ## 相关文件（可参考实现）

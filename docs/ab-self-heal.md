@@ -64,6 +64,35 @@ $client = New-Object System.Net.Http.HttpClient
 
 > ⚠️ 计划任务默认 `DisallowStartIfOnBatteries`/`StopIfGoingOnBatteries` 为 true——**笔记本电池供电时任务被跳过（Queued 不执行）**！用 XML 重建任务时显式置 false（`schtasks /Create /XML`）。
 
+### 孤儿进程防治（2026-08-23 实测：首次启动 60s 超时的加重元凶）
+
+`taskkill /IM "DeepSeek Harness.exe" /T /F` **只杀 exe 名**，会漏掉两类常驻孤儿：
+
+1. **node 直跑的 DSH web**：`node --expose-internals <某 runtime>\lib\bin.js web --host ...`（如 `tools-analyze\runtime-test` 的测试实例）——它共享同一 `DSH_HOME`，与正式实例抢资源/锁，导致正式实例启动超时
+2. **MCP server 子进程**：`github-mcp-server.exe`、`desktop-touch...server-windows.js`——父进程 DSH 死后遗留，重复占用
+
+`dsh-restart-detached.ps1` 已在杀主进程后**按命令行特征补杀**：
+
+```powershell
+$orphanWeb = Get-CimInstance Win32_Process | Where-Object {
+  $_.Name -match '^node' -and $_.CommandLine -match 'bin\.js.*\bweb\b' -and $_.CommandLine -match '--host'
+}
+# ... Stop-Process -Force（不清其他 node 进程）
+$orphanMcp = Get-CimInstance Win32_Process | Where-Object {
+  ($_.Name -match 'github-mcp-server') -or ($_.CommandLine -match 'desktop-touch-mcp.*server-windows\.js')
+}
+```
+
+**排查命令**（启动慢/超时先跑这个，找 8-20/昨天起常驻的孤儿）：
+
+```powershell
+Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp' } |
+  Select-Object ProcessId,Name,CommandLine | Format-Table -AutoSize
+# 对照进程启动时间：`Get-Process -Id <pid>`；父进程已死的孤儿（PID 复用）优先清理
+```
+
+**⚠️ Find-Web 的另一个坑**：桌面壳主进程自身命令行也含 `web --host`（spawn 参数），`Where-Object { Name -eq 'DeepSeek Harness.exe' -and CommandLine -match 'web --host' }` 会**抓到壳进程而不是 web 服务进程** → 健康检查恒失败（误报 `FAILED: no healthy web instance`，尽管 web 实际健康）。正确匹配：**`--expose-internals` + `bin\.js` + `web --host`** 三个条件缺一不可。
+
 ## 可复用脚本清单
 
 | 脚本 | 作用 |

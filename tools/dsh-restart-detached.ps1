@@ -3,17 +3,12 @@
 # Steps: kill all DeepSeek Harness -> wait -> start desktop shell -> wait for
 # the web instance to come up healthy. Result written to dsh-auto-restart.out
 # and logged to dsh-auto-restart.log.
-# Env:
-#   DSH_APP_EXE   - absolute path to DeepSeek Harness.exe (REQUIRED)
-#   DSH_TOOLS_DIR - result/log dir (default: %TEMP%)
 $ErrorActionPreference = 'SilentlyContinue'
-if (-not $env:DSH_APP_EXE) { Write-Output 'ERR: DSH_APP_EXE not set'; exit 2 }
-$appExe   = $env:DSH_APP_EXE
-$toolsDir = if ($env:DSH_TOOLS_DIR) { $env:DSH_TOOLS_DIR } else { $env:TEMP }
-$logOut   = Join-Path $toolsDir 'dsh-auto-restart.out'
-$logFile  = Join-Path $toolsDir 'dsh-auto-restart.log'
+$appExe   = 'D:\deepseek-harness\DeepSeek Harness\DeepSeek Harness.exe'
+$logOut   = 'C:\Users\sephen\.dsh\tools\dsh-auto-restart.out'
+$logFile  = 'C:\Users\sephen\.dsh\tools\dsh-auto-restart.log'
 function Log([string]$m) { Add-Content -Path $logFile -Value ('[{0}] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m) -Encoding UTF8; Write-Output $m }
-function Find-Web { return (Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'DeepSeek Harness.exe' -and $_.CommandLine -match 'web --host' } | Select-Object -First 1) }
+function Find-Web { return (Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'DeepSeek Harness.exe' -and $_.CommandLine -match '--expose-internals' -and $_.CommandLine -match 'bin\.js' -and $_.CommandLine -match 'web --host' } | Select-Object -First 1) }
 function Test-Healthy([int]$pid) {
   try { Add-Type -AssemblyName System.Net.Http -ErrorAction Stop } catch { }
   $port = Get-NetTCPConnection -OwningProcess $pid -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -eq '127.0.0.1' } | Select-Object -First 1 -ExpandProperty LocalPort
@@ -23,6 +18,20 @@ function Test-Healthy([int]$pid) {
 
 Log 'clean restart start'
 taskkill /IM 'DeepSeek Harness.exe' /T /F 2>&1 | Out-Null
+# ── 2026-08-23 补：taskkill /IM 只杀 exe 名，会漏掉：① 由 node 直跑的 DSH web
+#   （--expose-internals <runtime>\lib\bin.js web --host，如测试 runtime 的孤儿进程）
+#   ② MCP server 子进程（github-mcp-server.exe / desktop-touch server-windows.js）。
+#   这些孤儿与正式实例共享 DSH_HOME/ports，是「首次启动 60s 超时」的加重元凶
+#   （8-23 实测：一个 8-20 起的 tools-analyze/runtime-test web 孤儿拖死多次启动）。
+#   按命令行特征清：只清"web --host"的 node 进程 + MCP server，不清其他 node。
+$orphanWeb = Get-CimInstance Win32_Process | Where-Object {
+  $_.Name -match '^node' -and $_.CommandLine -match 'bin\.js.*\bweb\b' -and $_.CommandLine -match '--host'
+}
+foreach ($o in $orphanWeb) { try { Stop-Process -Id $o.ProcessId -Force -ErrorAction SilentlyContinue } catch { } }
+$orphanMcp = Get-CimInstance Win32_Process | Where-Object {
+  ($_.Name -match 'github-mcp-server') -or ($_.CommandLine -match 'desktop-touch-mcp.*server-windows\.js')
+}
+foreach ($o in $orphanMcp) { try { Stop-Process -Id $o.ProcessId -Force -ErrorAction SilentlyContinue } catch { } }
 Start-Sleep -Seconds 6
 $deadline = (Get-Date).AddSeconds(30)
 while ((Get-Process -Name 'DeepSeek Harness' -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }

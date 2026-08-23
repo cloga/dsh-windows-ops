@@ -16,12 +16,38 @@ git config --global url."https://ghfast.top/https://github.com/".insteadOf "http
 
 **关键**：`github.com/<repo>/raw/...` 这种**网页跳转路径**镜像处理不好（会 302 错乱），**raw 文件应改直连 `raw.githubusercontent.com`**（本机 ~900ms 稳定），脚本已内置该改写。
 
-## 3. 无 SSH key 时 push 的变通
+## 3. push 的正确姿势（insteadOf 会拦截带 token 的 push！）
 
-hmm, push 直连间歇性失败时：
-- **重试**：直连有时第二次就通（本机实测）
-- 镜像 push 不可靠（只读为主）
-- 需要 token 的 `x-access-token:<PAT>@github.com/<owner>/<repo>.git` 直连即可
+**坑（2026-08-23 实测）**：`url.insteadOf` 全局配置对 **push 同样生效**——`git push https://github.com/...` 会变成 `git push https://ghfast.top/https://github.com/...`，而**镜像只读**，带 token 的 push 返回：
+
+```
+remote: Invalid username or token.
+fatal: Authentication failed for 'https://ghfast.top/https://github.com/<owner>/<repo>.git/'
+```
+
+**姿势 A：push 前临时移除、push 后恢复**（最通用，无需改 remote）：
+
+```powershell
+# 1) 临时移除镜像规则
+git config --global --unset url."https://ghfast.top/https://github.com/".insteadOf
+
+# 2) push（直连 + token；间歇失败就重试一次——实测第二次常通）
+git push https://x-access-token:<PAT>@github.com/<owner>/<repo>.git <branch>
+
+# 3) 恢复镜像规则
+git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+```
+
+**姿势 B：pushurl 一劳永逸**（clone/pull 走镜像、push 走直连共存）：
+
+```powershell
+git remote add origin https://ghfast.top/https://github.com/<owner>/<repo>.git   # fetch/pull 走镜像
+git config remote.origin.pushurl https://github.com/<owner>/<repo>.git          # push 走直连（token 嵌 URL 或凭据助手）
+```
+
+> 或者最精简：直接在仓库里 push 时用 `git push https://x-access-token:<PAT>@github.com/<owner>/<repo>.git <branch>`（忽略 remote 的 URL，每次显式直连）。
+
+**无 SSH key 时**：token 用 `x-access-token:<PAT>@github.com/...` 直连即可；直连间歇失败就重试（本机实测第二次通）。
 
 ## 4. 其他
 

@@ -105,7 +105,13 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp'
    # clean => "OK: no duplicate session ids." (exit 0)
    # 有重复 => 列出；加 -Quarantine <dir> 自动"留第一个目录、移走多余"（可恢复）
    ```
-2. **迁移/删除会话 = 原子三步**：备份 → 写新位置并**读回验证** → **删旧位置**（绝不留双份；2026 事故的教训就是"写了新、忘了删旧"）。
+2. **迁移/删除会话 = 工具化原子三步，禁止手改**：
+   ```powershell
+   node tools/dsh-move-session.mjs <session-id> "D:\转咪"
+   # 内置五步：唯一性检查 → 备份(.move-backups/) → 新位置+改header.cwd →
+   #            读回验证 → 验证通过才删旧（绝不留双份）
+   # 2026-08-24 事故教训：手改（写新未删旧）→ 双份 → DSH 拒启
+   ```
 3. **运维脚本统一 `Set-StrictMode -Version Latest`**（`dsh-rescue/dsh-restart-*/dsh-backup/check-session-duplicates` 均已加）：未定义变量（如曾导致救援挂掉的 `$toolsDir`）**立即报错**而非静默空值。注意：`Set-StrictMode` 必须在 `param` 之后；catch 里引用可能未赋值的变量要 `if ($null -ne $x)` 保护。
 
 ## 可复用脚本清单
@@ -119,6 +125,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp'
 | `dsh-restart-patched.ps1` | 脱树重启 + asar 补丁版（杀→打 `--no-open` 补丁→起→健康检查；路径用 `DSH_APP_EXE`/`DSH_NODE_BIN`/`DSH_ASAR_PATCHER`/`DSH_TOOLS_DIR` 环境变量覆盖默认值） |
 | `dsh-swap.ps1 -build / -commit` | 事务化升级（准备/提交/回滚） |
 | `check-session-duplicates.ps1` | 会话唯一性扫描（防重复 ID 拒启；-Quarantine 自动隔离） |
+| `dsh-move-session.mjs` | 会话原子迁移（唯一性→备份→新位置+改cwd→验证→删旧；防双份事故） |
 
 ## 相关文件（可参考实现）
 

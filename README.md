@@ -19,6 +19,7 @@
 | 安全 | 敏感凭据只进 `.env`/环境变量，不进 patch/仓库；asar 只走官方工具 | `docs/security-notes.md` |
 | **Agent-native 开发** | **`dsh-dev-tools` 插件**：`dsh_status`/`dsh_patch`/`dsh_build`/`dsh_upgrade` 四工具，agent 会话内 native 操作开发/升级链路 | `tools/dsh-dev-tools/` |
 | **会话数据安全** | 重复会话 ID 扫描器 + **原子迁移工具**（官方帧读写、备份在 sessions 外、header 归属校验、验证后删旧）+ **启动预检 preflight**（--smoke 隔离 home 冒烟起 backend）+ 运维脚本 `Set-StrictMode` 加固 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs`、`tools/preflight-check.mjs`、`docs/ab-self-heal.md` |
+| **会话迁移/侧边栏分组** | 侧边栏按 Host Workspace 注册表（`storages/workspace.json`）分组而非 header.cwd；**标准迁移工具 v2**（文件+注册表一步同步，幂等）、**事后修复**（定点/`--auto` 全量对账）、**运行时修复**（动态 Cordis 插件模板，DSH 运行中无需重启）、**全链路自测**（隔离 home 16 断言） | `tools/dsh-move-session.mjs`、`tools/dsh-workspace-fix.mjs`、`tools/workspace-fix-plugin.template.js`、`tools/dsh-workspace-lib.mjs`、`tools/dsh-move-session.selftest.mjs`、`docs/session-move-workspace-groups.md` |
 
 ## 使用方式
 

@@ -105,14 +105,29 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp'
    # clean => "OK: no duplicate session ids." (exit 0)
    # 有重复 => 列出；加 -Quarantine <dir> 自动"留第一个目录、移走多余"（可恢复）
    ```
-2. **迁移/删除会话 = 工具化原子三步，禁止手改**：
+2. **迁移/删除会话 = 工具化原子流程，禁止手改**：
    ```powershell
    node tools/dsh-move-session.mjs <session-id> "D:\转咪"
-   # 内置五步：唯一性检查 → 备份(.move-backups/) → 新位置+改header.cwd →
-   #            读回验证 → 验证通过才删旧（绝不留双份）
-   # 2026-08-24 事故教训：手改（写新未删旧）→ 双份 → DSH 拒启
+   # 内置七步：唯一性检查 → 官方帧解压读取（多帧 zstd，每 JSONL 行一帧！）→
+   #            备份到 tools/backups（**绝不放 sessions 内**——DSH 扫描器把
+   #            sessions 下每个子目录当活动会话，备份放里面 => 位置 vs header
+   #            不符 => corrupt 拒启，2026-08-24 事故 #1）→ 改 header.cwd →
+   #            官方逐帧压缩写入 projectKey 目录 → 官方读回验证（行数+cwd）
+   #            → 验证通过才删旧（绝不留双份）
    ```
-3. **运维脚本统一 `Set-StrictMode -Version Latest`**（`dsh-rescue/dsh-restart-*/dsh-backup/check-session-duplicates` 均已加）：未定义变量（如曾导致救援挂掉的 `$toolsDir`）**立即报错**而非静默空值。注意：`Set-StrictMode` 必须在 `param` 之后；catch 里引用可能未赋值的变量要 `if ($null -ne $x)` 保护。
+   ⚠️ **多帧 zstd 必须用官方的 `scanZstdFrames`/`decompressZstdFrame`/`compressZstdFrame`**
+   ——naive 整体解压（整文件 decompress）**只能解出第一帧**，会误判"会话是空壳"
+   （2026-08-24 事故 #2：628KB 真实会话被误当 173B 空壳，因为只解了 header 帧）。
+   读写会话文件的任何代码都直接 import `@deepseek-ai/dsh-session-persistence-jsonl/lib/types/zstd.js`。
+3. **启动前跑 preflight-check**（把 WorkBuddy/Electron v24 那套"完整起 backend 验证"固化）：
+   ```powershell
+   node tools/preflight-check.mjs            # 只读：重复/stray/位置-vs-header 一致性
+   node tools/preflight-check.mjs --smoke    # + 隔离 DSH_HOME 副本起 backend 冒烟（node≥22）
+   node tools/preflight-check.mjs --fix      # + 自动把问题目录隔离（不删）
+   ```
+   smoke 用**隔离 DSH_HOME 副本**（绝不双开真实 home——im-gateway 实例锁 + 数据禁并发）；
+   node 必须 ≥22（zstd），默认用 `.workbuddy` 的 22.22.2（可 `DSH_SMOKE_NODE` 覆盖）。
+4. **运维脚本统一 `Set-StrictMode -Version Latest`**（`dsh-rescue/dsh-restart-*/dsh-backup/check-session-duplicates` 均已加）：未定义变量（如曾导致救援挂掉的 `$toolsDir`）**立即报错**而非静默空值。注意：`Set-StrictMode` 必须在 `param` 之后；catch 里引用可能未赋值的变量要 `if ($null -ne $x)` 保护。
 
 ## 可复用脚本清单
 
@@ -125,7 +140,8 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp'
 | `dsh-restart-patched.ps1` | 脱树重启 + asar 补丁版（杀→打 `--no-open` 补丁→起→健康检查；路径用 `DSH_APP_EXE`/`DSH_NODE_BIN`/`DSH_ASAR_PATCHER`/`DSH_TOOLS_DIR` 环境变量覆盖默认值） |
 | `dsh-swap.ps1 -build / -commit` | 事务化升级（准备/提交/回滚） |
 | `check-session-duplicates.ps1` | 会话唯一性扫描（防重复 ID 拒启；-Quarantine 自动隔离） |
-| `dsh-move-session.mjs` | 会话原子迁移（唯一性→备份→新位置+改cwd→验证→删旧；防双份事故） |
+| `dsh-move-session.mjs` | 会话原子迁移（官方帧读写 + 备份在 sessions 外 + header 归属校验 + 验证后删旧） |
+| `preflight-check.mjs` | 启动前预检（重复/stray/位置一致；--smoke 隔离 home 起 backend 冒烟；--fix 自动隔离） |
 
 ## 相关文件（可参考实现）
 

@@ -18,7 +18,7 @@
 | GitHub 网络 | ghfast 镜像 git 配置 + release/raw 下载脚本 | `tools/gh-dl.ps1`、`docs/github-network.md` |
 | 安全 | 敏感凭据只进 `.env`/环境变量，不进 patch/仓库；asar 只走官方工具 | `docs/security-notes.md` |
 | **Agent-native 开发** | **`dsh-dev-tools` 插件**：`dsh_status`/`dsh_patch`/`dsh_build`/`dsh_upgrade` 四工具，agent 会话内 native 操作开发/升级链路 | `tools/dsh-dev-tools/` |
-| **会话数据安全** | 重复会话 ID 扫描器（防 DSH 起不来）+ **原子迁移工具**（五步：唯一性检查→备份→新位置+改cwd→读回验证→删旧）+ 运维脚本 `Set-StrictMode` 加固 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs`、`docs/ab-self-heal.md` |
+| **会话数据安全** | 重复会话 ID 扫描器 + **原子迁移工具**（官方帧读写、备份在 sessions 外、header 归属校验、验证后删旧）+ **启动预检 preflight**（--smoke 隔离 home 冒烟起 backend）+ 运维脚本 `Set-StrictMode` 加固 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs`、`tools/preflight-check.mjs`、`docs/ab-self-heal.md` |
 
 ## 使用方式
 

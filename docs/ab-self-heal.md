@@ -93,6 +93,21 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp'
 
 **⚠️ Find-Web 的另一个坑**：桌面壳主进程自身命令行也含 `web --host`（spawn 参数），`Where-Object { Name -eq 'DeepSeek Harness.exe' -and CommandLine -match 'web --host' }` 会**抓到壳进程而不是 web 服务进程** → 健康检查恒失败（误报 `FAILED: no healthy web instance`，尽管 web 实际健康）。正确匹配：**`--expose-internals` + `bin\.js` + `web --host`** 三个条件缺一不可。
 
+## 会话数据安全（2026-08-24 事故：重复会话 ID 使 DSH 拒启）
+
+**事故**：同一会话 id `session-xxx` 同时存在于**两个项目目录**（`D:\DeepSeek` 628KB 真实会话 + 一个误生成的 160B 空壳，只含 header）→ DSH 启动报 **"duplicate JSONL session id ... appears in multiple project directories"** → **主 DSH 起不来**（不是代码问题，是数据污染）。
+
+**预防纪律**：
+
+1. **动 `~/.dsh/sessions` 前必须跑唯一性扫描**（工具已提供）：
+   ```powershell
+   powershell.exe -File tools/check-session-duplicates.ps1 -dshHome $env:USERPROFILE\.dsh
+   # clean => "OK: no duplicate session ids." (exit 0)
+   # 有重复 => 列出；加 -Quarantine <dir> 自动"留第一个目录、移走多余"（可恢复）
+   ```
+2. **迁移/删除会话 = 原子三步**：备份 → 写新位置并**读回验证** → **删旧位置**（绝不留双份；2026 事故的教训就是"写了新、忘了删旧"）。
+3. **运维脚本统一 `Set-StrictMode -Version Latest`**（`dsh-rescue/dsh-restart-*/dsh-backup/check-session-duplicates` 均已加）：未定义变量（如曾导致救援挂掉的 `$toolsDir`）**立即报错**而非静默空值。注意：`Set-StrictMode` 必须在 `param` 之后；catch 里引用可能未赋值的变量要 `if ($null -ne $x)` 保护。
+
 ## 可复用脚本清单
 
 | 脚本 | 作用 |
@@ -103,6 +118,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^node|github-mcp'
 | `dsh-restart-detached.ps1` | 脱树重启（杀→起→健康检查） |
 | `dsh-restart-patched.ps1` | 脱树重启 + asar 补丁版（杀→打 `--no-open` 补丁→起→健康检查；路径用 `DSH_APP_EXE`/`DSH_NODE_BIN`/`DSH_ASAR_PATCHER`/`DSH_TOOLS_DIR` 环境变量覆盖默认值） |
 | `dsh-swap.ps1 -build / -commit` | 事务化升级（准备/提交/回滚） |
+| `check-session-duplicates.ps1` | 会话唯一性扫描（防重复 ID 拒启；-Quarantine 自动隔离） |
 
 ## 相关文件（可参考实现）
 

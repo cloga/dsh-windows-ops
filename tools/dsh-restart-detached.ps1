@@ -3,6 +3,8 @@
 # Steps: kill all DeepSeek Harness -> wait -> start desktop shell -> wait for
 # the web instance to come up healthy. Result written to dsh-auto-restart.out
 # and logged to dsh-auto-restart.log.
+# 2026-08-24 加固：未定义变量立即报错（防静默空值类 bug）。
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'SilentlyContinue'
 $appExe   = 'D:\deepseek-harness\DeepSeek Harness\DeepSeek Harness.exe'
 $logOut   = 'C:\Users\sephen\.dsh\tools\dsh-auto-restart.out'
@@ -13,7 +15,7 @@ function Test-Healthy([int]$pid) {
   try { Add-Type -AssemblyName System.Net.Http -ErrorAction Stop } catch { }
   $port = Get-NetTCPConnection -OwningProcess $pid -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -eq '127.0.0.1' } | Select-Object -First 1 -ExpandProperty LocalPort
   if (-not $port) { return $null }
-  try { $c = New-Object System.Net.Http.HttpClient; $c.Timeout = [TimeSpan]::FromSeconds(6); $r = $c.GetAsync('http://127.0.0.1:' + $port + '/').Result; $r.Dispose(); $c.Dispose(); return $port } catch { try { $c.Dispose() } catch { }; return $null }
+  try { $c = New-Object System.Net.Http.HttpClient; $c.Timeout = [TimeSpan]::FromSeconds(6); $r = $c.GetAsync('http://127.0.0.1:' + $port + '/').Result; $r.Dispose(); $c.Dispose(); return $port } catch { if ($null -ne $c) { try { $c.Dispose() } catch { } }; return $null }
 }
 
 Log 'clean restart start'

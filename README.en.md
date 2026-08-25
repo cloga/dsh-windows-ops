@@ -9,9 +9,10 @@ This repository collects lessons learned, root-cause analyses, and reusable scri
 | Category | Content | File |
 |---|---|---|
 | Startup stability | First-launch 60s timeout root cause (MCP launcher network stall) + fixes | `docs/startup-60s-timeout.md` |
-| Brand / version | Window-title brand + **engine version** (`DeepSeek Harness v<version>`) patcher | `tools/patch-brand-title.mjs` |
+| Brand / version | Window-title brand + **engine version** (`DeepSeek Harness v<version>`) patcher — **[historical]**: under the Tauri shell `patch-worker.mjs applyBrand` covers the 3 files and the window title comes from the shell/dsh-tauri | `tools/patch-brand-title.mjs` (historical), `tools/dsh-updater/patch-worker.mjs` |
 | Vision dual-channel | Model-aware dual channel (official + vision-tool fallback) design + admission rules | `docs/vision-dual-channel.md` |
 | A/B self-heal | Config snapshot + data junctions + detached scheduled-task restart + transactional upgrades | `docs/ab-self-heal.md` |
+| **Self-heal (Tauri-adapted)** | **`dsh-doctor`**: 11 health checks + `--fix` auto-repair (patch reapply / broken-link rebuild / duplicate-insert disable / banned-plugin quarantine / vendor restore) + `--smoke` isolated boot + `--list-plugins`; **A/B re-targeted to the Tauri shell** (rescue passes `DSH_HOME=B` to the shell, restart is detached + doctor-first, promote writes a static plugin manifest); legacy swap/asar upgrade tool retired (core upgrades managed by the shell); `dsh-dev-tools` gains **`dsh_doctor`** | `tools/dsh-doctor.mjs`, `tools/dsh-rescue.ps1`, `tools/dsh-restart-*.ps1`, `tools/dsh-backup.ps1`, `tools/dsh-dev-tools/`, `tools/vendor/dsh-zstd/`, `docs/ab-tauri-adapt.md` |
 | Plugin install | Packaged-edition plugin rules (junctions ALWAYS crash → materialized copies) + compat checker | `tools/dsh-compat-check.mjs` |
 | PowerShell pitfalls | 5.1 needs explicit `Add-Type System.Net.Http` (scheduled-task health checks silently fail) | `docs/powershell-5.1-pitfalls.md` |
 | GitHub network | ghfast mirror git config + release/raw download script | `tools/gh-dl.ps1`, `docs/github-network.md` |

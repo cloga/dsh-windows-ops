@@ -10,7 +10,7 @@
 | 类别 | 内容 | 文件 |
 |---|---|---|
 | 启动稳定性 | 首次启动 60s 超时根因（MCP launcher 网络阻塞）+ 修复 | `docs/startup-60s-timeout.md` |
-| 品牌/版本 | 窗口标题品牌 + **版本号**（`DeepSeek Harness v<version>`）补丁 | `tools/patch-brand-title.mjs` |
+| 品牌/版本 | 窗口标题品牌 + **版本号**（`DeepSeek Harness v<version>`）补丁 —— **[历史]**：Tauri 壳下由 `patch-worker.mjs applyBrand` 覆盖（3 文件），窗口标题由壳/dsh-tauri 管理，`patch-brand-title.mjs` 仅保留思路参考 | `tools/patch-brand-title.mjs`（历史）、`tools/dsh-updater/patch-worker.mjs` |
 | 视觉双通道 | 模型感知双通道（官方 + vision 兜底）设计 + admission 判定铁律 | `docs/vision-dual-channel.md` |
 | A/B 自愈 | 配置快照 + 数据 junction + 脱树计划任务重启 + 事务化升级 | `docs/ab-self-heal.md` |
 | 插件安装 | 桌面版插件铁律（junction 必崩 → 物化拷贝）+ compat-check | `tools/dsh-compat-check.mjs` |

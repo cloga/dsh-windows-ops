@@ -1,3 +1,8 @@
+// =============================================================================
+// [HISTORICAL - 2026-08-25] Electron 时代工具：Tauri 壳已将其功能取代——
+//   品牌补丁由 patch-worker.mjs applyBrand 覆盖（3 文件），窗口标题由壳/dsh-tauri 管理。
+//   保留仅作版本号嵌入标题的思路参考，不再用于本机。
+// =============================================================================
 // patch-brand-title.mjs - Windows packaged DSH: window-title brand + version
 //
 // Why: the official DSH client default window title is a local-build marker
@@ -73,3 +78,4 @@ console.log(JSON.stringify(rep));
 if (encounteredDshLocalBuild) {
   console.error('note: replaced the local-build marker "DSH Local Build" with the product name (real upstream may show it by design; see docs).');
 }
+

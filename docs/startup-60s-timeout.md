@@ -1,5 +1,9 @@
 # 首次启动 60 秒超时根因分析（The local service did not start within 60 seconds）
 
+> **2026-08-25 历史注**：本文针对旧 Electron 桌面壳（DeepSeek Harness.exe）。Tauri 壳（dsh-tauri-desk）有独立启动时序与下载流程，本案例机制不同；如需快速恢复仍可参考「孤儿进程清理」思想（见 dsh-restart-worker.ps1）。
+
+# 首次启动 60 秒超时根因分析（The local service did not start within 60 seconds）
+
 ## 现象
 
 Windows 打包版桌面 shell（Electron 主进程）启动 dsh web 服务时，**冷启动**（taskkill 后立刻再开，或系统刚开机）经常弹出：
@@ -89,3 +93,5 @@ async function ensureRelease() {
 
 - `dsh-mcp-client` 的 **`failOnStartupError` 默认 false**——失败只重连不致命；但**重连循环不释放 apply 的 await**，所以"连不上"也会拖插件激活（看 connection.js 的 ready 语义）
 - 多个 MCP server 串行激活——每个都 `await connection.ready`，多个 flaky server 会叠加超时（本例只 desktop 一个，60s 就卡满）
+
+

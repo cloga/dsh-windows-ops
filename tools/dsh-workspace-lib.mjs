@@ -13,13 +13,15 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
-// Best-effort detection of a live DSH desktop instance (its web process also
-// runs as 'DeepSeek Harness.exe'). Returns a warning string or null.
+// Best-effort detection of a live DSH desktop instance (Tauri shell
+// 'deepseek-harness-desktop.exe'; legacy Electron 'DeepSeek Harness.exe' also
+// detected for history). Returns a warning string or null.
 export function runningHint() {
   try {
-    const out = spawnSync('tasklist', ['/FI', 'IMAGENAME eq DeepSeek Harness.exe', '/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 10000 });
-    const count = (out.stdout ?? '').split('\n').filter((l) => l.trim().toLowerCase().includes('deepseek harness.exe')).length;
-    if (count > 0) return `WARN: ${count} running 'DeepSeek Harness.exe' process(es) detected. Prefer closing the app first: file/header moves are safe, but workspace.json edits take effect only on NEXT STARTUP and a live process may overwrite the file on its next workspace write.`;
+    const out = spawnSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 10000 });
+    const lines = (out.stdout ?? '').split('\n').map((l) => l.toLowerCase());
+    const live = ['deepseek-harness-desktop.exe', 'deepseek harness.exe'].filter((n) => lines.some((l) => l.includes(n)));
+    if (live.length > 0) return `WARN: DSH shell process(es) detected (${live.join(', ')}). Prefer closing the app first: file/header moves are safe, but workspace.json edits take effect only on NEXT STARTUP and a live process may overwrite the file on its next workspace write.`;
   } catch { /* detection unavailable — fine */ }
   return null;
 }

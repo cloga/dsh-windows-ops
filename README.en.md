@@ -4,6 +4,12 @@
 
 This repository collects lessons learned, root-cause analyses, and reusable scripts from running the community-packaged Windows desktop app ([`hairyf/deepseek-harness-desktop`](https://github.com/hairyf/deepseek-harness-desktop)) with the official `@deepseek-ai/dsh` runtime (0.1.x) on real hardware.
 
+## Improvement portfolio
+
+See the maintained **[DSH + GitHub Copilot improvement portfolio](docs/improvement-portfolio.md)**
+for completed work, upstream-versus-fork ownership, current status, validation
+evidence, and compatibility guidance.
+
 ## What's inside
 
 | Category | Content | File |

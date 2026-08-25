@@ -25,6 +25,7 @@ evidence, and compatibility guidance.
 | Security | Credentials only via env; asar only via the official tool; read-only MCP by default | `docs/security-notes.md` |
 | Agent-native dev | **`dsh-dev-tools` plugin**: `dsh_status` / `dsh_patch` / `dsh_build` / `dsh_upgrade` - the agent drives status/patch/build/upgrade natively inside the session | `tools/dsh-dev-tools/` |
 | Durable replay / self-heal | Versioned component inventory, service/config/model/image checks, strict replayable patches, backups, rollback, and Desktop recovery | `tools/dsh-replay.ps1`, `docs/windows-replay-tooling.md` |
+| Local core + Desktop + Copilot | Keep the official Desktop shell while running the `cloga/deepseek-harness` local core; pin the CLI with `DSH_CLI_PATH`; configure Copilot2API models; enforce core/plugin compatibility and safe upgrades | `docs/local-core-desktop-copilot.md` |
 
 ## Usage
 
@@ -54,6 +55,7 @@ The rest of this repo is machine-verified practice; some items map to official d
 ## Compliance
 
 - No API keys / tokens / account info anywhere. Credentials are injected via environment variables (`GITHUB_PERSONAL_ACCESS_TOKEN`, `DEEPSEEK_API_KEY`, ...); repositories and patches carry zero secrets.
+- GitHub writes for this repository must load the local ignored `.env`, verify the exact `cloga` identity, and publish only `cloga-<task-slug>` branches. See [`AGENTS.md`](AGENTS.md).
 - Any runtime/asar edit backs up first (`.bak-<date>`) and includes rollback notes.
 - Not every local hack is worth upstreaming (e.g. version-specific parameters); docs say which are.
 

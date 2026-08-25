@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "patches": [
+    {
+      "id": "web-search-replay-id",
+      "description": "Verify replay item IDs and session request IDs are preserved by the installed provider.",
+      "component": "dsh-web-search-provider",
+      "files": [
+        "lib\\index.js",
+        "dist\\index.js",
+        "index.js"
+      ],
+      "verifyMarkers": [
+        "const replayItemId =",
+        "\"x-client-request-id\": String(request.sessionId)"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+    },
+    {
+      "id": "web-search-sandbox-sanitization",
+      "description": "Verify ungrounded sandbox escalation arguments are removed while grounded retries are retained.",
+      "component": "dsh-web-search-provider",
+      "files": [
+        "lib\\index.js",
+        "dist\\index.js",
+        "index.js"
+      ],
+      "verifyMarkers": [
+        "function sanitizeSandboxEscalationArguments",
+        "delete args.sandbox_permissions;"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+    },
+    {
+      "id": "web-search-image-bypass",
+      "description": "Verify image-bearing requests bypass the text-only inline search wire.",
+      "component": "dsh-web-search-provider",
+      "files": [
+        "lib\\index.js",
+        "dist\\index.js",
+        "index.js"
+      ],
+      "verifyMarkers": [
+        "function contentHasImages(request)",
+        "if (contentHasImages(request)) return false;"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+    },
+    {
+      "id": "web-search-copilot-model-discovery",
+      "description": "Verify live Copilot model discovery records vision support in the pi-ai catalog.",
+      "component": "dsh-web-search-provider",
+      "files": [
+        "lib\\index.js",
+        "dist\\index.js",
+        "index.js"
+      ],
+      "verifyMarkers": [
+        "function copilotModelsFromListing(body)",
+        "supports.vision === true",
+        "synchronized %d Copilot models"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+    },
+    {
+      "id": "desktop-no-open-recovery",
+      "description": "Use the no-open flag during Desktop backend recovery to avoid a second browser launch.",
+      "component": "dsh-desktop",
+      "files": [
+        "resources\\app.asar.unpacked\\main.mjs",
+        "resources\\app\\main.mjs"
+      ],
+      "find": "'--port', '0' // dsh-ops: desktop backend args",
+      "replace": "'--port', '0', '--no-open' // dsh-ops: desktop recovery",
+      "patchedFind": "'--no-open' // dsh-ops: desktop recovery",
+      "upstreamStatus": "temporary",
+      "upstreamUrl": ""
+    }
+  ]
+}

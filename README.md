@@ -18,6 +18,7 @@
 | GitHub 网络 | ghfast 镜像 git 配置 + release/raw 下载脚本 | `tools/gh-dl.ps1`、`docs/github-network.md` |
 | 安全 | 敏感凭据只进 `.env`/环境变量，不进 patch/仓库；asar 只走官方工具 | `docs/security-notes.md` |
 | **Agent-native 开发** | **`dsh-dev-tools` 插件**：`dsh_status`/`dsh_patch`/`dsh_build`/`dsh_upgrade` 四工具，agent 会话内 native 操作开发/升级链路 | `tools/dsh-dev-tools/` |
+| **可重放/自愈工具** | 组件版本、端口/服务/配置/模型/图片能力自检；严格标记补丁；安全备份、回滚和桌面恢复 | `tools/dsh-replay.ps1`、`docs/windows-replay-tooling.md` |
 | **会话数据安全** | 重复会话 ID 扫描器 + **原子迁移工具**（官方帧读写、备份在 sessions 外、header 归属校验、验证后删旧）+ **启动预检 preflight**（--smoke 隔离 home 冒烟起 backend）+ 运维脚本 `Set-StrictMode` 加固 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs`、`tools/preflight-check.mjs`、`docs/ab-self-heal.md` |
 | **会话迁移/侧边栏分组** | 侧边栏按 Host Workspace 注册表（`storages/workspace.json`）分组而非 header.cwd；**标准迁移工具 v2**（文件+注册表一步同步，幂等）、**事后修复**（定点/`--auto` 全量对账）、**运行时修复**（动态 Cordis 插件模板，DSH 运行中无需重启）、**全链路自测**（隔离 home 16 断言） | `tools/dsh-move-session.mjs`、`tools/dsh-workspace-fix.mjs`、`tools/workspace-fix-plugin.template.js`、`tools/dsh-workspace-lib.mjs`、`tools/dsh-move-session.selftest.mjs`、`docs/session-move-workspace-groups.md` |
 | **自愈体系（Tauri 适配）** | **`dsh-doctor`** 11 项体检 + `--fix` 自动修复（补丁重打/断链重建/重复 insert 禁用/禁用插件隔离/vendor 恢复）+ `--smoke` 隔离启动 + `--list-plugins`；**A/B 新壳化**（rescue=DSH_HOME=B 传参给 Tauri 壳、restart=脱树外壳重启+doctor 前置、promote=新健康条件+静态插件清单）；旧式 swap 事务升级器退役（core 升级由壳管理）；`dsh-dev-tools` 新增 **`dsh_doctor`** agent 工具 | `tools/dsh-doctor.mjs`、`tools/dsh-rescue.ps1`、`tools/dsh-restart-detached.ps1`、`tools/dsh-restart-worker.ps1`、`tools/dsh-restart-patched.ps1`、`tools/dsh-backup.ps1`、`tools/dsh-dev-tools/`、`tools/vendor/dsh-zstd/`、`docs/ab-tauri-adapt.md` |
@@ -27,6 +28,7 @@
 1. **补丁类**（`tools/*.mjs`）：直接 `node <script>`，路径用环境变量/参数传入（见各文件头注释），不写死本机路径。
 2. **文档类**：经验与踩坑记录，含根因分析与验证方式。
 3. **compat-check**：0 依赖 Node 脚本，装插件前跑一次（静态 import 清单 + `--probe` 实测加载）。
+4. **重放/自愈**：先运行 `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck`，再用 `-Action Apply -DryRun` 预览严格标记补丁。
 
 ## 合规说明
 

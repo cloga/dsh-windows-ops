@@ -12,7 +12,7 @@
 | 启动稳定性 | 首次启动 60s 超时根因（MCP launcher 网络阻塞）+ 修复 | `docs/startup-60s-timeout.md` |
 | 品牌/版本 | 窗口标题品牌 + **版本号**（`DeepSeek Harness v<version>`）补丁 —— **[历史]**：Tauri 壳下由 `patch-worker.mjs applyBrand` 覆盖（3 文件），窗口标题由壳/dsh-tauri 管理，`patch-brand-title.mjs` 仅保留思路参考 | `tools/patch-brand-title.mjs`（历史）、`tools/dsh-updater/patch-worker.mjs` |
 | 视觉双通道 | 模型感知双通道（官方 + vision 兜底）设计 + admission 判定铁律 | `docs/vision-dual-channel.md` |
-| A/B 自愈 | 配置快照 + 数据 junction + 脱树计划任务重启 + 事务化升级 | `docs/ab-self-heal.md` |
+| A/B 自愈 | 配置快照 + 数据 junction + 救援/晋升 —— 版本与修复细节见下方「自愈体系（Tauri 适配）」 | `docs/ab-self-heal.md`、`docs/ab-tauri-adapt.md` |
 | 插件安装 | 桌面版插件铁律（junction 必崩 → 物化拷贝）+ compat-check | `tools/dsh-compat-check.mjs` |
 | PowerShell 坑 | 5.1 下 HttpClient 需 Add-Type（计划任务健康检查恒失败） | `docs/powershell-5.1-pitfalls.md` |
 | GitHub 网络 | ghfast 镜像 git 配置 + release/raw 下载脚本 | `tools/gh-dl.ps1`、`docs/github-network.md` |
@@ -46,3 +46,4 @@
 
 - Windows 10/11，`D:\node.exe`（或任意 Node >= 18）位置用 `NODE_BIN` 环境变量覆盖
 - DSH 桌面版（runtime 0.1.0-rc.8 / 0.1.1-rc.2 已验证）；其余版本自行验证
+

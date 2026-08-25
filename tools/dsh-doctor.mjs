@@ -332,12 +332,14 @@ if (FIX && summary.repairableFailures.length > 0) {
       else if (r.id === 'dup-insert') { r.fixResult = fixDuplicateInserts(r.data || []).map((x) => x.id + ' disabled in ' + x.patchFile).join('; ') || 'no automated match (manual review)'; }
       else if (r.id === 'banned-plugins') { r.fixResult = fixBanned(r.data || []).join('; ') || 'none'; }
       else if (r.id === 'vendor-zstd') {
-        const src = 'D:/deepseek-harness/DeepSeek Harness/resources/runtime/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/types';
-        if (fs.existsSync(src)) {
+        const here = path.join(path.dirname(fileURLToPath(import.meta.url)), 'vendor', 'dsh-zstd', 'types');
+        const oldShell = 'D:/deepseek-harness/DeepSeek Harness/resources/runtime/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/types';
+        const srcDir = fs.existsSync(oldShell) ? oldShell : (fs.existsSync(path.join(here, 'zstd.js')) ? here : null);
+        if (srcDir) {
           fs.mkdirSync(path.dirname(VENDOR_ZSTD), { recursive: true });
-          fs.cpSync(src, path.dirname(VENDOR_ZSTD), { recursive: true });
-          r.fixResult = fs.existsSync(VENDOR_ZSTD) ? 'vendor restored from old shell' : 'FAILED copy';
-        } else r.fixResult = 'source missing (old shell gone) - vendor manually from workbuddy';
+          fs.cpSync(srcDir, path.dirname(VENDOR_ZSTD), { recursive: true });
+          r.fixResult = fs.existsSync(VENDOR_ZSTD) ? 'vendor restored (from ' + srcDir + ')' : 'FAILED copy';
+        } else r.fixResult = 'no vendor source - copy tools/vendor/dsh-zstd from the dsh-windows-ops repo';
       }
     } catch (e) { r.fixResult = 'ERR ' + e.message; }
   }

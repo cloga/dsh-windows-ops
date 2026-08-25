@@ -153,6 +153,20 @@ async function toolUpgradeApply(args) {
   return { ok: true, note: 'upgrade runs in a detached flow (see docs/ab-self-heal.md). Invoked: node ' + argv.join(' ') }
 }
 
+// ---------- dsh_doctor ----------
+function tryJson(s) { try { return JSON.parse(s) } catch { return null } }
+async function toolDoctor(args) {
+  const doctor = path.join(DSH_HOME, 'tools', 'dsh-doctor.mjs')
+  const flags = ['--json']
+  if (args && args.fix) flags.push('--fix')
+  if (args && args.smoke) flags.push('--smoke')
+  const r = await run(NODE, [doctor, ...flags])
+  const parsed = r.ok ? tryJson(r.stdout) : null
+  return parsed
+    ? { ok: true, summary: parsed.summary, checks: parsed.checks.map((c) => ({ id: c.id, status: c.status, message: c.message, fixResult: c.fixResult || null })) }
+    : { ok: false, error: r.error || r.stderr || 'doctor failed', raw: (r.stdout || '').slice(0, 2000) }
+}
+
 // ---------- registration ----------
 function tool(name, description, parameters, runFn, output_extra = {}) {
   return {
@@ -171,6 +185,7 @@ function tool(name, description, parameters, runFn, output_extra = {}) {
 export function apply(ctx) {
   const register = (t) => { try { ctx.tools.register(t) } catch (e) { console.error('[dsh-dev-tools] register failed: ' + e.message) } }
   register(tool('dsh_status', 'Inspect DSH dev state: source-tree branch/commit/dirty, runtime version, patch file, A/B backup, compat-check summary.', { type: 'object', properties: {} }, () => toolStatus()))
+  register(tool('dsh_doctor', 'Health-check + self-repair for the DSH install (shell/core/patches/config YAML/plugin links/duplicate registrations/banned plugins/git/vendor/B backup/shell process). fix=true repairs known issues; smoke=true adds an isolated boot test.', { type: 'object', properties: { fix: { type: 'boolean' }, smoke: { type: 'boolean' } } }, (a) => toolDoctor(a)))
   register(tool('dsh_patch', 'Manage local patches (list/apply/rollback) from $DSH_HOME/tools/dsh-updater/patches.json. Backup before change, idempotent.', { type: 'object', properties: { action: { type: 'string', enum: ['list', 'apply', 'rollback'] } }, required: ['action'] }, (args) => (args && args.action === 'rollback') ? toolPatchRollback(args) : toolPatch(args)))
   register(tool('dsh_build', 'Build staging runtime (<runtimeDir>.new) from the source tree. Does NOT touch the running app.', { type: 'object', properties: {} }, () => toolBuild()))
   register(tool('dsh_upgrade', 'Check upstream tags (check) or start a full upgrade (apply).', { type: 'object', properties: { action: { type: 'string', enum: ['check', 'apply'] }, version: { type: 'string' } }, required: ['action'] }, (args) => (args && args.action === 'apply') ? toolUpgradeApply(args) : toolUpgradeCheck()))

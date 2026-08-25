@@ -11,7 +11,7 @@ Agent-native development tools for DeepSeek Harness (DSH), aimed at a **Windows 
 
 ## Why
 
-The packaged DSH on this machine installs into a source tree (e.g. `D:\deepseek-harness`) whose `resources/runtime` is built from that tree. Local customizations live as **patches** re-applied after every upgrade. Doing all of this from a terminal is awkward mid-session; these tools hand the agent a native handle on status/patch/build/upgrade.
+The packaged DSH on this machine installs into a source tree (`D:\deepseek-harness`) whose `resources/runtime` is built from that tree. Local customizations live as **patches** re-applied after every upgrade. Doing all of this from a terminal is awkward mid-session; these tools hand the agent a native handle on status/patch/build/upgrade.
 
 ## Configuration
 

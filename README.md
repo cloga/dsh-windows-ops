@@ -5,6 +5,11 @@
 
 本仓库收录在 **Windows 桌面版 DeepSeek Harness**（社区打包 `hairyf/deepseek-harness-desktop`，runtime `@deepseek-ai/dsh` 0.1.x）上实机踩坑、验证、修复后的经验与可复用脚本。
 
+## 改进项目总览
+
+完整的 DSH + GitHub Copilot 集成改进、上游/分叉归属、状态和验证证据统一维护在英文目录：
+**[Improvement portfolio](docs/improvement-portfolio.md)**。
+
 ## 收录内容
 
 | 类别 | 内容 | 文件 |
@@ -46,4 +51,3 @@
 
 - Windows 10/11，`D:\node.exe`（或任意 Node >= 18）位置用 `NODE_BIN` 环境变量覆盖
 - DSH 桌面版（runtime 0.1.0-rc.8 / 0.1.1-rc.2 已验证）；其余版本自行验证
-

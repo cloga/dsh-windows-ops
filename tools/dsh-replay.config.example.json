@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "dshHome": "%USERPROFILE%\\.dsh",
+  "components": [
+    {
+      "name": "dsh-desktop",
+      "rootEnv": "DSH_DESKTOP_ROOT",
+      "rootCandidates": [
+        "%LOCALAPPDATA%\\Programs\\DeepSeek Harness",
+        "%ProgramFiles%\\DeepSeek Harness"
+      ],
+      "executables": [
+        "DeepSeek Harness.exe"
+      ],
+      "versionProbes": [
+        {
+          "path": "resources\\app.asar.unpacked\\package.json",
+          "property": "version"
+        },
+        {
+          "path": "resources\\runtime\\package.json",
+          "property": "version"
+        }
+      ],
+      "fileVersionProbes": [
+        {
+          "path": "DeepSeek Harness.exe"
+        }
+      ]
+    },
+    {
+      "name": "dsh-web-search-provider",
+      "rootEnv": "DSH_WEB_SEARCH_PROVIDER_ROOT",
+      "rootCandidates": [
+        "${DSH_HOME}\\profiles\\web\\node_modules\\dsh-web-search-provider"
+      ],
+      "versionProbes": [
+        {
+          "path": "package.json",
+          "property": "version"
+        }
+      ]
+    },
+    {
+      "name": "copilot2api",
+      "rootEnv": "COPILOT2API_ROOT",
+      "rootCandidates": [
+        "%LOCALAPPDATA%\\Programs\\copilot2api"
+      ],
+      "versionProbes": [
+        {
+          "path": "package.json",
+          "property": "version"
+        }
+      ],
+      "fileVersionProbes": [
+        {
+          "path": "copilot2api.exe"
+        }
+      ]
+    },
+    {
+      "name": "pi-ai",
+      "rootEnv": "PI_AI_ROOT",
+      "rootCandidates": [
+        "${DSH_HOME}\\profiles\\web\\node_modules\\@earendil-works\\pi-ai",
+        "${DSH_HOME}\\profiles\\web\\node_modules\\@mariozechner\\pi-ai"
+      ],
+      "versionProbes": [
+        {
+          "path": "package.json",
+          "property": "version"
+        }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "name": "dsh-desktop",
+      "processPattern": "DeepSeek Harness|bin\\.js.*\\bweb\\b",
+      "ports": []
+    },
+    {
+      "name": "copilot2api",
+      "processPattern": "copilot2api",
+      "ports": [
+        7777
+      ]
+    }
+  ],
+  "configFiles": [
+    "${DSH_HOME}\\settings.json",
+    "${DSH_HOME}\\models.json",
+    "${DSH_HOME}\\profiles\\web\\settings.json"
+  ],
+  "modelEndpoints": [
+    {
+      "name": "copilot2api",
+      "baseUrl": "http://127.0.0.1:7777",
+      "baseUrlEnv": "COPILOT2API_BASE_URL",
+      "path": "/v1/models"
+    }
+  ]
+}

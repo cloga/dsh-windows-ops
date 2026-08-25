@@ -17,12 +17,14 @@ This repository collects lessons learned, root-cause analyses, and reusable scri
 | GitHub network | ghfast mirror git config + release/raw download script | `tools/gh-dl.ps1`, `docs/github-network.md` |
 | Security | Credentials only via env; asar only via the official tool; read-only MCP by default | `docs/security-notes.md` |
 | Agent-native dev | **`dsh-dev-tools` plugin**: `dsh_status` / `dsh_patch` / `dsh_build` / `dsh_upgrade` - the agent drives status/patch/build/upgrade natively inside the session | `tools/dsh-dev-tools/` |
+| Durable replay / self-heal | Versioned component inventory, service/config/model/image checks, strict replayable patches, backups, rollback, and Desktop recovery | `tools/dsh-replay.ps1`, `docs/windows-replay-tooling.md` |
 
 ## Usage
 
 1. **Patches** (`tools/*.mjs`): run with `node <script>`; paths come from environment variables / arguments (see header comments). Nothing is hard-coded to one machine.
 2. **Docs**: experience and post-mortems, with root-cause analysis and verification steps.
 3. **compat-check**: zero-dependency Node script; run before installing any community plugin (static import manifest + `--probe` real import test).
+4. **replay/self-heal**: run `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck`; use `-Action Apply -DryRun` before applying exact-marker patches.
 
 ## Key findings (short version)
 

@@ -108,26 +108,39 @@ if ((git rev-parse HEAD) -ne $expectedCommit) {
 
 corepack enable
 pnpm install --frozen-lockfile
-pnpm run build
-pnpm exec tsx scripts/release/pack.ts --family dsh
+pnpm run build:official
+pnpm run release:pack --family dsh --out dist/npm
+pnpm run release:pack --family vendor --out dist/npm-vendor
+pnpm --dir native/landlock-run/packages/entry pack --pack-destination "$PWD/dist/npm-landlock"
 
-$tarball = Get-ChildItem .\dist\npm\deepseek-ai-dsh-*.tgz |
-  Sort-Object LastWriteTime -Descending |
-  Select-Object -First 1
-npm install --global $tarball.FullName
-
-Get-Command dsh
-dsh --version
+$commit = git rev-parse HEAD
+$version = node -p "require('./apps/cli/package.json').version"
+pnpm run release:install-local -- `
+  --from dist/npm `
+  --from dist/npm-vendor `
+  --from dist/npm-landlock `
+  --prefix C:\.tools\dsh-cloga `
+  --expect-commit $commit `
+  --expect-version $version
 ```
 
-`release/pack.ts` writes the release-family tarballs to `dist/npm` by default
-and verifies the package payload before returning.
+The installer verifies the complete local runtime closure and writes
+`<prefix>\dsh-local-install.json`. The receipt records schema version, fork
+repository URL, full commit SHA, npm package identity/version, the
+Desktop-compatible prefix-root CLI, release-manifest SHA-256, and each installed
+tarball hash. The canonical CLI remains
+`<prefix>\node_modules\.bin\dsh.cmd`. The npm package keeps its official
+`@deepseek-ai/dsh` name and upstream package metadata; fork provenance comes
+only from this receipt.
 
-Keep the tarball and its source commit together in local release notes. That
-makes rollback deterministic:
+For Desktop compatibility, the installer creates the attested prefix-root
+forwarding shim:
 
 ```powershell
-npm install --global C:\Path\To\known-good-deepseek-ai-dsh.tgz
+Set-Content C:\.tools\dsh-cloga\dsh.cmd -Encoding ASCII -Value @'
+@echo off
+call "%~dp0node_modules\.bin\dsh.cmd" %*
+'@
 ```
 
 ## Install and select DSH Desktop
@@ -139,7 +152,7 @@ npm install --global C:\Path\To\known-good-deepseek-ai-dsh.tgz
    before launching Desktop:
 
    ```powershell
-   $dsh = (Get-Command dsh).Source
+   $dsh = 'C:\.tools\dsh-cloga\dsh.cmd'
    [Environment]::SetEnvironmentVariable('DSH_CLI_PATH', $dsh, 'User')
    ```
 
@@ -422,8 +435,85 @@ Do not stop after `/v1/models` responds. Verify each layer independently:
 | Compatibility | `web --probe` and `headless --probe` report no fatal imports |
 
 The replay tool extracts models from JSON configuration and HTTP responses. For
-`settings.yaml`, it currently reports existence and SHA-256 only; do not interpret
-an empty local model list as proof that the YAML routes are missing.
+`settings.yaml`, it reports profile/configuration state without exposing credentials.
+
+## Agent bootstrap command
+
+Use the repository workflow instead of asking an agent to reproduce the steps
+from prose:
+
+```powershell
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Model '<model-id-returned-by-copilot2api>'
+```
+
+The command is idempotent and fail-closed. Before changing files, it requires:
+
+- `DSH_CLI_PATH` (or the resolved `dsh`) to identify either the
+  Desktop-compatible prefix-root shim or the receipt canonical
+  `node_modules\.bin\dsh.cmd`;
+- `<prefix>\dsh-local-install.json` to attest schema 1,
+  `cloga/deepseek-harness`, a full commit SHA, the installed
+  `@deepseek-ai/dsh` name/version, prefix-root CLI consistency, the exact
+  forwarding shim and derived canonical CLI, a valid release-manifest SHA-256,
+  and matching installed package manifests;
+- the active Desktop process tree to run that package, outside the packaged
+  Desktop core;
+- `COPILOT_API_KEY` to resolve from the process environment or
+  `$DSH_HOME/.credentials.yaml`, without reading it into output;
+- copilot2api `GET /v1/models` to return the selected model with explicit image
+  metadata;
+- the active renderer and `$DSH_HOME\profiles\node_modules` fallback to expose
+  `exports.SlotOutlet = SlotOutlet;`.
+
+It then installs `dsh-web-search-provider` through the public `dsh plugin`
+command for both `web` and `headless`, writes a managed
+`copilot-responses` OpenAI Responses route, and disables the built-in
+`web-search-deepseek`, `tool-web`, and `web` rows in both profiles. The
+credential value is never copied into settings.
+
+Preview and rollback:
+
+```powershell
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Model '<model-id>' -DryRun
+
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Action Rollback -OperationId '<operation-id>'
+```
+
+Backups cover settings and every profile manifest, patch, workspace, and lock
+file the workflow may change. They default to
+`%LOCALAPPDATA%\dsh-windows-ops\copilot-backups`.
+
+The default vision check is a deterministic contract check: explicit catalog
+metadata plus the configured `openai-responses` image input route. Use
+`-VisionProbe Live` only when sending a one-pixel image request to the local
+gateway is approved. A model name is never accepted as vision evidence.
+
+The command also runs `tools\dsh-sandbox-regression-probe.mjs` against the
+installed Core. It checks the shared behavior used by both `pwsh` and `bash`:
+under effective `danger-full-access`, same-mode and `workspace-write` requests
+must execute as no-ops without approval and must retain
+`danger-full-access`; a real `workspace-write` to `danger-full-access`
+escalation must request approval exactly once. Until the owning Core fix is
+installed, the default `-SandboxGate Report` returns `expected-fail` without
+blocking this ops deployment. After installing the fixed Core, enforce it:
+
+```powershell
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Model '<model-id>' -SandboxGate Require
+```
+
+The behavior belongs to `cloga/deepseek-harness`; this repository only runs
+the public shared-helper contract and reports the gate.
+
+The workflow intentionally does not repair product-layer prerequisites.
+Renderer patch ownership remains with
+[`deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs);
+local-core packaging remains with `cloga/deepseek-harness`; Responses/search
+behavior remains with `dsh-web-search-provider`. Missing or incompatible
+markers stop the workflow with an actionable failure.
 
 ## Core improvements versus plugins
 

@@ -47,7 +47,7 @@ This does not change the user or machine execution policy.
 | Action | Behavior |
 |---|---|
 | `Preflight` | Detect Desktop, `dsh-web-search-provider`, `copilot2api`, and `pi-ai`; report versions and patch compatibility. |
-| `SelfCheck` | Add process/port checks, configuration hashes, JSON and HTTP model catalog discovery, and image-capable model detection. YAML files are existence/hash checks only. |
+| `SelfCheck` | Add process/port checks, JSON/YAML/profile hashes, local and HTTP model catalog discovery, explicit image-capability metadata, and active-core SlotOutlet compatibility. |
 | `Verify` | Report each patch as `already-applied`, `applicable`, `incompatible`, `target-not-found`, or `component-not-found`. |
 | `Apply -DryRun` | Show what would change without creating state or touching files. |
 | `Apply` | Back up each target, write through a temporary file, and record a rollback inventory. Re-running is a no-op. |
@@ -66,13 +66,22 @@ when both the component root and an exact known source marker match. Unknown
 versions are reported as `incompatible`; the tool never guesses or performs a
 broad regular-expression rewrite.
 
+Copilot bootstrap additionally invokes
+`tools/dsh-sandbox-regression-probe.mjs` against the active Core. The probe
+does not implement sandbox policy: it calls the installed shared escalation
+helper and verifies the pwsh/bash delegation contract. Pre-fix Core builds are
+reported as an external `expected-fail`; `-SandboxGate Require` turns that
+status into a fail-closed prerequisite after the Core fix is installed.
+
 Each entry labels its lifecycle:
 
 - `upstreamed`: an upstream release or linked pull request contains the durable fix.
 - `temporary`: a local compatibility patch that should be removed after the
   compatibility matrix confirms the installed version includes the upstream fix.
 
-The replay-ID, sandbox sanitization, image bypass, and dynamic Copilot model
+The active-core renderer entry verifies the exact `SlotOutlet` export used by
+`dsh-tauri-ui`; it does not patch an unknown renderer. The replay-ID, sandbox
+sanitization, image bypass, and dynamic Copilot model
 discovery entries verify behavior already present in
 `dsh-web-search-provider 0.2.3-cloga.1`; they are labeled `upstreamed`. The Desktop
 recovery entry remains a temporary exact-marker patch. Do not put credentials or
@@ -82,7 +91,7 @@ complete local configuration files in the manifest.
 
 | Component | Detection | Replay/self-heal coverage | Validated baseline | Patch lifecycle |
 |---|---|---|---|---|
-| DSH Desktop | Runtime or unpacked package version | Process/port health, `--no-open` recovery verification, exact-path restart | Runtime `0.1.0-rc.8`, `0.1.1-rc.2` | Temporary Desktop patch; remove when packaged upstream behavior matches. |
+| DSH Desktop / local core | Runtime or unpacked package version plus `DSH_CORE_ROOT` or npm flat global layout | Process/port health, active renderer SlotOutlet verification, `--no-open` recovery verification, exact-path restart | Runtime `0.1.0-rc.8`, `0.1.1-rc.2` | Temporary Desktop compatibility marker; remove when upstream exports SlotOutlet. |
 | `dsh-web-search-provider` | `package.json` plus exported `deployment-baseline.json` under `DSH_WEB_SEARCH_PROVIDER_ROOT` or DSH profile | Replay ID, grounded sandbox sanitization, image bypass, Copilot model discovery, and orphan filtering | `0.2.3-cloga.1` / exact commit `f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0` | Fork deployment baseline; installer verifies all required capability IDs and the tarball SHA-256. |
 | `copilot2api` | Package or executable under `COPILOT2API_ROOT`; `/v1/models` endpoint | Port/process and model catalog checks | Local service on port `7777` | Verification only; no binary rewriting. |
 | `pi-ai` | `package.json` under `PI_AI_ROOT` or DSH profile | Package version plus model/image catalog data consumed by the provider | Installed `@earendil-works/pi-ai` profile package | Verification only. |

@@ -197,21 +197,34 @@ function Find-DshModels {
     if ($Value -is [Collections.IDictionary]) {
         $id = $Value['id']
         if (-not $id) { $id = $Value['name'] }
-        $modalities = $Value['inputModalities']
+        $modalities = $Value['input']
+        if (-not $modalities) { $modalities = $Value['inputModalities'] }
         if (-not $modalities) { $modalities = $Value['modalities'] }
         $vision = $false
+        $visionEvidence = $null
         $capabilities = $Value['capabilities']
         if ($capabilities) {
             $supports = Get-DshPropertyValue -InputObject $capabilities -Name 'supports'
             $limits = Get-DshPropertyValue -InputObject $capabilities -Name 'limits'
-            if ($supports -and (Get-DshPropertyValue -InputObject $supports -Name 'vision') -eq $true) { $vision = $true }
-            if ($limits -and (Get-DshPropertyValue -InputObject $limits -Name 'vision')) { $vision = $true }
+            if ($supports -and (Get-DshPropertyValue -InputObject $supports -Name 'vision') -eq $true) {
+                $vision = $true
+                $visionEvidence = 'capabilities.supports.vision'
+            }
+            if ($limits -and (Get-DshPropertyValue -InputObject $limits -Name 'vision')) {
+                $vision = $true
+                $visionEvidence = 'capabilities.limits.vision'
+            }
         }
         if ($id) {
             $text = (($modalities | ForEach-Object { [string]$_ }) -join ',').ToLowerInvariant()
+            if ($text -match 'image|vision') {
+                $vision = $true
+                $visionEvidence = 'input-modalities'
+            }
             $Models.Add([pscustomobject]@{
                 id           = [string]$id
-                imageCapable = [bool]($vision -or $text -match 'image|vision' -or [string]$id -match '(?i)vision|image|vlm|multimodal')
+                imageCapable = [bool]$vision
+                visionEvidence = $visionEvidence
                 modalities   = @($modalities)
             })
         }
@@ -290,6 +303,7 @@ function Get-DshEndpointChecks {
                 statusCode         = [int]$response.StatusCode
                 reachable          = $true
                 modelCount         = @($models | Select-Object -ExpandProperty id -Unique).Count
+                models             = @($models | Sort-Object id -Unique)
                 imageCapableModels = @($models | Where-Object imageCapable | Select-Object -ExpandProperty id -Unique)
                 error              = $null
             }
@@ -305,6 +319,7 @@ function Get-DshEndpointChecks {
                 statusCode         = $statusCode
                 reachable          = [bool]($statusCode -eq 401 -or $statusCode -eq 403)
                 modelCount         = 0
+                models             = @()
                 imageCapableModels = @()
                 error              = if ($statusCode -eq 401 -or $statusCode -eq 403) { 'authentication-required' } else { 'connection-or-response-failed' }
             }

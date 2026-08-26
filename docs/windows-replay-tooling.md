@@ -24,13 +24,25 @@ powershell.exe -File tools\dsh-replay.ps1 -Action Apply -Config $env:LOCALAPPDAT
 
 The example configuration uses environment variables and standard install
 locations. Keep local paths in the copied configuration, not in this repository.
+`rootEnv`, `rootCandidates`, `versionProbes`, `fileVersionProbes`, and
+`baseUrlEnv` are optional. Minimal local configurations may omit them; the module
+must remain valid under `Set-StrictMode`.
+
+If local execution policy blocks `.ps1` files, use a process-scoped override:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\dsh-replay.ps1 `
+  -Action SelfCheck -Config $env:LOCALAPPDATA\dsh-replay.json
+```
+
+This does not change the user or machine execution policy.
 
 ## Commands
 
 | Action | Behavior |
 |---|---|
 | `Preflight` | Detect Desktop, `dsh-web-search-provider`, `copilot2api`, and `pi-ai`; report versions and patch compatibility. |
-| `SelfCheck` | Add process/port checks, configuration hashes, local and HTTP model catalog discovery, and image-capable model detection. |
+| `SelfCheck` | Add process/port checks, configuration hashes, JSON and HTTP model catalog discovery, and image-capable model detection. YAML files are existence/hash checks only. |
 | `Verify` | Report each patch as `already-applied`, `applicable`, `incompatible`, `target-not-found`, or `component-not-found`. |
 | `Apply -DryRun` | Show what would change without creating state or touching files. |
 | `Apply` | Back up each target, write through a temporary file, and record a rollback inventory. Re-running is a no-op. |
@@ -82,5 +94,5 @@ node tools\dsh-move-session.selftest.mjs
 
 The Pester suite uses only temporary fixture trees. It proves dry-run has no side
 effects, repeated application is idempotent, rollback restores the original
-bytes, component versions are detected, and traversal outside a component root is
-rejected.
+bytes, component versions are detected, omitted optional configuration properties
+remain valid under StrictMode, and traversal outside a component root is rejected.

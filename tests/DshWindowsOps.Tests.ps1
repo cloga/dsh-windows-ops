@@ -49,6 +49,39 @@ Describe 'DSH replay patching' {
         $inventory[0].version | Should Be '1.2.3'
     }
 
+    It 'accepts components without optional root and version properties under StrictMode' {
+        $minimalConfig = [pscustomobject]@{
+            dshHome = (Join-Path $TestDrive '.dsh')
+            components = @(
+                [pscustomobject]@{
+                    name = 'minimal'
+                    rootCandidates = @($root)
+                }
+            )
+        }
+
+        $inventory = @(Get-DshComponentInventory -Config $minimalConfig)
+        $inventory[0].installed | Should Be $true
+        $inventory[0].version | Should BeNullOrEmpty
+        $inventory[0].root | Should Be $root
+    }
+
+    It 'accepts model endpoints without an optional baseUrlEnv under StrictMode' {
+        $minimalConfig = [pscustomobject]@{
+            modelEndpoints = @(
+                [pscustomobject]@{
+                    name = 'unreachable-fixture'
+                    baseUrl = 'http://127.0.0.1:1'
+                    path = '/v1/models'
+                }
+            )
+        }
+
+        $checks = @(Get-DshEndpointChecks -Config $minimalConfig)
+        $checks[0].name | Should Be 'unreachable-fixture'
+        $checks[0].reachable | Should Be $false
+    }
+
     It 'does not change files in dry-run mode' {
         $result = Invoke-DshPatchSet -Config $config -Manifest $manifest -DryRun -StateRoot $state
         $result.results[0].status | Should Be 'would-apply'

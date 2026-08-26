@@ -34,26 +34,37 @@ checkout of `cloga/deepseek-harness`:
 ```powershell
 corepack enable
 pnpm install --frozen-lockfile
-pnpm run build
-pnpm exec tsx scripts/release/pack.ts --family dsh
+pnpm run build:official
+pnpm run release:pack --family dsh --out dist/npm
+pnpm run release:pack --family vendor --out dist/npm-vendor
+pnpm --dir native/landlock-run/packages/entry pack --pack-destination "$PWD/dist/npm-landlock"
 
-$tarball = Get-ChildItem .\dist\npm\deepseek-ai-dsh-*.tgz |
-  Sort-Object LastWriteTime -Descending |
-  Select-Object -First 1
-npm install --global $tarball.FullName
-
-Get-Command dsh
-dsh --version
+$commit = git rev-parse HEAD
+$version = node -p "require('./apps/cli/package.json').version"
+pnpm run release:install-local -- `
+  --from dist/npm `
+  --from dist/npm-vendor `
+  --from dist/npm-landlock `
+  --prefix C:\.tools\dsh-cloga `
+  --expect-commit $commit `
+  --expect-version $version
 ```
 
-`release/pack.ts` writes the release-family tarballs to `dist/npm` by default
-and verifies the package payload before returning.
+The installer verifies the complete local runtime closure and writes
+`<prefix>\dsh-local-install.json`. The receipt records schema version, fork
+repository URL, full commit SHA, npm package identity/version, canonical CLI,
+release-manifest SHA-256, and each installed tarball hash. The npm package keeps
+its official `@deepseek-ai/dsh` name and upstream package metadata; fork
+provenance comes only from this receipt.
 
-Keep the tarball and its source commit together in local release notes. That
-makes rollback deterministic:
+For Desktop compatibility, create a stable prefix-root forwarding shim while
+leaving the receipt canonical CLI unchanged:
 
 ```powershell
-npm install --global C:\Path\To\known-good-deepseek-ai-dsh.tgz
+Set-Content C:\.tools\dsh-cloga\dsh.cmd -Encoding ASCII -Value @'
+@echo off
+call "%~dp0node_modules\.bin\dsh.cmd" %*
+'@
 ```
 
 ## Install and select DSH Desktop
@@ -65,7 +76,7 @@ npm install --global C:\Path\To\known-good-deepseek-ai-dsh.tgz
    before launching Desktop:
 
    ```powershell
-   $dsh = (Get-Command dsh).Source
+   $dsh = 'C:\.tools\dsh-cloga\dsh.cmd'
    [Environment]::SetEnvironmentVariable('DSH_CLI_PATH', $dsh, 'User')
    ```
 
@@ -118,9 +129,13 @@ powershell.exe -File tools\enable-copilot-search-vision.ps1 `
 
 The command is idempotent and fail-closed. Before changing files, it requires:
 
-- `DSH_CLI_PATH` (or the resolved global `dsh`) to point to an npm flat-layout
-  `@deepseek-ai/dsh` package whose manifest attests
-  `cloga/deepseek-harness`;
+- `DSH_CLI_PATH` (or the resolved `dsh`) to identify either the
+  Desktop-compatible prefix-root shim or the receipt canonical
+  `node_modules\.bin\dsh.cmd`;
+- `<prefix>\dsh-local-install.json` to attest schema 1,
+  `cloga/deepseek-harness`, a full commit SHA, the installed
+  `@deepseek-ai/dsh` name/version, canonical CLI consistency, a valid
+  release-manifest SHA-256, and matching installed package manifests;
 - the active Desktop process tree to run that package, outside the packaged
   Desktop core;
 - `COPILOT_API_KEY` to resolve from the process environment or

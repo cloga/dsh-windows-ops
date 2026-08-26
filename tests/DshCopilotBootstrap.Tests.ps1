@@ -6,6 +6,86 @@ Describe 'DSH Copilot bootstrap' {
         New-Item -ItemType Directory -Path $root -Force | Out-Null
     }
 
+    function Get-FixtureSha256 {
+        param([Parameter(Mandatory)][string]$Text)
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try {
+            $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
+            return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+        } finally {
+            $sha.Dispose()
+        }
+    }
+
+    function New-DshReceiptFixture {
+        param(
+            $SchemaVersion = 1,
+            [string]$RepositoryUrl = 'https://github.com/cloga/deepseek-harness.git',
+            [string]$PackageVersion = '1.2.3',
+            [string]$InstalledVersion = '1.2.3',
+            [string]$CommitSha = '0123456789abcdef0123456789abcdef01234567',
+            [string]$PackageSha256 = ('a' * 64),
+            [string]$ReceiptCliPath,
+            [string]$ReleaseManifestSha256
+        )
+        $prefix = Join-Path $root ([guid]::NewGuid().ToString('N'))
+        $package = Join-Path $prefix 'node_modules\@deepseek-ai\dsh'
+        $canonicalCli = Join-Path $prefix 'node_modules\.bin\dsh.cmd'
+        $desktopCli = Join-Path $prefix 'dsh.cmd'
+        New-Item -ItemType Directory -Path $package, (Split-Path $canonicalCli -Parent) -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $package 'package.json') -Encoding UTF8 -Value (
+            [ordered]@{
+                name = '@deepseek-ai/dsh'
+                version = $InstalledVersion
+                repository = [ordered]@{ url = 'git+https://github.com/deepseek-ai/deepseek-harness.git' }
+            } | ConvertTo-Json -Compress
+        )
+        Set-Content -LiteralPath $canonicalCli -Value '@echo off' -Encoding ASCII
+        Set-Content -LiteralPath $desktopCli -Value "@echo off`r`ncall `"%~dp0node_modules\.bin\dsh.cmd`" %*" -Encoding ASCII
+        $packages = @([ordered]@{
+            name = '@deepseek-ai/dsh'
+            version = $PackageVersion
+            filename = "deepseek-ai-dsh-$PackageVersion.tgz"
+            sha256 = $PackageSha256
+            files = 10
+        })
+        $manifestJson = ConvertTo-Json -InputObject $packages -Compress -Depth 4
+        if (-not $ReleaseManifestSha256) { $ReleaseManifestSha256 = Get-FixtureSha256 -Text $manifestJson }
+        $receipt = [ordered]@{
+            schemaVersion = $SchemaVersion
+            repositoryUrl = $RepositoryUrl
+            commitSha = $CommitSha
+            packageName = '@deepseek-ai/dsh'
+            packageVersion = $PackageVersion
+            releaseManifestSha256 = $ReleaseManifestSha256
+            cliPath = $(if ($ReceiptCliPath) { $ReceiptCliPath } else { $canonicalCli })
+            packages = $packages
+        }
+        Set-Content -LiteralPath (Join-Path $prefix 'dsh-local-install.json') -Encoding UTF8 -Value (
+            $receipt | ConvertTo-Json -Depth 5
+        )
+        return [pscustomobject]@{
+            prefix = $prefix
+            packageRoot = $package
+            canonicalCli = $canonicalCli
+            desktopCli = $desktopCli
+            receiptPath = Join-Path $prefix 'dsh-local-install.json'
+        }
+    }
+
+    function Test-DshCliResolutionThrows {
+        param(
+            [Parameter(Mandatory)][string]$CliPath,
+            [string[]]$GlobalRoots
+        )
+        try {
+            Resolve-DshCliInfo -DshCliPath $CliPath -GlobalRoots $GlobalRoots | Out-Null
+            return $false
+        } catch {
+            return $true
+        }
+    }
+
     It 'does not write managed settings during dry-run' {
         $path = Join-Path $root 'settings.yaml'
         Set-Content -LiteralPath $path -Value "# existing`n" -Encoding UTF8
@@ -71,17 +151,94 @@ Describe 'DSH Copilot bootstrap' {
         $text | Should Match 'providers: \[copilot-responses\]'
     }
 
-    It 'resolves the npm flat global core and validates fork provenance' {
-        $global = Join-Path $root 'global'
-        $package = Join-Path $global '@deepseek-ai\dsh'
-        New-Item -ItemType Directory -Path $package -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $package 'package.json') `
-            -Value '{"version":"1.2.3","repository":{"url":"https://github.com/cloga/deepseek-harness.git"}}' -Encoding UTF8
-        $cli = Join-Path $root 'dsh.cmd'
-        Set-Content -LiteralPath $cli -Value '@echo off' -Encoding ASCII
-        $info = Resolve-DshCliInfo -DshCliPath $cli -GlobalRoots @($global)
-        $info.packageRoot | Should Be ([IO.Path]::GetFullPath($package))
+    It 'accepts a valid receipt through the Desktop prefix-root shim' {
+        $fixture = New-DshReceiptFixture
+        $info = Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+        $info.packageRoot | Should Be ([IO.Path]::GetFullPath($fixture.packageRoot))
         $info.repository | Should Be 'cloga/deepseek-harness'
+        $info.version | Should Be '1.2.3'
+        $info.packageCount | Should Be 1
+    }
+
+    It 'accepts the receipt canonical CLI' {
+        $fixture = New-DshReceiptFixture
+        (Resolve-DshCliInfo -DshCliPath $fixture.canonicalCli).canonicalCliPath |
+            Should Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
+    }
+
+    It 'maps an implicitly discovered npm PowerShell shim to dsh.cmd' {
+        $fixture = New-DshReceiptFixture
+        Set-Content -LiteralPath (Join-Path $fixture.prefix 'dsh.ps1') -Value 'exit 1' -Encoding ASCII
+        $previousPath = $env:PATH
+        $previousCli = $env:DSH_CLI_PATH
+        try {
+            $env:PATH = $fixture.prefix + [IO.Path]::PathSeparator + $previousPath
+            $env:DSH_CLI_PATH = $null
+            (Resolve-DshCliInfo).cliPath | Should Be ([IO.Path]::GetFullPath($fixture.desktopCli))
+        } finally {
+            $env:PATH = $previousPath
+            $env:DSH_CLI_PATH = $previousCli
+        }
+    }
+
+    It 'rejects a receipt for the wrong repository' {
+        $fixture = New-DshReceiptFixture -RepositoryUrl 'https://github.com/deepseek-ai/deepseek-harness.git'
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'rejects an unsupported receipt schema' {
+        $fixture = New-DshReceiptFixture -SchemaVersion 2
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        $fixture = New-DshReceiptFixture -SchemaVersion '1'
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        $fixture = New-DshReceiptFixture -SchemaVersion $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'rejects a receipt version that differs from the installed package' {
+        $fixture = New-DshReceiptFixture -PackageVersion '1.2.4'
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'rejects a receipt CLI outside the installed prefix' {
+        $fixture = New-DshReceiptFixture -ReceiptCliPath (Join-Path $root 'other\dsh.cmd')
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'rejects malformed commit and release manifest SHAs' {
+        $fixture = New-DshReceiptFixture -CommitSha 'short'
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        $fixture = New-DshReceiptFixture -ReleaseManifestSha256 'not-a-sha'
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        $fixture = New-DshReceiptFixture -PackageSha256 'not-a-sha'
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'rejects a release manifest hash that is not linked to its package list' {
+        $fixture = New-DshReceiptFixture -ReleaseManifestSha256 ('b' * 64)
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'rejects a missing receipt' {
+        $fixture = New-DshReceiptFixture
+        Remove-Item -LiteralPath $fixture.receiptPath
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'does not fall back to trusted-looking package metadata' {
+        $fixture = New-DshReceiptFixture
+        Remove-Item -LiteralPath $fixture.receiptPath
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli -GlobalRoots @($fixture.packageRoot) |
+            Should Be $true
+    }
+
+    It 'validates the current local Core receipt when installed' {
+        $desktopCli = 'C:\.tools\dsh-cloga\dsh.cmd'
+        if (Test-Path -LiteralPath $desktopCli -PathType Leaf) {
+            $info = Resolve-DshCliInfo -DshCliPath $desktopCli
+            $info.repository | Should Be 'cloga/deepseek-harness'
+            $info.packageCount | Should BeGreaterThan 1
+        }
     }
 
     It 'requires explicit catalog metadata for vision' {

@@ -29,6 +29,19 @@
       ]
     },
     {
+      "name": "dsh-local-core",
+      "rootEnv": "DSH_CORE_ROOT",
+      "rootCandidates": [
+        "%APPDATA%\\npm\\node_modules\\@deepseek-ai\\dsh"
+      ],
+      "versionProbes": [
+        {
+          "path": "package.json",
+          "property": "version"
+        }
+      ]
+    },
+    {
       "name": "dsh-web-search-provider",
       "rootEnv": "DSH_WEB_SEARCH_PROVIDER_ROOT",
       "rootCandidates": [
@@ -89,9 +102,9 @@
     }
   ],
   "configFiles": [
-    "${DSH_HOME}\\settings.json",
-    "${DSH_HOME}\\models.json",
-    "${DSH_HOME}\\profiles\\web\\settings.json"
+    "${DSH_HOME}\\settings.yaml",
+    "${DSH_HOME}\\profiles\\web\\cordis.patch.yml",
+    "${DSH_HOME}\\profiles\\headless\\cordis.patch.yml"
   ],
   "modelEndpoints": [
     {

@@ -2,6 +2,21 @@
   "schemaVersion": 1,
   "patches": [
     {
+      "id": "active-core-renderer-slot-outlet",
+      "description": "Verify the active local core renderer exports SlotOutlet for dsh-tauri-ui.",
+      "component": "dsh-local-core",
+      "files": [
+        "node_modules\\@deepseek-ai\\dsh-client-ui-renderer\\lib\\client.js"
+      ],
+      "verifyMarkers": [
+        "function SlotOutlet",
+        "exports.SlotOutlet = SlotOutlet;",
+        "return module.exports;"
+      ],
+      "upstreamStatus": "temporary",
+      "upstreamUrl": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs"
+    },
+    {
       "id": "web-search-replay-id",
       "description": "Verify replay item IDs and session request IDs are preserved by the installed provider.",
       "component": "dsh-web-search-provider",

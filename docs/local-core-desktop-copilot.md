@@ -106,6 +106,79 @@ Keep all GitHub and provider credentials in ignored local environment files or
 the relevant platform credential store. Never copy them into DSH patches,
 profiles committed to Git, fixtures, logs, or documentation.
 
+## Agent bootstrap command
+
+Use the repository workflow instead of asking an agent to reproduce the steps
+from prose:
+
+```powershell
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Model '<model-id-returned-by-copilot2api>'
+```
+
+The command is idempotent and fail-closed. Before changing files, it requires:
+
+- `DSH_CLI_PATH` (or the resolved global `dsh`) to point to an npm flat-layout
+  `@deepseek-ai/dsh` package whose manifest attests
+  `cloga/deepseek-harness`;
+- the active Desktop process tree to run that package, outside the packaged
+  Desktop core;
+- `COPILOT_API_KEY` to resolve from the process environment or
+  `$DSH_HOME/.credentials.yaml`, without reading it into output;
+- copilot2api `GET /v1/models` to return the selected model with explicit image
+  metadata;
+- the active renderer and `$DSH_HOME\profiles\node_modules` fallback to expose
+  `exports.SlotOutlet = SlotOutlet;`.
+
+It then installs `dsh-web-search-provider` through the public `dsh plugin`
+command for both `web` and `headless`, writes a managed
+`copilot-responses` OpenAI Responses route, and disables the built-in
+`web-search-deepseek`, `tool-web`, and `web` rows in both profiles. The
+credential value is never copied into settings.
+
+Preview and rollback:
+
+```powershell
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Model '<model-id>' -DryRun
+
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Action Rollback -OperationId '<operation-id>'
+```
+
+Backups cover settings and every profile manifest, patch, workspace, and lock
+file the workflow may change. They default to
+`%LOCALAPPDATA%\dsh-windows-ops\copilot-backups`.
+
+The default vision check is a deterministic contract check: explicit catalog
+metadata plus the configured `openai-responses` image input route. Use
+`-VisionProbe Live` only when sending a one-pixel image request to the local
+gateway is approved. A model name is never accepted as vision evidence.
+
+The command also runs `tools\dsh-sandbox-regression-probe.mjs` against the
+installed Core. It checks the shared behavior used by both `pwsh` and `bash`:
+under effective `danger-full-access`, same-mode and `workspace-write` requests
+must execute as no-ops without approval and must retain
+`danger-full-access`; a real `workspace-write` to `danger-full-access`
+escalation must request approval exactly once. Until the owning Core fix is
+installed, the default `-SandboxGate Report` returns `expected-fail` without
+blocking this ops deployment. After installing the fixed Core, enforce it:
+
+```powershell
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Model '<model-id>' -SandboxGate Require
+```
+
+The behavior belongs to `cloga/deepseek-harness`; this repository only runs
+the public shared-helper contract and reports the gate.
+
+The workflow intentionally does not repair product-layer prerequisites.
+Renderer patch ownership remains with
+[`deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs);
+local-core packaging remains with `cloga/deepseek-harness`; Responses/search
+behavior remains with `dsh-web-search-provider`. Missing or incompatible
+markers stop the workflow with an actionable failure.
+
 ## Core improvements versus plugins
 
 The current fork improvements and the plugin improvements are complementary;

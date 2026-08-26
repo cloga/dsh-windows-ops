@@ -49,6 +49,15 @@ Describe 'DSH replay patching' {
         $inventory[0].version | Should Be '1.2.3'
     }
 
+    It 'uses explicit input metadata rather than model names for vision' {
+        $config.configFiles = @((Join-Path $TestDrive 'models.json'))
+        Set-Content -LiteralPath $config.configFiles[0] -Encoding UTF8 -Value @'
+{"data":[{"id":"vision-by-name-only"},{"id":"actual-image","input":["text","image"]}]}
+'@
+        $check = Get-DshConfigChecks -Config $config
+        @($check.imageCapableModels) | Should Be @('actual-image')
+    }
+
     It 'does not change files in dry-run mode' {
         $result = Invoke-DshPatchSet -Config $config -Manifest $manifest -DryRun -StateRoot $state
         $result.results[0].status | Should Be 'would-apply'

@@ -93,6 +93,58 @@ function Get-DshCopilotCatalog {
     }
 }
 
+function Get-DshRequiredProperty {
+    param(
+        [Parameter(Mandatory)]$Object,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Context
+    )
+    $property = $Object.PSObject.Properties[$Name]
+    if (-not $property -or $null -eq $property.Value) {
+        throw "$Context is missing required property '$Name'."
+    }
+    return $property.Value
+}
+
+function ConvertTo-DshRepositorySlug {
+    param([Parameter(Mandatory)][string]$RepositoryUrl)
+
+    $value = $RepositoryUrl.Trim() -replace '^git\+', ''
+    $match = [regex]::Match(
+        $value,
+        '^(?:(?:https?|ssh)://(?:git@)?|git@)?github\.com[/:](?<owner>[^/:\s]+)/(?<repo>[^/:\s]+?)(?:\.git)?/?$',
+        [Text.RegularExpressions.RegexOptions]::IgnoreCase
+    )
+    if (-not $match.Success) { throw "Receipt repositoryUrl is not a normalized GitHub repository URL." }
+    return ($match.Groups['owner'].Value + '/' + $match.Groups['repo'].Value).ToLowerInvariant()
+}
+
+function Get-DshPrefixFromCliPath {
+    param([Parameter(Mandatory)][string]$CliPath)
+
+    $normalized = $CliPath.Replace('/', '\')
+    $canonicalSuffix = '\node_modules\.bin\dsh.cmd'
+    if ($normalized.EndsWith($canonicalSuffix, [StringComparison]::OrdinalIgnoreCase)) {
+        return $normalized.Substring(0, $normalized.Length - $canonicalSuffix.Length)
+    }
+    if ([IO.Path]::GetFileName($normalized) -ieq 'dsh.cmd') {
+        return [IO.Path]::GetDirectoryName($normalized)
+    }
+    throw "DSH_CLI_PATH must name the prefix-root dsh.cmd or the receipt canonical CLI."
+}
+
+function Get-DshSha256Text {
+    param([Parameter(Mandatory)][string]$Text)
+
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
+        return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+}
+
 function Resolve-DshCliInfo {
     param(
         [string]$DshCliPath,
@@ -104,7 +156,13 @@ function Resolve-DshCliInfo {
     if (-not $candidate) { $candidate = $env:DSH_CLI_PATH }
     if (-not $candidate) {
         $command = Get-Command dsh -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($command) { $candidate = $command.Source }
+        if ($command) {
+            $candidate = $command.Source
+            if ([IO.Path]::GetExtension($candidate) -ieq '.ps1') {
+                $cmdShim = [IO.Path]::ChangeExtension($candidate, '.cmd')
+                if (Test-Path -LiteralPath $cmdShim -PathType Leaf) { $candidate = $cmdShim }
+            }
+        }
     }
     if (-not $candidate) { throw 'Local dsh CLI was not found. Set DSH_CLI_PATH.' }
     $cliPath = [IO.Path]::GetFullPath($candidate)
@@ -112,50 +170,140 @@ function Resolve-DshCliInfo {
         throw "DSH_CLI_PATH does not name a file: '$cliPath'."
     }
 
-    $roots = [Collections.Generic.List[string]]::new()
-    if ($GlobalRoots) {
-        foreach ($root in $GlobalRoots) { if ($root) { $roots.Add([IO.Path]::GetFullPath($root)) } }
-    } else {
-        if ($env:APPDATA) { $roots.Add((Join-Path $env:APPDATA 'npm\node_modules')) }
-        try {
-            $npmRoot = (& npm root --global 2>$null | Select-Object -First 1)
-            if ($npmRoot) { $roots.Add([IO.Path]::GetFullPath([string]$npmRoot)) }
-        } catch { }
+    $prefix = [IO.Path]::GetFullPath((Get-DshPrefixFromCliPath -CliPath $cliPath))
+    $canonicalCli = [IO.Path]::GetFullPath((Join-Path $prefix 'node_modules\.bin\dsh.cmd'))
+    $desktopCli = [IO.Path]::GetFullPath((Join-Path $prefix 'dsh.cmd'))
+    if ($cliPath -ine $canonicalCli -and $cliPath -ine $desktopCli) {
+        throw "DSH_CLI_PATH is not consistent with the installed prefix '$prefix'."
     }
-
-    $packageRoot = $null
-    $needle = '\node_modules\@deepseek-ai\dsh\'
-    $normalizedCli = $cliPath.Replace('/', '\')
-    $index = $normalizedCli.IndexOf($needle, [StringComparison]::OrdinalIgnoreCase)
-    if ($index -ge 0) {
-        $packageRoot = $normalizedCli.Substring(0, $index + $needle.Length - 1)
+    if (-not (Test-Path -LiteralPath $canonicalCli -PathType Leaf)) {
+        throw "The receipt canonical CLI is missing: '$canonicalCli'."
     }
-    if (-not $packageRoot) {
-        foreach ($root in $roots) {
-            $probe = Join-Path $root '@deepseek-ai\dsh'
-            if (Test-Path -LiteralPath (Join-Path $probe 'package.json') -PathType Leaf) {
-                $packageRoot = [IO.Path]::GetFullPath($probe)
-                break
-            }
+    if ($cliPath -ieq $desktopCli) {
+        $shimLines = @(
+            (Get-Content -LiteralPath $desktopCli -Encoding UTF8) |
+                ForEach-Object { $_.Trim() } |
+                Where-Object { $_ }
+        )
+        if (
+            $shimLines.Count -ne 2 -or
+            $shimLines[0] -ine '@echo off' -or
+            $shimLines[1] -notmatch '(?i)^call\s+"%~dp0node_modules\\\.bin\\dsh\.cmd"\s+%\*$'
+        ) {
+            throw "The prefix-root dsh.cmd does not forward to the receipt canonical CLI."
         }
     }
-    if (-not $packageRoot) { throw 'The npm flat global @deepseek-ai/dsh package root was not found.' }
 
+    $receiptPath = Join-Path $prefix 'dsh-local-install.json'
+    if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
+        throw "The local Core install receipt is missing: '$receiptPath'."
+    }
+    try {
+        $receipt = Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        throw "The local Core install receipt is not valid JSON: '$receiptPath'."
+    }
+    $schemaVersion = Get-DshRequiredProperty -Object $receipt -Name 'schemaVersion' -Context 'Receipt'
+    if (
+        ($schemaVersion -isnot [int] -and $schemaVersion -isnot [long]) -or
+        [int64]$schemaVersion -ne 1
+    ) {
+        throw 'The local Core install receipt schemaVersion must be 1.'
+    }
+    $repositoryUrl = [string](Get-DshRequiredProperty -Object $receipt -Name 'repositoryUrl' -Context 'Receipt')
+    $repository = ConvertTo-DshRepositorySlug -RepositoryUrl $repositoryUrl
+    if ($repository -ine $ExpectedRepository) {
+        throw "The local Core receipt repository is '$repository', expected '$ExpectedRepository'."
+    }
+    $commitSha = [string](Get-DshRequiredProperty -Object $receipt -Name 'commitSha' -Context 'Receipt')
+    if ($commitSha -notmatch '^[0-9a-fA-F]{40}$') { throw 'Receipt commitSha must be a full 40-character SHA.' }
+    $releaseManifestSha256 = [string](Get-DshRequiredProperty -Object $receipt -Name 'releaseManifestSha256' -Context 'Receipt')
+    if ($releaseManifestSha256 -notmatch '^[0-9a-fA-F]{64}$') {
+        throw 'Receipt releaseManifestSha256 must be a 64-character SHA-256.'
+    }
+    $receiptCli = [IO.Path]::GetFullPath(
+        [string](Get-DshRequiredProperty -Object $receipt -Name 'cliPath' -Context 'Receipt')
+    )
+    if ($receiptCli -ine $canonicalCli) {
+        throw "Receipt cliPath '$receiptCli' does not match canonical CLI '$canonicalCli'."
+    }
+
+    $packageRoot = [IO.Path]::GetFullPath((Join-Path $prefix 'node_modules\@deepseek-ai\dsh'))
     $manifestPath = Join-Path $packageRoot 'package.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "The installed @deepseek-ai/dsh manifest is missing: '$manifestPath'."
+    }
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $repository = ''
-    if ($manifest.repository -is [string]) { $repository = [string]$manifest.repository }
-    elseif ($manifest.repository -and $manifest.repository.url) { $repository = [string]$manifest.repository.url }
-    $normalizedRepository = $repository -replace '^git\+', '' -replace '\.git$', ''
-    if ($normalizedRepository -notmatch [regex]::Escape($ExpectedRepository)) {
-        throw "The local core package does not attest repository '$ExpectedRepository'."
+    $packageName = [string](Get-DshRequiredProperty -Object $receipt -Name 'packageName' -Context 'Receipt')
+    $packageVersion = [string](Get-DshRequiredProperty -Object $receipt -Name 'packageVersion' -Context 'Receipt')
+    if ($packageName -cne '@deepseek-ai/dsh' -or [string]$manifest.name -cne $packageName) {
+        throw 'Receipt packageName does not match the installed @deepseek-ai/dsh package.'
+    }
+    if (-not $packageVersion -or [string]$manifest.version -cne $packageVersion) {
+        throw 'Receipt packageVersion does not match the installed @deepseek-ai/dsh package.'
+    }
+
+    $receiptPackages = @((Get-DshRequiredProperty -Object $receipt -Name 'packages' -Context 'Receipt'))
+    if ($receiptPackages.Count -eq 0) { throw 'Receipt packages must contain the installed runtime closure.' }
+    $seen = @{}
+    $normalizedPackages = @()
+    foreach ($item in $receiptPackages) {
+        $name = [string](Get-DshRequiredProperty -Object $item -Name 'name' -Context 'Receipt package')
+        $version = [string](Get-DshRequiredProperty -Object $item -Name 'version' -Context "Receipt package '$name'")
+        $filename = [string](Get-DshRequiredProperty -Object $item -Name 'filename' -Context "Receipt package '$name'")
+        $sha256 = [string](Get-DshRequiredProperty -Object $item -Name 'sha256' -Context "Receipt package '$name'")
+        $files = Get-DshRequiredProperty -Object $item -Name 'files' -Context "Receipt package '$name'"
+        if (-not $name -or $seen.ContainsKey($name)) { throw "Receipt package name is empty or duplicated: '$name'." }
+        if ($name -notmatch '^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$') {
+            throw "Receipt package name is invalid: '$name'."
+        }
+        if (-not $version) { throw "Receipt package '$name' has no version." }
+        if ([IO.Path]::GetFileName($filename) -cne $filename -or $filename -notmatch '\.tgz$') {
+            throw "Receipt package '$name' has an invalid tarball filename."
+        }
+        if ($sha256 -notmatch '^[0-9a-fA-F]{64}$') { throw "Receipt package '$name' has an invalid SHA-256." }
+        if ($files -isnot [ValueType] -or [int64]$files -le 0 -or [double]$files -ne [int64]$files) {
+            throw "Receipt package '$name' has an invalid file count."
+        }
+        $seen[$name] = $true
+
+        $installedManifestPath = Join-Path $prefix (
+            'node_modules\' + $name.Replace('/', '\') + '\package.json'
+        )
+        if (-not (Test-Path -LiteralPath $installedManifestPath -PathType Leaf)) {
+            throw "Receipt package '$name' is not installed under the receipt prefix."
+        }
+        $installedManifest = Get-Content -LiteralPath $installedManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ([string]$installedManifest.name -cne $name -or [string]$installedManifest.version -cne $version) {
+            throw "Receipt package '$name@$version' does not match its installed manifest."
+        }
+        $normalizedPackages += [ordered]@{
+            name = $name
+            version = $version
+            filename = $filename
+            sha256 = $sha256.ToLowerInvariant()
+            files = [int64]$files
+        }
+    }
+    if (-not $seen.ContainsKey($packageName)) {
+        throw "Receipt packages do not include '$packageName'."
+    }
+    $manifestJson = ConvertTo-Json -InputObject @($normalizedPackages) -Compress -Depth 4
+    if ((Get-DshSha256Text -Text $manifestJson) -ine $releaseManifestSha256) {
+        throw 'Receipt releaseManifestSha256 does not match the listed installed packages.'
     }
 
     return [pscustomobject]@{
         cliPath = $cliPath
-        packageRoot = [IO.Path]::GetFullPath($packageRoot)
-        version = [string]$manifest.version
+        canonicalCliPath = $canonicalCli
+        prefix = $prefix
+        packageRoot = $packageRoot
+        version = $packageVersion
         repository = $ExpectedRepository
+        commitSha = $commitSha.ToLowerInvariant()
+        receiptPath = [IO.Path]::GetFullPath($receiptPath)
+        releaseManifestSha256 = $releaseManifestSha256.ToLowerInvariant()
+        packageCount = $receiptPackages.Count
     }
 }
 

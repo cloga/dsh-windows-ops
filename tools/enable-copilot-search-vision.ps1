@@ -129,6 +129,10 @@ if ($Action -eq 'Apply') {
         packageRoot = $cli.packageRoot
         version = $cli.version
         repository = $cli.repository
+        commitSha = $cli.commitSha
+        receiptPath = $cli.receiptPath
+        releaseManifestSha256 = $cli.releaseManifestSha256
+        packageCount = $cli.packageCount
         activeProcessIds = $core.processIds
     }
     renderer = @{ healthy = $renderer.healthy }

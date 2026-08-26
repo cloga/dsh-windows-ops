@@ -1,0 +1,5 @@
+- id: web-search-provider
+  name: dsh-web-search-provider
+  config:
+    enabled: true
+    probe: true

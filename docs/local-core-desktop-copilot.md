@@ -4,6 +4,57 @@ This is the maintained deployment baseline for testing
 [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) with DSH
 Desktop and GitHub Copilot-backed models on Windows.
 
+## Authoritative locked workflow
+
+The executable contract is
+[`deployments/windows-copilot.lock.json`](../deployments/windows-copilot.lock.json),
+not the command fragments below. Future agents must run the orchestrator in
+default check mode first:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-windows-copilot.ps1
+```
+
+Check mode validates the lock and prints the complete ordered plan without
+changing the machine. `-Apply` additionally requires exact core/provider
+checkouts, the two release artifacts, and a captured `/v1/models` response.
+The installer verifies release SHA-256 values and source commits, builds with
+the package managers recorded by each source repository, installs the core,
+all loader dependencies, all Tauri packages, and the provider tarball in one
+global npm transaction, updates the web profile and routes, and then replaces
+all four profile plugin entries with physical directories.
+
+Every touched settings/profile file and plugin directory is copied under
+`%LOCALAPPDATA%\dsh-windows-ops\deployment-backups` before replacement. That
+root is rejected if it resolves under `$DSH_HOME\sessions`. The installer does
+not persist credentials, user-specific paths, execution-policy changes,
+`NODE_OPTIONS`, or any other global environment policy.
+
+Use a catalog captured from the authenticated loopback gateway:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:7777/v1/models |
+  ConvertTo-Json -Depth 20 |
+  Set-Content $env:TEMP\copilot-models.json -Encoding UTF8
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-windows-copilot.ps1 -Apply `
+  -HarnessSourceRoot C:\Path\To\deepseek-harness `
+  -ProviderSourceRoot C:\Path\To\dsh-web-search-provider `
+  -DesktopArtifactPath C:\Path\To\Deepseek.Harness.Desktop_0.8.2_x64-setup.exe `
+  -GatewayArtifactPath C:\Path\To\copilot2api-windows-amd64.exe `
+  -ModelCatalogPath $env:TEMP\copilot-models.json
+```
+
+The catalog's `supported_endpoints` metadata assigns models independently to
+the `openai-responses` and `openai-completions` routes. The installer never
+creates the reserved `github-copilot` route ID. Existing unsupported YAML
+shapes or an existing forbidden route fail closed before replacement.
+
+The remaining sections explain the locked workflow and recovery rationale.
+Do not execute them as a substitute for the manifest and orchestrator.
+
 ## Supported architecture
 
 DSH Desktop 0.8.2 supports a local core, but it does not accept a Harness fork
@@ -38,6 +89,7 @@ The installation described here was verified with:
 | Node / npm / pnpm | `24.19.0` / `11.17.0` / `11.7.0` |
 | `copilot2api` | `0.6.1`, loopback `127.0.0.1:7777` |
 | Desktop profile plugins | `dsh-tauri@0.2.0`, `dsh-tauri-ui@0.1.0`, `dsh-tauri-worktree@0.1.0` |
+| Hosted-search provider | `cloga/dsh-web-search-provider` PR #3, `0.2.3-cloga.1`, commit `f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0`, tarball SHA-256 `D1DED34F5A2B8B1A1E82AA9D6477C0F660D0CD307F14589C26E52C2FB7C18E8F` |
 
 Record exact versions and the fork commit for each deployment. Treat this table as
 evidence for this installation, not as an unbounded compatibility claim.
@@ -167,7 +219,8 @@ Do not assume the provider fork's default branch contains every open upstream
 change. Record and verify the exact source commit before building. The
 2026-08-26 deployment used
 [`cloga/dsh-web-search-provider` PR #3](https://github.com/cloga/dsh-web-search-provider/pull/3),
-commit `bd40ffbd4cf57db917a163f16d654363d3e87ea7`, which integrates the
+commit `f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0`, which exports the
+`cloga.dsh-windows-copilot.web-search` exact-pin deployment baseline and integrates the
 validated replay-ID, sandbox, image, model-catalog, and orphaned replay-pair
 fixes.
 
@@ -191,7 +244,7 @@ Install the reviewed tarball into the Desktop web profile, then add
 `$DSH_HOME\profiles\web\package.json`:
 
 ```powershell
-dsh plugin --profile web add .\dist\dsh-web-search-provider-0.2.2.tgz --save-exact
+dsh plugin --profile web add .\dist\dsh-web-search-provider-0.2.3-cloga.1.tgz --save-exact
 ```
 
 pnpm 11 refuses dependency lifecycle scripts until each package is classified.
@@ -215,6 +268,17 @@ failed. The latter exercises replay safety: oversized item IDs and orphaned
 function-call halves must be dropped or normalized before the next Responses
 request. A successful reply must contain provider-native search evidence and
 must not request `DEEPSEEK_API_KEY`.
+
+The lock records this as an injectable smoke contract. Save a successful raw
+Responses payload and validate it without exposing credentials:
+
+```powershell
+tools\install-windows-copilot.ps1 `
+  -SearchSmokeResponsePath C:\Path\To\redacted-responses-result.json
+```
+
+If no response is supplied, check mode reports the smoke as manual rather than
+claiming success.
 
 ## Recover missing loader dependencies
 

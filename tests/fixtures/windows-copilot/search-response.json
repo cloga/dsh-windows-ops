@@ -1,0 +1,34 @@
+{
+  "status": "completed",
+  "output": [
+    {
+      "type": "web_search_call",
+      "action": {
+        "type": "search",
+        "sources": [
+          {
+            "type": "url",
+            "url": "https://example.test/source",
+            "title": "Fixture source"
+          }
+        ]
+      }
+    },
+    {
+      "type": "message",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "Fixture grounded answer.",
+          "annotations": [
+            {
+              "type": "url_citation",
+              "url": "https://example.test/source",
+              "title": "Fixture source"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

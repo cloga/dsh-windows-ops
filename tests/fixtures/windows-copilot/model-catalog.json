@@ -1,0 +1,24 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "responses-only",
+      "supported_endpoints": [
+        "/v1/responses"
+      ]
+    },
+    {
+      "id": "completions-only",
+      "supported_endpoints": [
+        "/v1/chat/completions"
+      ]
+    },
+    {
+      "id": "dual-wire",
+      "supported_endpoints": [
+        "/v1/responses",
+        "/v1/chat/completions"
+      ]
+    }
+  ]
+}

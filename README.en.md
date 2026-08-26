@@ -25,7 +25,7 @@ evidence, and compatibility guidance.
 | Security | Credentials only via env; asar only via the official tool; read-only MCP by default | `docs/security-notes.md` |
 | Agent-native dev | **`dsh-dev-tools` plugin**: `dsh_status` / `dsh_patch` / `dsh_build` / `dsh_upgrade` - the agent drives status/patch/build/upgrade natively inside the session | `tools/dsh-dev-tools/` |
 | Durable replay / self-heal | Versioned component inventory, service/config/model/image checks, strict replayable patches, backups, rollback, and Desktop recovery | `tools/dsh-replay.ps1`, `docs/windows-replay-tooling.md` |
-| Local core + Desktop + Copilot | Keep the official Desktop shell while running the `cloga/deepseek-harness` local core; pin the CLI with `DSH_CLI_PATH`; configure dual-protocol Copilot2API routes and `dsh-web-search-provider` hosted search; recover missing optional loader dependencies; enforce identity boundaries, acceptance checks, and safe upgrades | `docs/local-core-desktop-copilot.md` |
+| Local core + Desktop + Copilot | Machine-locked, check-first installation of Desktop, fork core, Copilot2API, loader packages, physical Tauri/search plugins, dual-protocol routes, backups, and acceptance contracts | `deployments/windows-copilot.lock.json`, `tools/install-windows-copilot.ps1`, `docs/local-core-desktop-copilot.md` |
 
 ## Usage
 
@@ -33,6 +33,7 @@ evidence, and compatibility guidance.
 2. **Docs**: experience and post-mortems, with root-cause analysis and verification steps.
 3. **compat-check**: zero-dependency Node script; run before installing any community plugin (static import manifest + `--probe` real import test).
 4. **replay/self-heal**: run `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck`; use `-Action Apply -DryRun` before applying exact-marker patches. If execution policy blocks scripts, add process-scoped `-NoProfile -ExecutionPolicy Bypass` rather than changing machine policy.
+5. **Windows Copilot deployment**: run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1`. Check mode is the default and makes no changes. Supply the locked source checkouts, release artifacts, model-catalog snapshot, and explicit `-Apply` only after the plan is clean.
 
 ## Key findings (short version)
 

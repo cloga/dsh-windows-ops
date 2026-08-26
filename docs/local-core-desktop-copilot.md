@@ -52,13 +52,15 @@ pnpm run release:install-local -- `
 
 The installer verifies the complete local runtime closure and writes
 `<prefix>\dsh-local-install.json`. The receipt records schema version, fork
-repository URL, full commit SHA, npm package identity/version, canonical CLI,
-release-manifest SHA-256, and each installed tarball hash. The npm package keeps
-its official `@deepseek-ai/dsh` name and upstream package metadata; fork
-provenance comes only from this receipt.
+repository URL, full commit SHA, npm package identity/version, the
+Desktop-compatible prefix-root CLI, release-manifest SHA-256, and each installed
+tarball hash. The canonical CLI remains
+`<prefix>\node_modules\.bin\dsh.cmd`. The npm package keeps its official
+`@deepseek-ai/dsh` name and upstream package metadata; fork provenance comes
+only from this receipt.
 
-For Desktop compatibility, create a stable prefix-root forwarding shim while
-leaving the receipt canonical CLI unchanged:
+For Desktop compatibility, the installer creates the attested prefix-root
+forwarding shim:
 
 ```powershell
 Set-Content C:\.tools\dsh-cloga\dsh.cmd -Encoding ASCII -Value @'
@@ -134,8 +136,9 @@ The command is idempotent and fail-closed. Before changing files, it requires:
   `node_modules\.bin\dsh.cmd`;
 - `<prefix>\dsh-local-install.json` to attest schema 1,
   `cloga/deepseek-harness`, a full commit SHA, the installed
-  `@deepseek-ai/dsh` name/version, canonical CLI consistency, a valid
-  release-manifest SHA-256, and matching installed package manifests;
+  `@deepseek-ai/dsh` name/version, prefix-root CLI consistency, the exact
+  forwarding shim and derived canonical CLI, a valid release-manifest SHA-256,
+  and matching installed package manifests;
 - the active Desktop process tree to run that package, outside the packaged
   Desktop core;
 - `COPILOT_API_KEY` to resolve from the process environment or

@@ -26,7 +26,8 @@ Describe 'DSH Copilot bootstrap' {
             [string]$CommitSha = '0123456789abcdef0123456789abcdef01234567',
             [string]$PackageSha256 = ('a' * 64),
             [string]$ReceiptCliPath,
-            [string]$ReleaseManifestSha256
+            [string]$ReleaseManifestSha256,
+            [string]$DesktopShim = "@ECHO off`r`n@CALL `"%~dp0node_modules\.bin\dsh.cmd`" %*"
         )
         $prefix = Join-Path $root ([guid]::NewGuid().ToString('N'))
         $package = Join-Path $prefix 'node_modules\@deepseek-ai\dsh'
@@ -41,7 +42,7 @@ Describe 'DSH Copilot bootstrap' {
             } | ConvertTo-Json -Compress
         )
         Set-Content -LiteralPath $canonicalCli -Value '@echo off' -Encoding ASCII
-        Set-Content -LiteralPath $desktopCli -Value "@echo off`r`ncall `"%~dp0node_modules\.bin\dsh.cmd`" %*" -Encoding ASCII
+        Set-Content -LiteralPath $desktopCli -Value $DesktopShim -Encoding ASCII
         $packages = @([ordered]@{
             name = '@deepseek-ai/dsh'
             version = $PackageVersion
@@ -58,7 +59,7 @@ Describe 'DSH Copilot bootstrap' {
             packageName = '@deepseek-ai/dsh'
             packageVersion = $PackageVersion
             releaseManifestSha256 = $ReleaseManifestSha256
-            cliPath = $(if ($ReceiptCliPath) { $ReceiptCliPath } else { $canonicalCli })
+            cliPath = $(if ($ReceiptCliPath) { $ReceiptCliPath } else { $desktopCli })
             packages = $packages
         }
         Set-Content -LiteralPath (Join-Path $prefix 'dsh-local-install.json') -Encoding UTF8 -Value (
@@ -151,19 +152,50 @@ Describe 'DSH Copilot bootstrap' {
         $text | Should Match 'providers: \[copilot-responses\]'
     }
 
-    It 'accepts a valid receipt through the Desktop prefix-root shim' {
+    It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {
         $fixture = New-DshReceiptFixture
         $info = Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+        $info.cliPath | Should Be ([IO.Path]::GetFullPath($fixture.desktopCli))
+        $info.canonicalCliPath | Should Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
         $info.packageRoot | Should Be ([IO.Path]::GetFullPath($fixture.packageRoot))
         $info.repository | Should Be 'cloga/deepseek-harness'
         $info.version | Should Be '1.2.3'
         $info.packageCount | Should Be 1
     }
 
-    It 'accepts the receipt canonical CLI' {
+    It 'accepts the canonical user input alias with a root receipt' {
         $fixture = New-DshReceiptFixture
         (Resolve-DshCliInfo -DshCliPath $fixture.canonicalCli).canonicalCliPath |
             Should Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
+    }
+
+    It 'rejects malformed Desktop shim forwarding' {
+        $fixture = New-DshReceiptFixture -DesktopShim "@echo off`r`n@call `"%~dp0other\dsh.cmd`" %*"
+        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should Be $true
+
+        $fixture = New-DshReceiptFixture -DesktopShim "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" --unsafe %*"
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+
+        $fixture = New-DshReceiptFixture -DesktopShim " @echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*"
+        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should Be $true
+    }
+
+    It 'rejects a receipt that records the canonical alias' {
+        $fixture = New-DshReceiptFixture
+        $receipt = Get-Content -LiteralPath $fixture.receiptPath -Raw | ConvertFrom-Json
+        $receipt.cliPath = $fixture.canonicalCli
+        Set-Content -LiteralPath $fixture.receiptPath -Encoding UTF8 -Value (
+            $receipt | ConvertTo-Json -Depth 5
+        )
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+    }
+
+    It 'rejects an unrelated dsh path' {
+        $fixture = New-DshReceiptFixture
+        $unrelatedCli = Join-Path $fixture.prefix 'other\dsh.cmd'
+        New-Item -ItemType Directory -Path (Split-Path $unrelatedCli -Parent) -Force | Out-Null
+        Set-Content -LiteralPath $unrelatedCli -Value '@echo off' -Encoding ASCII
+        Test-DshCliResolutionThrows -CliPath $unrelatedCli | Should Be $true
     }
 
     It 'maps an implicitly discovered npm PowerShell shim to dsh.cmd' {

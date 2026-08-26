@@ -179,19 +179,16 @@ function Resolve-DshCliInfo {
     if (-not (Test-Path -LiteralPath $canonicalCli -PathType Leaf)) {
         throw "The receipt canonical CLI is missing: '$canonicalCli'."
     }
-    if ($cliPath -ieq $desktopCli) {
-        $shimLines = @(
-            (Get-Content -LiteralPath $desktopCli -Encoding UTF8) |
-                ForEach-Object { $_.Trim() } |
-                Where-Object { $_ }
-        )
-        if (
-            $shimLines.Count -ne 2 -or
-            $shimLines[0] -ine '@echo off' -or
-            $shimLines[1] -notmatch '(?i)^call\s+"%~dp0node_modules\\\.bin\\dsh\.cmd"\s+%\*$'
-        ) {
-            throw "The prefix-root dsh.cmd does not forward to the receipt canonical CLI."
-        }
+    if (-not (Test-Path -LiteralPath $desktopCli -PathType Leaf)) {
+        throw "The receipt prefix-root CLI is missing: '$desktopCli'."
+    }
+    $shimLines = @(Get-Content -LiteralPath $desktopCli -Encoding UTF8)
+    if (
+        $shimLines.Count -ne 2 -or
+        $shimLines[0] -notmatch '(?i)^@?echo off$' -or
+        $shimLines[1] -notmatch '(?i)^@?call "%~dp0node_modules\\\.bin\\dsh\.cmd" %\*$'
+    ) {
+        throw "The prefix-root dsh.cmd does not forward to the receipt canonical CLI."
     }
 
     $receiptPath = Join-Path $prefix 'dsh-local-install.json'
@@ -224,8 +221,8 @@ function Resolve-DshCliInfo {
     $receiptCli = [IO.Path]::GetFullPath(
         [string](Get-DshRequiredProperty -Object $receipt -Name 'cliPath' -Context 'Receipt')
     )
-    if ($receiptCli -ine $canonicalCli) {
-        throw "Receipt cliPath '$receiptCli' does not match canonical CLI '$canonicalCli'."
+    if ($receiptCli -ine $desktopCli) {
+        throw "Receipt cliPath '$receiptCli' does not match prefix-root CLI '$desktopCli'."
     }
 
     $packageRoot = [IO.Path]::GetFullPath((Join-Path $prefix 'node_modules\@deepseek-ai\dsh'))

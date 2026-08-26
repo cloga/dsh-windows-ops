@@ -143,15 +143,78 @@ Never copy either credential into DSH settings, logs, fixtures, or documentation
    Store an explicitly non-secret placeholder in the DSH credential store; do not
    put a real token or the placeholder in committed settings.
 7. Refresh model discovery and select a model returned by `/v1/models`.
-8. Install `dsh-web-search-provider` only when Responses/web-search behavior is
-   needed. Keep plugin installation profile-scoped and follow the packaged
-   Desktop compatibility rules.
+8. Install `dsh-web-search-provider` when Copilot-backed hosted search is
+   required. The Harness core improvements do not inject the provider-native
+   `web_search` wire; without this plugin, the agent-visible `web_search` tool
+   can fall back to built-in `web-search-deepseek` and require
+   `DEEPSEEK_API_KEY`.
 9. Re-run `tools\dsh-replay.ps1 -Action SelfCheck` and confirm that service,
    model-catalog, and image-capability checks match the selected model.
 
 Keep all GitHub and provider credentials in ignored local environment files or
 the relevant platform credential store. Never copy them into DSH patches,
 profiles committed to Git, fixtures, logs, or documentation.
+
+## Install the hosted-search provider
+
+Core and plugin improvements are complementary. The local Harness fork owns
+generic provider metadata, readiness, and image-capability propagation.
+`dsh-web-search-provider` owns endpoint probing, native `web_search` injection,
+Responses SSE translation, replay normalization, grounded sandbox escalation,
+and image bypass to the official attachment channel.
+
+Do not assume the provider fork's default branch contains every open upstream
+change. Record and verify the exact source commit before building. The
+2026-08-26 deployment used
+[`cloga/dsh-web-search-provider` PR #3](https://github.com/cloga/dsh-web-search-provider/pull/3),
+commit `bd40ffbd4cf57db917a163f16d654363d3e87ea7`, which integrates the
+validated replay-ID, sandbox, image, model-catalog, and orphaned replay-pair
+fixes.
+
+Build with the package manager declared by the provider repository. On Windows,
+run the cross-platform build stages directly if its `clean` script uses
+`rm -rf`:
+
+```powershell
+npx --yes pnpm@11.3.0 install --frozen-lockfile
+npx --yes pnpm@11.3.0 test
+npx --yes pnpm@11.3.0 run typecheck
+
+Remove-Item -LiteralPath .\lib -Recurse -Force -ErrorAction SilentlyContinue
+npx --yes pnpm@11.3.0 exec tsc -p tsconfig.json
+npx --yes pnpm@11.3.0 exec tsdown
+npx --yes pnpm@11.3.0 pack --pack-destination .\dist
+```
+
+Install the reviewed tarball into the Desktop web profile, then add
+`dsh-web-search-provider` to `dsh.profile.bundles` in
+`$DSH_HOME\profiles\web\package.json`:
+
+```powershell
+dsh plugin --profile web add .\dist\dsh-web-search-provider-0.2.2.tgz --save-exact
+```
+
+pnpm 11 refuses dependency lifecycle scripts until each package is classified.
+If installation reports `ERR_PNPM_IGNORED_BUILDS`, inspect the named packages
+and add only reviewed entries to the profile's `pnpm-workspace.yaml`; never
+apply a global allow:
+
+```yaml
+allowBuilds:
+  '@google/genai': true
+  protobufjs: true
+```
+
+Any profile install can recreate the Desktop plugin junctions. Re-materialize
+`dsh-tauri`, `dsh-tauri-ui`, `dsh-tauri-worktree`, and
+`dsh-web-search-provider` as physical directories using the procedure below,
+then restart Desktop.
+
+Validate search in both a new session and a session whose previous search
+failed. The latter exercises replay safety: oversized item IDs and orphaned
+function-call halves must be dropped or normalized before the next Responses
+request. A successful reply must contain provider-native search evidence and
+must not request `DEEPSEEK_API_KEY`.
 
 ## Recover missing loader dependencies
 

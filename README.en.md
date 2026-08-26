@@ -25,7 +25,7 @@ evidence, and compatibility guidance.
 | Security | Credentials only via env; asar only via the official tool; read-only MCP by default | `docs/security-notes.md` |
 | Agent-native dev | **`dsh-dev-tools` plugin**: `dsh_status` / `dsh_patch` / `dsh_build` / `dsh_upgrade` - the agent drives status/patch/build/upgrade natively inside the session | `tools/dsh-dev-tools/` |
 | Durable replay / self-heal | Versioned component inventory, service/config/model/image checks, strict replayable patches, backups, rollback, and Desktop recovery | `tools/dsh-replay.ps1`, `docs/windows-replay-tooling.md` |
-| Local core + Desktop + Copilot | Keep the official Desktop shell while running the `cloga/deepseek-harness` local core; pin the CLI with `DSH_CLI_PATH`; configure dual-protocol Copilot2API routes; recover missing optional loader dependencies; enforce identity boundaries, acceptance checks, and safe upgrades | `docs/local-core-desktop-copilot.md` |
+| Local core + Desktop + Copilot | Keep the official Desktop shell while running the `cloga/deepseek-harness` local core; pin the CLI with `DSH_CLI_PATH`; configure dual-protocol Copilot2API routes and `dsh-web-search-provider` hosted search; recover missing optional loader dependencies; enforce identity boundaries, acceptance checks, and safe upgrades | `docs/local-core-desktop-copilot.md` |
 
 ## Usage
 

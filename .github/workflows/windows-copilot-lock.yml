@@ -34,6 +34,14 @@ jobs:
       - name: Run fixture tests under Windows PowerShell 5.1
         shell: powershell
         run: |
+          $pester = Get-Module Pester -ListAvailable |
+            Where-Object Version -ge ([version]'5.7.1') |
+            Sort-Object Version -Descending |
+            Select-Object -First 1
+          if (-not $pester) {
+            throw 'Pester 5.7.1 or newer is required.'
+          }
+          Import-Module $pester.Path -Force
           $result = Invoke-Pester -Path .\tests -PassThru
           if ($result.FailedCount -gt 0) {
             exit 1

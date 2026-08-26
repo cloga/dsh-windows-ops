@@ -102,6 +102,8 @@ safer than claiming compatibility from a package version alone.
 ## Tests
 
 ```powershell
+Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser
+Import-Module Pester -RequiredVersion 5.7.1
 Invoke-Pester tests
 node tools\dsh-move-session.selftest.mjs
 ```

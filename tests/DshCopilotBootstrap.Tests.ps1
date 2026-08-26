@@ -6,6 +6,7 @@ Describe 'DSH Copilot bootstrap' {
         New-Item -ItemType Directory -Path $root -Force | Out-Null
     }
 
+    BeforeAll {
     function Get-FixtureSha256 {
         param([Parameter(Mandatory)][string]$Text)
         $sha = [Security.Cryptography.SHA256]::Create()
@@ -86,6 +87,7 @@ Describe 'DSH Copilot bootstrap' {
             return $true
         }
     }
+    }
 
     It 'does not write managed settings during dry-run' {
         $path = Join-Path $root 'settings.yaml'
@@ -93,8 +95,8 @@ Describe 'DSH Copilot bootstrap' {
         $before = Get-Content -LiteralPath $path -Raw
         $result = Set-DshCopilotSettings -Path $path -BaseUrl 'http://127.0.0.1:7777/v1' `
             -Model 'fixture-model' -VisionCapable $true -DryRun
-        $result.status | Should Be 'would-change'
-        Get-Content -LiteralPath $path -Raw | Should Be $before
+        $result.status | Should -Be 'would-change'
+        Get-Content -LiteralPath $path -Raw | Should -Be $before
     }
 
     It 'is idempotent for settings and profile patches' {
@@ -102,11 +104,11 @@ Describe 'DSH Copilot bootstrap' {
         $patch = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $patch -Value "[]`n" -Encoding UTF8
         (Set-DshCopilotSettings -Path $settings -BaseUrl 'http://127.0.0.1:7777/v1' `
-            -Model 'fixture-model' -VisionCapable $true).status | Should Be 'changed'
+            -Model 'fixture-model' -VisionCapable $true).status | Should -Be 'changed'
         (Set-DshCopilotSettings -Path $settings -BaseUrl 'http://127.0.0.1:7777/v1' `
-            -Model 'fixture-model' -VisionCapable $true).status | Should Be 'unchanged'
-        (Set-DshCopilotProfilePatch -Path $patch).status | Should Be 'changed'
-        (Set-DshCopilotProfilePatch -Path $patch).status | Should Be 'unchanged'
+            -Model 'fixture-model' -VisionCapable $true).status | Should -Be 'unchanged'
+        (Set-DshCopilotProfilePatch -Path $patch).status | Should -Be 'changed'
+        (Set-DshCopilotProfilePatch -Path $patch).status | Should -Be 'unchanged'
     }
 
     It 'refuses duplicate managed blocks' {
@@ -125,7 +127,7 @@ Describe 'DSH Copilot bootstrap' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'refuses unmanaged conflicts outside an existing managed block' {
@@ -139,7 +141,7 @@ Describe 'DSH Copilot bootstrap' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'disables conflicting search rows in the managed profile block' {
@@ -147,37 +149,37 @@ Describe 'DSH Copilot bootstrap' {
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8
         Set-DshCopilotProfilePatch -Path $path | Out-Null
         $text = Get-Content -LiteralPath $path -Raw
-        $text | Should Match '(?s)- id: web-search-deepseek\s+disabled: true'
-        $text | Should Match '(?s)- id: tool-web\s+disabled: true'
-        $text | Should Match 'providers: \[copilot-responses\]'
+        $text | Should -Match '(?s)- id: web-search-deepseek\s+disabled: true'
+        $text | Should -Match '(?s)- id: tool-web\s+disabled: true'
+        $text | Should -Match 'providers: \[copilot-responses\]'
     }
 
     It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {
         $fixture = New-DshReceiptFixture
         $info = Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
-        $info.cliPath | Should Be ([IO.Path]::GetFullPath($fixture.desktopCli))
-        $info.canonicalCliPath | Should Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
-        $info.packageRoot | Should Be ([IO.Path]::GetFullPath($fixture.packageRoot))
-        $info.repository | Should Be 'cloga/deepseek-harness'
-        $info.version | Should Be '1.2.3'
-        $info.packageCount | Should Be 1
+        $info.cliPath | Should -Be ([IO.Path]::GetFullPath($fixture.desktopCli))
+        $info.canonicalCliPath | Should -Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
+        $info.packageRoot | Should -Be ([IO.Path]::GetFullPath($fixture.packageRoot))
+        $info.repository | Should -Be 'cloga/deepseek-harness'
+        $info.version | Should -Be '1.2.3'
+        $info.packageCount | Should -Be 1
     }
 
     It 'accepts the canonical user input alias with a root receipt' {
         $fixture = New-DshReceiptFixture
         (Resolve-DshCliInfo -DshCliPath $fixture.canonicalCli).canonicalCliPath |
-            Should Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
+            Should -Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
     }
 
     It 'rejects malformed Desktop shim forwarding' {
         $fixture = New-DshReceiptFixture -DesktopShim "@echo off`r`n@call `"%~dp0other\dsh.cmd`" %*"
-        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should -Be $true
 
         $fixture = New-DshReceiptFixture -DesktopShim "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" --unsafe %*"
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
 
         $fixture = New-DshReceiptFixture -DesktopShim " @echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*"
-        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should -Be $true
     }
 
     It 'rejects a receipt that records the canonical alias' {
@@ -187,7 +189,7 @@ Describe 'DSH Copilot bootstrap' {
         Set-Content -LiteralPath $fixture.receiptPath -Encoding UTF8 -Value (
             $receipt | ConvertTo-Json -Depth 5
         )
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'rejects an unrelated dsh path' {
@@ -195,7 +197,7 @@ Describe 'DSH Copilot bootstrap' {
         $unrelatedCli = Join-Path $fixture.prefix 'other\dsh.cmd'
         New-Item -ItemType Directory -Path (Split-Path $unrelatedCli -Parent) -Force | Out-Null
         Set-Content -LiteralPath $unrelatedCli -Value '@echo off' -Encoding ASCII
-        Test-DshCliResolutionThrows -CliPath $unrelatedCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $unrelatedCli | Should -Be $true
     }
 
     It 'maps an implicitly discovered npm PowerShell shim to dsh.cmd' {
@@ -206,7 +208,7 @@ Describe 'DSH Copilot bootstrap' {
         try {
             $env:PATH = $fixture.prefix + [IO.Path]::PathSeparator + $previousPath
             $env:DSH_CLI_PATH = $null
-            (Resolve-DshCliInfo).cliPath | Should Be ([IO.Path]::GetFullPath($fixture.desktopCli))
+            (Resolve-DshCliInfo).cliPath | Should -Be ([IO.Path]::GetFullPath($fixture.desktopCli))
         } finally {
             $env:PATH = $previousPath
             $env:DSH_CLI_PATH = $previousCli
@@ -215,61 +217,61 @@ Describe 'DSH Copilot bootstrap' {
 
     It 'rejects a receipt for the wrong repository' {
         $fixture = New-DshReceiptFixture -RepositoryUrl 'https://github.com/deepseek-ai/deepseek-harness.git'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'rejects an unsupported receipt schema' {
         $fixture = New-DshReceiptFixture -SchemaVersion 2
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
         $fixture = New-DshReceiptFixture -SchemaVersion '1'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
         $fixture = New-DshReceiptFixture -SchemaVersion $true
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'rejects a receipt version that differs from the installed package' {
         $fixture = New-DshReceiptFixture -PackageVersion '1.2.4'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'rejects a receipt CLI outside the installed prefix' {
         $fixture = New-DshReceiptFixture -ReceiptCliPath (Join-Path $root 'other\dsh.cmd')
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'rejects malformed commit and release manifest SHAs' {
         $fixture = New-DshReceiptFixture -CommitSha 'short'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
         $fixture = New-DshReceiptFixture -ReleaseManifestSha256 'not-a-sha'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
         $fixture = New-DshReceiptFixture -PackageSha256 'not-a-sha'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'rejects a release manifest hash that is not linked to its package list' {
         $fixture = New-DshReceiptFixture -ReleaseManifestSha256 ('b' * 64)
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'rejects a missing receipt' {
         $fixture = New-DshReceiptFixture
         Remove-Item -LiteralPath $fixture.receiptPath
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should Be $true
+        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
     It 'does not fall back to trusted-looking package metadata' {
         $fixture = New-DshReceiptFixture
         Remove-Item -LiteralPath $fixture.receiptPath
         Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli -GlobalRoots @($fixture.packageRoot) |
-            Should Be $true
+            Should -Be $true
     }
 
     It 'validates the current local Core receipt when installed' {
         $desktopCli = 'C:\.tools\dsh-cloga\dsh.cmd'
         if (Test-Path -LiteralPath $desktopCli -PathType Leaf) {
             $info = Resolve-DshCliInfo -DshCliPath $desktopCli
-            $info.repository | Should Be 'cloga/deepseek-harness'
-            $info.packageCount | Should BeGreaterThan 1
+            $info.repository | Should -Be 'cloga/deepseek-harness'
+            $info.packageCount | Should -BeGreaterThan 1
         }
     }
 
@@ -278,8 +280,8 @@ Describe 'DSH Copilot bootstrap' {
             [pscustomobject]@{ id = 'vision-by-name-only' },
             [pscustomobject]@{ id = 'actual-image'; input = @('text', 'image') }
         ) }
-        (Get-DshCatalogModel -Catalog $catalog -Model 'vision-by-name-only').visionCapable | Should Be $false
-        (Get-DshCatalogModel -Catalog $catalog -Model 'actual-image').visionCapable | Should Be $true
+        (Get-DshCatalogModel -Catalog $catalog -Model 'vision-by-name-only').visionCapable | Should -Be $false
+        (Get-DshCatalogModel -Catalog $catalog -Model 'actual-image').visionCapable | Should -Be $true
     }
 
     It 'accepts only an active Desktop descendant using the local package' {
@@ -288,7 +290,7 @@ Describe 'DSH Copilot bootstrap' {
             [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'DeepSeek Harness.exe'; CommandLine = 'desktop' },
             [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; Name = 'node.exe'; CommandLine = 'node C:\npm\node_modules\@deepseek-ai\dsh\apps\cli\lib\index.js web' }
         )
-        (Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes).healthy | Should Be $true
+        (Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes).healthy | Should -Be $true
     }
 
     It 'refuses a renderer without the exact SlotOutlet marker' {
@@ -305,7 +307,7 @@ Describe 'DSH Copilot bootstrap' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'backs up and restores every tracked profile file' {
@@ -321,7 +323,7 @@ Describe 'DSH Copilot bootstrap' {
         })
         Complete-DshCopilotBackup -StateRoot $state -OperationId $backup.operationId -ExpectedStates $expected | Out-Null
         Restore-DshCopilotBackup -StateRoot $state -OperationId $backup.operationId | Out-Null
-        (Get-Content -LiteralPath $file -Raw).Trim() | Should Be 'before'
+        (Get-Content -LiteralPath $file -Raw).Trim() | Should -Be 'before'
     }
 
     It 'refuses rollback after a tracked file changes again' {
@@ -343,8 +345,8 @@ Describe 'DSH Copilot bootstrap' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
-        (Get-Content -LiteralPath $file -Raw).Trim() | Should Be 'later-user-change'
+        $threw | Should -Be $true
+        (Get-Content -LiteralPath $file -Raw).Trim() | Should -Be 'later-user-change'
     }
 
     It 'reports the pre-fix sandbox contract as expected-fail' {
@@ -364,7 +366,7 @@ export async function approveEscalation(request, approval) {
         Set-Content -LiteralPath (Join-Path $pwsh 'index.js') -Encoding UTF8 -Value 'approveEscalation'
         $result = Test-DshSandboxRegression -PackageRoot $package `
             -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Report
-        $result.status | Should Be 'expected-fail'
+        $result.status | Should -Be 'expected-fail'
     }
 
     It 'passes same narrower and wider sandbox behavior without lowering policy' {
@@ -385,7 +387,7 @@ export async function approveEscalation(request, approval) {
         Set-Content -LiteralPath (Join-Path $pwsh 'index.js') -Encoding UTF8 -Value 'approveEscalation'
         $result = Test-DshSandboxRegression -PackageRoot $package `
             -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Require
-        $result.status | Should Be 'passed'
-        $result.effectiveMode | Should Be 'danger-full-access'
+        $result.status | Should -Be 'passed'
+        $result.effectiveMode | Should -Be 'danger-full-access'
     }
 }

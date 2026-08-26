@@ -45,8 +45,8 @@ Describe 'DSH replay patching' {
 
     It 'detects component versions without exposing file contents' {
         $inventory = @(Get-DshComponentInventory -Config $config)
-        $inventory[0].installed | Should Be $true
-        $inventory[0].version | Should Be '1.2.3'
+        $inventory[0].installed | Should -Be $true
+        $inventory[0].version | Should -Be '1.2.3'
     }
 
     It 'accepts components without optional root and version properties under StrictMode' {
@@ -61,9 +61,9 @@ Describe 'DSH replay patching' {
         }
 
         $inventory = @(Get-DshComponentInventory -Config $minimalConfig)
-        $inventory[0].installed | Should Be $true
-        $inventory[0].version | Should BeNullOrEmpty
-        $inventory[0].root | Should Be $root
+        $inventory[0].installed | Should -Be $true
+        $inventory[0].version | Should -BeNullOrEmpty
+        $inventory[0].root | Should -Be $root
     }
 
     It 'accepts model endpoints without an optional baseUrlEnv under StrictMode' {
@@ -78,8 +78,8 @@ Describe 'DSH replay patching' {
         }
 
         $checks = @(Get-DshEndpointChecks -Config $minimalConfig)
-        $checks[0].name | Should Be 'unreachable-fixture'
-        $checks[0].reachable | Should Be $false
+        $checks[0].name | Should -Be 'unreachable-fixture'
+        $checks[0].reachable | Should -Be $false
     }
 
     It 'uses explicit input metadata rather than model names for vision' {
@@ -88,26 +88,26 @@ Describe 'DSH replay patching' {
 {"data":[{"id":"vision-by-name-only"},{"id":"actual-image","input":["text","image"]}]}
 '@
         $check = Get-DshConfigChecks -Config $config
-        @($check.imageCapableModels) | Should Be @('actual-image')
+        @($check.imageCapableModels) | Should -Be @('actual-image')
     }
 
     It 'does not change files in dry-run mode' {
         $result = Invoke-DshPatchSet -Config $config -Manifest $manifest -DryRun -StateRoot $state
-        $result.results[0].status | Should Be 'would-apply'
-        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should Be 'before TARGET after'
-        Test-Path -LiteralPath $state | Should Be $false
+        $result.results[0].status | Should -Be 'would-apply'
+        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should -Be 'before TARGET after'
+        Test-Path -LiteralPath $state | Should -Be $false
     }
 
     It 'is idempotent and creates a rollback backup' {
         $first = Invoke-DshPatchSet -Config $config -Manifest $manifest -StateRoot $state
         $second = Invoke-DshPatchSet -Config $config -Manifest $manifest -StateRoot $state
-        $first.results[0].status | Should Be 'applied'
-        $second.results[0].status | Should Be 'already-applied'
-        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should Be 'before PATCHED after'
+        $first.results[0].status | Should -Be 'applied'
+        $second.results[0].status | Should -Be 'already-applied'
+        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should -Be 'before PATCHED after'
 
         $rollback = Restore-DshPatchSet -Config $config -Manifest $manifest -OperationId $first.operationId -StateRoot $state
-        $rollback.results[0].status | Should Be 'restored'
-        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should Be 'before TARGET after'
+        $rollback.results[0].status | Should -Be 'restored'
+        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should -Be 'before TARGET after'
     }
 
     It 'rejects patch targets that escape the component root' {
@@ -125,7 +125,7 @@ Describe 'DSH replay patching' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'rejects rollback operation traversal' {
@@ -136,7 +136,7 @@ Describe 'DSH replay patching' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'rejects tampered rollback targets' {
@@ -152,7 +152,7 @@ Describe 'DSH replay patching' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'refuses to overwrite a file changed after patching' {
@@ -164,8 +164,8 @@ Describe 'DSH replay patching' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
-        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should Match 'new vendor build'
+        $threw | Should -Be $true
+        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should -Match 'new vendor build'
     }
 
     It 'does not partially restore when a later file fails validation' {
@@ -189,8 +189,8 @@ Describe 'DSH replay patching' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
-        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should Be 'before PATCHED after'
+        $threw | Should -Be $true
+        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should -Be 'before PATCHED after'
     }
 
     It 'ignores a staged entry whose target was never committed' {
@@ -203,7 +203,7 @@ Describe 'DSH replay patching' {
         Copy-Item -LiteralPath (Join-Path $operationRoot 'fixture\dist\index.js') -Destination (Join-Path $root 'dist\index.js') -Force
 
         $rollback = Restore-DshPatchSet -Config $config -Manifest $manifest -OperationId $applied.operationId -StateRoot $state
-        $rollback.results[0].status | Should Be 'not-applied'
+        $rollback.results[0].status | Should -Be 'not-applied'
     }
 
     It 'rejects multiple applicable patches for the same file' {
@@ -223,8 +223,8 @@ Describe 'DSH replay patching' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
-        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should Be 'before TARGET after'
-        Test-Path -LiteralPath $state | Should Be $false
+        $threw | Should -Be $true
+        Get-Content -LiteralPath (Join-Path $root 'dist\index.js') -Raw | Should -Be 'before TARGET after'
+        Test-Path -LiteralPath $state | Should -Be $false
     }
 }

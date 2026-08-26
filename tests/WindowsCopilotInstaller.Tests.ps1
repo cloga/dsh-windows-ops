@@ -9,49 +9,49 @@ Describe 'Locked Windows Copilot deployment' {
     }
 
     It 'pins every verified source and artifact identity' {
-        $lock.components.desktop.version | Should Be '0.8.2'
-        $lock.components.desktop.artifact.sha256 | Should Be 'a87b7a5d25bd2d4942315a462407326bfb16197178ed0abb0718ab203b5c404b'
-        $lock.components.core.source.commit | Should Be '3c8be05b4218fc08da679179b50f75bf8f780cdb'
-        $lock.components.core.package.version | Should Be '0.1.1-rc.2'
-        $lock.components.gateway.source.commit | Should Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
-        $lock.components.gateway.version | Should Be '0.6.1'
-        $lock.components.searchProvider.source.commit | Should Be 'f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0'
-        $lock.components.searchProvider.package.version | Should Be '0.2.3-cloga.1'
-        $lock.components.searchProvider.package.packageManager | Should Be 'pnpm@11.7.0'
-        $lock.components.searchProvider.package.artifact.sha256 | Should Be 'd1ded34f5a2b8b1a1e82aa9d6477c0f660d0cd307f14589c26e52c2fb7c18e8f'
-        $lock.components.searchProvider.package.bundlePatch | Should Be './cordis.patch.yml'
-        @($lock.components.searchProvider.package.deploymentBaseline.requiredCapabilities).Count | Should Be 5
+        $lock.components.desktop.version | Should -Be '0.8.2'
+        $lock.components.desktop.artifact.sha256 | Should -Be 'a87b7a5d25bd2d4942315a462407326bfb16197178ed0abb0718ab203b5c404b'
+        $lock.components.core.source.commit | Should -Be '3c8be05b4218fc08da679179b50f75bf8f780cdb'
+        $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
+        $lock.components.gateway.source.commit | Should -Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
+        $lock.components.gateway.version | Should -Be '0.6.1'
+        $lock.components.searchProvider.source.commit | Should -Be 'f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0'
+        $lock.components.searchProvider.package.version | Should -Be '0.2.3-cloga.1'
+        $lock.components.searchProvider.package.packageManager | Should -Be 'pnpm@11.7.0'
+        $lock.components.searchProvider.package.artifact.sha256 | Should -Be 'd1ded34f5a2b8b1a1e82aa9d6477c0f660d0cd307f14589c26e52c2fb7c18e8f'
+        $lock.components.searchProvider.package.bundlePatch | Should -Be './cordis.patch.yml'
+        @($lock.components.searchProvider.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 5
     }
 
     It 'keeps all global packages and built artifacts in one npm transaction' {
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
             -NpmGlobalRoot (Join-Path $TestDrive 'global')
         $step = @($plan.steps | Where-Object id -eq 'install-global-transaction')[0]
-        $step.packages.Count | Should Be 8
-        ($step.packages -contains '@deepseek-ai/cordis-plugin-hmr@1.0.16') | Should Be $true
-        ($step.packages -contains '@deepseek-ai/cordis-plugin-timer@1.1.3') | Should Be $true
-        ($step.packages -contains 'node-addon-require-builtin@0.1.4') | Should Be $true
-        ($step.packages -contains '<built-core-release-family-tarballs>') | Should Be $true
-        ($step.packages -contains '<built-search-provider-tarball>') | Should Be $true
+        $step.packages.Count | Should -Be 8
+        ($step.packages -contains '@deepseek-ai/cordis-plugin-hmr@1.0.16') | Should -Be $true
+        ($step.packages -contains '@deepseek-ai/cordis-plugin-timer@1.1.3') | Should -Be $true
+        ($step.packages -contains 'node-addon-require-builtin@0.1.4') | Should -Be $true
+        ($step.packages -contains '<built-core-release-family-tarballs>') | Should -Be $true
+        ($step.packages -contains '<built-search-provider-tarball>') | Should -Be $true
     }
 
     It 'requires all four plugins to be physical after every profile install' {
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
             -NpmGlobalRoot (Join-Path $TestDrive 'global')
         $step = @($plan.steps | Where-Object id -eq 'materialize-profile-plugins')[0]
-        $step.plugins.Count | Should Be 4
-        ($step.plugins -contains 'dsh-tauri') | Should Be $true
-        ($step.plugins -contains 'dsh-tauri-ui') | Should Be $true
-        ($step.plugins -contains 'dsh-tauri-worktree') | Should Be $true
-        ($step.plugins -contains 'dsh-web-search-provider') | Should Be $true
+        $step.plugins.Count | Should -Be 4
+        ($step.plugins -contains 'dsh-tauri') | Should -Be $true
+        ($step.plugins -contains 'dsh-tauri-ui') | Should -Be $true
+        ($step.plugins -contains 'dsh-tauri-worktree') | Should -Be $true
+        ($step.plugins -contains 'dsh-web-search-provider') | Should -Be $true
     }
 
     It 'derives separate Responses and Completions model catalogs' {
         $routes = Get-WindowsCopilotRouteModels -Lock $lock -Catalog $catalog
-        @($routes['github-copilot-gateway']).Count | Should Be 2
-        @($routes['github-copilot-chat']).Count | Should Be 2
-        ($routes['github-copilot-gateway'] -contains 'responses-only') | Should Be $true
-        ($routes['github-copilot-chat'] -contains 'completions-only') | Should Be $true
+        @($routes['github-copilot-gateway']).Count | Should -Be 2
+        @($routes['github-copilot-chat']).Count | Should -Be 2
+        ($routes['github-copilot-gateway'] -contains 'responses-only') | Should -Be $true
+        ($routes['github-copilot-chat'] -contains 'completions-only') | Should -Be $true
     }
 
     It 'updates profile manifests, settings, allowBuilds, and physical plugins idempotently' {
@@ -73,47 +73,47 @@ Describe 'Locked Windows Copilot deployment' {
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot $backupRoot -SkipPackageInstall
 
         $profile = Get-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Raw | ConvertFrom-Json
-        $profile.dependencies.'fixture-dependency' | Should Be '1.0.0'
-        $profile.dependencies.'dsh-web-search-provider' | Should Match '^file:\.\./\.\./artifacts/'
-        $profile.dependencies.'dsh-tauri' | Should Be '0.2.0'
-        $profile.dependencies.'dsh-tauri-ui' | Should Be '0.1.0'
-        $profile.dependencies.'dsh-tauri-worktree' | Should Be '0.1.0'
-        @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-web-search-provider' }).Count | Should Be 1
+        $profile.dependencies.'fixture-dependency' | Should -Be '1.0.0'
+        $profile.dependencies.'dsh-web-search-provider' | Should -Match '^file:\.\./\.\./artifacts/'
+        $profile.dependencies.'dsh-tauri' | Should -Be '0.2.0'
+        $profile.dependencies.'dsh-tauri-ui' | Should -Be '0.1.0'
+        $profile.dependencies.'dsh-tauri-worktree' | Should -Be '0.1.0'
+        @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-web-search-provider' }).Count | Should -Be 1
         foreach ($bundle in @($lock.profile.requiredBundles)) {
-            @($profile.dsh.profile.bundles | Where-Object { $_ -eq $bundle }).Count | Should Be 1
+            @($profile.dsh.profile.bundles | Where-Object { $_ -eq $bundle }).Count | Should -Be 1
         }
 
         $workspace = Get-Content -LiteralPath (Join-Path $profileRoot 'pnpm-workspace.yaml') -Raw
-        $workspace | Should Match "'@google/genai': true"
-        $workspace | Should Match "'protobufjs': true"
-        @($workspace -split "`n" | Where-Object { $_ -match '@google/genai' }).Count | Should Be 1
+        $workspace | Should -Match "'@google/genai': true"
+        $workspace | Should -Match "'protobufjs': true"
+        @($workspace -split "`n" | Where-Object { $_ -match '@google/genai' }).Count | Should -Be 1
 
         $settings = Get-Content -LiteralPath (Join-Path $dshHome 'settings.yaml') -Raw
-        $settings | Should Match 'fixture-provider:'
-        $settings | Should Match 'github-copilot-gateway:'
-        $settings | Should Match "api: 'openai-responses'"
-        $settings | Should Match 'github-copilot-chat:'
-        $settings | Should Match "api: 'openai-completions'"
-        $settings | Should Not Match '^\s{4}github-copilot:'
+        $settings | Should -Match 'fixture-provider:'
+        $settings | Should -Match 'github-copilot-gateway:'
+        $settings | Should -Match "api: 'openai-responses'"
+        $settings | Should -Match 'github-copilot-chat:'
+        $settings | Should -Match "api: 'openai-completions'"
+        $settings | Should -Not -Match '^\s{4}github-copilot:'
 
         foreach ($name in @('dsh-tauri', 'dsh-tauri-ui', 'dsh-tauri-worktree', 'dsh-web-search-provider')) {
             $target = Join-Path $profileRoot (Join-Path 'node_modules' $name)
-            (Test-Path -LiteralPath (Join-Path $target 'package.json')) | Should Be $true
-            [bool]((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) | Should Be $false
+            (Test-Path -LiteralPath (Join-Path $target 'package.json')) | Should -Be $true
+            [bool]((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) | Should -Be $false
         }
-        (Test-Path -LiteralPath $first.backupRoot) | Should Be $true
-        (Test-Path -LiteralPath $second.backupRoot) | Should Be $true
-        $first.backupRoot | Should Not Match '\\sessions\\'
+        (Test-Path -LiteralPath $first.backupRoot) | Should -Be $true
+        (Test-Path -LiteralPath $second.backupRoot) | Should -Be $true
+        $first.backupRoot | Should -Not -Match '\\sessions\\'
 
         $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
             -NpmGlobalRoot $globalRoot -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') -SkipRuntimeChecks
-        $state.profile.dependencyValid | Should Be $true
-        $state.profile.bundleValid | Should Be $true
-        $state.profile.allowBuildsValid | Should Be $true
-        $state.profile.routesValid | Should Be $true
-        @($state.profile.plugins | Where-Object { -not $_.physical }).Count | Should Be 0
+        $state.profile.dependencyValid | Should -Be $true
+        $state.profile.bundleValid | Should -Be $true
+        $state.profile.allowBuildsValid | Should -Be $true
+        $state.profile.routesValid | Should -Be $true
+        @($state.profile.plugins | Where-Object { -not $_.physical }).Count | Should -Be 0
 
         $profile.dsh.profile.bundles = @($profile.dsh.profile.bundles | Where-Object { $_ -ne 'dsh-tauri' })
         $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Encoding UTF8
@@ -121,7 +121,7 @@ Describe 'Locked Windows Copilot deployment' {
             -NpmGlobalRoot $globalRoot -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') -SkipRuntimeChecks
-        $missingBundle.profile.bundleValid | Should Be $false
+        $missingBundle.profile.bundleValid | Should -Be $false
     }
 
     It 'validates composed provider and hosted-search evidence fixtures' {
@@ -131,18 +131,18 @@ Describe 'Locked Windows Copilot deployment' {
             -Content (Get-Content -LiteralPath (Join-Path $fixtureRoot 'composed-config.yml') -Raw)
         $search = Test-WindowsCopilotSearchResponse -Lock $lock `
             -ResponsePath (Join-Path $fixtureRoot 'search-response.json')
-        $composed.valid | Should Be $true
-        $composedInMemory.valid | Should Be $true
-        $search.providerNativeEvidence | Should Be $true
-        $search.deepSeekFallback | Should Be $false
+        $composed.valid | Should -Be $true
+        $composedInMemory.valid | Should -Be $true
+        $search.providerNativeEvidence | Should -Be $true
+        $search.deepSeekFallback | Should -Be $false
     }
 
     It 'validates the provider source against the exported deployment contract' {
         $result = Test-ProviderDeploymentContract -Lock $lock -SourceRoot (Join-Path $fixtureRoot 'provider')
-        $result.valid | Should Be $true
-        $result.sourceVerified | Should Be $true
-        $result.artifactVerified | Should Be $false
-        @($result.capabilities).Count | Should Be 5
+        $result.valid | Should -Be $true
+        $result.sourceVerified | Should -Be $true
+        $result.artifactVerified | Should -Be $false
+        @($result.capabilities).Count | Should -Be 5
     }
 
     It 'rejects a provider source missing a required capability' {
@@ -161,7 +161,7 @@ Describe 'Locked Windows Copilot deployment' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'rejects a tampered release artifact' {
@@ -173,7 +173,7 @@ Describe 'Locked Windows Copilot deployment' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'rejects a locked artifact with the wrong filename' {
@@ -186,7 +186,7 @@ Describe 'Locked Windows Copilot deployment' {
         } catch {
             $threw = $true
         }
-        $threw | Should Be $true
+        $threw | Should -Be $true
     }
 
     It 'rejects unsupported YAML key shapes without changing the file' {
@@ -203,8 +203,8 @@ Describe 'Locked Windows Copilot deployment' {
             } catch {
                 $threw = $true
             }
-            $threw | Should Be $true
-            Get-Content -LiteralPath $settingsPath -Raw | Should Be $before
+            $threw | Should -Be $true
+            Get-Content -LiteralPath $settingsPath -Raw | Should -Be $before
         }
     }
 
@@ -230,9 +230,9 @@ Describe 'Locked Windows Copilot deployment' {
         Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot $backupRoot -SkipPackageInstall | Out-Null
 
-        Test-Path -LiteralPath (Join-Path $outside 'sentinel.txt') | Should Be $true
+        Test-Path -LiteralPath (Join-Path $outside 'sentinel.txt') | Should -Be $true
         [bool]((Get-Item -LiteralPath (Join-Path $nodeModules 'dsh-tauri')).Attributes -band [IO.FileAttributes]::ReparsePoint) |
-            Should Be $false
+            Should -Be $false
     }
 
     It 'runs the entry script in non-mutating check mode with its default manifest' {
@@ -245,10 +245,10 @@ Describe 'Locked Windows Copilot deployment' {
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
             -SkipRuntimeChecks
-        $LASTEXITCODE | Should Be 0
+        $LASTEXITCODE | Should -Be 0
         $result = ($output -join "`n") | ConvertFrom-Json
-        $result.mode | Should Be 'check'
-        $result.checks.manifest.valid | Should Be $true
-        Test-Path -LiteralPath $dshHome | Should Be $false
+        $result.mode | Should -Be 'check'
+        $result.checks.manifest.valid | Should -Be $true
+        Test-Path -LiteralPath $dshHome | Should -Be $false
     }
 }

@@ -24,7 +24,7 @@
 | 安全 | 敏感凭据只进 `.env`/环境变量，不进 patch/仓库；asar 只走官方工具 | `docs/security-notes.md` |
 | **Agent-native 开发** | **`dsh-dev-tools` 插件**：`dsh_status`/`dsh_patch`/`dsh_build`/`dsh_upgrade` 四工具，agent 会话内 native 操作开发/升级链路 | `tools/dsh-dev-tools/` |
 | **可重放/自愈工具** | 组件版本、端口/服务/配置/模型/图片能力自检；严格标记补丁；安全备份、回滚和桌面恢复 | `tools/dsh-replay.ps1`、`docs/windows-replay-tooling.md` |
-| **本地 Core + Desktop + Copilot** | 官方 Desktop 壳优先运行 `cloga/deepseek-harness` 本地 core；`DSH_CLI_PATH` 固定 CLI；Copilot2API 模型接入；core/插件兼容边界和安全升级流程 | `docs/local-core-desktop-copilot.md` |
+| **本地 Core + Desktop + Copilot** | 机器锁定、默认只检查的安装流程：Desktop、分叉 core、Copilot2API、loader、四个物理插件、双协议路由、备份和验收契约 | `deployments/windows-copilot.lock.json`、`tools/install-windows-copilot.ps1`、`docs/local-core-desktop-copilot.md` |
 | **Copilot 搜索/视觉一键启用** | 单命令 fail-closed bootstrap：活动本地 core、双 profile Responses provider、搜索冲突禁用、模型/视觉元数据、SlotOutlet/flat-layout、备份与回滚 | `tools/enable-copilot-search-vision.ps1` |
 | **会话数据安全** | 重复会话 ID 扫描器 + **原子迁移工具**（官方帧读写、备份在 sessions 外、header 归属校验、验证后删旧）+ **启动预检 preflight**（--smoke 隔离 home 冒烟起 backend）+ 运维脚本 `Set-StrictMode` 加固 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs`、`tools/preflight-check.mjs`、`docs/ab-self-heal.md` |
 | **会话迁移/侧边栏分组** | 侧边栏按 Host Workspace 注册表（`storages/workspace.json`）分组而非 header.cwd；**标准迁移工具 v2**（文件+注册表一步同步，幂等）、**事后修复**（定点/`--auto` 全量对账）、**运行时修复**（动态 Cordis 插件模板，DSH 运行中无需重启）、**全链路自测**（隔离 home 16 断言） | `tools/dsh-move-session.mjs`、`tools/dsh-workspace-fix.mjs`、`tools/workspace-fix-plugin.template.js`、`tools/dsh-workspace-lib.mjs`、`tools/dsh-move-session.selftest.mjs`、`docs/session-move-workspace-groups.md` |
@@ -35,8 +35,9 @@
 1. **补丁类**（`tools/*.mjs`）：直接 `node <script>`，路径用环境变量/参数传入（见各文件头注释），不写死本机路径。
 2. **文档类**：经验与踩坑记录，含根因分析与验证方式。
 3. **compat-check**：0 依赖 Node 脚本，装插件前跑一次（静态 import 清单 + `--probe` 实测加载）。
-4. **重放/自愈**：先运行 `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck`，再用 `-Action Apply -DryRun` 预览严格标记补丁。
-5. **Copilot bootstrap**：运行 `powershell.exe -File tools\enable-copilot-search-vision.ps1 -Model '<catalog-model-id>'`；不满足活动 core、模型、视觉或 renderer 前置条件时不会改配置。
+4. **重放/自愈**：先运行 `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck`，再用 `-Action Apply -DryRun` 预览严格标记补丁；若本机 execution policy 禁止脚本，可为该进程添加 `-NoProfile -ExecutionPolicy Bypass`，无需修改系统策略。
+5. **Windows Copilot 部署**：运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1`。默认 check 模式不改文件；计划确认无误后，提供锁定的源码目录、发布制品、模型目录快照，并显式添加 `-Apply`。
+6. **Copilot bootstrap**：完整部署后，运行 `powershell.exe -File tools\enable-copilot-search-vision.ps1 -Model '<catalog-model-id>'`；不满足活动 core、模型、视觉或 renderer 前置条件时不会改配置。
 
 ## 合规说明
 

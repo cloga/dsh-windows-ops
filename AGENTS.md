@@ -18,6 +18,14 @@
 
 ## DSH Desktop integration baseline
 
+- Treat `deployments/windows-copilot.lock.json` as the authoritative Windows
+  Desktop + Copilot deployment contract. Run
+  `tools/install-windows-copilot.ps1` in its default check mode before any
+  install or repair; use its explicit `-Apply` mode instead of translating the
+  prose guide into ad hoc commands.
+- Do not omit, substitute, or independently upgrade a locked component. Update
+  the lock, its fixture tests, and the explanatory guide together after a new
+  baseline is verified.
 - Keep the official DSH Desktop shell unless the task specifically changes the
   shell.
 - For `cloga/deepseek-harness` changes, build a local `@deepseek-ai/dsh`
@@ -27,8 +35,9 @@
   Otherwise, verify that Desktop selected the global local CLI.
 - Do not use Desktop's local-core update action while testing the fork; it
   installs `@deepseek-ai/dsh@latest` and can replace the fork build.
-- Treat plugins and the core as separate compatibility layers. Run the
-  repository preflight/self-check and exact-marker dry run before applying
-  patches or changing a profile.
+- Treat plugins and the core as separate compatibility layers. The locked
+  installer must re-materialize all four profile plugins after every profile
+  package install. Run its check plus the repository replay self-check and
+  exact-marker dry run before applying unrelated patches.
 
 See [Local DSH core, Desktop, and GitHub Copilot practice](docs/local-core-desktop-copilot.md).

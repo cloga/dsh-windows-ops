@@ -65,11 +65,13 @@ function Resolve-DshComponentRoot {
         [AllowNull()][string]$DshHome
     )
     $candidates = [Collections.Generic.List[string]]::new()
-    if ($Component.rootEnv) {
-        $value = [Environment]::GetEnvironmentVariable([string]$Component.rootEnv)
+    $rootEnv = Get-DshPropertyValue -InputObject $Component -Name 'rootEnv'
+    if ($rootEnv) {
+        $value = [Environment]::GetEnvironmentVariable([string]$rootEnv)
         if ($value) { $candidates.Add((Expand-DshPath $value)) }
     }
-    foreach ($candidate in @($Component.rootCandidates)) {
+    foreach ($candidate in @(Get-DshPropertyValue -InputObject $Component -Name 'rootCandidates')) {
+        if (-not $candidate) { continue }
         $expanded = [string]$candidate
         if ($DshHome) { $expanded = $expanded.Replace('${DSH_HOME}', $DshHome) }
         $candidates.Add((Expand-DshPath $expanded))
@@ -104,7 +106,8 @@ function Get-DshPackageVersion {
         [Parameter(Mandatory)][string]$Root,
         [Parameter(Mandatory)]$Component
     )
-    foreach ($probe in @($Component.versionProbes)) {
+    foreach ($probe in @(Get-DshPropertyValue -InputObject $Component -Name 'versionProbes')) {
+        if (-not $probe) { continue }
         $path = Join-Path $Root ([string]$probe.path)
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
         try {
@@ -116,6 +119,7 @@ function Get-DshPackageVersion {
         }
     }
     foreach ($probe in @(Get-DshPropertyValue -InputObject $Component -Name 'fileVersionProbes')) {
+        if (-not $probe) { continue }
         $path = Join-Path $Root ([string]$probe.path)
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
         $versionInfo = (Get-Item -LiteralPath $path).VersionInfo
@@ -277,8 +281,9 @@ function Get-DshEndpointChecks {
 
     foreach ($endpoint in @($Config.modelEndpoints)) {
         $baseUrl = [string]$endpoint.baseUrl
-        if ($endpoint.baseUrlEnv) {
-            $fromEnv = [Environment]::GetEnvironmentVariable([string]$endpoint.baseUrlEnv)
+        $baseUrlEnv = Get-DshPropertyValue -InputObject $endpoint -Name 'baseUrlEnv'
+        if ($baseUrlEnv) {
+            $fromEnv = [Environment]::GetEnvironmentVariable([string]$baseUrlEnv)
             if ($fromEnv) { $baseUrl = $fromEnv }
         }
         $uri = $baseUrl.TrimEnd('/') + '/' + ([string]$endpoint.path).TrimStart('/')

@@ -1,0 +1,278 @@
+{
+  "schemaVersion": 1,
+  "deploymentId": "windows-copilot-2026-08-26",
+  "verifiedDate": "2026-08-26",
+  "platform": {
+    "os": "windows",
+    "architecture": "x64",
+    "node": "24.19.0",
+    "npm": "11.17.0"
+  },
+  "components": {
+    "desktop": {
+      "version": "0.8.2",
+      "source": {
+        "repository": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop",
+        "releaseTag": "v0.8.2"
+      },
+      "artifact": {
+        "name": "Deepseek.Harness.Desktop_0.8.2_x64-setup.exe",
+        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.8.2/Deepseek.Harness.Desktop_0.8.2_x64-setup.exe",
+        "sha256": "a87b7a5d25bd2d4942315a462407326bfb16197178ed0abb0718ab203b5c404b"
+      },
+      "install": {
+        "arguments": ["/S"],
+        "acceptedExitCodes": [0]
+      }
+    },
+    "core": {
+      "source": {
+        "repository": "https://github.com/cloga/deepseek-harness",
+        "commit": "3c8be05b4218fc08da679179b50f75bf8f780cdb"
+      },
+      "package": {
+        "name": "@deepseek-ai/dsh",
+        "version": "0.1.1-rc.2",
+        "packageManager": "pnpm@11.7.0"
+      },
+      "build": {
+        "artifactDirectory": "dist\\npm",
+        "publishOrderFile": "publish-order.txt",
+        "rootPackage": "@deepseek-ai/dsh",
+        "commands": [
+          ["install", "--frozen-lockfile"],
+          ["run", "build"],
+          ["exec", "tsx", "scripts/release/pack.ts", "--family", "dsh"]
+        ]
+      }
+    },
+    "gateway": {
+      "version": "0.6.1",
+      "source": {
+        "repository": "https://github.com/whtsky/copilot2api",
+        "releaseTag": "v0.6.1",
+        "commit": "a4aac95d4a8f430f02121f79ea36aeaaa06daea1"
+      },
+      "artifact": {
+        "name": "copilot2api-windows-amd64.exe",
+        "url": "https://github.com/whtsky/copilot2api/releases/download/v0.6.1/copilot2api-windows-amd64.exe",
+        "sha256": "3e823664415e4f0a59c9c3be00548efeb6d58839111be2795b1cdc57cf699935"
+      },
+      "listen": {
+        "host": "127.0.0.1",
+        "port": 7777
+      }
+    },
+    "searchProvider": {
+      "source": {
+        "repository": "https://github.com/cloga/dsh-web-search-provider",
+        "pullRequest": 3,
+        "commit": "f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0"
+      },
+      "package": {
+        "name": "dsh-web-search-provider",
+        "version": "0.2.3-cloga.1",
+        "packageManager": "pnpm@11.7.0",
+        "main": "lib/index.js",
+        "types": "lib/types/index.d.ts",
+        "bundlePatch": "./cordis.patch.yml",
+        "artifact": {
+          "name": "dsh-web-search-provider-0.2.3-cloga.1.tgz",
+          "sha256": "d1ded34f5a2b8b1a1e82aa9d6477c0f660d0cd307f14589c26e52c2fb7c18e8f"
+        },
+        "deploymentBaseline": {
+          "schemaVersion": 1,
+          "id": "cloga.dsh-windows-copilot.web-search",
+          "kind": "fork-deployment-baseline",
+          "sourceCommitPolicy": "exact-external-pin",
+          "platform": "windows",
+          "node": ">=22.0.0",
+          "dshRelease": "0.1.0-rc.6",
+          "copilotApi": "openai-responses",
+          "modelCatalogEndpoint": "/v1/models",
+          "metadataProfile": "optional-copilot-model-capabilities",
+          "requiredCapabilities": [
+            "responses-replay-item-id-normalization",
+            "grounded-sandbox-escalation",
+            "image-attachment-bypass",
+            "failure-safe-copilot-model-catalog",
+            "orphaned-replay-item-filtering"
+          ]
+        }
+      },
+      "build": {
+        "artifactPattern": "dist\\dsh-web-search-provider-0.2.3-cloga.1.tgz",
+        "commands": [
+          ["install", "--frozen-lockfile"],
+          ["test"],
+          ["run", "typecheck"],
+          ["run", "verify:baseline"],
+          ["exec", "tsc", "-p", "tsconfig.json"],
+          ["exec", "tsdown"],
+          ["pack", "--pack-destination", ".\\dist"]
+        ]
+      }
+    }
+  },
+  "globalInstall": {
+    "transactionId": "dsh-runtime-and-loaders",
+    "packages": [
+      {
+        "name": "@deepseek-ai/cordis-plugin-hmr",
+        "version": "1.0.16",
+        "role": "loader"
+      },
+      {
+        "name": "@deepseek-ai/cordis-plugin-timer",
+        "version": "1.1.3",
+        "role": "loader"
+      },
+      {
+        "name": "node-addon-require-builtin",
+        "version": "0.1.4",
+        "role": "loader"
+      },
+      {
+        "name": "dsh-tauri",
+        "version": "0.2.0",
+        "role": "profile-plugin"
+      },
+      {
+        "name": "dsh-tauri-ui",
+        "version": "0.1.0",
+        "role": "profile-plugin"
+      },
+      {
+        "name": "dsh-tauri-worktree",
+        "version": "0.1.0",
+        "role": "profile-plugin"
+      }
+    ]
+  },
+  "profile": {
+    "name": "web",
+    "relativePath": "profiles\\web",
+    "packageManifest": "package.json",
+    "workspaceManifest": "pnpm-workspace.yaml",
+    "lockManifest": "pnpm-lock.yaml",
+    "settingsManifest": "settings.yaml",
+    "requiredBundles": [
+      "@deepseek-ai/dsh-base",
+      "@deepseek-ai/dsh-web-app",
+      "dsh-tauri",
+      "dsh-tauri-ui",
+      "dsh-tauri-worktree",
+      "dsh-web-search-provider"
+    ],
+    "plugins": [
+      {
+        "name": "dsh-tauri",
+        "version": "0.2.0",
+        "source": "global",
+        "materialize": true
+      },
+      {
+        "name": "dsh-tauri-ui",
+        "version": "0.1.0",
+        "source": "global",
+        "materialize": true
+      },
+      {
+        "name": "dsh-tauri-worktree",
+        "version": "0.1.0",
+        "source": "global",
+        "materialize": true
+      },
+      {
+        "name": "dsh-web-search-provider",
+        "version": "0.2.3-cloga.1",
+        "source": "built-artifact",
+        "materialize": true
+      }
+    ],
+    "allowBuilds": [
+      "@google/genai",
+      "protobufjs"
+    ],
+    "routes": [
+      {
+        "id": "github-copilot-gateway",
+        "protocol": "openai-responses",
+        "endpointCapability": "/v1/responses",
+        "baseURL": "http://127.0.0.1:7777/v1",
+        "apiKeyEnv": "COPILOT2API_API_KEY"
+      },
+      {
+        "id": "github-copilot-chat",
+        "protocol": "openai-completions",
+        "endpointCapability": "/v1/chat/completions",
+        "baseURL": "http://127.0.0.1:7777/v1",
+        "apiKeyEnv": "COPILOT2API_API_KEY"
+      }
+    ],
+    "forbiddenRouteIds": [
+      "github-copilot"
+    ]
+  },
+  "acceptance": {
+    "listeners": [
+      {
+        "name": "dsh-desktop",
+        "host": "127.0.0.1",
+        "port": 3080
+      },
+      {
+        "name": "copilot2api",
+        "host": "127.0.0.1",
+        "port": 7777
+      }
+    ],
+    "modelCatalog": {
+      "url": "http://127.0.0.1:7777/v1/models",
+      "minimumModels": 1,
+      "requiredFields": [
+        "id",
+        "supported_endpoints"
+      ]
+    },
+    "composedConfig": {
+      "command": [
+        "dsh",
+        "--profile",
+        "web",
+        "--dump-config"
+      ],
+      "requiredMarkers": [
+        "dsh-web-search-provider"
+      ],
+      "requiredEntries": [
+        {
+          "id": "web-search-provider",
+          "name": "dsh-web-search-provider"
+        }
+      ]
+    },
+    "loaderImports": [
+      "@deepseek-ai/cordis-plugin-hmr",
+      "@deepseek-ai/cordis-plugin-timer",
+      "node-addon-require-builtin"
+    ],
+    "searchSmoke": {
+      "method": "POST",
+      "url": "http://127.0.0.1:7777/v1/responses",
+      "requiredToolType": "web_search",
+      "requiredEvidenceProperties": [
+        "sources",
+        "url_citation"
+      ],
+      "forbiddenText": [
+        "DEEPSEEK_API_KEY"
+      ],
+      "manualWhenModelIsUnset": true
+    }
+  },
+  "backup": {
+    "defaultRoot": "%LOCALAPPDATA%\\dsh-windows-ops\\deployment-backups",
+    "forbiddenPathSegment": "\\sessions\\"
+  }
+}

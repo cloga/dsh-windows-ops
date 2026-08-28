@@ -1,0 +1,10 @@
+locale:
+  language: en-US
+llm-pi-ai:
+  providers:
+    fixture-provider:
+      apiKeyEnv: FIXTURE_API_KEY
+      api: openai-completions
+      baseURL: 'http://127.0.0.1:9999/v1'
+      models:
+        - id: 'fixture-model'

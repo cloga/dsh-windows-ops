@@ -21,6 +21,11 @@ Describe 'Locked Windows Copilot deployment' {
         $lock.components.searchProvider.package.artifact.sha256 | Should -Be 'd1ded34f5a2b8b1a1e82aa9d6477c0f660d0cd307f14589c26e52c2fb7c18e8f'
         $lock.components.searchProvider.package.bundlePatch | Should -Be './cordis.patch.yml'
         @($lock.components.searchProvider.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 5
+        @($lock.acceptance.composedConfig.forbiddenActiveEntries) | Should -Be @(
+            'web', 'web-search-deepseek', 'tool-web'
+        )
+        $lock.acceptance.composedConfig.managedEntry.provider | Should -Be 'copilot-responses'
+        $lock.acceptance.composedConfig.managedEntry.apiKeyEnv | Should -Be 'COPILOT_API_KEY'
     }
 
     It 'keeps all global packages and built artifacts in one npm transaction' {
@@ -108,7 +113,9 @@ Describe 'Locked Windows Copilot deployment' {
         $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
             -NpmGlobalRoot $globalRoot -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
-            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') -SkipRuntimeChecks
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DshCliPath (Join-Path $TestDrive 'missing-dsh.cmd') -DesktopVersion '0.8.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 -SkipRuntimeChecks
         $state.profile.dependencyValid | Should -Be $true
         $state.profile.bundleValid | Should -Be $true
         $state.profile.allowBuildsValid | Should -Be $true
@@ -120,8 +127,12 @@ Describe 'Locked Windows Copilot deployment' {
         $missingBundle = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
             -NpmGlobalRoot $globalRoot -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
-            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') -SkipRuntimeChecks
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DshCliPath (Join-Path $TestDrive 'missing-dsh.cmd') -DesktopVersion '0.8.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 -SkipRuntimeChecks
         $missingBundle.profile.bundleValid | Should -Be $false
+        @($missingBundle.drift.reasons) | Should -Contain 'profile-bundle-drift'
+        $missingBundle.drift.remediation.status | Should -Not -Be 'not-required'
     }
 
     It 'validates composed provider and hosted-search evidence fixtures' {
@@ -133,8 +144,86 @@ Describe 'Locked Windows Copilot deployment' {
             -ResponsePath (Join-Path $fixtureRoot 'search-response.json')
         $composed.valid | Should -Be $true
         $composedInMemory.valid | Should -Be $true
+        $composed.managedConfigValid | Should -Be $true
         $search.providerNativeEvidence | Should -Be $true
         $search.deepSeekFallback | Should -Be $false
+    }
+
+    It 'rejects managed provider fields outside the config subtree' {
+        $content = @'
+- id: web-search-provider
+  name: dsh-web-search-provider
+  enabled: true
+  providers: [copilot-responses]
+  apiKeyEnv: COPILOT_API_KEY
+  config:
+    probe: true
+'@
+        { Test-WindowsCopilotComposedConfig -Lock $lock -Content $content } |
+            Should -Throw '*managed-copilot-search-config-missing*'
+    }
+
+    It 'fails closed on the exact 2026-08-28 mixed deployment signature' {
+        $caseRoot = Join-Path $TestDrive 'incident-2026-08-28'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $globalRoot = Join-Path $caseRoot 'global'
+        $corePrefix = Join-Path $caseRoot 'core-prefix'
+        $canonicalCli = Join-Path $corePrefix 'node_modules\.bin\dsh.cmd'
+        $desktopCli = Join-Path $corePrefix 'dsh.cmd'
+        New-Item -ItemType Directory -Path $profileRoot, $globalRoot, (Split-Path $canonicalCli -Parent) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
+        Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
+        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.1.tgz'
+        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+            -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
+            -SkipPackageInstall | Out-Null
+
+        $profilePath = Join-Path $profileRoot 'package.json'
+        $profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $profile.dependencies.'dsh-web-search-provider' =
+            'file:C:/Users/incident/dsh-web-search-provider/dist-all-fixes/dsh-web-search-provider-0.2.2-all-fixes-bd40ffb.tgz'
+        $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $profilePath -Encoding UTF8
+        $providerRoot = Join-Path $profileRoot 'node_modules\dsh-web-search-provider'
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider-0.2.2\package.json') `
+            -Destination (Join-Path $providerRoot 'package.json') -Force
+        Remove-Item -LiteralPath (Join-Path $providerRoot 'deployment-baseline.json') -Force
+        Set-Content -LiteralPath $canonicalCli -Value '@echo off' -Encoding ASCII
+        Set-Content -LiteralPath $desktopCli -Value "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*" -Encoding ASCII
+
+        $profileBefore = (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash
+        $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
+            -NpmGlobalRoot (Join-Path $corePrefix 'node_modules') `
+            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config-incident-2026-08-28.yml') `
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DshCliPath $desktopCli -DesktopVersion '0.9.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 -SkipRuntimeChecks
+
+        $state.complete | Should -Be $false
+        $state.readyForManualSearchSmoke | Should -Be $false
+        $state.health | Should -Be 'drifted'
+        $state.drift.incidentId | Should -Be 'windows-copilot-drift-2026-08-28'
+        $state.drift.mixedState | Should -Be $true
+        $state.deployment.desktop.status | Should -Be 'newer-than-lock'
+        $state.deployment.gateway.status | Should -Be 'locked'
+        $state.deployment.core.status | Should -Be 'receipt-missing'
+        $state.profile.providerDependency | Should -Match 'dsh-web-search-provider-0\.2\.2-all-fixes-bd40ffb\.tgz$'
+        (@($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider'))[0].baselineStatus |
+            Should -Be 'missing'
+        (@($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider'))[0].payloadStatus |
+            Should -Be 'verified'
+        $state.runtime.composedConfig.managedConfigValid | Should -Be $false
+        @($state.runtime.composedConfig.forbiddenActiveEntries) | Should -Contain 'web-search-deepseek'
+        $state.drift.remediation.status | Should -Be 'blocked-lock-update-required'
+        $state.drift.remediation.automaticApplyAllowed | Should -Be $false
+        @($state.drift.remediation.steps.action) | Should -Contain 'update-lock-or-review-compatible-migration'
+        @($state.drift.remediation.steps.action) | Should -Contain 'bootstrap-copilot-search'
+        (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash | Should -Be $profileBefore
+        Test-Path -LiteralPath (Join-Path $corePrefix 'dsh-local-install.json') | Should -Be $false
     }
 
     It 'validates the provider source against the exported deployment contract' {
@@ -187,6 +276,22 @@ Describe 'Locked Windows Copilot deployment' {
             $threw = $true
         }
         $threw | Should -Be $true
+    }
+
+    It 'refuses apply before mutation when the installed Desktop is newer than the lock' {
+        $catalog = Get-Content -LiteralPath (Join-Path $fixtureRoot 'model-catalog.json') -Raw | ConvertFrom-Json
+        {
+            Invoke-WindowsCopilotApply -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
+                -NpmGlobalRoot (Join-Path $TestDrive 'global') `
+                -HarnessSourceRoot (Join-Path $TestDrive 'missing-core-source') `
+                -ProviderSourceRoot (Join-Path $TestDrive 'missing-provider-source') `
+                -DesktopArtifactPath (Join-Path $TestDrive 'missing-desktop.exe') `
+                -GatewayArtifactPath (Join-Path $TestDrive 'missing-gateway.exe') `
+                -GatewayInstallRoot (Join-Path $TestDrive 'gateway') `
+                -BackupRoot (Join-Path $TestDrive 'backups') -Catalog $catalog -DesktopVersion '0.9.2'
+        } | Should -Throw '*Refusing a downgrade*'
+        Test-Path -LiteralPath (Join-Path $TestDrive '.dsh') | Should -Be $false
+        Test-Path -LiteralPath (Join-Path $TestDrive 'backups') | Should -Be $false
     }
 
     It 'rejects unsupported YAML key shapes without changing the file' {

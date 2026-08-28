@@ -1,7 +1,6 @@
 {
   "name": "dsh-web-search-provider",
-  "version": "0.2.3-cloga.1",
-  "packageManager": "pnpm@11.7.0",
+  "version": "0.2.2",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "dsh": {

@@ -1,0 +1,12 @@
+searchProvider: deepseek-official
+- id: web
+  name: dsh-web-app
+- id: web-search-deepseek
+  name: web-search-deepseek
+- id: tool-web
+  name: tool-web
+- id: web-search-provider
+  name: dsh-web-search-provider
+  config:
+    enabled: true
+    probe: true

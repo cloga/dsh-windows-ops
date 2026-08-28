@@ -437,6 +437,43 @@ Do not stop after `/v1/models` responds. Verify each layer independently:
 The replay tool extracts models from JSON configuration and HTTP responses. For
 `settings.yaml`, it reports profile/configuration state without exposing credentials.
 
+## 2026-08-28 mixed-version drift guard
+
+The default installer check recognizes the observed partial deployment as
+`windows-copilot-drift-2026-08-28` instead of treating listener, loader, or
+package-version markers as proof of health. The signature correlates all of the
+following:
+
+- an installed Desktop 0.9.2 shell newer than the locked 0.8.2 shell;
+- the locked copilot2api artifact alongside a receipt-less local Core;
+- an absolute profile dependency on the old
+  `dsh-web-search-provider-0.2.2-all-fixes-bd40ffb.tgz`, installed provider
+  version 0.2.2, and no exported `deployment-baseline.json`;
+- active `web`, `web-search-deepseek`, or `tool-web` entries, the legacy
+  `searchProvider: deepseek-official` marker, or a `web-search-provider` entry
+  without the managed `copilot-responses` provider and credential reference.
+
+Desktop 0.9.2 was released on 2026-08-28 from commit
+`c7c5a247961b1ca2d7389026ad7194ac108e5437`; its Windows setup asset reports
+SHA-256 `f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7`.
+Those facts are incident evidence, not a reviewed replacement deployment
+baseline. Its 0.4.9 Tauri packages are Desktop-internal and are not assumed to
+be registry-installable equivalents of the older globally locked packages.
+
+Consequently, the current 0.8.2 lock must not be applied over a detected 0.9.2
+shell. Check output sets remediation to `blocked-lock-update-required` and
+`automaticApplyAllowed: false`. A maintainer must either verify and lock a
+0.9.2-compatible topology or provide a reviewed migration that preserves and
+attests the official shell and internal plugins. The local Core must then be
+installed through its release installer so a fully validated
+`dsh-local-install.json` exists; never synthesize that receipt from a version
+string. Only after those gates pass may the compatible locked installer repair
+the provider/profile and the bootstrap configure Copilot search.
+
+When the gateway is not under the lock's default install directory, check mode
+resolves the sole loopback listener on the locked port and hashes that process
+image. Missing, public, ambiguous, or hash-mismatched listeners remain invalid.
+
 ## Agent bootstrap command
 
 Use the repository workflow instead of asking an agent to reproduce the steps

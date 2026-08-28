@@ -250,7 +250,21 @@
           "id": "web-search-provider",
           "name": "dsh-web-search-provider"
         }
-      ]
+      ],
+      "forbiddenMarkers": [
+        "searchProvider: deepseek-official"
+      ],
+      "forbiddenActiveEntries": [
+        "web",
+        "web-search-deepseek",
+        "tool-web"
+      ],
+      "managedEntry": {
+        "id": "web-search-provider",
+        "enabled": true,
+        "provider": "copilot-responses",
+        "apiKeyEnv": "COPILOT_API_KEY"
+      }
     },
     "loaderImports": [
       "@deepseek-ai/cordis-plugin-hmr",

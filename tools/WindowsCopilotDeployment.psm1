@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'DshCopilotBootstrap.psm1')
 
 function Get-LockProperty {
     param(
@@ -70,7 +71,12 @@ function Test-WindowsCopilotLock {
         'components.searchProvider.package.deploymentBaseline.kind',
         'components.searchProvider.package.deploymentBaseline.sourceCommitPolicy',
         'profile.lockManifest',
-        'profile.requiredBundles'
+        'profile.requiredBundles',
+        'acceptance.composedConfig.forbiddenMarkers',
+        'acceptance.composedConfig.forbiddenActiveEntries',
+        'acceptance.composedConfig.managedEntry.id',
+        'acceptance.composedConfig.managedEntry.provider',
+        'acceptance.composedConfig.managedEntry.apiKeyEnv'
     )) {
         $value = $Lock
         foreach ($segment in $path.Split('.')) {
@@ -175,6 +181,22 @@ function Test-WindowsCopilotLock {
         $_.id -eq 'web-search-provider' -and $_.name -eq 'dsh-web-search-provider'
     }).Count -ne 1) {
         throw 'Composed-config contract omits the active web-search-provider entry.'
+    }
+    $forbiddenEntries = @($Lock.acceptance.composedConfig.forbiddenActiveEntries)
+    foreach ($id in @('web', 'web-search-deepseek', 'tool-web')) {
+        if ($forbiddenEntries -notcontains $id) {
+            throw "Composed-config contract must reject active '$id'."
+        }
+    }
+    if (@($Lock.acceptance.composedConfig.forbiddenMarkers) -notcontains 'searchProvider: deepseek-official') {
+        throw 'Composed-config contract must reject the legacy deepseek-official search provider.'
+    }
+    $managedEntry = $Lock.acceptance.composedConfig.managedEntry
+    if ([string]$managedEntry.id -ne 'web-search-provider' -or
+        [string]$managedEntry.provider -ne 'copilot-responses' -or
+        [string]$managedEntry.apiKeyEnv -ne 'COPILOT_API_KEY' -or
+        $managedEntry.enabled -ne $true) {
+        throw 'Composed-config contract does not require the managed Copilot search provider.'
     }
     if (@($Lock.acceptance.searchSmoke.forbiddenText) -notcontains 'DEEPSEEK_API_KEY') {
         throw 'Search smoke contract must reject DEEPSEEK_API_KEY fallback.'
@@ -1001,6 +1023,129 @@ function Test-WindowsCopilotSearchResponse {
     return [pscustomobject]@{ valid = $true; providerNativeEvidence = $true; deepSeekFallback = $false }
 }
 
+function Get-ComposedConfigEntryBlock {
+    param(
+        [Parameter(Mandatory)][string]$Content,
+        [Parameter(Mandatory)][string]$Id
+    )
+    $lines = @($Content -split "`r?`n")
+    $escaped = [regex]::Escape($Id)
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -notmatch ("^(?<indent>\s*)-\s+id\s*:\s*['""]?" + $escaped + "['""]?\s*$")) {
+            continue
+        }
+        $indent = $matches['indent'].Length
+        $end = $lines.Count
+        for ($j = $i + 1; $j -lt $lines.Count; $j++) {
+            if ($lines[$j] -match '^\s*$') { continue }
+            if ($lines[$j] -match '^(?<indent>\s*)\S' -and $matches['indent'].Length -le $indent) {
+                $end = $j
+                break
+            }
+        }
+        return ($lines[$i..($end - 1)] -join "`n")
+    }
+    return $null
+}
+
+function Get-ComposedConfigChildBlock {
+    param(
+        [Parameter(Mandatory)][string]$EntryBlock,
+        [Parameter(Mandatory)][string]$Name
+    )
+    $lines = @($EntryBlock -split "`r?`n")
+    $escaped = [regex]::Escape($Name)
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -notmatch ("^(?<indent>\s*)" + $escaped + '\s*:\s*$')) {
+            continue
+        }
+        $indent = $matches['indent'].Length
+        $end = $lines.Count
+        for ($j = $i + 1; $j -lt $lines.Count; $j++) {
+            if ($lines[$j] -match '^\s*$') { continue }
+            if ($lines[$j] -match '^(?<indent>\s*)\S' -and $matches['indent'].Length -le $indent) {
+                $end = $j
+                break
+            }
+        }
+        if ($end -le $i + 1) { return '' }
+        return ($lines[($i + 1)..($end - 1)] -join "`n")
+    }
+    return $null
+}
+
+function Get-WindowsCopilotComposedConfigState {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Content
+    )
+    $reasons = [Collections.Generic.List[string]]::new()
+    $missingMarkers = @($Lock.acceptance.composedConfig.requiredMarkers | Where-Object {
+        $Content.IndexOf([string]$_, [StringComparison]::Ordinal) -lt 0
+    })
+    if ($missingMarkers.Count -gt 0) {
+        $reasons.Add('required-marker-missing')
+    }
+    $forbiddenMarkers = @($Lock.acceptance.composedConfig.forbiddenMarkers | Where-Object {
+        $Content.IndexOf([string]$_, [StringComparison]::Ordinal) -ge 0
+    })
+    if ($forbiddenMarkers.Count -gt 0) {
+        $reasons.Add('legacy-search-provider-active')
+    }
+    $missingEntries = [Collections.Generic.List[string]]::new()
+    foreach ($entry in @($Lock.acceptance.composedConfig.requiredEntries)) {
+        $block = Get-ComposedConfigEntryBlock -Content $Content -Id ([string]$entry.id)
+        $namePattern = '(?m)^\s+name\s*:\s*[''"]?' + [regex]::Escape([string]$entry.name) + '[''"]?\s*$'
+        if (-not $block -or $block -notmatch $namePattern) {
+            $missingEntries.Add([string]$entry.id)
+        }
+    }
+    if ($missingEntries.Count -gt 0) {
+        $reasons.Add('required-entry-missing')
+    }
+    $forbiddenEntries = @($Lock.acceptance.composedConfig.forbiddenActiveEntries | Where-Object {
+        $null -ne (Get-ComposedConfigEntryBlock -Content $Content -Id ([string]$_))
+    })
+    if ($forbiddenEntries.Count -gt 0) {
+        $reasons.Add('legacy-search-entry-active')
+    }
+    $managed = $Lock.acceptance.composedConfig.managedEntry
+    $managedBlock = Get-ComposedConfigEntryBlock -Content $Content -Id ([string]$managed.id)
+    $managedConfigBlock = if ($managedBlock) {
+        Get-ComposedConfigChildBlock -EntryBlock $managedBlock -Name 'config'
+    } else {
+        $null
+    }
+    $providerPattern = '(?m)^\s+providers\s*:\s*\[[^\]]*\b' +
+        [regex]::Escape([string]$managed.provider) + '\b[^\]]*\]\s*$'
+    $providerListPattern = '(?ms)^\s+providers\s*:\s*$.*?^\s+-\s+[''"]?' +
+        [regex]::Escape([string]$managed.provider) + '[''"]?\s*$'
+    $apiKeyPattern = '(?m)^\s+apiKeyEnv\s*:\s*[''"]?' +
+        [regex]::Escape([string]$managed.apiKeyEnv) + '[''"]?\s*$'
+    $enabledPattern = '(?m)^\s+enabled\s*:\s*true\s*$'
+    $managedConfigValid = [bool](
+        $managedConfigBlock -and
+        ($managedConfigBlock -match $providerPattern -or $managedConfigBlock -match $providerListPattern) -and
+        $managedConfigBlock -match $apiKeyPattern -and
+        $managedConfigBlock -match $enabledPattern
+    )
+    if (-not $managedConfigValid) {
+        $reasons.Add('managed-copilot-search-config-missing')
+    }
+    return [pscustomobject]@{
+        valid = [bool]($reasons.Count -eq 0)
+        status = if ($reasons.Count -eq 0) { 'valid' } else { 'drifted' }
+        reasons = @($reasons)
+        missingMarkers = @($missingMarkers)
+        missingEntries = @($missingEntries)
+        forbiddenMarkers = @($forbiddenMarkers)
+        forbiddenActiveEntries = @($forbiddenEntries)
+        managedConfigValid = $managedConfigValid
+        requiredMarkers = @($Lock.acceptance.composedConfig.requiredMarkers)
+        requiredEntries = @($Lock.acceptance.composedConfig.requiredEntries)
+    }
+}
+
 function Test-WindowsCopilotComposedConfig {
     [CmdletBinding()]
     param(
@@ -1016,23 +1161,220 @@ function Test-WindowsCopilotComposedConfig {
     } else {
         $Content
     }
-    $missing = @($Lock.acceptance.composedConfig.requiredMarkers | Where-Object {
-        $content.IndexOf([string]$_, [StringComparison]::Ordinal) -lt 0
-    })
-    if ($missing.Count -gt 0) {
-        throw "Composed config is missing: $($missing -join ', ')"
+    $state = Get-WindowsCopilotComposedConfigState -Lock $Lock -Content $content
+    if (-not $state.valid) {
+        throw "Composed config drift: $($state.reasons -join ', ')."
     }
-    foreach ($entry in @($Lock.acceptance.composedConfig.requiredEntries)) {
-        $pattern = '(?ms)^\s*-\s+id\s*:\s*[''"]?' + [regex]::Escape([string]$entry.id) +
-            '[''"]?\s*$.*?^\s+name\s*:\s*[''"]?' + [regex]::Escape([string]$entry.name) + '[''"]?\s*$'
-        if ($content -notmatch $pattern) {
-            throw "Composed config has no active '$($entry.id)' / '$($entry.name)' entry."
+    return $state
+}
+
+function Get-WindowsCopilotDesktopState {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [string]$Path,
+        [string]$Version
+    )
+    if (-not $Path -and $env:LOCALAPPDATA) {
+        $Path = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+    }
+    $actual = $Version
+    if (-not $actual -and $Path -and (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        $versionInfo = (Get-Item -LiteralPath $Path).VersionInfo
+        $actual = if ($versionInfo.ProductVersion) { $versionInfo.ProductVersion } else { $versionInfo.FileVersion }
+    }
+    $match = if ($actual) { [regex]::Match([string]$actual, '\d+\.\d+\.\d+') } else { $null }
+    $normalized = if ($match -and $match.Success) { $match.Value } else { $null }
+    $expected = [string]$Lock.components.desktop.version
+    $valid = [bool]($normalized -and ([version]$normalized -eq [version]$expected))
+    return [pscustomobject]@{
+        path = $Path
+        version = $normalized
+        lockedVersion = $expected
+        valid = $valid
+        newerThanLock = [bool]($normalized -and ([version]$normalized -gt [version]$expected))
+        status = if (-not $normalized) { 'not-found-or-unreadable' } elseif ($valid) { 'locked' } elseif ([version]$normalized -gt [version]$expected) { 'newer-than-lock' } else { 'version-mismatch' }
+    }
+}
+
+function Get-WindowsCopilotGatewayState {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [string]$Path,
+        [string]$Sha256
+    )
+    $source = if ($Path) { 'explicit' } elseif ($Sha256) { 'injected-hash' } else { $null }
+    $listenerVerified = [bool]$Sha256
+    $listenerStatus = if ($Sha256) { 'injected' } else { 'not-checked' }
+    if (-not $Sha256 -and (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue)) {
+        $port = [int]$Lock.components.gateway.listen.port
+        $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
+        $publicListeners = @($listeners | Where-Object { $_.LocalAddress -notin @('127.0.0.1', '::1') })
+        $processPaths = @()
+        if ($listeners.Count -gt 0 -and $publicListeners.Count -eq 0) {
+            foreach ($processId in @($listeners.OwningProcess | Select-Object -Unique)) {
+                $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue
+                if ($process -and $process.ExecutablePath) {
+                    $processPaths += [IO.Path]::GetFullPath([string]$process.ExecutablePath)
+                }
+            }
+        }
+        $processPaths = @($processPaths | Select-Object -Unique)
+        if ($publicListeners.Count -gt 0) {
+            $listenerStatus = 'public-binding'
+        } elseif ($processPaths.Count -eq 0) {
+            $listenerStatus = 'not-found'
+        } elseif ($processPaths.Count -gt 1) {
+            $listenerStatus = 'ambiguous'
+        } elseif (-not (Test-Path -LiteralPath $processPaths[0] -PathType Leaf)) {
+            $listenerStatus = 'process-image-not-found'
+        } else {
+            $activePath = $processPaths[0]
+            $listenerStatus = 'loopback-process-resolved'
+            if (-not $Path) {
+                $Path = $activePath
+                $listenerVerified = $true
+            } elseif ([IO.Path]::GetFullPath($Path) -ieq $activePath) {
+                $listenerVerified = $true
+            } else {
+                $listenerStatus = 'executable-path-mismatch'
+            }
+            $source = 'active-loopback-listener'
         }
     }
+    $actual = $Sha256
+    if (-not $actual -and $Path -and (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    }
+    $expected = [string]$Lock.components.gateway.artifact.sha256
+    $valid = [bool]($listenerVerified -and $actual -and $actual -ieq $expected)
     return [pscustomobject]@{
-        valid = $true
-        requiredMarkers = @($Lock.acceptance.composedConfig.requiredMarkers)
-        requiredEntries = @($Lock.acceptance.composedConfig.requiredEntries)
+        path = $Path
+        source = $source
+        listenerVerified = $listenerVerified
+        listenerStatus = $listenerStatus
+        sha256 = if ($actual) { $actual.ToLowerInvariant() } else { $null }
+        lockedSha256 = $expected
+        valid = $valid
+        status = if (-not $listenerVerified) { 'listener-unattested' } elseif (-not $actual) { 'not-found' } elseif ($valid) { 'locked' } else { 'hash-mismatch' }
+    }
+}
+
+function Get-WindowsCopilotCoreReceiptState {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [string]$DshCliPath
+    )
+    $candidate = $DshCliPath
+    if (-not $candidate) { $candidate = $env:DSH_CLI_PATH }
+    if (-not $candidate) {
+        $candidate = Join-Path (Split-Path -Parent (Resolve-DeploymentPath $NpmGlobalRoot)) 'dsh.cmd'
+    }
+    $fullCandidate = [IO.Path]::GetFullPath($candidate)
+    $parent = Split-Path -Parent $fullCandidate
+    $prefix = if ((Split-Path -Leaf $parent) -ieq '.bin' -and
+        (Split-Path -Leaf (Split-Path -Parent $parent)) -ieq 'node_modules') {
+        Split-Path -Parent (Split-Path -Parent $parent)
+    } else {
+        $parent
+    }
+    $receiptPath = Join-Path $prefix 'dsh-local-install.json'
+    if (-not (Test-Path -LiteralPath $fullCandidate -PathType Leaf)) {
+        return [pscustomobject]@{
+            valid = $false
+            status = 'cli-not-found'
+            cliPath = $fullCandidate
+            receiptPath = $receiptPath
+            expectedCommit = [string]$Lock.components.core.source.commit
+        }
+    }
+    if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
+        return [pscustomobject]@{
+            valid = $false
+            status = 'receipt-missing'
+            cliPath = $fullCandidate
+            receiptPath = $receiptPath
+            expectedCommit = [string]$Lock.components.core.source.commit
+        }
+    }
+    try {
+        $info = Resolve-DshCliInfo -DshCliPath $fullCandidate -ExpectedRepository 'cloga/deepseek-harness'
+        $commitValid = [bool]($info.commitSha -ieq [string]$Lock.components.core.source.commit)
+        $versionValid = [bool]($info.version -eq [string]$Lock.components.core.package.version)
+        return [pscustomobject]@{
+            valid = [bool]($commitValid -and $versionValid)
+            status = if (-not $commitValid) { 'source-commit-mismatch' } elseif (-not $versionValid) { 'version-mismatch' } else { 'verified' }
+            cliPath = $info.cliPath
+            receiptPath = $info.receiptPath
+            commitSha = $info.commitSha
+            expectedCommit = [string]$Lock.components.core.source.commit
+            version = $info.version
+            expectedVersion = [string]$Lock.components.core.package.version
+            releaseManifestSha256 = $info.releaseManifestSha256
+            packageCount = $info.packageCount
+        }
+    } catch {
+        return [pscustomobject]@{
+            valid = $false
+            status = 'receipt-invalid'
+            cliPath = $fullCandidate
+            receiptPath = $receiptPath
+            expectedCommit = [string]$Lock.components.core.source.commit
+        }
+    }
+}
+
+function Get-WindowsCopilotRemediation {
+    param(
+        [Parameter(Mandatory)]$Desktop,
+        [Parameter(Mandatory)]$CoreReceipt,
+        [Parameter(Mandatory)][bool]$DriftDetected
+    )
+    if (-not $DriftDetected) {
+        return [pscustomobject]@{ status = 'not-required'; automaticApplyAllowed = $false; steps = @() }
+    }
+    $blockedByNewerDesktop = [bool]$Desktop.newerThanLock
+    $steps = [Collections.Generic.List[object]]::new()
+    $steps.Add([pscustomobject]@{
+        order = 1
+        action = 'check-locked-deployment'
+        path = 'tools\install-windows-copilot.ps1'
+        mode = 'check'
+    })
+    if ($blockedByNewerDesktop) {
+        $steps.Add([pscustomobject]@{
+            order = 2
+            action = 'update-lock-or-review-compatible-migration'
+            path = 'deployments\windows-copilot.lock.json'
+            requirement = 'Preserve the installed newer Desktop shell; do not apply the older Desktop lock.'
+        })
+    }
+    if (-not $CoreReceipt.valid) {
+        $steps.Add([pscustomobject]@{
+            order = $steps.Count + 1
+            action = 'reinstall-local-core-with-receipt'
+            path = 'cloga/deepseek-harness:scripts/release/install-local'
+            requirement = 'Produce and validate dsh-local-install.json before bootstrap.'
+        })
+    }
+    $steps.Add([pscustomobject]@{
+        order = $steps.Count + 1
+        action = 'apply-compatible-locked-deployment'
+        path = 'tools\install-windows-copilot.ps1'
+        mode = 'apply'
+        requires = if ($blockedByNewerDesktop) { 'reviewed lock update or compatible migration' } else { 'exact locked sources and artifacts' }
+    })
+    $steps.Add([pscustomobject]@{
+        order = $steps.Count + 1
+        action = 'bootstrap-copilot-search'
+        path = 'tools\enable-copilot-search-vision.ps1'
+        mode = 'apply'
+        requires = 'valid local Core receipt and catalog model id'
+    })
+    return [pscustomobject]@{
+        status = if ($blockedByNewerDesktop) { 'blocked-lock-update-required' } else { 'locked-repair-required' }
+        automaticApplyAllowed = [bool]($Desktop.valid -and -not $blockedByNewerDesktop)
+        steps = @($steps)
     }
 }
 
@@ -1120,6 +1462,11 @@ function Test-WindowsCopilotInstallation {
         [string]$ModelCatalogPath,
         [string]$ComposedConfigPath,
         [string]$SearchSmokeResponsePath,
+        [string]$DshCliPath,
+        [string]$DesktopExecutablePath,
+        [string]$DesktopVersion,
+        [string]$GatewayExecutablePath,
+        [string]$GatewaySha256,
         [switch]$SkipRuntimeChecks
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
@@ -1128,6 +1475,9 @@ function Test-WindowsCopilotInstallation {
     $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
     $workspacePath = Join-Path $profileRoot ([string]$Lock.profile.workspaceManifest)
     $settingsPath = Join-Path $home ([string]$Lock.profile.settingsManifest)
+    $desktop = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath -Version $DesktopVersion
+    $gateway = Get-WindowsCopilotGatewayState -Lock $Lock -Path $GatewayExecutablePath -Sha256 $GatewaySha256
+    $coreReceipt = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot -DshCliPath $DshCliPath
 
     $profile = $null
     if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
@@ -1135,6 +1485,7 @@ function Test-WindowsCopilotInstallation {
     }
     $dependencyValid = $false
     $bundleValid = $false
+    $providerDependency = $null
     if ($profile) {
         $dependencies = Get-LockProperty -InputObject $profile -Name 'dependencies'
         if ($dependencies) {
@@ -1142,6 +1493,9 @@ function Test-WindowsCopilotInstallation {
             foreach ($plugin in @($Lock.profile.plugins)) {
                 $name = [string]$plugin.name
                 $dependency = [string](Get-LockProperty -InputObject $dependencies -Name $name)
+                if ($name -eq [string]$Lock.components.searchProvider.package.name) {
+                    $providerDependency = $dependency
+                }
                 $expected = if ($name -eq [string]$Lock.components.searchProvider.package.name) {
                     'file:../../artifacts/' + [string]$Lock.components.searchProvider.source.commit + '/' +
                         [string]$Lock.components.searchProvider.package.artifact.name
@@ -1167,12 +1521,51 @@ function Test-WindowsCopilotInstallation {
         $exists = Test-Path -LiteralPath (Join-Path $path 'package.json') -PathType Leaf
         $physical = $false
         $version = $null
+        $baselineValid = $true
+        $baselineStatus = 'not-applicable'
+        $payloadValid = $true
+        $payloadStatus = 'not-applicable'
         if ($exists) {
             $physical = -not [bool]((Get-Item -LiteralPath $path).Attributes -band [IO.FileAttributes]::ReparsePoint)
             try {
                 $metadata = Get-Content -LiteralPath (Join-Path $path 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
                 $version = [string]$metadata.version
             } catch { }
+            if ([string]$plugin.name -eq [string]$Lock.components.searchProvider.package.name) {
+                $payloadStatus = 'verified'
+                $providerRoot = [IO.Path]::GetFullPath($path).TrimEnd('\') + '\'
+                foreach ($relativePath in @(
+                    [string]$metadata.main,
+                    [string]$metadata.types,
+                    [string]$metadata.dsh.bundle.patch
+                )) {
+                    $payloadPath = [IO.Path]::GetFullPath((Join-Path $path $relativePath))
+                    if (-not $payloadPath.StartsWith($providerRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                        -not (Test-Path -LiteralPath $payloadPath -PathType Leaf)) {
+                        $payloadValid = $false
+                        $payloadStatus = 'entrypoint-missing-or-invalid'
+                    }
+                }
+                $baselinePath = Join-Path $path 'deployment-baseline.json'
+                if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) {
+                    $baselineValid = $false
+                    $baselineStatus = 'missing'
+                } else {
+                    try {
+                        $baseline = Get-Content -LiteralPath $baselinePath -Raw -Encoding UTF8 | ConvertFrom-Json
+                        Assert-ProviderBaselineData -Lock $Lock -Package $metadata -Baseline $baseline
+                        $baselineStatus = 'verified'
+                    } catch {
+                        $baselineValid = $false
+                        $baselineStatus = 'invalid'
+                    }
+                }
+            }
+        } elseif ([string]$plugin.name -eq [string]$Lock.components.searchProvider.package.name) {
+            $baselineValid = $false
+            $baselineStatus = 'provider-missing'
+            $payloadValid = $false
+            $payloadStatus = 'provider-missing'
         }
         [pscustomobject]@{
             name = [string]$plugin.name
@@ -1180,6 +1573,10 @@ function Test-WindowsCopilotInstallation {
             physical = [bool]$physical
             version = $version
             versionValid = [bool]($version -eq [string]$plugin.version)
+            baselineValid = [bool]$baselineValid
+            baselineStatus = $baselineStatus
+            payloadValid = [bool]$payloadValid
+            payloadStatus = $payloadStatus
         }
     }
 
@@ -1258,19 +1655,40 @@ function Test-WindowsCopilotInstallation {
 
     try {
         if ($ComposedConfigPath) {
-            $composedCheck = Test-WindowsCopilotComposedConfig -Lock $Lock -Path $ComposedConfigPath
+            $composedContent = Get-Content -LiteralPath $ComposedConfigPath -Raw -Encoding UTF8
+            $composedCheck = Get-WindowsCopilotComposedConfigState -Lock $Lock -Content $composedContent
         } elseif ($SkipRuntimeChecks) {
-            $composedCheck = [pscustomobject]@{ valid = $false; status = 'skipped' }
+            $composedCheck = [pscustomobject]@{
+                valid = $false
+                status = 'skipped'
+                reasons = @('composed-config-skipped')
+                forbiddenMarkers = @()
+                forbiddenActiveEntries = @()
+                managedConfigValid = $false
+            }
         } else {
             $command = @($Lock.acceptance.composedConfig.command)
-            $executable = [string]$command[0]
+            if (-not $coreReceipt.valid) {
+                throw 'The local Core receipt is not valid; refusing to execute an unattested CLI.'
+            }
+            $executable = [string]$coreReceipt.cliPath
+            if (-not $executable -or -not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+                throw 'The attested Core CLI candidate is unavailable for composed-config validation.'
+            }
             $arguments = @($command[1..($command.Count - 1)] | ForEach-Object { [string]$_ })
             $output = & $executable @arguments 2>$null | Out-String
             if ($LASTEXITCODE -ne 0) { throw 'dsh dump-config failed.' }
-            $composedCheck = Test-WindowsCopilotComposedConfig -Lock $Lock -Content $output
+            $composedCheck = Get-WindowsCopilotComposedConfigState -Lock $Lock -Content $output
         }
     } catch {
-        $composedCheck = [pscustomobject]@{ valid = $false; status = 'unavailable-or-invalid' }
+        $composedCheck = [pscustomobject]@{
+            valid = $false
+            status = 'unavailable-or-invalid'
+            reasons = @('composed-config-unavailable-or-invalid')
+            forbiddenMarkers = @()
+            forbiddenActiveEntries = @()
+            managedConfigValid = $false
+        }
     }
 
     try {
@@ -1284,11 +1702,17 @@ function Test-WindowsCopilotInstallation {
     }
 
     $staticValid = [bool](
+        $desktop.valid -and
+        $gateway.valid -and
+        $coreReceipt.valid -and
         $dependencyValid -and
         $bundleValid -and
         $allowBuildsValid -and
         $routesValid -and
-        @($plugins | Where-Object { -not $_.exists -or -not $_.physical -or -not $_.versionValid }).Count -eq 0
+        @($plugins | Where-Object {
+            -not $_.exists -or -not $_.physical -or -not $_.versionValid -or
+            -not $_.baselineValid -or -not $_.payloadValid
+        }).Count -eq 0
     )
     $runtimeValid = [bool](
         -not $SkipRuntimeChecks -and
@@ -1297,11 +1721,71 @@ function Test-WindowsCopilotInstallation {
         $catalogCheck.valid -and
         $composedCheck.valid
     )
+    $provider = @($plugins | Where-Object {
+        $_.name -eq [string]$Lock.components.searchProvider.package.name
+    })[0]
+    $driftReasons = [Collections.Generic.List[string]]::new()
+    if ($desktop.newerThanLock) { $driftReasons.Add('desktop-newer-than-lock') }
+    elseif (-not $desktop.valid) { $driftReasons.Add('desktop-version-mismatch') }
+    if (-not $gateway.valid) { $driftReasons.Add('gateway-artifact-mismatch') }
+    if (-not $coreReceipt.valid) { $driftReasons.Add('core-' + [string]$coreReceipt.status) }
+    if (-not $dependencyValid) { $driftReasons.Add('provider-dependency-unlocked') }
+    if (-not $bundleValid) { $driftReasons.Add('profile-bundle-drift') }
+    if (-not $allowBuildsValid) { $driftReasons.Add('profile-allow-builds-drift') }
+    if (-not $routesValid) { $driftReasons.Add('profile-route-drift') }
+    if (-not $provider.exists) { $driftReasons.Add('provider-missing') }
+    elseif (-not $provider.physical) { $driftReasons.Add('provider-not-physical') }
+    if (-not $provider.versionValid) { $driftReasons.Add('provider-version-mismatch') }
+    if (-not $provider.baselineValid) { $driftReasons.Add('provider-baseline-' + [string]$provider.baselineStatus) }
+    if (-not $provider.payloadValid) { $driftReasons.Add('provider-payload-' + [string]$provider.payloadStatus) }
+    if (@($plugins | Where-Object {
+        $_.name -ne [string]$Lock.components.searchProvider.package.name -and
+        (-not $_.physical -or -not $_.versionValid)
+    }).Count -gt 0) {
+        $driftReasons.Add('profile-plugin-topology-incompatible-with-lock')
+    }
+    foreach ($reason in @($composedCheck.reasons)) {
+        if ($driftReasons -notcontains [string]$reason) { $driftReasons.Add([string]$reason) }
+    }
+    $oldProviderArtifact = [bool](
+        $providerDependency -and
+        $providerDependency.Replace('\', '/') -match '/dsh-web-search-provider-0\.2\.2-all-fixes-bd40ffb\.tgz$'
+    )
+    $incidentDetected = [bool](
+        $desktop.version -eq '0.9.2' -and
+        $desktop.newerThanLock -and
+        $gateway.valid -and
+        $oldProviderArtifact -and
+        $provider.version -eq '0.2.2' -and
+        $provider.baselineStatus -eq 'missing' -and
+        $coreReceipt.status -eq 'receipt-missing' -and
+        @($composedCheck.forbiddenActiveEntries) -contains 'web-search-deepseek' -and
+        @($composedCheck.forbiddenMarkers) -contains 'searchProvider: deepseek-official' -and
+        -not $composedCheck.managedConfigValid
+    )
+    $driftDetected = [bool]($driftReasons.Count -gt 0)
+    $remediation = Get-WindowsCopilotRemediation -Desktop $desktop -CoreReceipt $coreReceipt -DriftDetected $driftDetected
+    $installationComplete = [bool]($staticValid -and $runtimeValid -and $searchCheck.valid)
+    $readyForManualSearchSmoke = [bool]($staticValid -and $runtimeValid -and -not $searchCheck.valid)
     return [pscustomobject]@{
-        complete = [bool]($staticValid -and $runtimeValid -and $searchCheck.valid)
-        readyForManualSearchSmoke = [bool]($staticValid -and $runtimeValid -and -not $searchCheck.valid)
+        complete = $installationComplete
+        readyForManualSearchSmoke = $readyForManualSearchSmoke
+        health = if ($installationComplete) { 'healthy' } elseif ($driftDetected) { 'drifted' } elseif ($readyForManualSearchSmoke) { 'search-smoke-required' } else { 'unhealthy' }
+        deployment = [pscustomobject]@{
+            desktop = $desktop
+            gateway = $gateway
+            core = $coreReceipt
+        }
+        drift = [pscustomobject]@{
+            detected = $driftDetected
+            incidentId = if ($incidentDetected) { 'windows-copilot-drift-2026-08-28' } else { $null }
+            mixedState = [bool]($desktop.newerThanLock -and $gateway.valid -and (-not $provider.versionValid -or -not $coreReceipt.valid))
+            reasons = @($driftReasons)
+            remediation = $remediation
+        }
         profile = [pscustomobject]@{
             dependencyValid = $dependencyValid
+            providerDependency = $providerDependency
             bundleValid = $bundleValid
             allowBuildsValid = $allowBuildsValid
             routesValid = $routesValid
@@ -1329,9 +1813,15 @@ function Invoke-WindowsCopilotApply {
         [Parameter(Mandatory)][string]$GatewayArtifactPath,
         [Parameter(Mandatory)][string]$GatewayInstallRoot,
         [Parameter(Mandatory)][string]$BackupRoot,
-        [Parameter(Mandatory)]$Catalog
+        [Parameter(Mandatory)]$Catalog,
+        [string]$DesktopExecutablePath,
+        [string]$DesktopVersion
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $desktopState = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath -Version $DesktopVersion
+    if ($desktopState.newerThanLock) {
+        throw "Installed Desktop $($desktopState.version) is newer than locked Desktop $($desktopState.lockedVersion). Refusing a downgrade; update the lock or use a reviewed compatible migration."
+    }
     Get-WindowsCopilotRouteModels -Lock $Lock -Catalog $Catalog | Out-Null
     $settingsPath = Join-Path (Resolve-DeploymentPath $DshHome) ([string]$Lock.profile.settingsManifest)
     Assert-WindowsCopilotSettingsShape -Lock $Lock -SettingsPath $settingsPath

@@ -509,6 +509,7 @@ $script:ProfileEnd
 "@
     return Set-DshManagedTextBlock -Path $Path -Begin $script:ProfileBegin -End $script:ProfileEnd `
         -Block $block -ConflictPatterns @(
+            '(?m)^\s*-\s+id:\s+web\s*$',
             '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
             '(?m)^\s*-\s+id:\s+tool-web\s*$',
             '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
@@ -711,6 +712,7 @@ function Test-DshCopilotProfile {
     $managed = $patch.Substring($start, $finish + $script:ProfileEnd.Length - $start)
     $outside = $patch.Substring(0, $start) + $patch.Substring($finish + $script:ProfileEnd.Length)
     foreach ($pattern in @(
+        '(?m)^\s*-\s+id:\s+web\s*$',
         '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
         '(?m)^\s*-\s+id:\s+tool-web\s*$',
         '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
@@ -719,11 +721,14 @@ function Test-DshCopilotProfile {
     }
     foreach ($marker in @(
         $script:ProfileBegin,
+        '- id: web',
         '- id: web-search-deepseek',
         '- id: tool-web',
         'disabled: true',
         '- id: web-search-provider',
+        'enabled: true',
         'providers: [copilot-responses]',
+        'apiKeyEnv: COPILOT_API_KEY',
         $script:ProfileEnd
     )) {
         if (-not $managed.Contains($marker)) { throw "Profile '$Profile' is missing managed search configuration." }

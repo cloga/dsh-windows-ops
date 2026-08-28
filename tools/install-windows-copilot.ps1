@@ -12,6 +12,9 @@ param(
     [string]$ModelCatalogPath,
     [string]$SearchSmokeResponsePath,
     [string]$ComposedConfigPath,
+    [string]$DshCliPath,
+    [string]$DesktopExecutablePath,
+    [string]$GatewayExecutablePath,
     [switch]$SkipRuntimeChecks,
     [switch]$Apply
 )
@@ -41,6 +44,8 @@ if (-not $Apply) {
     $installation = Test-WindowsCopilotInstallation -Lock $lock -DshHome $DshHome `
         -NpmGlobalRoot $NpmGlobalRoot -ModelCatalogPath $ModelCatalogPath `
         -ComposedConfigPath $ComposedConfigPath -SearchSmokeResponsePath $SearchSmokeResponsePath `
+        -DshCliPath $DshCliPath -DesktopExecutablePath $DesktopExecutablePath `
+        -GatewayExecutablePath $GatewayExecutablePath `
         -SkipRuntimeChecks:$SkipRuntimeChecks
     $checks = [ordered]@{
         manifest = Test-WindowsCopilotLock -Lock $lock
@@ -91,5 +96,6 @@ $catalog = Get-Content -LiteralPath $ModelCatalogPath -Raw -Encoding UTF8 | Conv
 Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlobalRoot `
     -HarnessSourceRoot $HarnessSourceRoot -ProviderSourceRoot $ProviderSourceRoot `
     -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
-    -GatewayInstallRoot $GatewayInstallRoot -BackupRoot $BackupRoot -Catalog $catalog |
+    -GatewayInstallRoot $GatewayInstallRoot -BackupRoot $BackupRoot -Catalog $catalog `
+    -DesktopExecutablePath $DesktopExecutablePath |
     ConvertTo-Json -Depth 20

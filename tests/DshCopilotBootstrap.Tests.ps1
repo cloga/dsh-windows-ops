@@ -149,9 +149,11 @@ Describe 'DSH Copilot bootstrap' {
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8
         Set-DshCopilotProfilePatch -Path $path | Out-Null
         $text = Get-Content -LiteralPath $path -Raw
+        $text | Should -Match '(?s)- id: web\s+disabled: true'
         $text | Should -Match '(?s)- id: web-search-deepseek\s+disabled: true'
         $text | Should -Match '(?s)- id: tool-web\s+disabled: true'
         $text | Should -Match 'providers: \[copilot-responses\]'
+        $text | Should -Match 'apiKeyEnv: COPILOT_API_KEY'
     }
 
     It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {

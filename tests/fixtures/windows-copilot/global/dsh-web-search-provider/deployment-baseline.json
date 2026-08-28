@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "id": "cloga.dsh-windows-copilot.web-search",
+    "kind": "fork-deployment-baseline",
+    "source": "https://github.com/cloga/dsh-web-search-provider",
+    "sourceCommitPolicy": "exact-external-pin"
+  },
+  "package": {
+    "name": "dsh-web-search-provider",
+    "version": "0.2.3-cloga.1"
+  },
+  "supportedBaselines": {
+    "platforms": [
+      "windows"
+    ],
+    "node": ">=22.0.0",
+    "dsh": {
+      "release": "0.1.0-rc.6"
+    },
+    "copilot": {
+      "api": "openai-responses",
+      "modelCatalogEndpoint": "/v1/models",
+      "metadataProfile": "optional-copilot-model-capabilities"
+    }
+  },
+  "capabilities": [
+    {
+      "id": "responses-replay-item-id-normalization",
+      "required": true
+    },
+    {
+      "id": "grounded-sandbox-escalation",
+      "required": true
+    },
+    {
+      "id": "image-attachment-bypass",
+      "required": true
+    },
+    {
+      "id": "failure-safe-copilot-model-catalog",
+      "required": true
+    },
+    {
+      "id": "orphaned-replay-item-filtering",
+      "required": true
+    }
+  ]
+}

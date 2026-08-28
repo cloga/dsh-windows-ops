@@ -56,6 +56,23 @@ Describe 'DSH Copilot bootstrap' {
         })
         $manifestJson = ConvertTo-Json -InputObject $packages -Compress -Depth 4
         if (-not $ReleaseManifestSha256) { $ReleaseManifestSha256 = Get-FixtureSha256 -Text $manifestJson }
+        $installedFiles = @(
+            [ordered]@{
+                role = 'root-shim'
+                path = 'dsh.cmd'
+                sha256 = (Get-FileHash -LiteralPath $desktopCli -Algorithm SHA256).Hash.ToLowerInvariant()
+            },
+            [ordered]@{
+                role = 'npm-shim'
+                path = 'node_modules\.bin\dsh.cmd'
+                sha256 = (Get-FileHash -LiteralPath $canonicalCli -Algorithm SHA256).Hash.ToLowerInvariant()
+            },
+            [ordered]@{
+                role = 'entrypoint'
+                path = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+                sha256 = (Get-FileHash -LiteralPath (Join-Path $package 'lib\bin.js') -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+        )
         $receipt = [ordered]@{
             schemaVersion = $SchemaVersion
             repositoryUrl = $RepositoryUrl
@@ -65,6 +82,7 @@ Describe 'DSH Copilot bootstrap' {
             releaseManifestSha256 = $ReleaseManifestSha256
             cliPath = $(if ($ReceiptCliPath) { $ReceiptCliPath } else { $desktopCli })
             packages = $packages
+            installedFiles = $installedFiles
         }
         Set-Content -LiteralPath (Join-Path $prefix 'dsh-local-install.json') -Encoding UTF8 -Value (
             $receipt | ConvertTo-Json -Depth 5
@@ -168,6 +186,7 @@ Describe 'DSH Copilot bootstrap' {
         $info.repository | Should -Be 'cloga/deepseek-harness'
         $info.version | Should -Be '1.2.3'
         $info.packageCount | Should -Be 1
+        $info.installedFileCount | Should -Be 3
     }
 
     It 'accepts the canonical user input alias with a root receipt' {
@@ -262,6 +281,40 @@ Describe 'DSH Copilot bootstrap' {
         $fixture = New-DshReceiptFixture
         Remove-Item -LiteralPath $fixture.receiptPath
         Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
+    }
+
+    It 'rejects a receipt without installed executable hashes' {
+        $fixture = New-DshReceiptFixture
+        $receipt = Get-Content -LiteralPath $fixture.receiptPath -Raw | ConvertFrom-Json
+        $receipt.PSObject.Properties.Remove('installedFiles')
+        $receipt | ConvertTo-Json -Depth 6 |
+            Set-Content -LiteralPath $fixture.receiptPath -Encoding UTF8
+        {
+            Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+        } | Should -Throw '*installed-bytes-unattested*'
+    }
+
+    It 'rejects tampered installed entrypoint and npm shim hashes' {
+        foreach ($relativePath in @(
+            'lib\bin.js',
+            '..\..\.bin\dsh.cmd'
+        )) {
+            $fixture = New-DshReceiptFixture
+            $target = Join-Path $fixture.packageRoot $relativePath
+            Add-Content -LiteralPath $target -Value 'tampered' -Encoding ASCII
+            {
+                Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+            } | Should -Throw '*installed-bytes-mismatch*'
+        }
+    }
+
+    It 'rejects a byte-changed root shim that still has the valid forwarding shape' {
+        $fixture = New-DshReceiptFixture
+        Set-Content -LiteralPath $fixture.desktopCli -Encoding ASCII -NoNewline `
+            -Value "@echo off`r`n@CALL `"%~dp0node_modules\.bin\dsh.cmd`" %*"
+        {
+            Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+        } | Should -Throw '*installed-bytes-mismatch*'
     }
 
     It 'does not fall back to trusted-looking package metadata' {

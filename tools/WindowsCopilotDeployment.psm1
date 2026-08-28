@@ -55,6 +55,7 @@ function Test-WindowsCopilotLock {
         'components.core.package.packageManager',
         'components.core.build.artifactDirectories',
         'components.core.install.script',
+        'components.core.install.attestedFiles',
         'components.gateway.source.repository',
         'components.gateway.source.commit',
         'components.gateway.artifact.name',
@@ -67,6 +68,7 @@ function Test-WindowsCopilotLock {
         'components.searchProvider.package.main',
         'components.searchProvider.package.types',
         'components.searchProvider.package.bundlePatch',
+        'components.searchProvider.package.attestedFiles',
         'components.searchProvider.package.artifact.name',
         'components.searchProvider.package.artifact.sha256',
         'components.searchProvider.package.deploymentBaseline.id',
@@ -95,12 +97,34 @@ function Test-WindowsCopilotLock {
     )) {
         if ($commit -notmatch '^[0-9a-f]{40}$') { throw "Invalid locked commit: $commit" }
     }
+    $attestedFiles = @($Lock.components.core.install.attestedFiles)
+    $expectedAttestedFiles = [ordered]@{
+        'root-shim' = 'dsh.cmd'
+        'npm-shim' = 'node_modules\.bin\dsh.cmd'
+        'entrypoint' = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+    }
+    if ($attestedFiles.Count -ne $expectedAttestedFiles.Count) {
+        throw 'Core install contract must attest exactly three executable files.'
+    }
+    foreach ($role in $expectedAttestedFiles.Keys) {
+        $matches = @($attestedFiles | Where-Object {
+            [string]$_.role -ceq $role -and [string]$_.path -ceq $expectedAttestedFiles[$role]
+        })
+        if ($matches.Count -ne 1) {
+            throw "Core install contract omits exact '$role' attestation."
+        }
+    }
     foreach ($sha in @(
         [string]$Lock.components.desktop.artifact.sha256,
         [string]$Lock.components.gateway.artifact.sha256,
         [string]$Lock.components.searchProvider.package.artifact.sha256
     )) {
         if ($sha -notmatch '^[0-9a-f]{64}$') { throw "Invalid locked artifact SHA-256: $sha" }
+    }
+    $providerAttestedFiles = @($Lock.components.searchProvider.package.attestedFiles)
+    if ($providerAttestedFiles.Count -ne 1 -or
+        [string]$providerAttestedFiles[0] -cne [string]$Lock.components.searchProvider.package.main) {
+        throw 'Provider installed-file contract must attest the exact package main entrypoint.'
     }
     if (@($Lock.components.desktop.install.arguments).Count -eq 0 -or
         @($Lock.components.desktop.install.acceptedExitCodes).Count -eq 0) {
@@ -251,6 +275,84 @@ function Resolve-DeploymentPath {
     return [IO.Path]::GetFullPath($expanded)
 }
 
+function Test-DeploymentPathOverlap {
+    param(
+        [Parameter(Mandatory)][string]$Left,
+        [Parameter(Mandatory)][string]$Right
+    )
+    $leftPath = (Resolve-DeploymentPath $Left).TrimEnd('\')
+    $rightPath = (Resolve-DeploymentPath $Right).TrimEnd('\')
+    return [bool](
+        $leftPath -ieq $rightPath -or
+        $leftPath.StartsWith($rightPath + '\', [StringComparison]::OrdinalIgnoreCase) -or
+        $rightPath.StartsWith($leftPath + '\', [StringComparison]::OrdinalIgnoreCase)
+    )
+}
+
+function Assert-NoReparsePointAncestor {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $cursor = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($Path)).TrimEnd('\')
+    while ($cursor) {
+        if (Test-Path -LiteralPath $cursor) {
+            $item = Get-Item -LiteralPath $cursor -Force
+            if ([bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+                throw "CoreInstallPrefix must not use reparse-point path '$cursor'."
+            }
+        }
+        $parent = [IO.Path]::GetDirectoryName($cursor)
+        if (-not $parent -or $parent -eq $cursor) { break }
+        $cursor = $parent.TrimEnd('\')
+    }
+}
+
+function Assert-CoreInstallPrefixIsolation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$CoreInstallPrefix,
+        [Parameter(Mandatory)][string]$DshHome,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [Parameter(Mandatory)][string]$HarnessSourceRoot,
+        [Parameter(Mandatory)][string]$ProviderSourceRoot,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)][string]$DesktopArtifactPath,
+        [Parameter(Mandatory)][string]$GatewayArtifactPath,
+        [Parameter(Mandatory)][string]$GatewayInstallRoot
+    )
+    Assert-NoReparsePointAncestor -Path $CoreInstallPrefix
+    $globalRoot = Resolve-DeploymentPath $NpmGlobalRoot
+    if ((Split-Path -Leaf $globalRoot) -ine 'node_modules') {
+        throw "The global npm root must end in 'node_modules': '$globalRoot'."
+    }
+    $protected = @(
+        [pscustomobject]@{ name = 'DshHome'; path = $DshHome },
+        [pscustomobject]@{
+            name = 'profile'
+            path = Join-Path (Resolve-DeploymentPath $DshHome) ([string]$Lock.profile.relativePath)
+        },
+        [pscustomobject]@{ name = 'BackupRoot'; path = $BackupRoot },
+        [pscustomobject]@{ name = 'HarnessSourceRoot'; path = $HarnessSourceRoot },
+        [pscustomobject]@{ name = 'ProviderSourceRoot'; path = $ProviderSourceRoot },
+        [pscustomobject]@{ name = 'NpmGlobalRoot'; path = $globalRoot },
+        [pscustomobject]@{ name = 'npm global prefix'; path = Split-Path -Parent $globalRoot },
+        [pscustomobject]@{ name = 'DesktopArtifactPath'; path = $DesktopArtifactPath },
+        [pscustomobject]@{ name = 'GatewayArtifactPath'; path = $GatewayArtifactPath },
+        [pscustomobject]@{ name = 'GatewayInstallRoot'; path = $GatewayInstallRoot }
+    )
+    foreach ($item in $protected) {
+        Assert-NoReparsePointAncestor -Path ([string]$item.path)
+        if (Test-DeploymentPathOverlap -Left $CoreInstallPrefix -Right ([string]$item.path)) {
+            throw "CoreInstallPrefix must not overlap $($item.name): '$($item.path)'."
+        }
+    }
+    return [pscustomobject]@{
+        valid = $true
+        prefix = Resolve-DeploymentPath $CoreInstallPrefix
+        protectedPathCount = $protected.Count
+    }
+}
+
 function Test-LockedArtifact {
     [CmdletBinding()]
     param(
@@ -325,6 +427,44 @@ function Read-TarJson {
         throw "Cannot read '$RelativePath' from '$ArtifactPath'."
     }
     return $content | ConvertFrom-Json
+}
+
+function Get-TarEntrySha256 {
+    param(
+        [Parameter(Mandatory)][string]$ArtifactPath,
+        [Parameter(Mandatory)][string]$EntryPath
+    )
+    if (-not (Test-Path -LiteralPath $ArtifactPath -PathType Leaf)) {
+        throw "Tar artifact not found: '$ArtifactPath'."
+    }
+    if ([IO.Path]::IsPathRooted($EntryPath) -or $EntryPath -match '(^|/)\.\.(/|$)') {
+        throw "Unsafe tar entry path: '$EntryPath'."
+    }
+    $artifactArgument = '"' + ([IO.Path]::GetFullPath($ArtifactPath)).Replace('"', '\"') + '"'
+    $entryArgument = '"' + $EntryPath.Replace('"', '\"') + '"'
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = 'tar'
+    $start.Arguments = "-xOzf $artifactArgument $entryArgument"
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.CreateNoWindow = $true
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $start
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        if (-not $process.Start()) { throw 'Could not start tar for provider payload attestation.' }
+        $hash = $sha.ComputeHash($process.StandardOutput.BaseStream)
+        $errorText = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            throw "Could not read '$EntryPath' from provider artifact: $errorText"
+        }
+        return ([BitConverter]::ToString($hash)).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+        $process.Dispose()
+    }
 }
 
 function Test-ProviderDeploymentContract {
@@ -650,6 +790,35 @@ function Install-WindowsCopilotCoreRelease {
     Invoke-LockedCommand -FilePath 'npx' -Arguments $arguments -WorkingDirectory $SourceRoot
 
     $cliPath = Join-Path $prefix 'dsh.cmd'
+    $receiptPath = Join-Path $prefix 'dsh-local-install.json'
+    if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
+        throw "The Core installer did not produce its receipt: '$receiptPath'."
+    }
+    $receipt = Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $installedFiles = @($Lock.components.core.install.attestedFiles | ForEach-Object {
+        $relativePath = [string]$_.path
+        $fullPath = [IO.Path]::GetFullPath((Join-Path $prefix $relativePath))
+        $prefixBoundary = $prefix.TrimEnd('\') + '\'
+        if (-not $fullPath.StartsWith($prefixBoundary, [StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "Core installed-file attestation target is missing or outside the prefix: '$relativePath'."
+        }
+        [ordered]@{
+            role = [string]$_.role
+            path = $relativePath
+            sha256 = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    })
+    $receipt | Add-Member -NotePropertyName installedFiles -NotePropertyValue $installedFiles -Force
+    $temporaryReceipt = $receiptPath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+    try {
+        $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $temporaryReceipt -Encoding UTF8
+        Move-Item -LiteralPath $temporaryReceipt -Destination $receiptPath -Force
+    } finally {
+        if (Test-Path -LiteralPath $temporaryReceipt) {
+            Remove-Item -LiteralPath $temporaryReceipt -Force
+        }
+    }
     $info = Resolve-DshCliInfo -DshCliPath $cliPath -ExpectedRepository 'cloga/deepseek-harness'
     if ($info.commitSha -ine [string]$Lock.components.core.source.commit -or
         $info.version -ne [string]$Lock.components.core.package.version) {
@@ -1393,9 +1562,13 @@ function Get-WindowsCopilotCoreReceiptState {
     param(
         [Parameter(Mandatory)]$Lock,
         [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [string]$CoreInstallPrefix,
         [string]$DshCliPath
     )
     $candidate = $DshCliPath
+    if (-not $candidate -and $CoreInstallPrefix) {
+        $candidate = Join-Path (Resolve-DeploymentPath $CoreInstallPrefix) 'dsh.cmd'
+    }
     if (-not $candidate) { $candidate = $env:DSH_CLI_PATH }
     if (-not $candidate) {
         $candidate = Join-Path (Split-Path -Parent (Resolve-DeploymentPath $NpmGlobalRoot)) 'dsh.cmd'
@@ -1447,9 +1620,16 @@ function Get-WindowsCopilotCoreReceiptState {
             packageCount = $info.packageCount
         }
     } catch {
+        $status = if ($_.Exception.Message -like '*installed-bytes-unattested*') {
+            'installed-bytes-unattested'
+        } elseif ($_.Exception.Message -like '*installed-bytes-mismatch*') {
+            'installed-bytes-mismatch'
+        } else {
+            'receipt-invalid'
+        }
         return [pscustomobject]@{
             valid = $false
-            status = 'receipt-invalid'
+            status = $status
             cliPath = $fullCandidate
             receiptPath = $receiptPath
             expectedCommit = [string]$Lock.components.core.source.commit
@@ -1519,11 +1699,9 @@ function Test-LoopbackListener {
     $command = Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue
     if ($command) {
         $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
-        $loopback = @($listeners | Where-Object {
-            $_.LocalAddress -eq $HostName -or $_.LocalAddress -eq '::1'
-        })
+        $loopback = @($listeners | Where-Object { $_.LocalAddress -eq $HostName })
         $public = @($listeners | Where-Object {
-            $_.LocalAddress -ne $HostName -and $_.LocalAddress -ne '::1'
+            $_.LocalAddress -ne $HostName
         })
         return [pscustomobject]@{
             host = $HostName
@@ -1531,6 +1709,7 @@ function Test-LoopbackListener {
             listening = [bool]($loopback.Count -gt 0)
             loopbackOnly = [bool]($loopback.Count -gt 0 -and $public.Count -eq 0)
             bindingVerified = $true
+            owningProcessIds = @($loopback | ForEach-Object { $_.OwningProcess } | Select-Object -Unique)
         }
     }
     try {
@@ -1544,6 +1723,7 @@ function Test-LoopbackListener {
             listening = [bool]$connected
             loopbackOnly = $false
             bindingVerified = $false
+            owningProcessIds = @()
         }
     } catch {
         return [pscustomobject]@{
@@ -1552,6 +1732,7 @@ function Test-LoopbackListener {
             listening = $false
             loopbackOnly = $false
             bindingVerified = $false
+            owningProcessIds = @()
         }
     }
 }
@@ -1595,6 +1776,7 @@ function Test-WindowsCopilotInstallation {
         [string]$ModelCatalogPath,
         [string]$ComposedConfigPath,
         [string]$SearchSmokeResponsePath,
+        [string]$CoreInstallPrefix,
         [string]$DshCliPath,
         [string]$DesktopExecutablePath,
         [string]$DesktopVersion,
@@ -1612,7 +1794,8 @@ function Test-WindowsCopilotInstallation {
     $settingsPath = Join-Path $home ([string]$Lock.profile.settingsManifest)
     $desktop = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath -Version $DesktopVersion
     $gateway = Get-WindowsCopilotGatewayState -Lock $Lock -Path $GatewayExecutablePath -Sha256 $GatewaySha256
-    $coreReceipt = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot -DshCliPath $DshCliPath
+    $coreReceipt = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath
 
     $profile = $null
     if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
@@ -1660,6 +1843,7 @@ function Test-WindowsCopilotInstallation {
         $baselineStatus = 'not-applicable'
         $payloadValid = $true
         $payloadStatus = 'not-applicable'
+        $payloadReason = $null
         if ($exists) {
             $physical = -not [bool]((Get-Item -LiteralPath $path).Attributes -band [IO.FileAttributes]::ReparsePoint)
             try {
@@ -1679,6 +1863,38 @@ function Test-WindowsCopilotInstallation {
                         -not (Test-Path -LiteralPath $payloadPath -PathType Leaf)) {
                         $payloadValid = $false
                         $payloadStatus = 'entrypoint-missing-or-invalid'
+                    }
+                }
+                if ($payloadValid) {
+                    $lockedProviderArtifact = Join-Path $home (
+                        'artifacts\' + [string]$Lock.components.searchProvider.source.commit + '\' +
+                        [string]$Lock.components.searchProvider.package.artifact.name
+                    )
+                    try {
+                        Test-LockedArtifact -Path $lockedProviderArtifact `
+                            -Sha256 ([string]$Lock.components.searchProvider.package.artifact.sha256) `
+                            -ExpectedName ([string]$Lock.components.searchProvider.package.artifact.name) | Out-Null
+                        foreach ($relativePath in @($Lock.components.searchProvider.package.attestedFiles)) {
+                            $normalizedRelativePath = ([string]$relativePath).Replace('/', '\')
+                            $installedPath = [IO.Path]::GetFullPath((Join-Path $path $normalizedRelativePath))
+                            if (-not $installedPath.StartsWith($providerRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                                throw "Provider attestation path escapes the package: '$relativePath'."
+                            }
+                            $artifactSha = Get-TarEntrySha256 -ArtifactPath $lockedProviderArtifact `
+                                -EntryPath ('package/' + ([string]$relativePath).Replace('\', '/'))
+                            $installedSha = (Get-FileHash -LiteralPath $installedPath -Algorithm SHA256).Hash
+                            if ($installedSha -ine $artifactSha) {
+                                throw "Installed provider file differs from the locked artifact: '$relativePath'."
+                            }
+                        }
+                    } catch {
+                        $payloadValid = $false
+                        $payloadReason = $_.Exception.Message
+                        $payloadStatus = if ($_.Exception.Message -like '*Installed provider file differs*') {
+                            'installed-file-mismatch'
+                        } else {
+                            'locked-artifact-missing-or-invalid'
+                        }
                     }
                 }
                 $baselinePath = Join-Path $path 'deployment-baseline.json'
@@ -1712,6 +1928,7 @@ function Test-WindowsCopilotInstallation {
             baselineStatus = $baselineStatus
             payloadValid = [bool]$payloadValid
             payloadStatus = $payloadStatus
+            payloadReason = $payloadReason
         }
     }
 
@@ -1758,7 +1975,14 @@ function Test-WindowsCopilotInstallation {
 
     $listeners = if ($SkipRuntimeChecks) {
         @($Lock.acceptance.listeners | ForEach-Object {
-            [pscustomobject]@{ host = $_.host; port = $_.port; status = 'skipped'; loopbackOnly = $false }
+            [pscustomobject]@{
+                host = $_.host
+                port = $_.port
+                status = 'skipped'
+                loopbackOnly = $false
+                bindingVerified = $false
+                owningProcessIds = @()
+            }
         })
     } else {
         @($Lock.acceptance.listeners | ForEach-Object {
@@ -1779,13 +2003,36 @@ function Test-WindowsCopilotInstallation {
             if (-not $DesktopRoot) { $DesktopRoot = $env:DSH_DESKTOP_ROOT }
             $active = Test-DshActiveDesktopCore -CliInfo $coreReceipt -DesktopRoot $DesktopRoot `
                 -Processes $DesktopProcesses
+            $desktopListener = @($listeners | Where-Object { [int]$_.port -eq 3080 })
+            $ownerProcessIds = @()
+            if ($desktopListener.Count -eq 1) {
+                $ownerProcessIds = @($desktopListener[0].owningProcessIds)
+            }
+            $listenerBound = [bool](
+                $desktopListener.Count -eq 1 -and
+                $desktopListener[0].bindingVerified -and
+                $desktopListener[0].loopbackOnly -and
+                $ownerProcessIds.Count -eq 1 -and
+                @($active.processIds | Where-Object { [int]$_ -eq [int]$ownerProcessIds[0] }).Count -eq 1
+            )
             [pscustomobject]@{
-                valid = [bool]$active.healthy
-                status = if ($active.healthy) { 'receipted-core-active' } else { 'unverified' }
+                valid = [bool]($active.healthy -and $listenerBound)
+                status = if ($listenerBound) {
+                    'receipted-core-owns-3080'
+                } else {
+                    'receipted-core-listener-owner-mismatch'
+                }
                 processIds = @($active.processIds)
+                listenerOwnerProcessIds = @($ownerProcessIds)
+                listenerBound = $listenerBound
+                reason = $null
             }
         } catch {
-            [pscustomobject]@{ valid = $false; status = 'receipted-core-not-active' }
+            [pscustomobject]@{
+                valid = $false
+                status = 'receipted-core-not-active'
+                reason = $_.Exception.Message
+            }
         }
     }
 
@@ -1883,7 +2130,13 @@ function Test-WindowsCopilotInstallation {
     elseif (-not $desktop.valid) { $driftReasons.Add('desktop-version-mismatch') }
     if (-not $gateway.valid) { $driftReasons.Add('gateway-artifact-mismatch') }
     if (-not $coreReceipt.valid) { $driftReasons.Add('core-' + [string]$coreReceipt.status) }
-    elseif (-not $activeCore.valid) { $driftReasons.Add('core-receipted-package-not-active-under-desktop') }
+    elseif (-not $activeCore.valid) {
+        if ($activeCore.status -eq 'receipted-core-listener-owner-mismatch') {
+            $driftReasons.Add('core-receipted-process-does-not-own-3080')
+        } else {
+            $driftReasons.Add('core-receipted-package-not-active-under-desktop')
+        }
+    }
     if (-not $dependencyValid) { $driftReasons.Add('provider-dependency-unlocked') }
     if (-not $bundleValid) { $driftReasons.Add('profile-bundle-drift') }
     if (-not $allowBuildsValid) { $driftReasons.Add('profile-allow-builds-drift') }
@@ -1973,6 +2226,11 @@ function Invoke-WindowsCopilotApply {
         [string]$DesktopExecutablePath
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    Assert-CoreInstallPrefixIsolation -Lock $Lock -CoreInstallPrefix $CoreInstallPrefix `
+        -DshHome $DshHome -BackupRoot $BackupRoot -HarnessSourceRoot $HarnessSourceRoot `
+        -ProviderSourceRoot $ProviderSourceRoot -NpmGlobalRoot $NpmGlobalRoot `
+        -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
+        -GatewayInstallRoot $GatewayInstallRoot | Out-Null
     $desktopState = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
     if ($desktopState.newerThanLock) {
         throw "Installed Desktop $($desktopState.version) is newer than locked Desktop $($desktopState.lockedVersion). Refusing a downgrade; update the lock or use a reviewed compatible migration."
@@ -2040,6 +2298,7 @@ Export-ModuleMember -Function @(
     'Test-WindowsCopilotLock',
     'Test-LockedArtifact',
     'Test-ProviderDeploymentContract',
+    'Assert-CoreInstallPrefixIsolation',
     'Install-WindowsCopilotCoreRelease',
     'Get-WindowsCopilotInstallPlan',
     'Get-WindowsCopilotRouteModels',

@@ -45,7 +45,8 @@ if (-not $Apply) {
     $installation = Test-WindowsCopilotInstallation -Lock $lock -DshHome $DshHome `
         -NpmGlobalRoot $NpmGlobalRoot -ModelCatalogPath $ModelCatalogPath `
         -ComposedConfigPath $ComposedConfigPath -SearchSmokeResponsePath $SearchSmokeResponsePath `
-        -DshCliPath $DshCliPath -DesktopExecutablePath $DesktopExecutablePath `
+        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
+        -DesktopExecutablePath $DesktopExecutablePath `
         -GatewayExecutablePath $GatewayExecutablePath `
         -SkipRuntimeChecks:$SkipRuntimeChecks
     $checks = [ordered]@{

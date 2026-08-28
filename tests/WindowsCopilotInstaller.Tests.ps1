@@ -57,6 +57,7 @@ public static class $typeName { public static void Main() {} }
         $lock.components.core.source.commit | Should -Be 'd931e5482181f41de0b96a9453de5f2112a4fe47'
         $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
         $lock.components.core.install.script | Should -Be 'release:install-local'
+        @($lock.components.core.install.attestedFiles).Count | Should -Be 3
         $lock.components.gateway.source.commit | Should -Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
         $lock.components.gateway.version | Should -Be '0.6.1'
         $lock.components.searchProvider.source.commit | Should -Be 'f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0'
@@ -145,6 +146,7 @@ public static class $typeName { public static void Main() {} }
             -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -CoreRelease $coreRelease
         $core.commitSha | Should -Be $lock.components.core.source.commit
         Test-Path -LiteralPath $core.receiptPath | Should -Be $true
+        $core.installedFileCount | Should -Be 3
 
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         $dshHome = Join-Path $caseRoot '.dsh'
@@ -154,12 +156,28 @@ public static class $typeName { public static void Main() {} }
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         $providerArtifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.1.tgz'
-        Set-Content -LiteralPath $providerArtifact -Value 'fixture artifact' -Encoding UTF8
-        Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+        $providerStage = Join-Path $caseRoot 'provider-stage'
+        New-Item -ItemType Directory -Path $providerStage -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-web-search-provider') `
+            -Destination (Join-Path $providerStage 'package') -Recurse
+        & tar -czf $providerArtifact -C $providerStage package
+        if ($LASTEXITCODE -ne 0) { throw 'Could not create provider test artifact.' }
+        $healthyLock = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $healthyLock.components.searchProvider.package.artifact.sha256 =
+            (Get-FileHash -LiteralPath $providerArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+        Set-WindowsCopilotProfile -Lock $healthyLock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $providerArtifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
             -SkipPackageInstall | Out-Null
         Mock Test-LoopbackListener -ModuleName WindowsCopilotDeployment {
-            [pscustomobject]@{ host = '127.0.0.1'; port = 0; listening = $true; loopbackOnly = $true; bindingVerified = $true }
+            param($HostName, $Port)
+            [pscustomobject]@{
+                host = '127.0.0.1'
+                port = $Port
+                listening = $true
+                loopbackOnly = $true
+                bindingVerified = $true
+                owningProcessIds = @($(if ($Port -eq 3080) { 101 } else { 201 }))
+            }
         }
         Mock Test-LoaderPackageImports -ModuleName WindowsCopilotDeployment {
             [pscustomobject]@{ valid = $true; status = 'imported' }
@@ -180,17 +198,28 @@ public static class $typeName { public static void Main() {} }
                 CommandLine = 'node "' + $core.packageRoot + '\lib\bin.js"'
             }
         )
-        $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
-            -NpmGlobalRoot $globalRoot -DshCliPath $core.cliPath -DesktopVersion '0.8.2' `
-            -GatewaySha256 $lock.components.gateway.artifact.sha256 `
-            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
-            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
-            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
-            -DesktopProcesses $activeProcesses
+        $previousCliPath = $env:DSH_CLI_PATH
+        try {
+            $env:DSH_CLI_PATH = Join-Path $caseRoot 'wrong-global\dsh.cmd'
+            $state = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
+                -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.8.2' `
+                -GatewaySha256 $lock.components.gateway.artifact.sha256 `
+                -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+                -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
+                -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+                -DesktopProcesses $activeProcesses
+        } finally {
+            $env:DSH_CLI_PATH = $previousCliPath
+        }
+        $state.deployment.core.status | Should -Be 'verified'
+        $state.runtime.activeCore.reason | Should -BeNullOrEmpty
+        $state.runtime.activeCore.status | Should -Be 'receipted-core-owns-3080'
+        $state.runtime.activeCore.listenerOwnerProcessIds | Should -Be @(101)
+        $healthyProvider = @($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider')[0]
+        $healthyProvider.payloadReason | Should -BeNullOrEmpty
+        $healthyProvider.payloadStatus | Should -Be 'verified'
         $state.complete | Should -Be $true
         $state.health | Should -Be 'healthy'
-        $state.deployment.core.status | Should -Be 'verified'
-        $state.runtime.activeCore.status | Should -Be 'receipted-core-active'
 
         $unrelatedProcesses = @(
             $activeProcesses[0],
@@ -202,7 +231,7 @@ public static class $typeName { public static void Main() {} }
                 CommandLine = 'node "C:\Program Files\DeepSeek Harness\packaged-core\lib\bin.js"'
             }
         )
-        $falseActive = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
+        $falseActive = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
             -NpmGlobalRoot $globalRoot -DshCliPath $core.cliPath -DesktopVersion '0.8.2' `
             -GatewaySha256 $lock.components.gateway.artifact.sha256 `
             -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
@@ -212,6 +241,56 @@ public static class $typeName { public static void Main() {} }
         $falseActive.complete | Should -Be $false
         $falseActive.runtime.activeCore.status | Should -Be 'receipted-core-not-active'
         @($falseActive.drift.reasons) | Should -Contain 'core-receipted-package-not-active-under-desktop'
+
+        Mock Test-LoopbackListener -ModuleName WindowsCopilotDeployment {
+            param($HostName, $Port)
+            [pscustomobject]@{
+                host = '127.0.0.1'
+                port = $Port
+                listening = $true
+                loopbackOnly = $true
+                bindingVerified = $true
+                owningProcessIds = @($(if ($Port -eq 3080) { 999 } else { 201 }))
+            }
+        }
+        $wrongOwner = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.8.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 `
+            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DesktopProcesses $activeProcesses
+        $wrongOwner.complete | Should -Be $false
+        $wrongOwner.runtime.activeCore.status | Should -Be 'receipted-core-listener-owner-mismatch'
+        @($wrongOwner.drift.reasons) | Should -Contain 'core-receipted-process-does-not-own-3080'
+
+        Add-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-web-search-provider\lib\index.js') `
+            -Value 'tampered' -Encoding ASCII
+        $providerTamper = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.8.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 `
+            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -SkipRuntimeChecks
+        $provider = @($providerTamper.profile.plugins | Where-Object name -eq 'dsh-web-search-provider')[0]
+        $provider.payloadStatus | Should -Be 'installed-file-mismatch'
+        @($providerTamper.drift.reasons) | Should -Contain 'provider-payload-installed-file-mismatch'
+
+        $receipt = Get-Content -LiteralPath $core.receiptPath -Raw | ConvertFrom-Json
+        $receipt.PSObject.Properties.Remove('installedFiles')
+        $receipt | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath $core.receiptPath -Encoding UTF8
+        $unattested = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.8.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 `
+            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DesktopProcesses $activeProcesses
+        $unattested.complete | Should -Be $false
+        $unattested.deployment.core.status | Should -Be 'installed-bytes-unattested'
+        @($unattested.drift.reasons) | Should -Contain 'core-installed-bytes-unattested'
     }
 
     It 'loads the real receipt installer from an exact locked Core checkout' -Skip:(-not $env:DSH_LOCKED_CORE_CHECKOUT) {
@@ -413,7 +492,7 @@ public static class $typeName { public static void Main() {} }
         (@($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider'))[0].baselineStatus |
             Should -Be 'missing'
         (@($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider'))[0].payloadStatus |
-            Should -Be 'verified'
+            Should -Be 'locked-artifact-missing-or-invalid'
         $state.runtime.composedConfig.managedConfigValid | Should -Be $false
         @($state.runtime.composedConfig.forbiddenActiveEntries) | Should -Contain 'web-search-deepseek'
         $state.drift.remediation.status | Should -Be 'blocked-lock-update-required'
@@ -498,7 +577,7 @@ public static class $typeName { public static void Main() {} }
         New-VersionedDesktopFixture -Path $canonicalDesktop -Version '0.9.2'
         {
             Invoke-WindowsCopilotApply -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
-                -NpmGlobalRoot (Join-Path $TestDrive 'global') `
+                -NpmGlobalRoot (Join-Path $TestDrive 'global\node_modules') `
                 -HarnessSourceRoot (Join-Path $TestDrive 'missing-core-source') `
                 -ProviderSourceRoot (Join-Path $TestDrive 'missing-provider-source') `
                 -DesktopArtifactPath (Join-Path $TestDrive 'missing-desktop.exe') `
@@ -510,6 +589,118 @@ public static class $typeName { public static void Main() {} }
         } | Should -Throw '*Refusing a downgrade*'
         Test-Path -LiteralPath (Join-Path $TestDrive '.dsh') | Should -Be $false
         Test-Path -LiteralPath (Join-Path $TestDrive 'backups') | Should -Be $false
+    }
+
+    It 'rejects every Core prefix overlap before mutation' {
+        $base = Join-Path $TestDrive 'prefix-isolation'
+        $arguments = @{
+            Lock = $lock
+            DshHome = Join-Path $base 'dsh-home'
+            BackupRoot = Join-Path $base 'backups'
+            HarnessSourceRoot = Join-Path $base 'source-core'
+            ProviderSourceRoot = Join-Path $base 'source-provider'
+            NpmGlobalRoot = Join-Path $base 'global\node_modules'
+            DesktopArtifactPath = Join-Path $base 'artifacts\desktop.exe'
+            GatewayArtifactPath = Join-Path $base 'artifacts\gateway.exe'
+            GatewayInstallRoot = Join-Path $base 'gateway-install'
+        }
+        (Assert-CoreInstallPrefixIsolation @arguments -CoreInstallPrefix (Join-Path $base 'core-prefix')).valid |
+            Should -Be $true
+
+        $overlaps = @(
+            $arguments.DshHome,
+            (Split-Path -Parent $arguments.DshHome),
+            (Join-Path $arguments.DshHome 'nested'),
+            $arguments.BackupRoot,
+            $arguments.HarnessSourceRoot,
+            $arguments.ProviderSourceRoot,
+            $arguments.NpmGlobalRoot,
+            (Split-Path -Parent $arguments.NpmGlobalRoot),
+            $arguments.DesktopArtifactPath,
+            $arguments.GatewayArtifactPath,
+            $arguments.GatewayInstallRoot
+        )
+        foreach ($candidate in $overlaps) {
+            {
+                Assert-CoreInstallPrefixIsolation @arguments -CoreInstallPrefix $candidate
+            } | Should -Throw '*CoreInstallPrefix must not overlap*'
+        }
+        Test-Path -LiteralPath $base | Should -Be $false
+    }
+
+    It 'rejects a Core prefix beneath a junction alias to a protected root' {
+        $base = Join-Path $TestDrive 'prefix-junction'
+        $protected = Join-Path $base 'protected'
+        $aliasParent = Join-Path $base 'aliases'
+        $alias = Join-Path $aliasParent 'protected-alias'
+        New-Item -ItemType Directory -Path $protected, $aliasParent -Force | Out-Null
+        try {
+            New-Item -ItemType Junction -Path $alias -Target $protected -ErrorAction Stop | Out-Null
+        } catch {
+            Set-ItResult -Skipped -Because "Junction creation is unavailable: $($_.Exception.Message)"
+            return
+        }
+        $arguments = @{
+            Lock = $lock
+            CoreInstallPrefix = Join-Path $alias 'core'
+            DshHome = $protected
+            BackupRoot = Join-Path $base 'backups'
+            HarnessSourceRoot = Join-Path $base 'source-core'
+            ProviderSourceRoot = Join-Path $base 'source-provider'
+            NpmGlobalRoot = Join-Path $base 'global\node_modules'
+            DesktopArtifactPath = Join-Path $base 'desktop.exe'
+            GatewayArtifactPath = Join-Path $base 'gateway.exe'
+            GatewayInstallRoot = Join-Path $base 'gateway-install'
+        }
+        {
+            Assert-CoreInstallPrefixIsolation @arguments
+        } | Should -Throw '*must not use reparse-point path*'
+    }
+
+    It 'rejects a protected DSH home beneath a junction alias' {
+        $base = Join-Path $TestDrive 'protected-junction'
+        $target = Join-Path $base 'target'
+        $aliasParent = Join-Path $base 'aliases'
+        $alias = Join-Path $aliasParent 'dsh-home'
+        New-Item -ItemType Directory -Path $target, $aliasParent -Force | Out-Null
+        try {
+            New-Item -ItemType Junction -Path $alias -Target $target -ErrorAction Stop | Out-Null
+        } catch {
+            Set-ItResult -Skipped -Because "Junction creation is unavailable: $($_.Exception.Message)"
+            return
+        }
+        $arguments = @{
+            Lock = $lock
+            CoreInstallPrefix = Join-Path $base 'core'
+            DshHome = $alias
+            BackupRoot = Join-Path $base 'backups'
+            HarnessSourceRoot = Join-Path $base 'source-core'
+            ProviderSourceRoot = Join-Path $base 'source-provider'
+            NpmGlobalRoot = Join-Path $base 'global\node_modules'
+            DesktopArtifactPath = Join-Path $base 'desktop.exe'
+            GatewayArtifactPath = Join-Path $base 'gateway.exe'
+            GatewayInstallRoot = Join-Path $base 'gateway-install'
+        }
+        {
+            Assert-CoreInstallPrefixIsolation @arguments
+        } | Should -Throw '*must not use reparse-point path*'
+    }
+
+    It 'rejects an IPv6-only listener for the locked IPv4 address' {
+        InModuleScope WindowsCopilotDeployment {
+            Mock Get-NetTCPConnection {
+                [pscustomobject]@{
+                    LocalAddress = '::1'
+                    LocalPort = 3080
+                    OwningProcess = 101
+                    State = 'Listen'
+                }
+            }
+            $listener = Test-LoopbackListener -HostName '127.0.0.1' -Port 3080
+            $listener.listening | Should -Be $false
+            $listener.loopbackOnly | Should -Be $false
+            @($listener.owningProcessIds).Count | Should -Be 0
+        }
     }
 
     It 'rejects unsupported YAML key shapes without changing the file' {

@@ -252,6 +252,56 @@ function Resolve-DshCliInfo {
         throw 'The installed @deepseek-ai/dsh entry point is missing or outside the package root.'
     }
 
+    $installedFilesProperty = $receipt.PSObject.Properties['installedFiles']
+    if (-not $installedFilesProperty -or $null -eq $installedFilesProperty.Value) {
+        throw 'Core receipt installed-bytes-unattested: installedFiles is missing.'
+    }
+    $expectedInstalledFiles = @(
+        [pscustomobject]@{ role = 'root-shim'; path = 'dsh.cmd'; fullPath = $desktopCli },
+        [pscustomobject]@{
+            role = 'npm-shim'
+            path = 'node_modules\.bin\dsh.cmd'
+            fullPath = $canonicalCli
+        },
+        [pscustomobject]@{
+            role = 'entrypoint'
+            path = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+            fullPath = $entryPath
+        }
+    )
+    $installedFiles = @($installedFilesProperty.Value)
+    if ($installedFiles.Count -ne $expectedInstalledFiles.Count) {
+        throw 'Core receipt installed-bytes-unattested: installedFiles must contain exactly three entries.'
+    }
+    $seenInstalledRoles = @{}
+    foreach ($item in $installedFiles) {
+        $roleProperty = $item.PSObject.Properties['role']
+        $pathProperty = $item.PSObject.Properties['path']
+        $shaProperty = $item.PSObject.Properties['sha256']
+        if (-not $roleProperty -or -not $pathProperty -or -not $shaProperty) {
+            throw 'Core receipt installed-bytes-unattested: an installedFiles entry is incomplete.'
+        }
+        $role = [string]$roleProperty.Value
+        $relativePath = ([string]$pathProperty.Value).Replace('/', '\')
+        $sha256 = [string]$shaProperty.Value
+        $expectedFile = @($expectedInstalledFiles | Where-Object { $_.role -ceq $role })
+        if ($seenInstalledRoles.ContainsKey($role) -or $expectedFile.Count -ne 1 -or
+            [IO.Path]::IsPathRooted($relativePath) -or $relativePath -ne [string]$expectedFile[0].path -or
+            $sha256 -notmatch '^[0-9a-fA-F]{64}$') {
+            throw "Core receipt installed-bytes-unattested: invalid installedFiles entry '$role'."
+        }
+        $seenInstalledRoles[$role] = $true
+        $fullPath = [IO.Path]::GetFullPath((Join-Path $prefix $relativePath))
+        if ($fullPath -ine [string]$expectedFile[0].fullPath -or
+            -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "Core receipt installed-bytes-unattested: '$role' does not resolve to the required file."
+        }
+        $actualSha256 = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash
+        if ($actualSha256 -ine $sha256) {
+            throw "Core receipt installed-bytes-mismatch: '$role' SHA-256 does not match."
+        }
+    }
+
     $receiptPackages = @((Get-DshRequiredProperty -Object $receipt -Name 'packages' -Context 'Receipt'))
     if ($receiptPackages.Count -eq 0) { throw 'Receipt packages must contain the installed runtime closure.' }
     $seen = @{}
@@ -314,6 +364,7 @@ function Resolve-DshCliInfo {
         receiptPath = [IO.Path]::GetFullPath($receiptPath)
         releaseManifestSha256 = $releaseManifestSha256.ToLowerInvariant()
         packageCount = $receiptPackages.Count
+        installedFileCount = $installedFiles.Count
     }
 }
 

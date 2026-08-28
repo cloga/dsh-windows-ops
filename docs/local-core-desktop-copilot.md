@@ -132,14 +132,27 @@ pnpm run release:install-local -- `
   --expect-version $version
 ```
 
-The installer verifies the complete local runtime closure and writes
-`<prefix>\dsh-local-install.json`. The receipt records schema version, fork
-repository URL, full commit SHA, npm package identity/version, the
-Desktop-compatible prefix-root CLI, release-manifest SHA-256, and each installed
-tarball hash. The canonical CLI remains
+The Core installer verifies the complete local runtime closure and writes the
+base `<prefix>\dsh-local-install.json`. The locked Windows deployment Apply then
+augments that receipt with SHA-256 values for the prefix-root shim, npm shim,
+and exact `@deepseek-ai/dsh\lib\bin.js` entrypoint. A base receipt without this
+installed-file attestation is reported as `installed-bytes-unattested`; changing
+any sealed file is reported as `installed-bytes-mismatch`. The receipt also
+records schema version, fork repository URL, full commit SHA, npm package
+identity/version, the Desktop-compatible prefix-root CLI, release-manifest
+SHA-256, and each installed tarball hash. The canonical CLI remains
 `<prefix>\node_modules\.bin\dsh.cmd`. The npm package keeps its official
 `@deepseek-ai/dsh` name and upstream package metadata; fork provenance comes
 only from this receipt.
+
+Before any build or install mutation, Apply rejects a `CoreInstallPrefix` that
+equals, contains, or is contained by DSH home/profile, the backup root, either
+source checkout, the global npm root or prefix, either locked artifact path, or
+the gateway install root. It also rejects any existing reparse-point ancestor
+of the Core prefix or any protected path, so junction aliases cannot bypass the
+comparison. During a later check, supplying `CoreInstallPrefix` without
+`DshCliPath` selects `<CoreInstallPrefix>\dsh.cmd` ahead of environment or
+global CLI discovery.
 
 For Desktop compatibility, the installer creates the attested prefix-root
 forwarding shim:
@@ -433,8 +446,8 @@ Do not stop after `/v1/models` responds. Verify each layer independently:
 
 | Check | Expected result |
 |---|---|
-| Desktop listener | `127.0.0.1:3080` |
-| Active local Core | A Desktop descendant command line resolves to the package root attested by `dsh-local-install.json` |
+| Desktop listener | Exact `127.0.0.1:3080` binding, owned by the receipted Node descendant; IPv6-only `::1` is insufficient |
+| Active local Core | A Desktop Node descendant executes the sealed `lib\bin.js`, and that same PID owns port 3080 |
 | Gateway listener | `127.0.0.1:7777`, not a public bind |
 | Gateway task | Current-user logon task is running |
 | Model endpoint | HTTP 200 and a non-empty catalog; validated run returned 35 models |
@@ -482,6 +495,10 @@ the provider/profile and the bootstrap configure Copilot search.
 When the gateway is not under the lock's default install directory, check mode
 resolves the sole loopback listener on the locked port and hashes that process
 image. Missing, public, ambiguous, or hash-mismatched listeners remain invalid.
+For the hosted-search provider, check mode hashes `lib\index.js` and compares it
+directly with the same raw entry in the SHA-verified locked tarball retained
+under `$DSH_HOME\artifacts`; version and file-existence markers alone are not
+accepted.
 
 ## Agent bootstrap command
 
@@ -502,9 +519,10 @@ The command is idempotent and fail-closed. Before changing files, it requires:
   `cloga/deepseek-harness`, a full commit SHA, the installed
   `@deepseek-ai/dsh` name/version, prefix-root CLI consistency, the exact
   forwarding shim and derived canonical CLI, a valid release-manifest SHA-256,
-  and matching installed package manifests;
-- the active Desktop process tree to run that package, outside the packaged
-  Desktop core;
+  matching installed package manifests, and the locked deployment's hashes for
+  the root shim, npm shim, and exact `lib\bin.js`;
+- the active Desktop process tree to run that exact sealed entrypoint, outside
+  the packaged Desktop core, with the same Node PID owning loopback port 3080;
 - `COPILOT_API_KEY` to resolve from the process environment or
   `$DSH_HOME/.credentials.yaml`, without reading it into output;
 - copilot2api `GET /v1/models` to return the selected model with explicit image

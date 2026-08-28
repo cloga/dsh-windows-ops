@@ -52,7 +52,21 @@
         ]
       },
       "install": {
-        "script": "release:install-local"
+        "script": "release:install-local",
+        "attestedFiles": [
+          {
+            "role": "root-shim",
+            "path": "dsh.cmd"
+          },
+          {
+            "role": "npm-shim",
+            "path": "node_modules\\.bin\\dsh.cmd"
+          },
+          {
+            "role": "entrypoint",
+            "path": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js"
+          }
+        ]
       }
     },
     "gateway": {
@@ -85,6 +99,9 @@
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
         "bundlePatch": "./cordis.patch.yml",
+        "attestedFiles": [
+          "lib/index.js"
+        ],
         "artifact": {
           "name": "dsh-web-search-provider-0.2.3-cloga.1.tgz",
           "sha256": "d1ded34f5a2b8b1a1e82aa9d6477c0f660d0cd307f14589c26e52c2fb7c18e8f"

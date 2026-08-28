@@ -26,6 +26,7 @@ evidence, and compatibility guidance.
 | Agent-native dev | **`dsh-dev-tools` plugin**: `dsh_status` / `dsh_patch` / `dsh_build` / `dsh_upgrade` - the agent drives status/patch/build/upgrade natively inside the session | `tools/dsh-dev-tools/` |
 | Durable replay / self-heal | Versioned component inventory, service/config/model/image checks, strict replayable patches, backups, rollback, and Desktop recovery | `tools/dsh-replay.ps1`, `docs/windows-replay-tooling.md` |
 | Local core + Desktop + Copilot | Machine-locked, check-first installation of Desktop, fork core, Copilot2API, loader packages, physical Tauri/search plugins, dual-protocol routes, backups, and acceptance contracts | `deployments/windows-copilot.lock.json`, `tools/install-windows-copilot.ps1`, `docs/local-core-desktop-copilot.md` |
+| Copilot ACP subagent | Preserve native spawn/fork while adding GitHub Copilot CLI as an independent ACP coding agent; deterministic routing, permission boundaries, validation, and rollback | `docs/copilot-acp-subagent.md` |
 | Copilot search/vision bootstrap | One fail-closed command verifies the active local core, configures both profiles, disables conflicting search, checks model/vision metadata and SlotOutlet/flat layout, and provides backup/rollback | `tools/enable-copilot-search-vision.ps1` |
 
 ## Usage

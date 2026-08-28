@@ -536,7 +536,7 @@ function Set-DshCopilotSettings {
 $script:SettingsBegin
 llm-pi-ai:
   providers:
-    copilot-responses:
+    github-copilot-gateway:
       displayName: GitHub Copilot via copilot2api
       apiKeyEnv: COPILOT_API_KEY
       api: openai-responses
@@ -545,7 +545,7 @@ llm-pi-ai:
         - id: $(ConvertTo-DshSingleQuotedYaml $Model)
 $input
 agent-default-model:
-  provider: copilot-responses
+  provider: github-copilot-gateway
   model: $(ConvertTo-DshSingleQuotedYaml $Model)
 $script:SettingsEnd
 "@
@@ -561,16 +561,14 @@ function Set-DshCopilotProfilePatch {
     $block = @"
 $script:ProfileBegin
 - id: web
-  disabled: true
+  config:
+    searchProvider: copilot-hosted
 - id: web-search-deepseek
-  disabled: true
-- id: tool-web
   disabled: true
 - id: web-search-provider
   config:
     enabled: true
-    providers: [copilot-responses]
-    apiKeyEnv: COPILOT_API_KEY
+    providers: [github-copilot-gateway]
     probe: true
 $script:ProfileEnd
 "@
@@ -578,7 +576,6 @@ $script:ProfileEnd
         -Block $block -ConflictPatterns @(
             '(?m)^\s*-\s+id:\s+web\s*$',
             '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
-            '(?m)^\s*-\s+id:\s+tool-web\s*$',
             '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
         ) -DryRun:$DryRun
 }
@@ -605,19 +602,19 @@ function Test-DshCopilotSettings {
     }
     foreach ($marker in @(
         $script:SettingsBegin,
-        'copilot-responses:',
+        'github-copilot-gateway:',
         'apiKeyEnv: COPILOT_API_KEY',
         'api: openai-responses',
         "baseURL: $(ConvertTo-DshSingleQuotedYaml $BaseUrl)",
         "id: $(ConvertTo-DshSingleQuotedYaml $Model)",
         'input: [text, image]',
-        'provider: copilot-responses',
+        'provider: github-copilot-gateway',
         "model: $(ConvertTo-DshSingleQuotedYaml $Model)",
         $script:SettingsEnd
     )) {
         if (-not $managed.Contains($marker)) { throw 'DSH settings do not match the managed Copilot route.' }
     }
-    return [pscustomobject]@{ healthy = $true; path = $Path; provider = 'copilot-responses'; model = $Model }
+    return [pscustomobject]@{ healthy = $true; path = $Path; provider = 'github-copilot-gateway'; model = $Model }
 }
 
 function New-DshCopilotBackup {
@@ -781,7 +778,6 @@ function Test-DshCopilotProfile {
     foreach ($pattern in @(
         '(?m)^\s*-\s+id:\s+web\s*$',
         '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
-        '(?m)^\s*-\s+id:\s+tool-web\s*$',
         '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
     )) {
         if ($outside -match $pattern) { throw "Profile '$Profile' contains unmanaged conflicting search configuration." }
@@ -789,13 +785,12 @@ function Test-DshCopilotProfile {
     foreach ($marker in @(
         $script:ProfileBegin,
         '- id: web',
+        'searchProvider: copilot-hosted',
         '- id: web-search-deepseek',
-        '- id: tool-web',
         'disabled: true',
         '- id: web-search-provider',
         'enabled: true',
-        'providers: [copilot-responses]',
-        'apiKeyEnv: COPILOT_API_KEY',
+        'providers: [github-copilot-gateway]',
         $script:ProfileEnd
     )) {
         if (-not $managed.Contains($marker)) { throw "Profile '$Profile' is missing managed search configuration." }
@@ -842,7 +837,7 @@ function Test-DshSandboxRegression {
     param(
         [Parameter(Mandatory)][string]$PackageRoot,
         [Parameter(Mandatory)][string]$ProbeScript,
-        [ValidateSet('Report', 'Require', 'Skip')][string]$Mode = 'Report'
+        [ValidateSet('Report', 'Require', 'Skip')][string]$Mode = 'Require'
     )
     if ($Mode -eq 'Skip') {
         return [pscustomobject]@{ status = 'skipped'; required = $false }

@@ -35,9 +35,11 @@
   Otherwise, verify that Desktop selected the global local CLI.
 - Do not use Desktop's local-core update action while testing the fork; it
   installs `@deepseek-ai/dsh@latest` and can replace the fork build.
-- Treat plugins and the core as separate compatibility layers. The locked
-  installer must re-materialize all four profile plugins after every profile
-  package install. Run its check plus the repository replay self-check and
-  exact-marker dry run before applying unrelated patches.
+- Treat plugins and the core as separate compatibility layers. Preserve and
+  attest Desktop's five official internal-plugin links; never replace them with
+  guessed registry packages. The locked installer physically materializes only
+  the reviewed hosted-search provider after each profile package install. Run
+  its check plus the repository replay self-check and exact-marker dry run
+  before applying unrelated patches.
 
 See [Local DSH core, Desktop, and GitHub Copilot practice](docs/local-core-desktop-copilot.md).

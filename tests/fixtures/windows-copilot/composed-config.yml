@@ -1,7 +1,12 @@
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: copilot-hosted
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
 - id: web-search-provider
   name: dsh-web-search-provider
   config:
     enabled: true
-    providers: [copilot-responses]
-    apiKeyEnv: COPILOT_API_KEY
+    providers: [github-copilot-gateway]
     probe: true

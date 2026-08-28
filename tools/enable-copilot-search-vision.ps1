@@ -12,7 +12,7 @@ param(
     [ValidateSet('Contract', 'Live')]
     [string]$VisionProbe = 'Contract',
     [ValidateSet('Report', 'Require', 'Skip')]
-    [string]$SandboxGate = 'Report',
+    [string]$SandboxGate = 'Require',
     [switch]$DryRun
 )
 

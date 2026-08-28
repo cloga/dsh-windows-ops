@@ -8,7 +8,7 @@
   },
   "package": {
     "name": "dsh-web-search-provider",
-    "version": "0.2.3-cloga.1"
+    "version": "0.2.3-cloga.3"
   },
   "supportedBaselines": {
     "platforms": [
@@ -43,6 +43,14 @@
     },
     {
       "id": "orphaned-replay-item-filtering",
+      "required": true
+    },
+    {
+      "id": "traditional-search-compatibility-bridge",
+      "required": true
+    },
+    {
+      "id": "nonempty-reasoning-blocks",
       "required": true
     }
   ]

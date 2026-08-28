@@ -10,25 +10,54 @@
   },
   "components": {
     "desktop": {
-      "version": "0.8.2",
+      "version": "0.9.2",
       "source": {
         "repository": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop",
-        "releaseTag": "v0.8.2"
+        "releaseTag": "v0.9.2",
+        "commit": "c7c5a247961b1ca2d7389026ad7194ac108e5437"
       },
       "artifact": {
-        "name": "Deepseek.Harness.Desktop_0.8.2_x64-setup.exe",
-        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.8.2/Deepseek.Harness.Desktop_0.8.2_x64-setup.exe",
-        "sha256": "a87b7a5d25bd2d4942315a462407326bfb16197178ed0abb0718ab203b5c404b"
+        "name": "Deepseek.Harness.Desktop_0.9.2_x64-setup.exe",
+        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.9.2/Deepseek.Harness.Desktop_0.9.2_x64-setup.exe",
+        "sha256": "f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7"
       },
       "install": {
         "arguments": ["/S"],
         "acceptedExitCodes": [0]
-      }
+      },
+      "internalPlugins": [
+        {
+          "name": "dsh-tauri",
+          "version": "0.4.9",
+          "relativePath": "resources\\internal-plugins\\dsh-tauri"
+        },
+        {
+          "name": "dsh-tauri-panel",
+          "version": "0.4.9",
+          "relativePath": "resources\\internal-plugins\\dsh-tauri-panel"
+        },
+        {
+          "name": "dsh-tauri-panel-extension",
+          "version": "0.4.9",
+          "relativePath": "resources\\internal-plugins\\dsh-tauri-panel-extension"
+        },
+        {
+          "name": "dsh-tauri-ui",
+          "version": "0.4.9",
+          "relativePath": "resources\\internal-plugins\\dsh-tauri-ui"
+        },
+        {
+          "name": "dsh-tauri-worktree",
+          "version": "0.4.9",
+          "relativePath": "resources\\internal-plugins\\dsh-tauri-worktree"
+        }
+      ]
     },
     "core": {
       "source": {
         "repository": "https://github.com/cloga/deepseek-harness",
-        "commit": "d931e5482181f41de0b96a9453de5f2112a4fe47"
+        "pullRequest": 8,
+        "commit": "bd520d6e47e0c9cc690bf6d7211512cb044fd095"
       },
       "package": {
         "name": "@deepseek-ai/dsh",
@@ -89,12 +118,12 @@
     "searchProvider": {
       "source": {
         "repository": "https://github.com/cloga/dsh-web-search-provider",
-        "pullRequest": 3,
-        "commit": "f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0"
+        "pullRequest": 4,
+        "commit": "e47390c789c4939eaa6660f52e0f3d2e37d554aa"
       },
       "package": {
         "name": "dsh-web-search-provider",
-        "version": "0.2.3-cloga.1",
+        "version": "0.2.3-cloga.3",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
@@ -103,8 +132,8 @@
           "lib/index.js"
         ],
         "artifact": {
-          "name": "dsh-web-search-provider-0.2.3-cloga.1.tgz",
-          "sha256": "d1ded34f5a2b8b1a1e82aa9d6477c0f660d0cd307f14589c26e52c2fb7c18e8f"
+          "name": "dsh-web-search-provider-0.2.3-cloga.3.tgz",
+          "sha256": "5ec9b9a782712e3e05bf8e58583aa86370ced383ab389df11cdeebf6aafea647"
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
@@ -122,12 +151,14 @@
             "grounded-sandbox-escalation",
             "image-attachment-bypass",
             "failure-safe-copilot-model-catalog",
-            "orphaned-replay-item-filtering"
+            "orphaned-replay-item-filtering",
+            "traditional-search-compatibility-bridge",
+            "nonempty-reasoning-blocks"
           ]
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-web-search-provider-0.2.3-cloga.1.tgz",
+        "artifactPattern": "dist\\dsh-web-search-provider-0.2.3-cloga.3.tgz",
         "commands": [
           ["install", "--frozen-lockfile"],
           ["test"],
@@ -157,21 +188,6 @@
         "name": "node-addon-require-builtin",
         "version": "0.1.4",
         "role": "loader"
-      },
-      {
-        "name": "dsh-tauri",
-        "version": "0.2.0",
-        "role": "profile-plugin"
-      },
-      {
-        "name": "dsh-tauri-ui",
-        "version": "0.1.0",
-        "role": "profile-plugin"
-      },
-      {
-        "name": "dsh-tauri-worktree",
-        "version": "0.1.0",
-        "role": "profile-plugin"
       }
     ]
   },
@@ -186,6 +202,8 @@
       "@deepseek-ai/dsh-base",
       "@deepseek-ai/dsh-web-app",
       "dsh-tauri",
+      "dsh-tauri-panel",
+      "dsh-tauri-panel-extension",
       "dsh-tauri-ui",
       "dsh-tauri-worktree",
       "dsh-web-search-provider"
@@ -193,25 +211,42 @@
     "plugins": [
       {
         "name": "dsh-tauri",
-        "version": "0.2.0",
-        "source": "global",
-        "materialize": true
+        "version": "0.4.9",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
+      },
+      {
+        "name": "dsh-tauri-panel",
+        "version": "0.4.9",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
+      },
+      {
+        "name": "dsh-tauri-panel-extension",
+        "version": "0.4.9",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
       },
       {
         "name": "dsh-tauri-ui",
-        "version": "0.1.0",
-        "source": "global",
-        "materialize": true
+        "version": "0.4.9",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
       },
       {
         "name": "dsh-tauri-worktree",
-        "version": "0.1.0",
-        "source": "global",
-        "materialize": true
+        "version": "0.4.9",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
       },
       {
         "name": "dsh-web-search-provider",
-        "version": "0.2.3-cloga.1",
+        "version": "0.2.3-cloga.3",
         "source": "built-artifact",
         "materialize": true
       }
@@ -269,9 +304,18 @@
         "--dump-config"
       ],
       "requiredMarkers": [
-        "dsh-web-search-provider"
+        "dsh-web-search-provider",
+        "searchProvider: copilot-hosted"
       ],
       "requiredEntries": [
+        {
+          "id": "web",
+          "name": "@deepseek-ai/dsh-web"
+        },
+        {
+          "id": "tool-web",
+          "name": "@deepseek-ai/dsh-tool-web"
+        },
         {
           "id": "web-search-provider",
           "name": "dsh-web-search-provider"
@@ -281,15 +325,15 @@
         "searchProvider: deepseek-official"
       ],
       "forbiddenActiveEntries": [
-        "web",
-        "web-search-deepseek",
-        "tool-web"
+        "web-search-deepseek"
       ],
       "managedEntry": {
         "id": "web-search-provider",
         "enabled": true,
-        "provider": "copilot-responses",
-        "apiKeyEnv": "COPILOT_API_KEY"
+        "provider": "github-copilot-gateway",
+        "protocol": "openai-responses",
+        "hostEntry": "web",
+        "searchProvider": "copilot-hosted"
       }
     },
     "loaderImports": [
@@ -306,9 +350,27 @@
         "url_citation"
       ],
       "forbiddenText": [
-        "DEEPSEEK_API_KEY"
+        "DEEPSEEK_API_KEY",
+        "provider-not-registered"
       ],
       "manualWhenModelIsUnset": true
+    },
+    "traditionalSearch": {
+      "provider": "copilot-hosted",
+      "requiredEvidenceProperty": "sources",
+      "forbiddenText": [
+        "DEEPSEEK_API_KEY",
+        "provider-not-registered"
+      ]
+    },
+    "reasoning": {
+      "responses": "nonempty-only",
+      "anthropic": "nonempty-only"
+    },
+    "sandbox": {
+      "gate": "Require",
+      "sameAndNarrower": "no-op",
+      "widerApprovalCount": 1
     }
   },
   "backup": {

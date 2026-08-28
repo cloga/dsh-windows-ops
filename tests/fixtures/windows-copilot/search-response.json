@@ -30,5 +30,42 @@
         }
       ]
     }
-  ]
+  ],
+  "traditionalSearch": {
+    "provider": "copilot-hosted",
+    "content": "Fixture grounded answer.",
+    "sources": [
+      {
+        "url": "https://example.test/source",
+        "title": "Fixture source"
+      }
+    ]
+  },
+  "cordisSession": {
+    "mounted": [
+      "web",
+      "tool-web",
+      "web-search-provider"
+    ]
+  },
+  "reasoning": {
+    "responses": {
+      "emptyItems": [
+        {
+          "type": "reasoning",
+          "content": []
+        }
+      ],
+      "emittedThinkCards": []
+    },
+    "anthropic": {
+      "emptyItems": [
+        {
+          "type": "thinking",
+          "thinking": ""
+        }
+      ],
+      "emittedThinkChunks": []
+    }
+  }
 }

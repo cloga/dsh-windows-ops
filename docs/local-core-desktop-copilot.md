@@ -21,10 +21,11 @@ changing the machine. `-Apply` additionally requires exact core/provider
 checkouts, the two release artifacts, and a captured `/v1/models` response.
 The installer verifies release SHA-256 values and source commits, builds with
 the package managers recorded by each source repository, installs the Core
-through its receipt-producing `release:install-local` script, then installs all
-loader dependencies, Tauri packages, and the provider tarball in one global npm
-transaction. It updates the web profile and routes, and then replaces all four
-profile plugin entries with physical directories.
+through its receipt-producing `release:install-local` script, then installs the
+three loader dependencies and provider tarball in one global npm transaction.
+It preserves and attests Desktop 0.9.2's five official 0.4.9 internal-plugin
+links, updates the web profile and routes, and physically materializes only the
+reviewed hosted-search provider.
 
 Every touched settings/profile file and plugin directory is copied under
 `%LOCALAPPDATA%\dsh-windows-ops\deployment-backups` before replacement. That
@@ -44,7 +45,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -HarnessSourceRoot C:\Path\To\deepseek-harness `
   -CoreInstallPrefix C:\.tools\dsh-cloga `
   -ProviderSourceRoot C:\Path\To\dsh-web-search-provider `
-  -DesktopArtifactPath C:\Path\To\Deepseek.Harness.Desktop_0.8.2_x64-setup.exe `
+  -DesktopArtifactPath C:\Path\To\Deepseek.Harness.Desktop_0.9.2_x64-setup.exe `
   -GatewayArtifactPath C:\Path\To\copilot2api-windows-amd64.exe `
   -ModelCatalogPath $env:TEMP\copilot-models.json
 ```
@@ -59,7 +60,7 @@ Do not execute them as a substitute for the manifest and orchestrator.
 
 ## Supported architecture
 
-DSH Desktop 0.8.2 supports a local core, but it does not accept a Harness fork
+DSH Desktop 0.9.2 supports a local core, but it does not accept a Harness fork
 URL in the UI. The supported separation is:
 
 ```text
@@ -85,22 +86,22 @@ The installation described here was verified with:
 
 | Component | Version or state |
 |---|---|
-| DSH Desktop | `0.8.2` |
+| DSH Desktop | `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437`, setup SHA-256 `F7055155FFDAF1671761D5BA85030009CF3207D4C9C46649C211C2217BB1C1C7` |
 | Local `@deepseek-ai/dsh` | `0.1.1-rc.2` |
-| `cloga/deepseek-harness` | `d931e5482181f41de0b96a9453de5f2112a4fe47` |
+| `cloga/deepseek-harness` | PR #8, `bd520d6e47e0c9cc690bf6d7211512cb044fd095` |
 | Node / npm / pnpm | `24.19.0` / `11.17.0` / `11.7.0` |
 | `copilot2api` | `0.6.1`, loopback `127.0.0.1:7777` |
-| Desktop profile plugins | `dsh-tauri@0.2.0`, `dsh-tauri-ui@0.1.0`, `dsh-tauri-worktree@0.1.0` |
-| Hosted-search provider | `cloga/dsh-web-search-provider` PR #3, `0.2.3-cloga.1`, commit `f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0`, tarball SHA-256 `D1DED34F5A2B8B1A1E82AA9D6477C0F660D0CD307F14589C26E52C2FB7C18E8F` |
+| Desktop profile plugins | Official internal `dsh-tauri`, panel, panel-extension, UI, and worktree links, all `0.4.9` |
+| Hosted-search provider | `cloga/dsh-web-search-provider` PR #4, `0.2.3-cloga.3`, commit `e47390c789c4939eaa6660f52e0f3d2e37d554aa`, tarball SHA-256 `5EC9B9A782712E3E05BF8E58583AA86370CED383AB389DF11CDEEBF6AAFEA647` |
 
 Record exact versions and the fork commit for each deployment. Treat this table as
 evidence for this installation, not as an unbounded compatibility claim.
 
-The Core pin is commit `d931e5482181f41de0b96a9453de5f2112a4fe47`,
-two commits ahead of the prior `3c8be05b4218fc08da679179b50f75bf8f780cdb`
-pin with that commit as its merge base. It keeps package version `0.1.1-rc.2`
-and adds the reviewed `release:install-local` receipt producer and
-Desktop-compatible local shim.
+The Core pin is PR #8 commit
+`bd520d6e47e0c9cc690bf6d7211512cb044fd095`. It descends from the reviewed
+receipt-installer commit `d931e5482181f41de0b96a9453de5f2112a4fe47`,
+keeps package version `0.1.1-rc.2`, and adds the sandbox same/narrower no-op
+fix while retaining `release:install-local` and its Desktop-compatible receipt.
 
 ## Build and install the fork core
 
@@ -108,7 +109,7 @@ Use the Node and pnpm versions declared by the Harness repository. From a clean
 checkout of `cloga/deepseek-harness`:
 
 ```powershell
-$expectedCommit = 'd931e5482181f41de0b96a9453de5f2112a4fe47'
+$expectedCommit = 'bd520d6e47e0c9cc690bf6d7211512cb044fd095'
 git switch --detach $expectedCommit
 if ((git rev-parse HEAD) -ne $expectedCommit) {
   throw 'Harness checkout does not match the reviewed commit.'
@@ -249,14 +250,12 @@ generic provider metadata, readiness, and image-capability propagation.
 Responses SSE translation, replay normalization, grounded sandbox escalation,
 and image bypass to the official attachment channel.
 
-Do not assume the provider fork's default branch contains every open upstream
-change. Record and verify the exact source commit before building. The
-2026-08-26 deployment used
-[`cloga/dsh-web-search-provider` PR #3](https://github.com/cloga/dsh-web-search-provider/pull/3),
-commit `f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0`, which exports the
-`cloga.dsh-windows-copilot.web-search` exact-pin deployment baseline and integrates the
-validated replay-ID, sandbox, image, model-catalog, and orphaned replay-pair
-fixes.
+Use
+[`cloga/dsh-web-search-provider` PR #4](https://github.com/cloga/dsh-web-search-provider/pull/4),
+exact commit `e47390c789c4939eaa6660f52e0f3d2e37d554aa`. Its exported
+`cloga.dsh-windows-copilot.web-search` baseline has exactly seven required
+capabilities, including the traditional `copilot-hosted` Search bridge and
+nonempty-only Responses/Anthropic reasoning.
 
 Build with the package manager declared by the provider repository. On Windows,
 run the cross-platform build stages directly if its `clean` script uses
@@ -278,7 +277,7 @@ Install the reviewed tarball into the Desktop web profile, then add
 `$DSH_HOME\profiles\web\package.json`:
 
 ```powershell
-dsh plugin --profile web add .\dist\dsh-web-search-provider-0.2.3-cloga.1.tgz --save-exact
+dsh plugin --profile web add .\dist\dsh-web-search-provider-0.2.3-cloga.3.tgz --save-exact
 ```
 
 pnpm 11 refuses dependency lifecycle scripts until each package is classified.
@@ -292,10 +291,11 @@ allowBuilds:
   protobufjs: true
 ```
 
-Any profile install can recreate the Desktop plugin junctions. Re-materialize
-`dsh-tauri`, `dsh-tauri-ui`, `dsh-tauri-worktree`, and
-`dsh-web-search-provider` as physical directories using the procedure below,
-then restart Desktop.
+The official 0.4.9 Tauri packages are Desktop-internal and are not available
+from the configured npm registry. Keep their profile entries as exact links
+under Desktop's `resources\internal-plugins`; the installer fails closed if a
+link or version differs. Only `dsh-web-search-provider` is replaced with an
+attested physical directory.
 
 Validate search in both a new session and a session whose previous search
 failed. The latter exercises replay safety: oversized item IDs and orphaned
@@ -374,61 +374,17 @@ console.log('loader imports OK');
 }
 ```
 
-If installing the three Desktop plugins globally in the same workflow, include
-all six packages in one command so npm cannot prune the loader dependencies:
-
-```powershell
-npm install --global `
-  @deepseek-ai/cordis-plugin-hmr@1.0.16 `
-  @deepseek-ai/cordis-plugin-timer@1.1.3 `
-  node-addon-require-builtin@0.1.4 `
-  dsh-tauri@0.2.0 `
-  dsh-tauri-ui@0.1.0 `
-  dsh-tauri-worktree@0.1.0
-```
-
 The Desktop error page retains the previous failure. After repairing dependencies,
 click **Retry** to start the backend again; merely reopening the window may leave
 the old error state visible.
 
-## Materialize Desktop plugins
+## Preserve Desktop internal plugins
 
-For the packaged Windows profile, install `dsh-tauri`, `dsh-tauri-ui`, and
-`dsh-tauri-worktree` as physical directory copies. Do not use directory junctions:
-Node resolves imports from the real target path, which can move dependency lookup
-outside the profile's `node_modules`.
-
-The validated packages came from the global npm directory and were copied into
-the web profile. Back up existing entries, then replace them with staged physical
-copies:
-
-```powershell
-$sourceRoot = Join-Path $env:APPDATA 'npm\node_modules'
-$profileRoot = Join-Path $HOME '.dsh\profiles\web\node_modules'
-$stageRoot = Join-Path $env:TEMP "dsh-tauri-materialized-$PID"
-$backupRoot = Join-Path $env:LOCALAPPDATA "dsh-windows-ops\plugin-backups\$(Get-Date -Format yyyyMMdd-HHmmss)"
-$plugins = @('dsh-tauri', 'dsh-tauri-ui', 'dsh-tauri-worktree')
-
-New-Item -ItemType Directory -Path $stageRoot, $backupRoot, $profileRoot -Force | Out-Null
-foreach ($plugin in $plugins) {
-  $source = Join-Path $sourceRoot $plugin
-  $staged = Join-Path $stageRoot $plugin
-  $target = Join-Path $profileRoot $plugin
-  if (-not (Test-Path -LiteralPath (Join-Path $source 'package.json'))) {
-    throw "Missing reviewed global package: $plugin"
-  }
-  Copy-Item -LiteralPath $source -Destination $staged -Recurse
-  if (Test-Path -LiteralPath $target) {
-    Move-Item -LiteralPath $target -Destination (Join-Path $backupRoot $plugin)
-  }
-  Move-Item -LiteralPath $staged -Destination $target
-}
-Remove-Item -LiteralPath $stageRoot -Force
-```
-
-Confirm each copied `package.json` matches the pinned versions in the baseline
-table before restarting Desktop. Restore the corresponding directory from
-`plugin-backups` to roll back.
+Desktop 0.9.2 owns five internal plugins under
+`resources\internal-plugins`. The locked installer validates their exact 0.4.9
+manifests and profile junction targets before and after the provider package
+operation. Missing links are recreated only to those verified official
+directories; a link to any other target fails closed.
 
 Run both checks after materializing:
 
@@ -466,31 +422,23 @@ The default installer check recognizes the observed partial deployment as
 package-version markers as proof of health. The signature correlates all of the
 following:
 
-- an installed Desktop 0.9.2 shell newer than the locked 0.8.2 shell;
+- the exact locked Desktop 0.9.2 shell mixed with a receipt-less older Core;
 - the locked copilot2api artifact alongside a receipt-less local Core;
 - an absolute profile dependency on the old
   `dsh-web-search-provider-0.2.2-all-fixes-bd40ffb.tgz`, installed provider
   version 0.2.2, and no exported `deployment-baseline.json`;
-- active `web`, `web-search-deepseek`, or `tool-web` entries, the legacy
+- the active `web-search-deepseek` entry and legacy
   `searchProvider: deepseek-official` marker, or a `web-search-provider` entry
-  without the managed `copilot-responses` provider and credential reference.
+  without the managed `github-copilot-gateway` route binding.
 
 Desktop 0.9.2 was released on 2026-08-28 from commit
 `c7c5a247961b1ca2d7389026ad7194ac108e5437`; its Windows setup asset reports
 SHA-256 `f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7`.
-Those facts are incident evidence, not a reviewed replacement deployment
-baseline. Its 0.4.9 Tauri packages are Desktop-internal and are not assumed to
-be registry-installable equivalents of the older globally locked packages.
-
-Consequently, the current 0.8.2 lock must not be applied over a detected 0.9.2
-shell. Check output sets remediation to `blocked-lock-update-required` and
-`automaticApplyAllowed: false`. A maintainer must either verify and lock a
-0.9.2-compatible topology or provide a reviewed migration that preserves and
-attests the official shell and internal plugins. The local Core must then be
-installed through its release installer so a fully validated
-`dsh-local-install.json` exists; never synthesize that receipt from a version
-string. Only after those gates pass may the compatible locked installer repair
-the provider/profile and the bootstrap configure Copilot search.
+The reviewed baseline now preserves that shell and its internal plugins.
+Incident remediation is `locked-repair-required`: reinstall the exact pinned
+Core through its receipt producer, install and attest provider 0.2.3-cloga.3,
+and compose `web` with `searchProvider: copilot-hosted` while disabling only
+`web-search-deepseek`. Never synthesize a Core receipt from a version string.
 
 When the gateway is not under the lock's default install directory, check mode
 resolves the sole loopback listener on the locked port and hashes that process
@@ -532,9 +480,10 @@ The command is idempotent and fail-closed. Before changing files, it requires:
 
 It then installs `dsh-web-search-provider` through the public `dsh plugin`
 command for both `web` and `headless`, writes a managed
-`copilot-responses` OpenAI Responses route, and disables the built-in
-`web-search-deepseek`, `tool-web`, and `web` rows in both profiles. The
-credential value is never copied into settings.
+`github-copilot-gateway` OpenAI Responses route, selects
+`web.searchProvider: copilot-hosted`, and disables only the built-in
+`web-search-deepseek` row. The `web` host and `tool-web` remain mounted, and
+the credential value is never copied into settings.
 
 Preview and rollback:
 
@@ -560,9 +509,10 @@ installed Core. It checks the shared behavior used by both `pwsh` and `bash`:
 under effective `danger-full-access`, same-mode and `workspace-write` requests
 must execute as no-ops without approval and must retain
 `danger-full-access`; a real `workspace-write` to `danger-full-access`
-escalation must request approval exactly once. Until the owning Core fix is
-installed, the default `-SandboxGate Report` returns `expected-fail` without
-blocking this ops deployment. After installing the fixed Core, enforce it:
+escalation must request approval exactly once. The default is now
+`-SandboxGate Require`; a pre-fix or incomplete Core blocks verification. A
+temporary diagnostic run may explicitly select `Report`, but it cannot satisfy
+the locked installation contract:
 
 ```powershell
 powershell.exe -File tools\enable-copilot-search-vision.ps1 `

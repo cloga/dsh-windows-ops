@@ -155,7 +155,7 @@ Describe 'DSH Copilot bootstrap' {
         $path = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8
         Set-DshCopilotProfilePatch -Path $path | Out-Null
-        Add-Content -LiteralPath $path -Value "`n- id: tool-web`n  disabled: false"
+        Add-Content -LiteralPath $path -Value "`n- id: web`n  config:`n    searchProvider: other"
         $threw = $false
         try {
             Set-DshCopilotProfilePatch -Path $path | Out-Null
@@ -165,16 +165,15 @@ Describe 'DSH Copilot bootstrap' {
         $threw | Should -Be $true
     }
 
-    It 'disables conflicting search rows in the managed profile block' {
+    It 'selects hosted Search without disabling the web host or tool' {
         $path = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8
         Set-DshCopilotProfilePatch -Path $path | Out-Null
         $text = Get-Content -LiteralPath $path -Raw
-        $text | Should -Match '(?s)- id: web\s+disabled: true'
+        $text | Should -Match '(?s)- id: web\s+config:\s+searchProvider: copilot-hosted'
         $text | Should -Match '(?s)- id: web-search-deepseek\s+disabled: true'
-        $text | Should -Match '(?s)- id: tool-web\s+disabled: true'
-        $text | Should -Match 'providers: \[copilot-responses\]'
-        $text | Should -Match 'apiKeyEnv: COPILOT_API_KEY'
+        $text | Should -Not -Match '(?m)^\s*-\s+id:\s+tool-web\s*$'
+        $text | Should -Match 'providers: \[github-copilot-gateway\]'
     }
 
     It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {
@@ -415,7 +414,7 @@ Describe 'DSH Copilot bootstrap' {
         (Get-Content -LiteralPath $file -Raw).Trim() | Should -Be 'later-user-change'
     }
 
-    It 'reports the pre-fix sandbox contract as expected-fail' {
+    It 'rejects the pre-fix sandbox contract under the required gate' {
         $package = Join-Path $root 'package'
         $sandbox = Join-Path $package 'node_modules\@deepseek-ai\dsh-sandbox\lib'
         $bash = Join-Path $package 'node_modules\@deepseek-ai\dsh-tool-bash\lib'
@@ -430,9 +429,10 @@ export async function approveEscalation(request, approval) {
 '@
         Set-Content -LiteralPath (Join-Path $bash 'index.js') -Encoding UTF8 -Value 'approveEscalation'
         Set-Content -LiteralPath (Join-Path $pwsh 'index.js') -Encoding UTF8 -Value 'approveEscalation'
-        $result = Test-DshSandboxRegression -PackageRoot $package `
-            -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Report
-        $result.status | Should -Be 'expected-fail'
+        {
+            Test-DshSandboxRegression -PackageRoot $package `
+                -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Require
+        } | Should -Throw '*sandbox non-widening regression gate*'
     }
 
     It 'passes same narrower and wider sandbox behavior without lowering policy' {

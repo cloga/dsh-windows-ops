@@ -25,6 +25,7 @@
 | **Agent-native 开发** | **`dsh-dev-tools` 插件**：`dsh_status`/`dsh_patch`/`dsh_build`/`dsh_upgrade` 四工具，agent 会话内 native 操作开发/升级链路 | `tools/dsh-dev-tools/` |
 | **可重放/自愈工具** | 组件版本、端口/服务/配置/模型/图片能力自检；严格标记补丁；安全备份、回滚和桌面恢复 | `tools/dsh-replay.ps1`、`docs/windows-replay-tooling.md` |
 | **本地 Core + Desktop + Copilot** | 机器锁定、默认只检查的安装流程：Desktop、分叉 core、Copilot2API、loader、四个物理插件、双协议路由、备份和验收契约 | `deployments/windows-copilot.lock.json`、`tools/install-windows-copilot.ps1`、`docs/local-core-desktop-copilot.md` |
+| **Copilot ACP 子代理** | 保留原生 spawn/fork，同时把 GitHub Copilot CLI 接成独立 ACP coding agent；记录确定性路由、权限边界、验证与回滚 | `docs/copilot-acp-subagent.md` |
 | **Copilot 搜索/视觉一键启用** | 单命令 fail-closed bootstrap：活动本地 core、双 profile Responses provider、搜索冲突禁用、模型/视觉元数据、SlotOutlet/flat-layout、备份与回滚 | `tools/enable-copilot-search-vision.ps1` |
 | **会话数据安全** | 重复会话 ID 扫描器 + **原子迁移工具**（官方帧读写、备份在 sessions 外、header 归属校验、验证后删旧）+ **启动预检 preflight**（--smoke 隔离 home 冒烟起 backend）+ 运维脚本 `Set-StrictMode` 加固 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs`、`tools/preflight-check.mjs`、`docs/ab-self-heal.md` |
 | **会话迁移/侧边栏分组** | 侧边栏按 Host Workspace 注册表（`storages/workspace.json`）分组而非 header.cwd；**标准迁移工具 v2**（文件+注册表一步同步，幂等）、**事后修复**（定点/`--auto` 全量对账）、**运行时修复**（动态 Cordis 插件模板，DSH 运行中无需重启）、**全链路自测**（隔离 home 16 断言） | `tools/dsh-move-session.mjs`、`tools/dsh-workspace-fix.mjs`、`tools/workspace-fix-plugin.template.js`、`tools/dsh-workspace-lib.mjs`、`tools/dsh-move-session.selftest.mjs`、`docs/session-move-workspace-groups.md` |

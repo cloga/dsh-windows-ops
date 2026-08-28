@@ -42,6 +42,7 @@ Invoke-RestMethod http://127.0.0.1:7777/v1/models |
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\install-windows-copilot.ps1 -Apply `
   -HarnessSourceRoot C:\Path\To\deepseek-harness `
+  -CoreInstallPrefix C:\.tools\dsh-cloga `
   -ProviderSourceRoot C:\Path\To\dsh-web-search-provider `
   -DesktopArtifactPath C:\Path\To\Deepseek.Harness.Desktop_0.8.2_x64-setup.exe `
   -GatewayArtifactPath C:\Path\To\copilot2api-windows-amd64.exe `
@@ -78,7 +79,7 @@ The packaged-core download source remains
 separately maintained package-release fork and a Desktop code change; it is not
 required for normal fork development.
 
-## Validated 2026-08-26 baseline
+## Validated 2026-08-28 baseline
 
 The installation described here was verified with:
 
@@ -86,7 +87,7 @@ The installation described here was verified with:
 |---|---|
 | DSH Desktop | `0.8.2` |
 | Local `@deepseek-ai/dsh` | `0.1.1-rc.2` |
-| `cloga/deepseek-harness` | `3c8be05b4218fc08da679179b50f75bf8f780cdb` |
+| `cloga/deepseek-harness` | `d931e5482181f41de0b96a9453de5f2112a4fe47` |
 | Node / npm / pnpm | `24.19.0` / `11.17.0` / `11.7.0` |
 | `copilot2api` | `0.6.1`, loopback `127.0.0.1:7777` |
 | Desktop profile plugins | `dsh-tauri@0.2.0`, `dsh-tauri-ui@0.1.0`, `dsh-tauri-worktree@0.1.0` |
@@ -95,13 +96,19 @@ The installation described here was verified with:
 Record exact versions and the fork commit for each deployment. Treat this table as
 evidence for this installation, not as an unbounded compatibility claim.
 
+The Core pin is commit `d931e5482181f41de0b96a9453de5f2112a4fe47`,
+two commits ahead of the prior `3c8be05b4218fc08da679179b50f75bf8f780cdb`
+pin with that commit as its merge base. It keeps package version `0.1.1-rc.2`
+and adds the reviewed `release:install-local` receipt producer and
+Desktop-compatible local shim.
+
 ## Build and install the fork core
 
 Use the Node and pnpm versions declared by the Harness repository. From a clean
 checkout of `cloga/deepseek-harness`:
 
 ```powershell
-$expectedCommit = '3c8be05b4218fc08da679179b50f75bf8f780cdb'
+$expectedCommit = 'd931e5482181f41de0b96a9453de5f2112a4fe47'
 git switch --detach $expectedCommit
 if ((git rev-parse HEAD) -ne $expectedCommit) {
   throw 'Harness checkout does not match the reviewed commit.'
@@ -427,6 +434,7 @@ Do not stop after `/v1/models` responds. Verify each layer independently:
 | Check | Expected result |
 |---|---|
 | Desktop listener | `127.0.0.1:3080` |
+| Active local Core | A Desktop descendant command line resolves to the package root attested by `dsh-local-install.json` |
 | Gateway listener | `127.0.0.1:7777`, not a public bind |
 | Gateway task | Current-user logon task is running |
 | Model endpoint | HTTP 200 and a non-empty catalog; validated run returned 35 models |

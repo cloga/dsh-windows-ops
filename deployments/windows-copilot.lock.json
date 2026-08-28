@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "deploymentId": "windows-copilot-2026-08-26",
-  "verifiedDate": "2026-08-26",
+  "deploymentId": "windows-copilot-2026-08-28",
+  "verifiedDate": "2026-08-28",
   "platform": {
     "os": "windows",
     "architecture": "x64",
@@ -28,7 +28,7 @@
     "core": {
       "source": {
         "repository": "https://github.com/cloga/deepseek-harness",
-        "commit": "3c8be05b4218fc08da679179b50f75bf8f780cdb"
+        "commit": "d931e5482181f41de0b96a9453de5f2112a4fe47"
       },
       "package": {
         "name": "@deepseek-ai/dsh",
@@ -36,13 +36,19 @@
         "packageManager": "pnpm@11.7.0"
       },
       "build": {
-        "artifactDirectory": "dist\\npm",
+        "artifactDirectories": [
+          "dist\\npm",
+          "dist\\npm-vendor",
+          "dist\\npm-landlock"
+        ],
         "publishOrderFile": "publish-order.txt",
         "rootPackage": "@deepseek-ai/dsh",
         "commands": [
           ["install", "--frozen-lockfile"],
-          ["run", "build"],
-          ["exec", "tsx", "scripts/release/pack.ts", "--family", "dsh"]
+          ["run", "build:official"],
+          ["run", "release:pack", "--family", "dsh", "--out", "dist/npm"],
+          ["run", "release:pack", "--family", "vendor", "--out", "dist/npm-vendor"],
+          ["--dir", "native/landlock-run/packages/entry", "pack", "--pack-destination", "{sourceRoot}\\dist\\npm-landlock"]
         ]
       },
       "install": {

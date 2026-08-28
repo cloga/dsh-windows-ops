@@ -239,6 +239,18 @@ function Resolve-DshCliInfo {
     if (-not $packageVersion -or [string]$manifest.version -cne $packageVersion) {
         throw 'Receipt packageVersion does not match the installed @deepseek-ai/dsh package.'
     }
+    $bin = Get-DshRequiredProperty -Object $manifest -Name 'bin' -Context 'Installed @deepseek-ai/dsh manifest'
+    $entryRelative = if ($bin -is [string]) {
+        [string]$bin
+    } else {
+        [string](Get-DshRequiredProperty -Object $bin -Name 'dsh' -Context 'Installed @deepseek-ai/dsh bin')
+    }
+    $entryPath = [IO.Path]::GetFullPath((Join-Path $packageRoot $entryRelative))
+    $packagePrefix = $packageRoot.TrimEnd('\') + '\'
+    if (-not $entryPath.StartsWith($packagePrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
+        throw 'The installed @deepseek-ai/dsh entry point is missing or outside the package root.'
+    }
 
     $receiptPackages = @((Get-DshRequiredProperty -Object $receipt -Name 'packages' -Context 'Receipt'))
     if ($receiptPackages.Count -eq 0) { throw 'Receipt packages must contain the installed runtime closure.' }
@@ -295,6 +307,7 @@ function Resolve-DshCliInfo {
         canonicalCliPath = $canonicalCli
         prefix = $prefix
         packageRoot = $packageRoot
+        entryPath = $entryPath
         version = $packageVersion
         repository = $ExpectedRepository
         commitSha = $commitSha.ToLowerInvariant()
@@ -314,7 +327,9 @@ function Test-DshActiveDesktopCore {
     if ($null -eq $Processes) {
         $Processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
     }
-    $desktop = @($Processes | Where-Object { [string]$_.Name -match '^DeepSeek Harness(\.exe)?$' })
+    $desktop = @($Processes | Where-Object {
+        [string]$_.Name -match '^(?:DeepSeek Harness|deepseek-harness-desktop)(?:\.exe)?$'
+    })
     if ($desktop.Count -eq 0) { throw 'No active DSH Desktop process was found.' }
 
     $descendants = [Collections.Generic.HashSet[int]]::new()
@@ -328,13 +343,14 @@ function Test-DshActiveDesktopCore {
         }
     } while ($added)
 
-    $packageRoot = ([string]$CliInfo.packageRoot).Replace('/', '\')
-    $cliPath = ([string]$CliInfo.cliPath).Replace('/', '\')
+    $entryPath = ([string]$CliInfo.entryPath).Replace('/', '\')
+    if (-not $entryPath) { throw 'The receipted dsh entry point is missing.' }
+    $entryPattern = '(?i)(?:^|[\s"''])' + [regex]::Escape($entryPath) + '(?:$|[\s"''])'
     $active = @($Processes | Where-Object {
-        $descendants.Contains([int]$_.ProcessId) -and $_.CommandLine -and (
-            ([string]$_.CommandLine).Replace('/', '\').IndexOf($packageRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-            ([string]$_.CommandLine).Replace('/', '\').IndexOf($cliPath, [StringComparison]::OrdinalIgnoreCase) -ge 0
-        )
+        $descendants.Contains([int]$_.ProcessId) -and
+        [string]$_.Name -match '^node(?:\.exe)?$' -and
+        $_.CommandLine -and
+        ([string]$_.CommandLine).Replace('/', '\') -match $entryPattern
     })
     if ($active.Count -eq 0) { throw 'Desktop is not running the selected local dsh package.' }
     if ($DesktopRoot) {

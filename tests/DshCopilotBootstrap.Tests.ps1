@@ -39,11 +39,14 @@ Describe 'DSH Copilot bootstrap' {
             [ordered]@{
                 name = '@deepseek-ai/dsh'
                 version = $InstalledVersion
+                bin = [ordered]@{ dsh = 'lib/bin.js' }
                 repository = [ordered]@{ url = 'git+https://github.com/deepseek-ai/deepseek-harness.git' }
             } | ConvertTo-Json -Compress
         )
         Set-Content -LiteralPath $canonicalCli -Value '@echo off' -Encoding ASCII
         Set-Content -LiteralPath $desktopCli -Value $DesktopShim -Encoding ASCII
+        New-Item -ItemType Directory -Path (Join-Path $package 'lib') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $package 'lib\bin.js') -Value 'process.exit(0)' -Encoding UTF8
         $packages = @([ordered]@{
             name = '@deepseek-ai/dsh'
             version = $PackageVersion
@@ -287,12 +290,20 @@ Describe 'DSH Copilot bootstrap' {
     }
 
     It 'accepts only an active Desktop descendant using the local package' {
-        $cli = [pscustomobject]@{ cliPath = 'C:\npm\dsh.cmd'; packageRoot = 'C:\npm\node_modules\@deepseek-ai\dsh' }
+        $cli = [pscustomobject]@{
+            cliPath = 'C:\npm\dsh.cmd'
+            packageRoot = 'C:\npm\node_modules\@deepseek-ai\dsh'
+            entryPath = 'C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js'
+        }
         $processes = @(
-            [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'DeepSeek Harness.exe'; CommandLine = 'desktop' },
-            [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; Name = 'node.exe'; CommandLine = 'node C:\npm\node_modules\@deepseek-ai\dsh\apps\cli\lib\index.js web' }
+            [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'deepseek-harness-desktop.exe'; CommandLine = 'desktop' },
+            [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; Name = 'node.exe'; CommandLine = 'node C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js web' }
         )
         (Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes).healthy | Should -Be $true
+        $processes[1].Name = 'cmd.exe'
+        $processes[1].CommandLine = 'cmd.exe /c echo C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js'
+        { Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes } |
+            Should -Throw '*not running the selected local dsh package*'
     }
 
     It 'refuses a renderer without the exact SlotOutlet marker' {

@@ -50,9 +50,11 @@ public static class $typeName { public static void Main() {} }
     }
 
     It 'pins every verified source and artifact identity' {
+        $lock.deploymentId | Should -Be 'windows-copilot-2026-08-28'
+        $lock.verifiedDate | Should -Be '2026-08-28'
         $lock.components.desktop.version | Should -Be '0.8.2'
         $lock.components.desktop.artifact.sha256 | Should -Be 'a87b7a5d25bd2d4942315a462407326bfb16197178ed0abb0718ab203b5c404b'
-        $lock.components.core.source.commit | Should -Be '3c8be05b4218fc08da679179b50f75bf8f780cdb'
+        $lock.components.core.source.commit | Should -Be 'd931e5482181f41de0b96a9453de5f2112a4fe47'
         $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
         $lock.components.core.install.script | Should -Be 'release:install-local'
         $lock.components.gateway.source.commit | Should -Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
@@ -87,10 +89,12 @@ public static class $typeName { public static void Main() {} }
     It 'produces a validated Core receipt and accepts the exact healthy baseline' {
         $caseRoot = Join-Path $TestDrive 'healthy-baseline'
         $script:receiptPrefix = Join-Path $caseRoot 'prefix'
-        $globalRoot = Join-Path $receiptPrefix 'node_modules'
+        $globalRoot = Join-Path $caseRoot 'global\node_modules'
         $sourceRoot = Join-Path $caseRoot 'source'
         $releaseRoot = Join-Path $sourceRoot 'dist\npm'
-        New-Item -ItemType Directory -Path $globalRoot, $releaseRoot -Force | Out-Null
+        $vendorReleaseRoot = Join-Path $sourceRoot 'dist\npm-vendor'
+        $landlockReleaseRoot = Join-Path $sourceRoot 'dist\npm-landlock'
+        New-Item -ItemType Directory -Path $globalRoot, $releaseRoot, $vendorReleaseRoot, $landlockReleaseRoot -Force | Out-Null
         $script:receiptPackage = [ordered]@{
             name = '@deepseek-ai/dsh'
             version = [string]$lock.components.core.package.version
@@ -100,6 +104,7 @@ public static class $typeName { public static void Main() {} }
         }
         $coreRelease = [pscustomobject]@{
             directory = $releaseRoot
+            directories = @($releaseRoot, $vendorReleaseRoot, $landlockReleaseRoot)
             packages = @([pscustomobject]@{
                 name = $receiptPackage.name
                 version = $receiptPackage.version
@@ -115,7 +120,10 @@ public static class $typeName { public static void Main() {} }
             [ordered]@{
                 name = '@deepseek-ai/dsh'
                 version = $script:receiptPackage.version
+                bin = [ordered]@{ dsh = 'lib/bin.js' }
             } | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $packageRoot 'package.json') -Encoding UTF8
+            New-Item -ItemType Directory -Path (Join-Path $packageRoot 'lib') -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $packageRoot 'lib\bin.js') -Value 'process.exit(0)' -Encoding UTF8
             Set-Content -LiteralPath (Join-Path $binRoot 'dsh.cmd') -Value '@echo off' -Encoding ASCII
             Set-Content -LiteralPath (Join-Path $script:receiptPrefix 'dsh.cmd') `
                 -Value "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*" -Encoding ASCII
@@ -134,7 +142,7 @@ public static class $typeName { public static void Main() {} }
                 -LiteralPath (Join-Path $script:receiptPrefix 'dsh-local-install.json') -Encoding UTF8
         }
         $core = Install-WindowsCopilotCoreRelease -Lock $lock -SourceRoot $sourceRoot `
-            -NpmGlobalRoot $globalRoot -CoreRelease $coreRelease
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -CoreRelease $coreRelease
         $core.commitSha | Should -Be $lock.components.core.source.commit
         Test-Path -LiteralPath $core.receiptPath | Should -Be $true
 
@@ -156,15 +164,78 @@ public static class $typeName { public static void Main() {} }
         Mock Test-LoaderPackageImports -ModuleName WindowsCopilotDeployment {
             [pscustomobject]@{ valid = $true; status = 'imported' }
         }
+        $activeProcesses = @(
+            [pscustomobject]@{
+                ProcessId = 100
+                ParentProcessId = 0
+                Name = 'DeepSeek Harness.exe'
+                ExecutablePath = 'C:\Program Files\DeepSeek Harness\DeepSeek Harness.exe'
+                CommandLine = '"C:\Program Files\DeepSeek Harness\DeepSeek Harness.exe"'
+            },
+            [pscustomobject]@{
+                ProcessId = 101
+                ParentProcessId = 100
+                Name = 'node.exe'
+                ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                CommandLine = 'node "' + $core.packageRoot + '\lib\bin.js"'
+            }
+        )
         $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
             -NpmGlobalRoot $globalRoot -DshCliPath $core.cliPath -DesktopVersion '0.8.2' `
             -GatewaySha256 $lock.components.gateway.artifact.sha256 `
             -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
-            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json')
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DesktopProcesses $activeProcesses
         $state.complete | Should -Be $true
         $state.health | Should -Be 'healthy'
         $state.deployment.core.status | Should -Be 'verified'
+        $state.runtime.activeCore.status | Should -Be 'receipted-core-active'
+
+        $unrelatedProcesses = @(
+            $activeProcesses[0],
+            [pscustomobject]@{
+                ProcessId = 102
+                ParentProcessId = 100
+                Name = 'node.exe'
+                ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                CommandLine = 'node "C:\Program Files\DeepSeek Harness\packaged-core\lib\bin.js"'
+            }
+        )
+        $falseActive = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
+            -NpmGlobalRoot $globalRoot -DshCliPath $core.cliPath -DesktopVersion '0.8.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 `
+            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DesktopProcesses $unrelatedProcesses
+        $falseActive.complete | Should -Be $false
+        $falseActive.runtime.activeCore.status | Should -Be 'receipted-core-not-active'
+        @($falseActive.drift.reasons) | Should -Contain 'core-receipted-package-not-active-under-desktop'
+    }
+
+    It 'loads the real receipt installer from an exact locked Core checkout' -Skip:(-not $env:DSH_LOCKED_CORE_CHECKOUT) {
+        $checkout = [IO.Path]::GetFullPath($env:DSH_LOCKED_CORE_CHECKOUT)
+        Test-Path -LiteralPath (Join-Path $checkout '.git') | Should -Be $true
+        (& git -C $checkout rev-parse HEAD).Trim() | Should -Be $lock.components.core.source.commit
+        $remote = (& git -C $checkout remote get-url origin).Trim()
+        $remote.Replace('\', '/').Replace(':', '/').Replace('.git', '') |
+            Should -Match 'github\.com/cloga/deepseek-harness$'
+        $rootPackage = Get-Content -LiteralPath (Join-Path $checkout 'package.json') -Raw | ConvertFrom-Json
+        $cliPackage = Get-Content -LiteralPath (Join-Path $checkout 'apps\cli\package.json') -Raw | ConvertFrom-Json
+        $scriptName = [string]$lock.components.core.install.script
+        $rootPackage.scripts.$scriptName | Should -Be 'tsx scripts/release/install-local.ts'
+        $cliPackage.version | Should -Be $lock.components.core.package.version
+        Test-Path -LiteralPath (Join-Path $checkout 'scripts\release\install-local.ts') | Should -Be $true
+
+        Push-Location $checkout
+        try {
+            $output = & npx --yes tsx@4.22.4 scripts/release/install-local.ts 2>&1 | Out-String
+            $LASTEXITCODE | Should -Be 1
+            $output | Should -Match 'usage: install-local\.ts --from <packed directory>'
+        } finally {
+            Pop-Location
+        }
     }
 
     It 'requires all four plugins to be physical after every profile install' {
@@ -433,6 +504,7 @@ public static class $typeName { public static void Main() {} }
                 -DesktopArtifactPath (Join-Path $TestDrive 'missing-desktop.exe') `
                 -GatewayArtifactPath (Join-Path $TestDrive 'missing-gateway.exe') `
                 -GatewayInstallRoot (Join-Path $TestDrive 'gateway') `
+                -CoreInstallPrefix (Join-Path $TestDrive 'core-prefix') `
                 -BackupRoot (Join-Path $TestDrive 'backups') -Catalog $catalog `
                 -DesktopExecutablePath (Join-Path $TestDrive 'missing-override.exe')
         } | Should -Throw '*Refusing a downgrade*'

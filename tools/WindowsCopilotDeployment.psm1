@@ -53,6 +53,7 @@ function Test-WindowsCopilotLock {
         'components.core.package.name',
         'components.core.package.version',
         'components.core.package.packageManager',
+        'components.core.build.artifactDirectories',
         'components.core.install.script',
         'components.gateway.source.repository',
         'components.gateway.source.commit',
@@ -370,6 +371,7 @@ function Get-WindowsCopilotInstallPlan {
         [string]$ProviderSourceRoot,
         [string]$DesktopArtifactPath,
         [string]$GatewayArtifactPath,
+        [string]$CoreInstallPrefix,
         [string]$BackupRoot
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
@@ -418,7 +420,7 @@ function Get-WindowsCopilotInstallPlan {
             action = 'release-install-local'
             packageManager = [string]$Lock.components.core.package.packageManager
             changesSystem = $true
-            inputs = @($NpmGlobalRoot)
+            inputs = @($CoreInstallPrefix)
         },
         [pscustomobject]@{
             id = 'install-global-transaction'
@@ -510,7 +512,9 @@ function Invoke-PinnedPnpmCommands {
     )
     $version = $PackageManager.Split('@')[-1]
     foreach ($command in $Commands) {
-        $arguments = @('--yes', "pnpm@$version") + @($command | ForEach-Object { [string]$_ })
+        $arguments = @('--yes', "pnpm@$version") + @($command | ForEach-Object {
+            ([string]$_).Replace('{sourceRoot}', (Resolve-DeploymentPath $WorkingDirectory))
+        })
         Invoke-LockedCommand -FilePath 'npx' -Arguments $arguments -WorkingDirectory $WorkingDirectory
     }
 }
@@ -534,7 +538,12 @@ function Get-CoreReleaseArtifacts {
         [Parameter(Mandatory)]$Lock,
         [Parameter(Mandatory)][string]$Root
     )
-    $directory = Join-Path $Root ([string]$Lock.components.core.build.artifactDirectory)
+    $relativeDirectories = @($Lock.components.core.build.artifactDirectories | ForEach-Object { [string]$_ })
+    if ($relativeDirectories.Count -ne 3) {
+        throw 'Core release must define DSH, vendor, and landlock artifact directories.'
+    }
+    $directories = @($relativeDirectories | ForEach-Object { Join-Path $Root $_ })
+    $directory = $directories[0]
     $orderPath = Join-Path $directory ([string]$Lock.components.core.build.publishOrderFile)
     if (-not (Test-Path -LiteralPath $orderPath -PathType Leaf)) {
         throw "Core release publish order not found: $orderPath"
@@ -566,6 +575,30 @@ function Get-CoreReleaseArtifacts {
             files = $entries.Count
         })
     }
+    foreach ($additionalDirectory in $directories[1..($directories.Count - 1)]) {
+        $artifacts = @(Get-ChildItem -LiteralPath $additionalDirectory -Filter '*.tgz' -File)
+        if ($artifacts.Count -eq 0) {
+            throw "Core release artifact directory is empty: $additionalDirectory"
+        }
+        foreach ($artifact in $artifacts) {
+            $metadata = Read-TarJson -ArtifactPath $artifact.FullName -RelativePath 'package.json'
+            $entries = @(& tar -tzf $artifact.FullName 2>$null | Where-Object { $_ -and -not $_.EndsWith('/') })
+            if ($LASTEXITCODE -ne 0 -or $entries.Count -eq 0) {
+                throw "Core release artifact has no verifiable file list: $($artifact.FullName)"
+            }
+            $packages.Add([pscustomobject]@{
+                name = [string]$metadata.name
+                version = [string]$metadata.version
+                path = $artifact.FullName
+                sha256 = (Get-FileHash -LiteralPath $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                files = $entries.Count
+            })
+        }
+    }
+    $packageNames = @($packages | ForEach-Object { [string]$_.name })
+    if (@($packageNames | Select-Object -Unique).Count -ne $packageNames.Count) {
+        throw 'Core release artifact directories contain duplicate package names.'
+    }
     $rootPackages = @($packages | Where-Object {
         $_.name -eq [string]$Lock.components.core.build.rootPackage -and
         $_.version -eq [string]$Lock.components.core.package.version
@@ -573,7 +606,7 @@ function Get-CoreReleaseArtifacts {
     if ($rootPackages.Count -ne 1) {
         throw 'Core release family does not contain the locked @deepseek-ai/dsh package.'
     }
-    return [pscustomobject]@{ directory = $directory; packages = @($packages) }
+    return [pscustomobject]@{ directory = $directory; directories = @($directories); packages = @($packages) }
 }
 
 function Install-WindowsCopilotCoreRelease {
@@ -582,13 +615,22 @@ function Install-WindowsCopilotCoreRelease {
         [Parameter(Mandatory)]$Lock,
         [Parameter(Mandatory)][string]$SourceRoot,
         [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)][string]$CoreInstallPrefix,
         [Parameter(Mandatory)]$CoreRelease
     )
     $globalRoot = Resolve-DeploymentPath $NpmGlobalRoot
     if ((Split-Path -Leaf $globalRoot) -ine 'node_modules') {
         throw "The global npm root must end in 'node_modules' for receipt installation: '$globalRoot'."
     }
-    $prefix = Split-Path -Parent $globalRoot
+    $globalPrefix = Split-Path -Parent $globalRoot
+    $prefix = Resolve-DeploymentPath $CoreInstallPrefix
+    if ($prefix -ieq $globalPrefix) {
+        throw 'CoreInstallPrefix must be a dedicated prefix, not the global npm prefix.'
+    }
+    $releaseDirectories = @($CoreRelease.directories)
+    if ($releaseDirectories.Count -ne 3) {
+        throw 'Core release installation requires DSH, vendor, and landlock artifact directories.'
+    }
     $version = ([string]$Lock.components.core.package.packageManager).Split('@')[-1]
     $arguments = @(
         '--yes',
@@ -596,10 +638,10 @@ function Install-WindowsCopilotCoreRelease {
         'run',
         [string]$Lock.components.core.install.script,
         '--',
-        '--from',
-        [string]$CoreRelease.directory,
-        '--prefix',
-        $prefix,
+        '--from', [string]$releaseDirectories[0],
+        '--from', [string]$releaseDirectories[1],
+        '--from', [string]$releaseDirectories[2],
+        '--prefix', $prefix,
         '--expect-commit',
         [string]$Lock.components.core.source.commit,
         '--expect-version',
@@ -1393,6 +1435,9 @@ function Get-WindowsCopilotCoreReceiptState {
             valid = [bool]($commitValid -and $versionValid)
             status = if (-not $commitValid) { 'source-commit-mismatch' } elseif (-not $versionValid) { 'version-mismatch' } else { 'verified' }
             cliPath = $info.cliPath
+            canonicalCliPath = $info.canonicalCliPath
+            packageRoot = $info.packageRoot
+            entryPath = $info.entryPath
             receiptPath = $info.receiptPath
             commitSha = $info.commitSha
             expectedCommit = [string]$Lock.components.core.source.commit
@@ -1555,6 +1600,8 @@ function Test-WindowsCopilotInstallation {
         [string]$DesktopVersion,
         [string]$GatewayExecutablePath,
         [string]$GatewaySha256,
+        [string]$DesktopRoot,
+        [object[]]$DesktopProcesses,
         [switch]$SkipRuntimeChecks
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
@@ -1723,6 +1770,24 @@ function Test-WindowsCopilotInstallation {
     } else {
         Test-LoaderPackageImports -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot
     }
+    $activeCore = if ($SkipRuntimeChecks) {
+        [pscustomobject]@{ valid = $false; status = 'skipped' }
+    } elseif (-not $coreReceipt.valid) {
+        [pscustomobject]@{ valid = $false; status = 'receipt-invalid' }
+    } else {
+        try {
+            if (-not $DesktopRoot) { $DesktopRoot = $env:DSH_DESKTOP_ROOT }
+            $active = Test-DshActiveDesktopCore -CliInfo $coreReceipt -DesktopRoot $DesktopRoot `
+                -Processes $DesktopProcesses
+            [pscustomobject]@{
+                valid = [bool]$active.healthy
+                status = if ($active.healthy) { 'receipted-core-active' } else { 'unverified' }
+                processIds = @($active.processIds)
+            }
+        } catch {
+            [pscustomobject]@{ valid = $false; status = 'receipted-core-not-active' }
+        }
+    }
 
     try {
         $catalog = if ($ModelCatalogPath) {
@@ -1806,6 +1871,7 @@ function Test-WindowsCopilotInstallation {
         -not $SkipRuntimeChecks -and
         @($listeners | Where-Object { -not $_.loopbackOnly }).Count -eq 0 -and
         $loaderImports.valid -and
+        $activeCore.valid -and
         $catalogCheck.valid -and
         $composedCheck.valid
     )
@@ -1817,6 +1883,7 @@ function Test-WindowsCopilotInstallation {
     elseif (-not $desktop.valid) { $driftReasons.Add('desktop-version-mismatch') }
     if (-not $gateway.valid) { $driftReasons.Add('gateway-artifact-mismatch') }
     if (-not $coreReceipt.valid) { $driftReasons.Add('core-' + [string]$coreReceipt.status) }
+    elseif (-not $activeCore.valid) { $driftReasons.Add('core-receipted-package-not-active-under-desktop') }
     if (-not $dependencyValid) { $driftReasons.Add('provider-dependency-unlocked') }
     if (-not $bundleValid) { $driftReasons.Add('profile-bundle-drift') }
     if (-not $allowBuildsValid) { $driftReasons.Add('profile-allow-builds-drift') }
@@ -1881,6 +1948,7 @@ function Test-WindowsCopilotInstallation {
         runtime = [pscustomobject]@{
             listeners = @($listeners)
             loaderImports = $loaderImports
+            activeCore = $activeCore
             modelCatalog = $catalogCheck
             composedConfig = $composedCheck
             searchSmoke = $searchCheck
@@ -1899,6 +1967,7 @@ function Invoke-WindowsCopilotApply {
         [Parameter(Mandatory)][string]$DesktopArtifactPath,
         [Parameter(Mandatory)][string]$GatewayArtifactPath,
         [Parameter(Mandatory)][string]$GatewayInstallRoot,
+        [Parameter(Mandatory)][string]$CoreInstallPrefix,
         [Parameter(Mandatory)][string]$BackupRoot,
         [Parameter(Mandatory)]$Catalog,
         [string]$DesktopExecutablePath
@@ -1925,7 +1994,7 @@ function Invoke-WindowsCopilotApply {
         -Commands @($Lock.components.core.build.commands) -WorkingDirectory $HarnessSourceRoot
     $coreRelease = Get-CoreReleaseArtifacts -Lock $Lock -Root $HarnessSourceRoot
     $coreInstall = Install-WindowsCopilotCoreRelease -Lock $Lock -SourceRoot $HarnessSourceRoot `
-        -NpmGlobalRoot $NpmGlobalRoot -CoreRelease $coreRelease
+        -NpmGlobalRoot $NpmGlobalRoot -CoreInstallPrefix $CoreInstallPrefix -CoreRelease $coreRelease
 
     $providerLib = Join-Path $ProviderSourceRoot 'lib'
     if (Test-Path -LiteralPath $providerLib) { Remove-Item -LiteralPath $providerLib -Recurse -Force }

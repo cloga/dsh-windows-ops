@@ -56,7 +56,21 @@
           "content": []
         }
       ],
-      "emittedThinkCards": []
+      "emittedThinkCards": [],
+      "nonemptyItems": [
+        {
+          "type": "reasoning",
+          "content": [
+            {
+              "type": "reasoning_text",
+              "text": "Fixture Responses reasoning."
+            }
+          ]
+        }
+      ],
+      "emittedThinkCardsForNonempty": [
+        "Fixture Responses reasoning."
+      ]
     },
     "anthropic": {
       "emptyItems": [
@@ -65,7 +79,16 @@
           "thinking": ""
         }
       ],
-      "emittedThinkChunks": []
+      "emittedThinkChunks": [],
+      "nonemptyItems": [
+        {
+          "type": "thinking",
+          "thinking": "Fixture Anthropic reasoning."
+        }
+      ],
+      "emittedThinkChunksForNonempty": [
+        "Fixture Anthropic reasoning."
+      ]
     }
   }
 }

@@ -59,6 +59,35 @@ public static class $typeName { public static void Main() {} }
                     -Target $target | Out-Null
             }
         }
+        function Set-LegacyPhysicalPluginFixture {
+            param(
+                [Parameter(Mandatory)][string]$ProfileRoot,
+                [Parameter(Mandatory)][string]$PackagePath
+            )
+            $profile = Get-Content -LiteralPath $PackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($plugin in @($script:lock.profile.legacyPhysicalPlugins)) {
+                $target = Join-Path $ProfileRoot (Join-Path 'node_modules' ([string]$plugin.name))
+                if (Test-Path -LiteralPath $target) {
+                    $item = Get-Item -LiteralPath $target -Force
+                    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                        [IO.Directory]::Delete($target, $false)
+                    } else {
+                        Remove-Item -LiteralPath $target -Recurse -Force
+                    }
+                }
+                New-Item -ItemType Directory -Path $target -Force | Out-Null
+                [ordered]@{
+                    name = [string]$plugin.name
+                    version = [string]$plugin.version
+                } | ConvertTo-Json -Compress |
+                    Set-Content -LiteralPath (Join-Path $target 'package.json') -Encoding UTF8
+                Set-Content -LiteralPath (Join-Path $target 'legacy-sentinel.txt') `
+                    -Value ([string]$plugin.version) -Encoding UTF8
+                $profile.dependencies | Add-Member -NotePropertyName ([string]$plugin.name) `
+                    -NotePropertyValue ([string]$plugin.version) -Force
+            }
+            $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $PackagePath -Encoding UTF8
+        }
     }
 
     BeforeEach {
@@ -78,6 +107,9 @@ public static class $typeName { public static void Main() {} }
         $lock.components.desktop.artifact.sha256 | Should -Be 'f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7'
         @($lock.components.desktop.internalPlugins).Count | Should -Be 5
         @($lock.components.desktop.internalPlugins | Where-Object version -ne '0.4.9').Count | Should -Be 0
+        @($lock.profile.legacyPhysicalPlugins).Count | Should -Be 3
+        (@($lock.profile.legacyPhysicalPlugins | Where-Object name -eq 'dsh-tauri'))[0].version |
+            Should -Be '0.2.0'
         $lock.components.core.source.commit | Should -Be 'bd520d6e47e0c9cc690bf6d7211512cb044fd095'
         $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
         $lock.components.core.install.script | Should -Be 'release:install-local'
@@ -470,6 +502,170 @@ public static class $typeName { public static void Main() {} }
         $missingBundle.drift.remediation.status | Should -Not -Be 'not-required'
     }
 
+    It 'atomically migrates the exact legacy physical Tauri profile state' {
+        $caseRoot = Join-Path $TestDrive 'legacy-profile'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $globalRoot = Join-Path $caseRoot 'global'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot, $globalRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
+        Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
+        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+
+        $result = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+            -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
+            -DesktopExecutablePath $desktopPath -SkipPackageInstall
+
+        $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($legacy in @($lock.profile.legacyPhysicalPlugins)) {
+            $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain ([string]$legacy.name)
+            $target = Join-Path $profileRoot (Join-Path 'node_modules' ([string]$legacy.name))
+            [bool]((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) |
+                Should -Be $true
+            (Get-Content -LiteralPath (Join-Path $target 'package.json') -Raw | ConvertFrom-Json).version |
+                Should -Be '0.4.9'
+            Test-Path -LiteralPath (Join-Path $result.backupRoot `
+                (Join-Path 'plugins' (Join-Path ([string]$legacy.name) 'legacy-sentinel.txt'))) |
+                Should -Be $true
+        }
+    }
+
+    It 'rolls back the exact legacy profile when package installation fails' {
+        $caseRoot = Join-Path $TestDrive 'legacy-rollback'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $globalRoot = Join-Path $caseRoot 'global'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot, $globalRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
+        Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
+        $packageBefore = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8
+        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        Mock Invoke-PinnedPnpmCommands -ModuleName WindowsCopilotDeployment { throw 'fixture pnpm failure' }
+
+        {
+            Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+                -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
+                -DesktopExecutablePath $desktopPath
+        } | Should -Throw '*fixture pnpm failure*'
+
+        Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | Should -Be $packageBefore
+        foreach ($legacy in @($lock.profile.legacyPhysicalPlugins)) {
+            $target = Join-Path $profileRoot (Join-Path 'node_modules' ([string]$legacy.name))
+            [bool]((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) |
+                Should -Be $false
+            Get-Content -LiteralPath (Join-Path $target 'legacy-sentinel.txt') -Raw |
+                Should -Match ([regex]::Escape([string]$legacy.version))
+        }
+        $installedArtifact = Join-Path (Join-Path $dshHome 'artifacts') `
+            (Join-Path ([string]$lock.components.searchProvider.source.commit) (Split-Path -Leaf $artifact))
+        Test-Path -LiteralPath $installedArtifact |
+            Should -Be $false
+    }
+
+    It 'rejects an unknown physical Tauri profile before Apply mutates the machine' {
+        $caseRoot = Join-Path $TestDrive 'unknown-legacy'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
+        $unknownPackage = Join-Path $profileRoot 'node_modules\dsh-tauri\package.json'
+        $metadata = Get-Content -LiteralPath $unknownPackage -Raw | ConvertFrom-Json
+        $metadata.version = '9.9.9'
+        $metadata | ConvertTo-Json | Set-Content -LiteralPath $unknownPackage -Encoding UTF8
+
+        {
+            Invoke-WindowsCopilotApply -Lock $lock -DshHome $dshHome `
+                -NpmGlobalRoot (Join-Path $caseRoot 'global\node_modules') `
+                -HarnessSourceRoot (Join-Path $caseRoot 'missing-core') `
+                -ProviderSourceRoot (Join-Path $caseRoot 'missing-provider') `
+                -DesktopArtifactPath (Join-Path $caseRoot 'missing-desktop.exe') `
+                -GatewayArtifactPath (Join-Path $caseRoot 'missing-gateway.exe') `
+                -GatewayInstallRoot (Join-Path $caseRoot 'gateway') `
+                -CoreInstallPrefix (Join-Path $caseRoot 'core') `
+                -BackupRoot (Join-Path $caseRoot 'backups') -Catalog $catalog `
+                -DesktopExecutablePath $desktopPath
+        } | Should -Throw '*official Desktop internal-plugin link is missing or invalid*'
+        Test-Path -LiteralPath (Join-Path $caseRoot 'core') | Should -Be $false
+        Test-Path -LiteralPath (Join-Path $caseRoot 'backups') | Should -Be $false
+    }
+
+    It 'rejects a partial legacy Tauri triplet before profile mutation' {
+        $caseRoot = Join-Path $TestDrive 'partial-legacy'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
+        foreach ($name in @('dsh-tauri-ui', 'dsh-tauri-worktree')) {
+            $target = Join-Path $profileRoot (Join-Path 'node_modules' $name)
+            Remove-Item -LiteralPath $target -Recurse -Force
+        }
+        $profile = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json
+        $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-ui')
+        $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-worktree')
+        $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+
+        {
+            Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome `
+                -NpmGlobalRoot (Join-Path $caseRoot 'global') -ProviderArtifactPath $artifact `
+                -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
+                -DesktopExecutablePath $desktopPath -SkipPackageInstall
+        } | Should -Throw '*complete reviewed legacy physical-plugin state*'
+        Test-Path -LiteralPath (Join-Path $caseRoot 'backups') | Should -Be $false
+        Test-Path -LiteralPath (Join-Path $dshHome 'artifacts') | Should -Be $false
+    }
+
+    It 'rejects a dangling internal-plugin junction before Apply mutation' {
+        $caseRoot = Join-Path $TestDrive 'dangling-internal'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        $officialTarget = Join-Path (Split-Path -Parent $desktopPath) `
+            'resources\internal-plugins\dsh-tauri'
+        Remove-Item -LiteralPath $officialTarget -Recurse -Force
+
+        {
+            Invoke-WindowsCopilotApply -Lock $lock -DshHome $dshHome `
+                -NpmGlobalRoot (Join-Path $caseRoot 'global\node_modules') `
+                -HarnessSourceRoot (Join-Path $caseRoot 'missing-core') `
+                -ProviderSourceRoot (Join-Path $caseRoot 'missing-provider') `
+                -DesktopArtifactPath (Join-Path $caseRoot 'missing-desktop.exe') `
+                -GatewayArtifactPath (Join-Path $caseRoot 'missing-gateway.exe') `
+                -GatewayInstallRoot (Join-Path $caseRoot 'gateway') `
+                -CoreInstallPrefix (Join-Path $caseRoot 'core') `
+                -BackupRoot (Join-Path $caseRoot 'backups') -Catalog $catalog `
+                -DesktopExecutablePath $desktopPath
+        } | Should -Throw '*official Desktop internal-plugin link is missing or invalid*'
+        Test-Path -LiteralPath (Join-Path $caseRoot 'core') | Should -Be $false
+        Test-Path -LiteralPath (Join-Path $caseRoot 'backups') | Should -Be $false
+    }
+
     It 'rejects an internal plugin link outside the official Desktop directory before mutation' {
         $caseRoot = Join-Path $TestDrive 'wrong-internal-link'
         $dshHome = Join-Path $caseRoot '.dsh'
@@ -511,7 +707,122 @@ public static class $typeName { public static void Main() {} }
         $search.traditionalSearchEvidence | Should -Be $true
         $search.cordisSessionMounted | Should -Be $true
         $search.emptyReasoningSuppressed | Should -Be $true
+        $search.nonemptyReasoningEmitted | Should -Be $true
         $search.deepSeekFallback | Should -Be $false
+    }
+
+    It 'rejects missing positive Responses or Anthropic reasoning evidence' {
+        foreach ($property in @('emittedThinkCardsForNonempty', 'emittedThinkChunksForNonempty')) {
+            $response = Get-Content -LiteralPath (Join-Path $fixtureRoot 'search-response.json') -Raw |
+                ConvertFrom-Json
+            if ($property -eq 'emittedThinkCardsForNonempty') {
+                $response.reasoning.responses.$property = @()
+            } else {
+                $response.reasoning.anthropic.$property = @()
+            }
+            $path = Join-Path $TestDrive "$property.json"
+            $response | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+            {
+                Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $path
+            } | Should -Throw '*did not produce*'
+        }
+    }
+
+    It 'binds emitted Think output to exact nonempty reasoning input' {
+        $response = Get-Content -LiteralPath (Join-Path $fixtureRoot 'search-response.json') -Raw |
+            ConvertFrom-Json
+        $response.reasoning.responses.emittedThinkCardsForNonempty = @('Different reasoning.')
+        $path = Join-Path $TestDrive 'mismatched-reasoning.json'
+        $response | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+        {
+            Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $path
+        } | Should -Throw '*did not produce*'
+    }
+
+    It 'rejects reordered or duplicate-substituted Think output' {
+        $response = Get-Content -LiteralPath (Join-Path $fixtureRoot 'search-response.json') -Raw |
+            ConvertFrom-Json
+        $response.reasoning.responses.nonemptyItems = @(
+            [pscustomobject]@{ type = 'reasoning'; content = @([pscustomobject]@{ type = 'reasoning_text'; text = 'a' }) },
+            [pscustomobject]@{ type = 'reasoning'; content = @([pscustomobject]@{ type = 'reasoning_text'; text = 'a' }) },
+            [pscustomobject]@{ type = 'reasoning'; content = @([pscustomobject]@{ type = 'reasoning_text'; text = 'b' }) }
+        )
+        $response.reasoning.responses.emittedThinkCardsForNonempty = @('a', 'b', 'b')
+        $path = Join-Path $TestDrive 'duplicate-reasoning.json'
+        $response | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+        {
+            Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $path
+        } | Should -Throw '*did not produce*'
+    }
+
+    It 'requires explicit empty and nonempty reasoning properties' {
+        $response = Get-Content -LiteralPath (Join-Path $fixtureRoot 'search-response.json') -Raw |
+            ConvertFrom-Json
+        $response.reasoning.responses.emptyItems[0].PSObject.Properties.Remove('content')
+        $response.reasoning.anthropic.emittedThinkChunksForNonempty = @(
+            'Fixture Anthropic reasoning.',
+            ''
+        )
+        $path = Join-Path $TestDrive 'missing-reasoning-properties.json'
+        $response | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+        {
+            Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $path
+        } | Should -Throw
+    }
+
+    It 'rejects non-string emitted Think output without coercion' {
+        foreach ($protocol in @('responses', 'anthropic')) {
+            $response = Get-Content -LiteralPath (Join-Path $fixtureRoot 'search-response.json') -Raw |
+                ConvertFrom-Json
+            if ($protocol -eq 'responses') {
+                $response.reasoning.responses.nonemptyItems[0].content[0].text = '1'
+                $response.reasoning.responses.emittedThinkCardsForNonempty = @(1)
+            } else {
+                $response.reasoning.anthropic.nonemptyItems[0].thinking = '1'
+                $response.reasoning.anthropic.emittedThinkChunksForNonempty = @(1)
+            }
+            $path = Join-Path $TestDrive "$protocol-numeric-reasoning.json"
+            $response | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+            {
+                Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $path
+            } | Should -Throw '*did not produce*'
+        }
+    }
+
+    It 'uses ordinal reasoning text comparison' {
+        $response = Get-Content -LiteralPath (Join-Path $fixtureRoot 'search-response.json') -Raw |
+            ConvertFrom-Json
+        $response.reasoning.responses.nonemptyItems[0].content[0].text =
+            "Fixture$([char]0) Responses reasoning."
+        $response.reasoning.responses.emittedThinkCardsForNonempty = @('Fixture Responses reasoning.')
+        $path = Join-Path $TestDrive 'ordinal-reasoning.json'
+        $response | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+        {
+            Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $path
+        } | Should -Throw '*did not produce*'
+    }
+
+    It 'rejects scalar reasoning sequence containers' {
+        foreach ($protocol in @('responses', 'anthropic')) {
+            $response = Get-Content -LiteralPath (Join-Path $fixtureRoot 'search-response.json') -Raw |
+                ConvertFrom-Json
+            if ($protocol -eq 'responses') {
+                $response.reasoning.responses.nonemptyItems =
+                    $response.reasoning.responses.nonemptyItems[0]
+                $response.reasoning.responses.emittedThinkCardsForNonempty =
+                    'Fixture Responses reasoning.'
+            } else {
+                $response.reasoning.anthropic.nonemptyItems =
+                    $response.reasoning.anthropic.nonemptyItems[0]
+                $response.reasoning.anthropic.emittedThinkChunksForNonempty =
+                    'Fixture Anthropic reasoning.'
+            }
+            $path = Join-Path $TestDrive "$protocol-scalar-reasoning.json"
+            $response | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+            {
+                Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $path
+            } | Should -Throw '*properties are missing*'
+        }
     }
 
     It 'rejects managed provider fields outside the config subtree' {
@@ -671,7 +982,7 @@ public static class $typeName { public static void Main() {} }
                 -GatewayInstallRoot (Join-Path $TestDrive 'gateway') `
                 -CoreInstallPrefix (Join-Path $TestDrive 'core-prefix') `
                 -BackupRoot (Join-Path $TestDrive 'backups') -Catalog $catalog `
-                -DesktopExecutablePath (Join-Path $TestDrive 'missing-override.exe')
+                -DesktopExecutablePath (Join-Path $TestDrive 'override\missing-desktop.exe')
         } | Should -Throw '*Refusing a downgrade*'
         Test-Path -LiteralPath (Join-Path $TestDrive '.dsh') | Should -Be $false
         Test-Path -LiteralPath (Join-Path $TestDrive 'backups') | Should -Be $false
@@ -689,6 +1000,7 @@ public static class $typeName { public static void Main() {} }
             DesktopArtifactPath = Join-Path $base 'artifacts\desktop.exe'
             GatewayArtifactPath = Join-Path $base 'artifacts\gateway.exe'
             GatewayInstallRoot = Join-Path $base 'gateway-install'
+            DesktopExecutablePath = Join-Path $base 'desktop\deepseek-harness-desktop.exe'
         }
         (Assert-CoreInstallPrefixIsolation @arguments -CoreInstallPrefix (Join-Path $base 'core-prefix')).valid |
             Should -Be $true
@@ -704,7 +1016,12 @@ public static class $typeName { public static void Main() {} }
             (Split-Path -Parent $arguments.NpmGlobalRoot),
             $arguments.DesktopArtifactPath,
             $arguments.GatewayArtifactPath,
-            $arguments.GatewayInstallRoot
+            $arguments.GatewayInstallRoot,
+            $arguments.DesktopExecutablePath,
+            (Split-Path -Parent $arguments.DesktopExecutablePath),
+            (Join-Path (Split-Path -Parent $arguments.DesktopExecutablePath) 'resources\internal-plugins'),
+            (Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop'),
+            (Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\resources\internal-plugins')
         )
         foreach ($candidate in $overlaps) {
             {
@@ -766,6 +1083,62 @@ public static class $typeName { public static void Main() {} }
             DesktopArtifactPath = Join-Path $base 'desktop.exe'
             GatewayArtifactPath = Join-Path $base 'gateway.exe'
             GatewayInstallRoot = Join-Path $base 'gateway-install'
+        }
+        {
+            Assert-CoreInstallPrefixIsolation @arguments
+        } | Should -Throw '*must not use reparse-point path*'
+    }
+
+    It 'rejects an explicit Desktop root beneath a junction alias' {
+        $base = Join-Path $TestDrive 'desktop-junction'
+        $target = Join-Path $base 'installed-desktop'
+        $aliasParent = Join-Path $base 'aliases'
+        $alias = Join-Path $aliasParent 'desktop'
+        New-Item -ItemType Directory -Path $target, $aliasParent -Force | Out-Null
+        try {
+            New-Item -ItemType Junction -Path $alias -Target $target -ErrorAction Stop | Out-Null
+        } catch {
+            Set-ItResult -Skipped -Because "Junction creation is unavailable: $($_.Exception.Message)"
+            return
+        }
+        $arguments = @{
+            Lock = $lock
+            CoreInstallPrefix = Join-Path $base 'core'
+            DshHome = Join-Path $base 'dsh-home'
+            BackupRoot = Join-Path $base 'backups'
+            HarnessSourceRoot = Join-Path $base 'source-core'
+            ProviderSourceRoot = Join-Path $base 'source-provider'
+            NpmGlobalRoot = Join-Path $base 'global\node_modules'
+            DesktopArtifactPath = Join-Path $base 'desktop.exe'
+            GatewayArtifactPath = Join-Path $base 'gateway.exe'
+            GatewayInstallRoot = Join-Path $base 'gateway-install'
+            DesktopExecutablePath = Join-Path $alias 'deepseek-harness-desktop.exe'
+        }
+        {
+            Assert-CoreInstallPrefixIsolation @arguments
+        } | Should -Throw '*must not use reparse-point path*'
+    }
+
+    It 'rejects a Desktop internal plugin junction targeting the Core prefix' {
+        $base = Join-Path $TestDrive 'desktop-plugin-alias'
+        $corePrefix = Join-Path $base 'core'
+        $desktopRoot = Join-Path $base 'desktop'
+        $pluginRoot = Join-Path $desktopRoot 'resources\internal-plugins'
+        New-Item -ItemType Directory -Path $corePrefix, $pluginRoot -Force | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $pluginRoot 'dsh-tauri') `
+            -Target $corePrefix -ErrorAction Stop | Out-Null
+        $arguments = @{
+            Lock = $lock
+            CoreInstallPrefix = $corePrefix
+            DshHome = Join-Path $base 'dsh-home'
+            BackupRoot = Join-Path $base 'backups'
+            HarnessSourceRoot = Join-Path $base 'source-core'
+            ProviderSourceRoot = Join-Path $base 'source-provider'
+            NpmGlobalRoot = Join-Path $base 'global\node_modules'
+            DesktopArtifactPath = Join-Path $base 'desktop.exe'
+            GatewayArtifactPath = Join-Path $base 'gateway.exe'
+            GatewayInstallRoot = Join-Path $base 'gateway-install'
+            DesktopExecutablePath = Join-Path $desktopRoot 'deepseek-harness-desktop.exe'
         }
         {
             Assert-CoreInstallPrefixIsolation @arguments

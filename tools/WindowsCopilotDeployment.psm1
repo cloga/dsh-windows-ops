@@ -76,6 +76,7 @@ function Test-WindowsCopilotLock {
         'components.searchProvider.package.deploymentBaseline.kind',
         'components.searchProvider.package.deploymentBaseline.sourceCommitPolicy',
         'profile.lockManifest',
+        'profile.legacyPhysicalPlugins',
         'profile.requiredBundles',
         'acceptance.composedConfig.forbiddenMarkers',
         'acceptance.composedConfig.forbiddenActiveEntries',
@@ -183,6 +184,22 @@ function Test-WindowsCopilotLock {
             $_.preserve -eq $true
         })
         if ($matches.Count -ne 1) { throw "Profile must preserve official Desktop plugin '$name' exactly once." }
+    }
+    $expectedLegacyPlugins = [ordered]@{
+        'dsh-tauri' = '0.2.0'
+        'dsh-tauri-ui' = '0.1.0'
+        'dsh-tauri-worktree' = '0.1.0'
+    }
+    $legacyPlugins = @($Lock.profile.legacyPhysicalPlugins)
+    if ($legacyPlugins.Count -ne $expectedLegacyPlugins.Count) {
+        throw 'Profile migration must lock exactly three legacy physical plugins.'
+    }
+    foreach ($name in $expectedLegacyPlugins.Keys) {
+        if (@($legacyPlugins | Where-Object {
+            [string]$_.name -ceq $name -and [string]$_.version -ceq $expectedLegacyPlugins[$name]
+        }).Count -ne 1) {
+            throw "Profile migration omits the reviewed legacy plugin '$name@$($expectedLegacyPlugins[$name])'."
+        }
     }
     $providerPlugins = @($plugins | Where-Object {
         [string]$_.name -ceq 'dsh-web-search-provider' -and
@@ -334,6 +351,23 @@ function Resolve-DeploymentPath {
     return [IO.Path]::GetFullPath($expanded)
 }
 
+function Get-DeploymentPathItem {
+    param([Parameter(Mandatory)][string]$Path)
+    $fullPath = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($Path))
+    try {
+        return Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
+    } catch {
+        $parent = Split-Path -Parent $fullPath
+        $leaf = Split-Path -Leaf $fullPath
+        if (-not $parent -or -not (Test-Path -LiteralPath $parent -PathType Container)) {
+            return $null
+        }
+        return @(Get-ChildItem -LiteralPath $parent -Force -ErrorAction Stop | Where-Object {
+            [string]$_.Name -ceq $leaf
+        } | Select-Object -First 1)
+    }
+}
+
 function Test-DeploymentPathOverlap {
     param(
         [Parameter(Mandatory)][string]$Left,
@@ -353,8 +387,8 @@ function Assert-NoReparsePointAncestor {
 
     $cursor = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($Path)).TrimEnd('\')
     while ($cursor) {
-        if (Test-Path -LiteralPath $cursor) {
-            $item = Get-Item -LiteralPath $cursor -Force
+        $item = Get-DeploymentPathItem -Path $cursor
+        if ($item) {
             if ([bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
                 throw "CoreInstallPrefix must not use reparse-point path '$cursor'."
             }
@@ -377,14 +411,24 @@ function Assert-CoreInstallPrefixIsolation {
         [Parameter(Mandatory)][string]$NpmGlobalRoot,
         [Parameter(Mandatory)][string]$DesktopArtifactPath,
         [Parameter(Mandatory)][string]$GatewayArtifactPath,
-        [Parameter(Mandatory)][string]$GatewayInstallRoot
+        [Parameter(Mandatory)][string]$GatewayInstallRoot,
+        [string]$DesktopExecutablePath
     )
     Assert-NoReparsePointAncestor -Path $CoreInstallPrefix
     $globalRoot = Resolve-DeploymentPath $NpmGlobalRoot
     if ((Split-Path -Leaf $globalRoot) -ine 'node_modules') {
         throw "The global npm root must end in 'node_modules': '$globalRoot'."
     }
-    $protected = @(
+    $canonicalDesktopPath = if ($env:LOCALAPPDATA) {
+        Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+    } else { $null }
+    $desktopPaths = @($canonicalDesktopPath, $DesktopExecutablePath | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_)
+    } | ForEach-Object {
+        [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables([string]$_))
+    } | Select-Object -Unique)
+    $protected = [Collections.Generic.List[object]]::new()
+    foreach ($item in @(
         [pscustomobject]@{ name = 'DshHome'; path = $DshHome },
         [pscustomobject]@{
             name = 'profile'
@@ -398,7 +442,25 @@ function Assert-CoreInstallPrefixIsolation {
         [pscustomobject]@{ name = 'DesktopArtifactPath'; path = $DesktopArtifactPath },
         [pscustomobject]@{ name = 'GatewayArtifactPath'; path = $GatewayArtifactPath },
         [pscustomobject]@{ name = 'GatewayInstallRoot'; path = $GatewayInstallRoot }
-    )
+    )) {
+        $protected.Add($item)
+    }
+    foreach ($desktopPath in $desktopPaths) {
+        $desktopRoot = Split-Path -Parent $desktopPath
+        $label = if ($desktopPath -ieq $canonicalDesktopPath) { 'canonical Desktop' } else { 'explicit Desktop' }
+        $protected.Add([pscustomobject]@{ name = "$label executable"; path = $desktopPath })
+        $protected.Add([pscustomobject]@{ name = "$label root"; path = $desktopRoot })
+        $protected.Add([pscustomobject]@{
+            name = "$label internal plugins"
+            path = Join-Path $desktopRoot 'resources\internal-plugins'
+        })
+        foreach ($plugin in @($Lock.components.desktop.internalPlugins)) {
+            $protected.Add([pscustomobject]@{
+                name = "$label internal plugin '$($plugin.name)'"
+                path = Join-Path $desktopRoot ([string]$plugin.relativePath)
+            })
+        }
+    }
     foreach ($item in $protected) {
         Assert-NoReparsePointAncestor -Path ([string]$item.path)
         if (Test-DeploymentPathOverlap -Left $CoreInstallPrefix -Right ([string]$item.path)) {
@@ -928,10 +990,42 @@ function Backup-DeploymentPath {
         [Parameter(Mandatory)][string]$RelativePath,
         [Parameter(Mandatory)][string]$OperationRoot
     )
-    if (-not (Test-Path -LiteralPath $Path)) { return }
+    if (-not (Get-DeploymentPathItem -Path $Path)) { return }
     $destination = Join-Path $OperationRoot $RelativePath
     New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
     Copy-Item -LiteralPath $Path -Destination $destination -Recurse -Force
+}
+
+function Restore-DeploymentSnapshots {
+    param(
+        [Parameter(Mandatory)][object[]]$Snapshots,
+        [Parameter(Mandatory)][string]$OperationRoot,
+        [Parameter(Mandatory)][string]$NodeModulesRoot
+    )
+    for ($index = $Snapshots.Count - 1; $index -ge 0; $index--) {
+        $snapshot = $Snapshots[$index]
+        $target = [string]$snapshot.path
+        if (Get-DeploymentPathItem -Path $target) {
+            if ([bool]$snapshot.pluginTarget) {
+                Remove-ProfilePluginTarget -Target $target -NodeModulesRoot $NodeModulesRoot
+            } else {
+                Remove-Item -LiteralPath $target -Recurse -Force
+            }
+        }
+        if ([bool]$snapshot.existed) {
+            $source = Join-Path $OperationRoot ([string]$snapshot.relativePath)
+            if (-not (Test-Path -LiteralPath $source)) {
+                throw "Deployment rollback backup is missing: $source"
+            }
+            New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+            Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+        } elseif ([string](Get-LockProperty -InputObject $snapshot -Name 'linkTarget')) {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+            New-Item -ItemType Junction -Path $target `
+                -Target ([string](Get-LockProperty -InputObject $snapshot -Name 'linkTarget')) `
+                -ErrorAction Stop | Out-Null
+        }
+    }
 }
 
 function Remove-ProfilePluginTarget {
@@ -939,13 +1033,13 @@ function Remove-ProfilePluginTarget {
         [Parameter(Mandatory)][string]$Target,
         [Parameter(Mandatory)][string]$NodeModulesRoot
     )
-    if (-not (Test-Path -LiteralPath $Target)) { return }
+    $item = Get-DeploymentPathItem -Path $Target
+    if (-not $item) { return }
     $root = [IO.Path]::GetFullPath($NodeModulesRoot).TrimEnd('\') + '\'
     $resolvedTarget = [IO.Path]::GetFullPath($Target)
     if (-not $resolvedTarget.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
         throw "Plugin target escapes profile node_modules: $Target"
     }
-    $item = Get-Item -LiteralPath $Target -Force
     if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
         # Unlink the junction itself. Never recurse through a pnpm/Desktop link.
         [IO.Directory]::Delete($resolvedTarget, $false)
@@ -1219,12 +1313,15 @@ function Get-WindowsCopilotInternalPluginStates {
     foreach ($plugin in @($Lock.components.desktop.internalPlugins)) {
         $path = Join-Path $ProfileRoot (Join-Path 'node_modules' ([string]$plugin.name))
         $expectedTarget = Resolve-DeploymentPath (Join-Path $desktopRoot ([string]$plugin.relativePath))
+        $pathItem = Get-DeploymentPathItem -Path $path
+        $pathExists = $null -ne $pathItem
         $exists = Test-Path -LiteralPath (Join-Path $path 'package.json') -PathType Leaf
         $reparse = $false
         $target = $null
+        $packageName = $null
         $version = $null
-        if ($exists) {
-            $item = Get-Item -LiteralPath $path -Force
+        if ($pathExists) {
+            $item = $pathItem
             $reparse = [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
             if ($reparse) {
                 $targetProperty = $item.PSObject.Properties['Target']
@@ -1239,23 +1336,92 @@ function Get-WindowsCopilotInternalPluginStates {
             }
             try {
                 $metadata = Get-Content -LiteralPath (Join-Path $path 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+                $packageName = [string]$metadata.name
                 $version = [string]$metadata.version
             } catch { }
         }
         [pscustomobject]@{
             name = [string]$plugin.name
             path = $path
+            pathExists = [bool]$pathExists
             exists = [bool]$exists
             reparse = $reparse
             target = $target
             expectedTarget = $expectedTarget
             targetValid = [bool]($target -and $target -ieq $expectedTarget)
+            packageName = $packageName
             version = $version
             versionValid = [bool]($version -eq [string]$plugin.version)
             valid = [bool]($exists -and $reparse -and $target -and $target -ieq $expectedTarget -and
                 $version -eq [string]$plugin.version)
         }
     }
+}
+
+function Get-WindowsCopilotProfileMigrationPlan {
+        param(
+            [Parameter(Mandatory)]$Lock,
+            [Parameter(Mandatory)][string]$DshHome,
+            [Parameter(Mandatory)][string]$DesktopExecutablePath
+        )
+        $home = Resolve-DeploymentPath $DshHome
+        $profileRoot = Join-Path $home ([string]$Lock.profile.relativePath)
+        $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
+        $profile = if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
+            Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        } else { $null }
+        $dependencies = if ($profile) { Get-LockProperty -InputObject $profile -Name 'dependencies' } else { $null }
+        $legacyByName = @{}
+        foreach ($legacy in @($Lock.profile.legacyPhysicalPlugins)) {
+            $legacyByName[[string]$legacy.name] = $legacy
+        }
+        $states = @(Get-WindowsCopilotInternalPluginStates -Lock $Lock -ProfileRoot $profileRoot `
+            -DesktopExecutablePath $DesktopExecutablePath)
+        $legacyTargets = [Collections.Generic.List[object]]::new()
+        $dependenciesToRemove = [Collections.Generic.List[string]]::new()
+        foreach ($state in $states) {
+            $dependencyProperty = if ($dependencies) {
+                $dependencies.PSObject.Properties[[string]$state.name]
+            } else { $null }
+            $legacy = $legacyByName[[string]$state.name]
+            $dependencyIsLegacy = [bool](
+                $legacy -and $dependencyProperty -and
+                [string]$dependencyProperty.Value -ceq [string]$legacy.version
+            )
+            if ($dependencyProperty -and -not $dependencyIsLegacy) {
+                throw "Profile dependency '$($state.name)' is not a reviewed legacy dependency."
+            }
+            if ($dependencyIsLegacy) {
+                $dependenciesToRemove.Add([string]$state.name)
+            }
+            if ($state.valid -or -not $state.pathExists) { continue }
+            $legacyPhysical = [bool](
+                $legacy -and -not $state.reparse -and $state.exists -and
+                [string]$state.packageName -ceq [string]$state.name -and
+                [string]$state.version -ceq [string]$legacy.version -and
+                $dependencyIsLegacy
+            )
+            if (-not $legacyPhysical) {
+                throw "Official Desktop internal-plugin link is missing or invalid: $($state.name)."
+            }
+            $legacyTargets.Add([pscustomobject]@{
+                name = [string]$state.name
+                path = [string]$state.path
+                version = [string]$state.version
+            })
+        }
+        if (($legacyTargets.Count -gt 0 -or $dependenciesToRemove.Count -gt 0) -and
+            ($legacyTargets.Count -ne $legacyByName.Count -or
+            $dependenciesToRemove.Count -ne $legacyByName.Count)) {
+            throw 'Profile does not match the complete reviewed legacy physical-plugin state.'
+        }
+        return [pscustomobject]@{
+            profileRoot = $profileRoot
+            packagePath = $packagePath
+            internalStates = $states
+            legacyTargets = @($legacyTargets)
+            dependenciesToRemove = @($dependenciesToRemove)
+        }
 }
 
 function Set-WindowsCopilotProfile {
@@ -1282,32 +1448,62 @@ function Set-WindowsCopilotProfile {
     if (-not $DesktopExecutablePath) {
         $DesktopExecutablePath = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
     }
-    $internalBefore = @(Get-WindowsCopilotInternalPluginStates -Lock $Lock -ProfileRoot $profileRoot `
-        -DesktopExecutablePath $DesktopExecutablePath)
-    $invalidInternalBefore = @($internalBefore | Where-Object { $_.exists -and -not $_.valid })
-    if ($invalidInternalBefore.Count -gt 0) {
-        throw "Official Desktop internal-plugin link is missing or invalid: $($invalidInternalBefore.name -join ', ')."
-    }
+    $migration = Get-WindowsCopilotProfileMigrationPlan -Lock $Lock -DshHome $home `
+        -DesktopExecutablePath $DesktopExecutablePath
+    $internalBefore = @($migration.internalStates)
     Assert-WindowsCopilotSettingsShape -Lock $Lock -SettingsPath $settingsPath
     if (-not $OperationRoot) {
         $OperationRoot = New-BackupOperation -BackupRoot $BackupRoot -DshHome $home
     }
 
-    Backup-DeploymentPath -Path $packagePath -RelativePath 'profile\package.json' -OperationRoot $OperationRoot
-    Backup-DeploymentPath -Path $workspacePath -RelativePath 'profile\pnpm-workspace.yaml' -OperationRoot $OperationRoot
-    Backup-DeploymentPath -Path $lockPath -RelativePath 'profile\pnpm-lock.yaml' -OperationRoot $OperationRoot
-    Backup-DeploymentPath -Path $settingsPath -RelativePath 'config\settings.yaml' -OperationRoot $OperationRoot
-    foreach ($plugin in @($Lock.profile.plugins | Where-Object { $_.materialize -eq $true })) {
-        $target = Join-Path $nodeModules ([string]$plugin.name)
-        Backup-DeploymentPath -Path $target -RelativePath (Join-Path 'plugins' ([string]$plugin.name)) -OperationRoot $OperationRoot
-    }
-
-    New-Item -ItemType Directory -Path $profileRoot, $nodeModules -Force | Out-Null
     $artifactName = Split-Path -Leaf $ProviderArtifactPath
     $artifactRoot = Join-Path $home (Join-Path 'artifacts' ([string]$Lock.components.searchProvider.source.commit))
-    New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
     $lockedArtifact = Join-Path $artifactRoot $artifactName
+    $snapshots = [Collections.Generic.List[object]]::new()
+    foreach ($snapshot in @(
+        [pscustomobject]@{ path = $packagePath; relativePath = 'profile\package.json'; pluginTarget = $false },
+        [pscustomobject]@{ path = $workspacePath; relativePath = 'profile\pnpm-workspace.yaml'; pluginTarget = $false },
+        [pscustomobject]@{ path = $lockPath; relativePath = 'profile\pnpm-lock.yaml'; pluginTarget = $false },
+        [pscustomobject]@{ path = $settingsPath; relativePath = 'config\settings.yaml'; pluginTarget = $false },
+        [pscustomobject]@{ path = $lockedArtifact; relativePath = 'artifacts\provider.tgz'; pluginTarget = $false }
+    )) {
+        $snapshot | Add-Member -NotePropertyName existed -NotePropertyValue (Test-Path -LiteralPath $snapshot.path)
+        $snapshots.Add($snapshot)
+        Backup-DeploymentPath -Path $snapshot.path -RelativePath $snapshot.relativePath -OperationRoot $OperationRoot
+    }
+    foreach ($plugin in @($Lock.profile.plugins | Where-Object { $_.materialize -eq $true })) {
+        $target = Join-Path $nodeModules ([string]$plugin.name)
+        $relativePath = Join-Path 'plugins' ([string]$plugin.name)
+        $snapshots.Add([pscustomobject]@{
+            path = $target
+            relativePath = $relativePath
+            pluginTarget = $true
+            existed = (Test-Path -LiteralPath $target)
+        })
+        Backup-DeploymentPath -Path $target -RelativePath $relativePath -OperationRoot $OperationRoot
+    }
+    foreach ($state in $internalBefore) {
+        $legacyTarget = @($migration.legacyTargets | Where-Object name -CEQ ([string]$state.name))
+        $snapshots.Add([pscustomobject]@{
+            path = [string]$state.path
+            relativePath = Join-Path 'plugins' ([string]$state.name)
+            pluginTarget = $true
+            existed = [bool]($legacyTarget.Count -eq 1)
+            linkTarget = if ($state.valid) { [string]$state.expectedTarget } else { $null }
+        })
+        if ($legacyTarget.Count -eq 1) {
+            Backup-DeploymentPath -Path $state.path -RelativePath (Join-Path 'plugins' ([string]$state.name)) `
+                -OperationRoot $OperationRoot
+        }
+    }
+
+    try {
+    New-Item -ItemType Directory -Path $profileRoot, $nodeModules -Force | Out-Null
+    New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
     Copy-Item -LiteralPath $ProviderArtifactPath -Destination $lockedArtifact -Force
+    foreach ($legacyTarget in @($migration.legacyTargets)) {
+        Remove-ProfilePluginTarget -Target ([string]$legacyTarget.path) -NodeModulesRoot $nodeModules
+    }
 
     $profile = if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
         Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -1316,6 +1512,9 @@ function Set-WindowsCopilotProfile {
     }
     if (-not (Get-LockProperty -InputObject $profile -Name 'dependencies')) {
         Set-ObjectProperty -Object $profile -Name 'dependencies' -Value ([pscustomobject]@{})
+    }
+    foreach ($name in @($migration.dependenciesToRemove)) {
+        $profile.dependencies.PSObject.Properties.Remove([string]$name)
     }
     $dependencyPath = "file:../../artifacts/$($Lock.components.searchProvider.source.commit)/$artifactName"
     Set-ObjectProperty -Object $profile.dependencies -Name ([string]$Lock.components.searchProvider.package.name) -Value $dependencyPath
@@ -1391,6 +1590,16 @@ function Set-WindowsCopilotProfile {
     }
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $OperationRoot 'receipt.json') -Encoding UTF8
     return $receipt
+    } catch {
+        $failure = $_
+        try {
+            Restore-DeploymentSnapshots -Snapshots @($snapshots) -OperationRoot $OperationRoot `
+                -NodeModulesRoot $nodeModules
+        } catch {
+            throw "Profile migration failed and rollback was incomplete: $($failure.Exception.Message) Rollback error: $($_.Exception.Message)"
+        }
+        throw $failure
+    }
 }
 
 function Test-WindowsCopilotSearchResponse {
@@ -1441,13 +1650,136 @@ function Test-WindowsCopilotSearchResponse {
     $reasoning = Get-LockProperty -InputObject $response -Name 'reasoning'
     $responsesReasoning = if ($reasoning) { Get-LockProperty -InputObject $reasoning -Name 'responses' } else { $null }
     $anthropicReasoning = if ($reasoning) { Get-LockProperty -InputObject $reasoning -Name 'anthropic' } else { $null }
-    if (-not $responsesReasoning -or @($responsesReasoning.emptyItems).Count -eq 0 -or
-        @($responsesReasoning.emittedThinkCards).Count -ne 0) {
+    if (-not $responsesReasoning -or -not $anthropicReasoning) {
+        throw 'Responses or Anthropic reasoning regression evidence is missing.'
+    }
+    $responsesEmptyProperty = $responsesReasoning.PSObject.Properties['emptyItems']
+    $responsesEmptyOutputProperty = $responsesReasoning.PSObject.Properties['emittedThinkCards']
+    if (-not $responsesEmptyProperty -or -not $responsesEmptyOutputProperty -or
+        $responsesEmptyProperty.Value -isnot [Array] -or
+        $responsesEmptyOutputProperty.Value -isnot [Array]) {
+        throw 'Empty Responses reasoning regression properties are missing.'
+    }
+    $responsesEmptyItems = @($responsesEmptyProperty.Value)
+    $responsesInvalidEmptyItems = @($responsesEmptyItems | Where-Object {
+        $contentProperty = $_.PSObject.Properties['content']
+        [string](Get-LockProperty -InputObject $_ -Name 'type') -cne 'reasoning' -or
+        -not $contentProperty -or @($contentProperty.Value).Count -ne 0
+    })
+    if ($responsesEmptyItems.Count -eq 0 -or
+        $responsesInvalidEmptyItems.Count -gt 0 -or
+        @($responsesEmptyOutputProperty.Value).Count -ne 0) {
         throw 'Empty Responses reasoning produced a Think card or lacks regression evidence.'
     }
-    if (-not $anthropicReasoning -or @($anthropicReasoning.emptyItems).Count -eq 0 -or
-        @($anthropicReasoning.emittedThinkChunks).Count -ne 0) {
+    $responsesNonemptyProperty = $responsesReasoning.PSObject.Properties['nonemptyItems']
+    $responsesOutputProperty = $responsesReasoning.PSObject.Properties['emittedThinkCardsForNonempty']
+    if (-not $responsesNonemptyProperty -or -not $responsesOutputProperty -or
+        $responsesNonemptyProperty.Value -isnot [Array] -or
+        $responsesOutputProperty.Value -isnot [Array]) {
+        throw 'Nonempty Responses reasoning regression properties are missing.'
+    }
+    $responsesNonemptyItems = @($responsesNonemptyProperty.Value)
+    $responsesInvalidNonemptyItems = @($responsesNonemptyItems | Where-Object {
+        $item = $_
+        $contentProperty = $item.PSObject.Properties['content']
+        $content = if ($contentProperty) { @($contentProperty.Value) } else { @() }
+        $validContent = @($content | Where-Object {
+            $textProperty = $_.PSObject.Properties['text']
+            [string](Get-LockProperty -InputObject $_ -Name 'type') -ceq 'reasoning_text' -and
+            $textProperty -and $textProperty.Value -is [string] -and
+            -not [string]::IsNullOrWhiteSpace([string]$textProperty.Value)
+        })
+        [string](Get-LockProperty -InputObject $item -Name 'type') -cne 'reasoning' -or
+        -not $contentProperty -or $contentProperty.Value -isnot [Array] -or
+        @($content).Count -eq 0 -or
+        @($validContent).Count -ne @($content).Count
+    })
+    $responsesInputText = @($responsesNonemptyItems | ForEach-Object {
+        @($_.PSObject.Properties['content'].Value) | ForEach-Object {
+            [string]$_.PSObject.Properties['text'].Value
+        }
+    })
+    $responsesRawOutput = @($responsesOutputProperty.Value)
+    $responsesInvalidOutput = @($responsesRawOutput | Where-Object {
+        $_ -isnot [string] -or [string]::IsNullOrWhiteSpace([string]$_)
+    })
+    $responsesOutputText = @($responsesRawOutput | ForEach-Object { [string]$_ })
+    $responsesSequenceMismatch = $responsesInputText.Count -ne $responsesOutputText.Count
+    if (-not $responsesSequenceMismatch) {
+        for ($index = 0; $index -lt $responsesInputText.Count; $index++) {
+            if (-not [string]::Equals(
+                [string]$responsesInputText[$index],
+                [string]$responsesOutputText[$index],
+                [StringComparison]::Ordinal
+            )) {
+                $responsesSequenceMismatch = $true
+                break
+            }
+        }
+    }
+    if ($responsesInvalidNonemptyItems.Count -gt 0 -or $responsesInvalidOutput.Count -gt 0 -or
+        $responsesInputText.Count -eq 0 -or
+        $responsesSequenceMismatch) {
+        throw 'Nonempty Responses reasoning did not produce a Think card.'
+    }
+    $anthropicEmptyProperty = $anthropicReasoning.PSObject.Properties['emptyItems']
+    $anthropicEmptyOutputProperty = $anthropicReasoning.PSObject.Properties['emittedThinkChunks']
+    if (-not $anthropicEmptyProperty -or -not $anthropicEmptyOutputProperty -or
+        $anthropicEmptyProperty.Value -isnot [Array] -or
+        $anthropicEmptyOutputProperty.Value -isnot [Array]) {
+        throw 'Empty Anthropic reasoning regression properties are missing.'
+    }
+    $anthropicEmptyItems = @($anthropicEmptyProperty.Value)
+    $anthropicInvalidEmptyItems = @($anthropicEmptyItems | Where-Object {
+        $thinkingProperty = $_.PSObject.Properties['thinking']
+        [string](Get-LockProperty -InputObject $_ -Name 'type') -cne 'thinking' -or
+        -not $thinkingProperty -or $thinkingProperty.Value -isnot [string] -or
+        -not [string]::IsNullOrWhiteSpace([string]$thinkingProperty.Value)
+    })
+    if ($anthropicEmptyItems.Count -eq 0 -or
+        $anthropicInvalidEmptyItems.Count -gt 0 -or
+        @($anthropicEmptyOutputProperty.Value).Count -ne 0) {
         throw 'Empty Anthropic reasoning produced a Think chunk or lacks regression evidence.'
+    }
+    $anthropicNonemptyProperty = $anthropicReasoning.PSObject.Properties['nonemptyItems']
+    $anthropicOutputProperty = $anthropicReasoning.PSObject.Properties['emittedThinkChunksForNonempty']
+    if (-not $anthropicNonemptyProperty -or -not $anthropicOutputProperty -or
+        $anthropicNonemptyProperty.Value -isnot [Array] -or
+        $anthropicOutputProperty.Value -isnot [Array]) {
+        throw 'Nonempty Anthropic reasoning regression properties are missing.'
+    }
+    $anthropicNonemptyItems = @($anthropicNonemptyProperty.Value)
+    $anthropicInvalidNonemptyItems = @($anthropicNonemptyItems | Where-Object {
+        $thinkingProperty = $_.PSObject.Properties['thinking']
+        [string](Get-LockProperty -InputObject $_ -Name 'type') -cne 'thinking' -or
+        -not $thinkingProperty -or $thinkingProperty.Value -isnot [string] -or
+        [string]::IsNullOrWhiteSpace([string]$thinkingProperty.Value)
+    })
+    $anthropicInputText = @($anthropicNonemptyItems | ForEach-Object {
+        [string]$_.PSObject.Properties['thinking'].Value
+    })
+    $anthropicRawOutput = @($anthropicOutputProperty.Value)
+    $anthropicInvalidOutput = @($anthropicRawOutput | Where-Object {
+        $_ -isnot [string] -or [string]::IsNullOrWhiteSpace([string]$_)
+    })
+    $anthropicOutputText = @($anthropicRawOutput | ForEach-Object { [string]$_ })
+    $anthropicSequenceMismatch = $anthropicInputText.Count -ne $anthropicOutputText.Count
+    if (-not $anthropicSequenceMismatch) {
+        for ($index = 0; $index -lt $anthropicInputText.Count; $index++) {
+            if (-not [string]::Equals(
+                [string]$anthropicInputText[$index],
+                [string]$anthropicOutputText[$index],
+                [StringComparison]::Ordinal
+            )) {
+                $anthropicSequenceMismatch = $true
+                break
+            }
+        }
+    }
+    if ($anthropicInvalidNonemptyItems.Count -gt 0 -or $anthropicInvalidOutput.Count -gt 0 -or
+        $anthropicInputText.Count -eq 0 -or
+        $anthropicSequenceMismatch) {
+        throw 'Nonempty Anthropic reasoning did not produce a Think chunk.'
     }
     return [pscustomobject]@{
         valid = $true
@@ -1455,6 +1787,7 @@ function Test-WindowsCopilotSearchResponse {
         traditionalSearchEvidence = $true
         cordisSessionMounted = $true
         emptyReasoningSuppressed = $true
+        nonemptyReasoningEmitted = $true
         deepSeekFallback = $false
     }
 }
@@ -2464,15 +2797,17 @@ function Invoke-WindowsCopilotApply {
         [string]$DesktopExecutablePath
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
-    Assert-CoreInstallPrefixIsolation -Lock $Lock -CoreInstallPrefix $CoreInstallPrefix `
-        -DshHome $DshHome -BackupRoot $BackupRoot -HarnessSourceRoot $HarnessSourceRoot `
-        -ProviderSourceRoot $ProviderSourceRoot -NpmGlobalRoot $NpmGlobalRoot `
-        -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
-        -GatewayInstallRoot $GatewayInstallRoot | Out-Null
     $desktopState = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
     if ($desktopState.newerThanLock) {
         throw "Installed Desktop $($desktopState.version) is newer than locked Desktop $($desktopState.lockedVersion). Refusing a downgrade; update the lock or use a reviewed compatible migration."
     }
+    Assert-CoreInstallPrefixIsolation -Lock $Lock -CoreInstallPrefix $CoreInstallPrefix `
+        -DshHome $DshHome -BackupRoot $BackupRoot -HarnessSourceRoot $HarnessSourceRoot `
+        -ProviderSourceRoot $ProviderSourceRoot -NpmGlobalRoot $NpmGlobalRoot `
+        -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
+        -GatewayInstallRoot $GatewayInstallRoot -DesktopExecutablePath $DesktopExecutablePath | Out-Null
+    Get-WindowsCopilotProfileMigrationPlan -Lock $Lock -DshHome $DshHome `
+        -DesktopExecutablePath ([string]$desktopState.path) | Out-Null
     Get-WindowsCopilotRouteModels -Lock $Lock -Catalog $Catalog | Out-Null
     $settingsPath = Join-Path (Resolve-DeploymentPath $DshHome) ([string]$Lock.profile.settingsManifest)
     Assert-WindowsCopilotSettingsShape -Lock $Lock -SettingsPath $settingsPath

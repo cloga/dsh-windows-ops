@@ -26,6 +26,10 @@ three loader dependencies and provider tarball in one global npm transaction.
 It preserves and attests Desktop 0.9.2's five official 0.4.9 internal-plugin
 links, updates the web profile and routes, and physically materializes only the
 reviewed hosted-search provider.
+Apply migrates only the prior locked physical `dsh-tauri@0.2.0`,
+`dsh-tauri-ui@0.1.0`, and `dsh-tauri-worktree@0.1.0` profile state. It backs
+up and removes those exact dependencies before `pnpm install`; any other
+physical internal-plugin state fails before Core or global installation.
 
 Every touched settings/profile file and plugin directory is copied under
 `%LOCALAPPDATA%\dsh-windows-ops\deployment-backups` before replacement. That

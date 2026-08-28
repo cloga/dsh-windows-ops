@@ -53,6 +53,7 @@ function Test-WindowsCopilotLock {
         'components.core.package.name',
         'components.core.package.version',
         'components.core.package.packageManager',
+        'components.core.install.script',
         'components.gateway.source.repository',
         'components.gateway.source.commit',
         'components.gateway.artifact.name',
@@ -376,7 +377,6 @@ function Get-WindowsCopilotInstallPlan {
     $globalSpecs = @($Lock.globalInstall.packages | ForEach-Object {
         "$($_.name)@$($_.version)"
     })
-    $globalSpecs += '<built-core-release-family-tarballs>'
     $globalSpecs += '<built-search-provider-tarball>'
 
     $steps = @(
@@ -412,6 +412,13 @@ function Get-WindowsCopilotInstallPlan {
             commands = @($Lock.components.searchProvider.build.commands)
             changesSystem = $false
             inputs = @($ProviderSourceRoot)
+        },
+        [pscustomobject]@{
+            id = 'install-core-with-receipt'
+            action = 'release-install-local'
+            packageManager = [string]$Lock.components.core.package.packageManager
+            changesSystem = $true
+            inputs = @($NpmGlobalRoot)
         },
         [pscustomobject]@{
             id = 'install-global-transaction'
@@ -547,11 +554,16 @@ function Get-CoreReleaseArtifacts {
             throw "Core release artifact is missing: $path"
         }
         $metadata = Read-TarJson -ArtifactPath $path -RelativePath 'package.json'
+        $entries = @(& tar -tzf $path 2>$null | Where-Object { $_ -and -not $_.EndsWith('/') })
+        if ($LASTEXITCODE -ne 0 -or $entries.Count -eq 0) {
+            throw "Core release artifact has no verifiable file list: $path"
+        }
         $packages.Add([pscustomobject]@{
             name = [string]$metadata.name
             version = [string]$metadata.version
             path = $path
             sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            files = $entries.Count
         })
     }
     $rootPackages = @($packages | Where-Object {
@@ -562,6 +574,46 @@ function Get-CoreReleaseArtifacts {
         throw 'Core release family does not contain the locked @deepseek-ai/dsh package.'
     }
     return [pscustomobject]@{ directory = $directory; packages = @($packages) }
+}
+
+function Install-WindowsCopilotCoreRelease {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$SourceRoot,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)]$CoreRelease
+    )
+    $globalRoot = Resolve-DeploymentPath $NpmGlobalRoot
+    if ((Split-Path -Leaf $globalRoot) -ine 'node_modules') {
+        throw "The global npm root must end in 'node_modules' for receipt installation: '$globalRoot'."
+    }
+    $prefix = Split-Path -Parent $globalRoot
+    $version = ([string]$Lock.components.core.package.packageManager).Split('@')[-1]
+    $arguments = @(
+        '--yes',
+        "pnpm@$version",
+        'run',
+        [string]$Lock.components.core.install.script,
+        '--',
+        '--from',
+        [string]$CoreRelease.directory,
+        '--prefix',
+        $prefix,
+        '--expect-commit',
+        [string]$Lock.components.core.source.commit,
+        '--expect-version',
+        [string]$Lock.components.core.package.version
+    )
+    Invoke-LockedCommand -FilePath 'npx' -Arguments $arguments -WorkingDirectory $SourceRoot
+
+    $cliPath = Join-Path $prefix 'dsh.cmd'
+    $info = Resolve-DshCliInfo -DshCliPath $cliPath -ExpectedRepository 'cloga/deepseek-harness'
+    if ($info.commitSha -ine [string]$Lock.components.core.source.commit -or
+        $info.version -ne [string]$Lock.components.core.package.version) {
+        throw 'The Core installer receipt does not match the locked source commit and version.'
+    }
+    return $info
 }
 
 function Assert-BackupRoot {
@@ -1174,25 +1226,61 @@ function Get-WindowsCopilotDesktopState {
         [string]$Path,
         [string]$Version
     )
-    if (-not $Path -and $env:LOCALAPPDATA) {
-        $Path = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
-    }
-    $actual = $Version
-    if (-not $actual -and $Path -and (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        $versionInfo = (Get-Item -LiteralPath $Path).VersionInfo
-        $actual = if ($versionInfo.ProductVersion) { $versionInfo.ProductVersion } else { $versionInfo.FileVersion }
-    }
-    $match = if ($actual) { [regex]::Match([string]$actual, '\d+\.\d+\.\d+') } else { $null }
-    $normalized = if ($match -and $match.Success) { $match.Value } else { $null }
     $expected = [string]$Lock.components.desktop.version
-    $valid = [bool]($normalized -and ([version]$normalized -eq [version]$expected))
+    $canonicalPath = if ($env:LOCALAPPDATA) {
+        Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+    } else {
+        $null
+    }
+    $candidates = [Collections.Generic.List[object]]::new()
+    if ($Version) {
+        $candidates.Add([pscustomobject]@{
+            path = if ($Path) { [IO.Path]::GetFullPath($Path) } else { $canonicalPath }
+            rawVersion = $Version
+            source = 'injected'
+        })
+    }
+    foreach ($candidatePath in @($canonicalPath, $Path)) {
+        if (-not $candidatePath -or -not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) { continue }
+        $fullPath = [IO.Path]::GetFullPath($candidatePath)
+        if (@($candidates | Where-Object { $_.path -ieq $fullPath }).Count -gt 0) { continue }
+        $versionInfo = (Get-Item -LiteralPath $fullPath).VersionInfo
+        $actual = if ($versionInfo.ProductVersion) { $versionInfo.ProductVersion } else { $versionInfo.FileVersion }
+        $candidates.Add([pscustomobject]@{
+            path = $fullPath
+            rawVersion = $actual
+            source = if ($fullPath -ieq $canonicalPath) { 'canonical-official-path' } else { 'explicit-path' }
+        })
+    }
+    $discoveries = @($candidates | ForEach-Object {
+        $match = if ($_.rawVersion) { [regex]::Match([string]$_.rawVersion, '\d+\.\d+\.\d+') } else { $null }
+        $normalized = if ($match -and $match.Success) { $match.Value } else { $null }
+        [pscustomobject]@{
+            path = $_.path
+            source = $_.source
+            version = $normalized
+            valid = [bool]($normalized -and ([version]$normalized -eq [version]$expected))
+            newerThanLock = [bool]($normalized -and ([version]$normalized -gt [version]$expected))
+        }
+    })
+    $selected = @($discoveries | Where-Object newerThanLock | Sort-Object { [version]$_.version } -Descending | Select-Object -First 1)
+    if ($selected.Count -eq 0) {
+        $selected = @($discoveries | Where-Object valid | Select-Object -First 1)
+    }
+    if ($selected.Count -eq 0) {
+        $selected = @($discoveries | Select-Object -First 1)
+    }
+    $state = if ($selected.Count -gt 0) { $selected[0] } else { $null }
+    $valid = [bool]($state -and $state.valid -and @($discoveries | Where-Object newerThanLock).Count -eq 0)
+    $newer = [bool](@($discoveries | Where-Object newerThanLock).Count -gt 0)
     return [pscustomobject]@{
-        path = $Path
-        version = $normalized
+        path = if ($state) { $state.path } else { if ($Path) { $Path } else { $canonicalPath } }
+        version = if ($state) { $state.version } else { $null }
         lockedVersion = $expected
         valid = $valid
-        newerThanLock = [bool]($normalized -and ([version]$normalized -gt [version]$expected))
-        status = if (-not $normalized) { 'not-found-or-unreadable' } elseif ($valid) { 'locked' } elseif ([version]$normalized -gt [version]$expected) { 'newer-than-lock' } else { 'version-mismatch' }
+        newerThanLock = $newer
+        status = if (-not $state -or -not $state.version) { 'not-found-or-unreadable' } elseif ($newer) { 'newer-than-lock' } elseif ($valid) { 'locked' } else { 'version-mismatch' }
+        discoveries = @($discoveries)
     }
 }
 
@@ -1754,7 +1842,6 @@ function Test-WindowsCopilotInstallation {
     $incidentDetected = [bool](
         $desktop.version -eq '0.9.2' -and
         $desktop.newerThanLock -and
-        $gateway.valid -and
         $oldProviderArtifact -and
         $provider.version -eq '0.2.2' -and
         $provider.baselineStatus -eq 'missing' -and
@@ -1814,11 +1901,10 @@ function Invoke-WindowsCopilotApply {
         [Parameter(Mandatory)][string]$GatewayInstallRoot,
         [Parameter(Mandatory)][string]$BackupRoot,
         [Parameter(Mandatory)]$Catalog,
-        [string]$DesktopExecutablePath,
-        [string]$DesktopVersion
+        [string]$DesktopExecutablePath
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
-    $desktopState = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath -Version $DesktopVersion
+    $desktopState = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
     if ($desktopState.newerThanLock) {
         throw "Installed Desktop $($desktopState.version) is newer than locked Desktop $($desktopState.lockedVersion). Refusing a downgrade; update the lock or use a reviewed compatible migration."
     }
@@ -1838,6 +1924,8 @@ function Invoke-WindowsCopilotApply {
     Invoke-PinnedPnpmCommands -PackageManager ([string]$Lock.components.core.package.packageManager) `
         -Commands @($Lock.components.core.build.commands) -WorkingDirectory $HarnessSourceRoot
     $coreRelease = Get-CoreReleaseArtifacts -Lock $Lock -Root $HarnessSourceRoot
+    $coreInstall = Install-WindowsCopilotCoreRelease -Lock $Lock -SourceRoot $HarnessSourceRoot `
+        -NpmGlobalRoot $NpmGlobalRoot -CoreRelease $coreRelease
 
     $providerLib = Join-Path $ProviderSourceRoot 'lib'
     if (Test-Path -LiteralPath $providerLib) { Remove-Item -LiteralPath $providerLib -Recurse -Force }
@@ -1851,7 +1939,6 @@ function Invoke-WindowsCopilotApply {
     Backup-DeploymentPath -Path $gatewayTarget -RelativePath 'gateway\copilot2api.exe' -OperationRoot $operationRoot
 
     $globalSpecs = @($Lock.globalInstall.packages | ForEach-Object { "$($_.name)@$($_.version)" })
-    $globalSpecs += @($coreRelease.packages | ForEach-Object { [string]$_.path })
     $globalSpecs += $providerArtifact
     Invoke-LockedCommand -FilePath 'npm' -Arguments (@('install', '--global') + $globalSpecs) -WorkingDirectory $HarnessSourceRoot
 
@@ -1872,6 +1959,7 @@ function Invoke-WindowsCopilotApply {
         deploymentId = [string]$Lock.deploymentId
         globalTransaction = [string]$Lock.globalInstall.transactionId
         coreArtifacts = @($coreRelease.packages)
+        coreReceipt = $coreInstall
         providerArtifactSha256 = (Get-FileHash -LiteralPath $providerArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
         profile = $profileReceipt
         nextCheck = 'Re-run tools\install-windows-copilot.ps1 without -Apply after Desktop and copilot2api are running.'
@@ -1883,6 +1971,7 @@ Export-ModuleMember -Function @(
     'Test-WindowsCopilotLock',
     'Test-LockedArtifact',
     'Test-ProviderDeploymentContract',
+    'Install-WindowsCopilotCoreRelease',
     'Get-WindowsCopilotInstallPlan',
     'Get-WindowsCopilotRouteModels',
     'Set-PnpmAllowBuilds',

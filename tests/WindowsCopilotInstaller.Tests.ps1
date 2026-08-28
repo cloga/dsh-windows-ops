@@ -6,6 +6,47 @@ Describe 'Locked Windows Copilot deployment' {
         $script:fixtureRoot = Join-Path $PSScriptRoot 'fixtures\windows-copilot'
         $script:lock = Read-WindowsCopilotLock -Path (Join-Path $repoRoot 'deployments\windows-copilot.lock.json')
         $script:catalog = Get-Content -LiteralPath (Join-Path $fixtureRoot 'model-catalog.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        function New-VersionedDesktopFixture {
+            param(
+                [Parameter(Mandatory)][string]$Path,
+                [Parameter(Mandatory)][string]$Version
+            )
+            New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force | Out-Null
+            $typeName = 'DesktopFixture' + [guid]::NewGuid().ToString('N')
+            $source = @"
+using System.Reflection;
+[assembly: AssemblyVersion("$Version.0")]
+[assembly: AssemblyFileVersion("$Version.0")]
+public static class $typeName { public static void Main() {} }
+"@
+            $sourcePath = "$Path.cs"
+            Set-Content -LiteralPath $sourcePath -Value $source -Encoding UTF8
+            $command = "Add-Type -Path '$($sourcePath.Replace("'", "''"))' -OutputAssembly '$($Path.Replace("'", "''"))' -OutputType ConsoleApplication"
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+            & powershell.exe -NoProfile -EncodedCommand $encoded
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+                throw 'Could not create the versioned Desktop fixture.'
+            }
+        }
+        function Get-TestSha256Text {
+            param([Parameter(Mandatory)][string]$Text)
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try {
+                $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
+                return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+            } finally {
+                $sha.Dispose()
+            }
+        }
+    }
+
+    BeforeEach {
+        $script:previousLocalAppData = $env:LOCALAPPDATA
+        $env:LOCALAPPDATA = Join-Path $TestDrive 'localappdata'
+    }
+
+    AfterEach {
+        $env:LOCALAPPDATA = $script:previousLocalAppData
     }
 
     It 'pins every verified source and artifact identity' {
@@ -13,6 +54,7 @@ Describe 'Locked Windows Copilot deployment' {
         $lock.components.desktop.artifact.sha256 | Should -Be 'a87b7a5d25bd2d4942315a462407326bfb16197178ed0abb0718ab203b5c404b'
         $lock.components.core.source.commit | Should -Be '3c8be05b4218fc08da679179b50f75bf8f780cdb'
         $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
+        $lock.components.core.install.script | Should -Be 'release:install-local'
         $lock.components.gateway.source.commit | Should -Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
         $lock.components.gateway.version | Should -Be '0.6.1'
         $lock.components.searchProvider.source.commit | Should -Be 'f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0'
@@ -28,16 +70,101 @@ Describe 'Locked Windows Copilot deployment' {
         $lock.acceptance.composedConfig.managedEntry.apiKeyEnv | Should -Be 'COPILOT_API_KEY'
     }
 
-    It 'keeps all global packages and built artifacts in one npm transaction' {
+    It 'installs Core through the receipt producer before the remaining global transaction' {
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
             -NpmGlobalRoot (Join-Path $TestDrive 'global')
+        $coreStep = @($plan.steps | Where-Object id -eq 'install-core-with-receipt')[0]
         $step = @($plan.steps | Where-Object id -eq 'install-global-transaction')[0]
-        $step.packages.Count | Should -Be 8
+        $coreStep.action | Should -Be 'release-install-local'
+        $step.packages.Count | Should -Be 7
         ($step.packages -contains '@deepseek-ai/cordis-plugin-hmr@1.0.16') | Should -Be $true
         ($step.packages -contains '@deepseek-ai/cordis-plugin-timer@1.1.3') | Should -Be $true
         ($step.packages -contains 'node-addon-require-builtin@0.1.4') | Should -Be $true
-        ($step.packages -contains '<built-core-release-family-tarballs>') | Should -Be $true
+        ($step.packages -contains '<built-core-release-family-tarballs>') | Should -Be $false
         ($step.packages -contains '<built-search-provider-tarball>') | Should -Be $true
+    }
+
+    It 'produces a validated Core receipt and accepts the exact healthy baseline' {
+        $caseRoot = Join-Path $TestDrive 'healthy-baseline'
+        $script:receiptPrefix = Join-Path $caseRoot 'prefix'
+        $globalRoot = Join-Path $receiptPrefix 'node_modules'
+        $sourceRoot = Join-Path $caseRoot 'source'
+        $releaseRoot = Join-Path $sourceRoot 'dist\npm'
+        New-Item -ItemType Directory -Path $globalRoot, $releaseRoot -Force | Out-Null
+        $script:receiptPackage = [ordered]@{
+            name = '@deepseek-ai/dsh'
+            version = [string]$lock.components.core.package.version
+            filename = 'deepseek-ai-dsh-fixture.tgz'
+            sha256 = ('a' * 64)
+            files = 10
+        }
+        $coreRelease = [pscustomobject]@{
+            directory = $releaseRoot
+            packages = @([pscustomobject]@{
+                name = $receiptPackage.name
+                version = $receiptPackage.version
+                path = Join-Path $releaseRoot $receiptPackage.filename
+                sha256 = $receiptPackage.sha256
+                files = $receiptPackage.files
+            })
+        }
+        Mock Invoke-LockedCommand -ModuleName WindowsCopilotDeployment {
+            $packageRoot = Join-Path $script:receiptPrefix 'node_modules\@deepseek-ai\dsh'
+            $binRoot = Join-Path $script:receiptPrefix 'node_modules\.bin'
+            New-Item -ItemType Directory -Path $packageRoot, $binRoot -Force | Out-Null
+            [ordered]@{
+                name = '@deepseek-ai/dsh'
+                version = $script:receiptPackage.version
+            } | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $packageRoot 'package.json') -Encoding UTF8
+            Set-Content -LiteralPath (Join-Path $binRoot 'dsh.cmd') -Value '@echo off' -Encoding ASCII
+            Set-Content -LiteralPath (Join-Path $script:receiptPrefix 'dsh.cmd') `
+                -Value "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*" -Encoding ASCII
+            $packages = @($script:receiptPackage)
+            $manifestJson = ConvertTo-Json -InputObject $packages -Compress -Depth 4
+            [ordered]@{
+                schemaVersion = 1
+                repositoryUrl = 'https://github.com/cloga/deepseek-harness.git'
+                commitSha = [string]$script:lock.components.core.source.commit
+                packageName = '@deepseek-ai/dsh'
+                packageVersion = $script:receiptPackage.version
+                releaseManifestSha256 = Get-TestSha256Text -Text $manifestJson
+                cliPath = Join-Path $script:receiptPrefix 'dsh.cmd'
+                packages = $packages
+            } | ConvertTo-Json -Depth 6 | Set-Content `
+                -LiteralPath (Join-Path $script:receiptPrefix 'dsh-local-install.json') -Encoding UTF8
+        }
+        $core = Install-WindowsCopilotCoreRelease -Lock $lock -SourceRoot $sourceRoot `
+            -NpmGlobalRoot $globalRoot -CoreRelease $coreRelease
+        $core.commitSha | Should -Be $lock.components.core.source.commit
+        Test-Path -LiteralPath $core.receiptPath | Should -Be $true
+
+        Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
+        $providerArtifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.1.tgz'
+        Set-Content -LiteralPath $providerArtifact -Value 'fixture artifact' -Encoding UTF8
+        Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+            -ProviderArtifactPath $providerArtifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
+            -SkipPackageInstall | Out-Null
+        Mock Test-LoopbackListener -ModuleName WindowsCopilotDeployment {
+            [pscustomobject]@{ host = '127.0.0.1'; port = 0; listening = $true; loopbackOnly = $true; bindingVerified = $true }
+        }
+        Mock Test-LoaderPackageImports -ModuleName WindowsCopilotDeployment {
+            [pscustomobject]@{ valid = $true; status = 'imported' }
+        }
+        $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
+            -NpmGlobalRoot $globalRoot -DshCliPath $core.cliPath -DesktopVersion '0.8.2' `
+            -GatewaySha256 $lock.components.gateway.artifact.sha256 `
+            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json')
+        $state.complete | Should -Be $true
+        $state.health | Should -Be 'healthy'
+        $state.deployment.core.status | Should -Be 'verified'
     }
 
     It 'requires all four plugins to be physical after every profile install' {
@@ -224,6 +351,22 @@ Describe 'Locked Windows Copilot deployment' {
         @($state.drift.remediation.steps.action) | Should -Contain 'bootstrap-copilot-search'
         (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash | Should -Be $profileBefore
         Test-Path -LiteralPath (Join-Path $corePrefix 'dsh-local-install.json') | Should -Be $false
+
+        $canonicalDesktop = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+        New-VersionedDesktopFixture -Path $canonicalDesktop -Version '0.9.2'
+        $scriptPath = Join-Path $repoRoot 'tools\install-windows-copilot.ps1'
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath `
+            -DshHome $dshHome -NpmGlobalRoot (Join-Path $corePrefix 'node_modules') `
+            -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+            -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config-incident-2026-08-28.yml') `
+            -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+            -DshCliPath $desktopCli -DesktopExecutablePath (Join-Path $caseRoot 'wrong-desktop.exe') `
+            -SkipRuntimeChecks
+        $LASTEXITCODE | Should -Be 0
+        $entryResult = ($output -join "`n") | ConvertFrom-Json
+        $entryResult.checks.installation.drift.incidentId | Should -Be 'windows-copilot-drift-2026-08-28'
+        $entryResult.checks.composedConfig.status | Should -Be 'drifted'
+        $entryResult.checks.installation.drift.remediation.status | Should -Be 'blocked-lock-update-required'
     }
 
     It 'validates the provider source against the exported deployment contract' {
@@ -280,6 +423,8 @@ Describe 'Locked Windows Copilot deployment' {
 
     It 'refuses apply before mutation when the installed Desktop is newer than the lock' {
         $catalog = Get-Content -LiteralPath (Join-Path $fixtureRoot 'model-catalog.json') -Raw | ConvertFrom-Json
+        $canonicalDesktop = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+        New-VersionedDesktopFixture -Path $canonicalDesktop -Version '0.9.2'
         {
             Invoke-WindowsCopilotApply -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
                 -NpmGlobalRoot (Join-Path $TestDrive 'global') `
@@ -288,7 +433,8 @@ Describe 'Locked Windows Copilot deployment' {
                 -DesktopArtifactPath (Join-Path $TestDrive 'missing-desktop.exe') `
                 -GatewayArtifactPath (Join-Path $TestDrive 'missing-gateway.exe') `
                 -GatewayInstallRoot (Join-Path $TestDrive 'gateway') `
-                -BackupRoot (Join-Path $TestDrive 'backups') -Catalog $catalog -DesktopVersion '0.9.2'
+                -BackupRoot (Join-Path $TestDrive 'backups') -Catalog $catalog `
+                -DesktopExecutablePath (Join-Path $TestDrive 'missing-override.exe')
         } | Should -Throw '*Refusing a downgrade*'
         Test-Path -LiteralPath (Join-Path $TestDrive '.dsh') | Should -Be $false
         Test-Path -LiteralPath (Join-Path $TestDrive 'backups') | Should -Be $false

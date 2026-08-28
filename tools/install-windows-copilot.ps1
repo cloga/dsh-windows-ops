@@ -69,7 +69,7 @@ if (-not $Apply) {
             }
         } else { [pscustomobject]@{ status = 'not-supplied'; liveUrl = [string]$lock.acceptance.modelCatalog.url } }
         composedConfig = if ($ComposedConfigPath) {
-            Test-WindowsCopilotComposedConfig -Lock $lock -Path $ComposedConfigPath
+            $installation.runtime.composedConfig
         } else { [pscustomobject]@{ status = 'not-supplied'; command = @($lock.acceptance.composedConfig.command) } }
         searchSmoke = if ($SearchSmokeResponsePath) {
             Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $SearchSmokeResponsePath

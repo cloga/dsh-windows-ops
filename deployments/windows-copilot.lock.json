@@ -44,6 +44,9 @@
           ["run", "build"],
           ["exec", "tsx", "scripts/release/pack.ts", "--family", "dsh"]
         ]
+      },
+      "install": {
+        "script": "release:install-local"
       }
     },
     "gateway": {

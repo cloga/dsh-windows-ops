@@ -20,10 +20,11 @@ Check mode validates the lock and prints the complete ordered plan without
 changing the machine. `-Apply` additionally requires exact core/provider
 checkouts, the two release artifacts, and a captured `/v1/models` response.
 The installer verifies release SHA-256 values and source commits, builds with
-the package managers recorded by each source repository, installs the core,
-all loader dependencies, all Tauri packages, and the provider tarball in one
-global npm transaction, updates the web profile and routes, and then replaces
-all four profile plugin entries with physical directories.
+the package managers recorded by each source repository, installs the Core
+through its receipt-producing `release:install-local` script, then installs all
+loader dependencies, Tauri packages, and the provider tarball in one global npm
+transaction. It updates the web profile and routes, and then replaces all four
+profile plugin entries with physical directories.
 
 Every touched settings/profile file and plugin directory is copied under
 `%LOCALAPPDATA%\dsh-windows-ops\deployment-backups` before replacement. That

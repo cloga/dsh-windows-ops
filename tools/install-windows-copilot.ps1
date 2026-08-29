@@ -3,6 +3,7 @@ param(
     [string]$ManifestPath,
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }),
     [string]$NpmGlobalRoot,
+    [string]$CoreInstallPrefix,
     [string]$HarnessSourceRoot,
     [string]$ProviderSourceRoot,
     [string]$DesktopArtifactPath,
@@ -12,6 +13,9 @@ param(
     [string]$ModelCatalogPath,
     [string]$SearchSmokeResponsePath,
     [string]$ComposedConfigPath,
+    [string]$DshCliPath,
+    [string]$DesktopExecutablePath,
+    [string]$GatewayExecutablePath,
     [switch]$SkipRuntimeChecks,
     [switch]$Apply
 )
@@ -35,12 +39,15 @@ if (-not $NpmGlobalRoot) {
 $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome $DshHome `
     -NpmGlobalRoot $NpmGlobalRoot -HarnessSourceRoot $HarnessSourceRoot `
     -ProviderSourceRoot $ProviderSourceRoot -DesktopArtifactPath $DesktopArtifactPath `
-    -GatewayArtifactPath $GatewayArtifactPath -BackupRoot $BackupRoot
+    -GatewayArtifactPath $GatewayArtifactPath -CoreInstallPrefix $CoreInstallPrefix -BackupRoot $BackupRoot
 
 if (-not $Apply) {
     $installation = Test-WindowsCopilotInstallation -Lock $lock -DshHome $DshHome `
         -NpmGlobalRoot $NpmGlobalRoot -ModelCatalogPath $ModelCatalogPath `
         -ComposedConfigPath $ComposedConfigPath -SearchSmokeResponsePath $SearchSmokeResponsePath `
+        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
+        -DesktopExecutablePath $DesktopExecutablePath `
+        -GatewayExecutablePath $GatewayExecutablePath `
         -SkipRuntimeChecks:$SkipRuntimeChecks
     $checks = [ordered]@{
         manifest = Test-WindowsCopilotLock -Lock $lock
@@ -64,7 +71,7 @@ if (-not $Apply) {
             }
         } else { [pscustomobject]@{ status = 'not-supplied'; liveUrl = [string]$lock.acceptance.modelCatalog.url } }
         composedConfig = if ($ComposedConfigPath) {
-            Test-WindowsCopilotComposedConfig -Lock $lock -Path $ComposedConfigPath
+            $installation.runtime.composedConfig
         } else { [pscustomobject]@{ status = 'not-supplied'; command = @($lock.acceptance.composedConfig.command) } }
         searchSmoke = if ($SearchSmokeResponsePath) {
             Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $SearchSmokeResponsePath
@@ -81,6 +88,7 @@ foreach ($required in @{
     DesktopArtifactPath = $DesktopArtifactPath
     GatewayArtifactPath = $GatewayArtifactPath
     ModelCatalogPath = $ModelCatalogPath
+    CoreInstallPrefix = $CoreInstallPrefix
 }.GetEnumerator()) {
     if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
         throw "-$($required.Key) is required with -Apply."
@@ -91,5 +99,7 @@ $catalog = Get-Content -LiteralPath $ModelCatalogPath -Raw -Encoding UTF8 | Conv
 Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlobalRoot `
     -HarnessSourceRoot $HarnessSourceRoot -ProviderSourceRoot $ProviderSourceRoot `
     -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
-    -GatewayInstallRoot $GatewayInstallRoot -BackupRoot $BackupRoot -Catalog $catalog |
+    -GatewayInstallRoot $GatewayInstallRoot -CoreInstallPrefix $CoreInstallPrefix `
+    -BackupRoot $BackupRoot -Catalog $catalog `
+    -DesktopExecutablePath $DesktopExecutablePath |
     ConvertTo-Json -Depth 20

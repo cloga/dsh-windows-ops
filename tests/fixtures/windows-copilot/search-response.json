@@ -30,5 +30,65 @@
         }
       ]
     }
-  ]
+  ],
+  "traditionalSearch": {
+    "provider": "copilot-hosted",
+    "content": "Fixture grounded answer.",
+    "sources": [
+      {
+        "url": "https://example.test/source",
+        "title": "Fixture source"
+      }
+    ]
+  },
+  "cordisSession": {
+    "mounted": [
+      "web",
+      "tool-web",
+      "web-search-provider"
+    ]
+  },
+  "reasoning": {
+    "responses": {
+      "emptyItems": [
+        {
+          "type": "reasoning",
+          "content": []
+        }
+      ],
+      "emittedThinkCards": [],
+      "nonemptyItems": [
+        {
+          "type": "reasoning",
+          "content": [
+            {
+              "type": "reasoning_text",
+              "text": "Fixture Responses reasoning."
+            }
+          ]
+        }
+      ],
+      "emittedThinkCardsForNonempty": [
+        "Fixture Responses reasoning."
+      ]
+    },
+    "anthropic": {
+      "emptyItems": [
+        {
+          "type": "thinking",
+          "thinking": ""
+        }
+      ],
+      "emittedThinkChunks": [],
+      "nonemptyItems": [
+        {
+          "type": "thinking",
+          "thinking": "Fixture Anthropic reasoning."
+        }
+      ],
+      "emittedThinkChunksForNonempty": [
+        "Fixture Anthropic reasoning."
+      ]
+    }
+  }
 }

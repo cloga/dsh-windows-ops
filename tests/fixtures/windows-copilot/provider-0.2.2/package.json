@@ -1,12 +1,8 @@
 {
   "name": "dsh-web-search-provider",
-  "version": "0.2.3-cloga.3",
-  "packageManager": "pnpm@11.7.0",
+  "version": "0.2.2",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
-  "exports": {
-    "./deployment-baseline.json": "./deployment-baseline.json"
-  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

@@ -239,6 +239,68 @@ function Resolve-DshCliInfo {
     if (-not $packageVersion -or [string]$manifest.version -cne $packageVersion) {
         throw 'Receipt packageVersion does not match the installed @deepseek-ai/dsh package.'
     }
+    $bin = Get-DshRequiredProperty -Object $manifest -Name 'bin' -Context 'Installed @deepseek-ai/dsh manifest'
+    $entryRelative = if ($bin -is [string]) {
+        [string]$bin
+    } else {
+        [string](Get-DshRequiredProperty -Object $bin -Name 'dsh' -Context 'Installed @deepseek-ai/dsh bin')
+    }
+    $entryPath = [IO.Path]::GetFullPath((Join-Path $packageRoot $entryRelative))
+    $packagePrefix = $packageRoot.TrimEnd('\') + '\'
+    if (-not $entryPath.StartsWith($packagePrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
+        throw 'The installed @deepseek-ai/dsh entry point is missing or outside the package root.'
+    }
+
+    $installedFilesProperty = $receipt.PSObject.Properties['installedFiles']
+    if (-not $installedFilesProperty -or $null -eq $installedFilesProperty.Value) {
+        throw 'Core receipt installed-bytes-unattested: installedFiles is missing.'
+    }
+    $expectedInstalledFiles = @(
+        [pscustomobject]@{ role = 'root-shim'; path = 'dsh.cmd'; fullPath = $desktopCli },
+        [pscustomobject]@{
+            role = 'npm-shim'
+            path = 'node_modules\.bin\dsh.cmd'
+            fullPath = $canonicalCli
+        },
+        [pscustomobject]@{
+            role = 'entrypoint'
+            path = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+            fullPath = $entryPath
+        }
+    )
+    $installedFiles = @($installedFilesProperty.Value)
+    if ($installedFiles.Count -ne $expectedInstalledFiles.Count) {
+        throw 'Core receipt installed-bytes-unattested: installedFiles must contain exactly three entries.'
+    }
+    $seenInstalledRoles = @{}
+    foreach ($item in $installedFiles) {
+        $roleProperty = $item.PSObject.Properties['role']
+        $pathProperty = $item.PSObject.Properties['path']
+        $shaProperty = $item.PSObject.Properties['sha256']
+        if (-not $roleProperty -or -not $pathProperty -or -not $shaProperty) {
+            throw 'Core receipt installed-bytes-unattested: an installedFiles entry is incomplete.'
+        }
+        $role = [string]$roleProperty.Value
+        $relativePath = ([string]$pathProperty.Value).Replace('/', '\')
+        $sha256 = [string]$shaProperty.Value
+        $expectedFile = @($expectedInstalledFiles | Where-Object { $_.role -ceq $role })
+        if ($seenInstalledRoles.ContainsKey($role) -or $expectedFile.Count -ne 1 -or
+            [IO.Path]::IsPathRooted($relativePath) -or $relativePath -ne [string]$expectedFile[0].path -or
+            $sha256 -notmatch '^[0-9a-fA-F]{64}$') {
+            throw "Core receipt installed-bytes-unattested: invalid installedFiles entry '$role'."
+        }
+        $seenInstalledRoles[$role] = $true
+        $fullPath = [IO.Path]::GetFullPath((Join-Path $prefix $relativePath))
+        if ($fullPath -ine [string]$expectedFile[0].fullPath -or
+            -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "Core receipt installed-bytes-unattested: '$role' does not resolve to the required file."
+        }
+        $actualSha256 = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash
+        if ($actualSha256 -ine $sha256) {
+            throw "Core receipt installed-bytes-mismatch: '$role' SHA-256 does not match."
+        }
+    }
 
     $receiptPackages = @((Get-DshRequiredProperty -Object $receipt -Name 'packages' -Context 'Receipt'))
     if ($receiptPackages.Count -eq 0) { throw 'Receipt packages must contain the installed runtime closure.' }
@@ -295,12 +357,14 @@ function Resolve-DshCliInfo {
         canonicalCliPath = $canonicalCli
         prefix = $prefix
         packageRoot = $packageRoot
+        entryPath = $entryPath
         version = $packageVersion
         repository = $ExpectedRepository
         commitSha = $commitSha.ToLowerInvariant()
         receiptPath = [IO.Path]::GetFullPath($receiptPath)
         releaseManifestSha256 = $releaseManifestSha256.ToLowerInvariant()
         packageCount = $receiptPackages.Count
+        installedFileCount = $installedFiles.Count
     }
 }
 
@@ -314,7 +378,9 @@ function Test-DshActiveDesktopCore {
     if ($null -eq $Processes) {
         $Processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
     }
-    $desktop = @($Processes | Where-Object { [string]$_.Name -match '^DeepSeek Harness(\.exe)?$' })
+    $desktop = @($Processes | Where-Object {
+        [string]$_.Name -match '^(?:DeepSeek Harness|deepseek-harness-desktop)(?:\.exe)?$'
+    })
     if ($desktop.Count -eq 0) { throw 'No active DSH Desktop process was found.' }
 
     $descendants = [Collections.Generic.HashSet[int]]::new()
@@ -328,13 +394,14 @@ function Test-DshActiveDesktopCore {
         }
     } while ($added)
 
-    $packageRoot = ([string]$CliInfo.packageRoot).Replace('/', '\')
-    $cliPath = ([string]$CliInfo.cliPath).Replace('/', '\')
+    $entryPath = ([string]$CliInfo.entryPath).Replace('/', '\')
+    if (-not $entryPath) { throw 'The receipted dsh entry point is missing.' }
+    $entryPattern = '(?i)(?:^|[\s"''])' + [regex]::Escape($entryPath) + '(?:$|[\s"''])'
     $active = @($Processes | Where-Object {
-        $descendants.Contains([int]$_.ProcessId) -and $_.CommandLine -and (
-            ([string]$_.CommandLine).Replace('/', '\').IndexOf($packageRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-            ([string]$_.CommandLine).Replace('/', '\').IndexOf($cliPath, [StringComparison]::OrdinalIgnoreCase) -ge 0
-        )
+        $descendants.Contains([int]$_.ProcessId) -and
+        [string]$_.Name -match '^node(?:\.exe)?$' -and
+        $_.CommandLine -and
+        ([string]$_.CommandLine).Replace('/', '\') -match $entryPattern
     })
     if ($active.Count -eq 0) { throw 'Desktop is not running the selected local dsh package.' }
     if ($DesktopRoot) {
@@ -469,7 +536,7 @@ function Set-DshCopilotSettings {
 $script:SettingsBegin
 llm-pi-ai:
   providers:
-    copilot-responses:
+    github-copilot-gateway:
       displayName: GitHub Copilot via copilot2api
       apiKeyEnv: COPILOT_API_KEY
       api: openai-responses
@@ -478,7 +545,7 @@ llm-pi-ai:
         - id: $(ConvertTo-DshSingleQuotedYaml $Model)
 $input
 agent-default-model:
-  provider: copilot-responses
+  provider: github-copilot-gateway
   model: $(ConvertTo-DshSingleQuotedYaml $Model)
 $script:SettingsEnd
 "@
@@ -494,23 +561,21 @@ function Set-DshCopilotProfilePatch {
     $block = @"
 $script:ProfileBegin
 - id: web
-  disabled: true
+  config:
+    searchProvider: copilot-hosted
 - id: web-search-deepseek
-  disabled: true
-- id: tool-web
   disabled: true
 - id: web-search-provider
   config:
     enabled: true
-    providers: [copilot-responses]
-    apiKeyEnv: COPILOT_API_KEY
+    providers: [github-copilot-gateway]
     probe: true
 $script:ProfileEnd
 "@
     return Set-DshManagedTextBlock -Path $Path -Begin $script:ProfileBegin -End $script:ProfileEnd `
         -Block $block -ConflictPatterns @(
+            '(?m)^\s*-\s+id:\s+web\s*$',
             '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
-            '(?m)^\s*-\s+id:\s+tool-web\s*$',
             '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
         ) -DryRun:$DryRun
 }
@@ -537,19 +602,19 @@ function Test-DshCopilotSettings {
     }
     foreach ($marker in @(
         $script:SettingsBegin,
-        'copilot-responses:',
+        'github-copilot-gateway:',
         'apiKeyEnv: COPILOT_API_KEY',
         'api: openai-responses',
         "baseURL: $(ConvertTo-DshSingleQuotedYaml $BaseUrl)",
         "id: $(ConvertTo-DshSingleQuotedYaml $Model)",
         'input: [text, image]',
-        'provider: copilot-responses',
+        'provider: github-copilot-gateway',
         "model: $(ConvertTo-DshSingleQuotedYaml $Model)",
         $script:SettingsEnd
     )) {
         if (-not $managed.Contains($marker)) { throw 'DSH settings do not match the managed Copilot route.' }
     }
-    return [pscustomobject]@{ healthy = $true; path = $Path; provider = 'copilot-responses'; model = $Model }
+    return [pscustomobject]@{ healthy = $true; path = $Path; provider = 'github-copilot-gateway'; model = $Model }
 }
 
 function New-DshCopilotBackup {
@@ -711,19 +776,21 @@ function Test-DshCopilotProfile {
     $managed = $patch.Substring($start, $finish + $script:ProfileEnd.Length - $start)
     $outside = $patch.Substring(0, $start) + $patch.Substring($finish + $script:ProfileEnd.Length)
     foreach ($pattern in @(
+        '(?m)^\s*-\s+id:\s+web\s*$',
         '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
-        '(?m)^\s*-\s+id:\s+tool-web\s*$',
         '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
     )) {
         if ($outside -match $pattern) { throw "Profile '$Profile' contains unmanaged conflicting search configuration." }
     }
     foreach ($marker in @(
         $script:ProfileBegin,
+        '- id: web',
+        'searchProvider: copilot-hosted',
         '- id: web-search-deepseek',
-        '- id: tool-web',
         'disabled: true',
         '- id: web-search-provider',
-        'providers: [copilot-responses]',
+        'enabled: true',
+        'providers: [github-copilot-gateway]',
         $script:ProfileEnd
     )) {
         if (-not $managed.Contains($marker)) { throw "Profile '$Profile' is missing managed search configuration." }
@@ -770,7 +837,7 @@ function Test-DshSandboxRegression {
     param(
         [Parameter(Mandatory)][string]$PackageRoot,
         [Parameter(Mandatory)][string]$ProbeScript,
-        [ValidateSet('Report', 'Require', 'Skip')][string]$Mode = 'Report'
+        [ValidateSet('Report', 'Require', 'Skip')][string]$Mode = 'Require'
     )
     if ($Mode -eq 'Skip') {
         return [pscustomobject]@{ status = 'skipped'; required = $false }

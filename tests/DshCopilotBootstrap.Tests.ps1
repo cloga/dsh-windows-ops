@@ -39,11 +39,14 @@ Describe 'DSH Copilot bootstrap' {
             [ordered]@{
                 name = '@deepseek-ai/dsh'
                 version = $InstalledVersion
+                bin = [ordered]@{ dsh = 'lib/bin.js' }
                 repository = [ordered]@{ url = 'git+https://github.com/deepseek-ai/deepseek-harness.git' }
             } | ConvertTo-Json -Compress
         )
         Set-Content -LiteralPath $canonicalCli -Value '@echo off' -Encoding ASCII
         Set-Content -LiteralPath $desktopCli -Value $DesktopShim -Encoding ASCII
+        New-Item -ItemType Directory -Path (Join-Path $package 'lib') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $package 'lib\bin.js') -Value 'process.exit(0)' -Encoding UTF8
         $packages = @([ordered]@{
             name = '@deepseek-ai/dsh'
             version = $PackageVersion
@@ -53,6 +56,23 @@ Describe 'DSH Copilot bootstrap' {
         })
         $manifestJson = ConvertTo-Json -InputObject $packages -Compress -Depth 4
         if (-not $ReleaseManifestSha256) { $ReleaseManifestSha256 = Get-FixtureSha256 -Text $manifestJson }
+        $installedFiles = @(
+            [ordered]@{
+                role = 'root-shim'
+                path = 'dsh.cmd'
+                sha256 = (Get-FileHash -LiteralPath $desktopCli -Algorithm SHA256).Hash.ToLowerInvariant()
+            },
+            [ordered]@{
+                role = 'npm-shim'
+                path = 'node_modules\.bin\dsh.cmd'
+                sha256 = (Get-FileHash -LiteralPath $canonicalCli -Algorithm SHA256).Hash.ToLowerInvariant()
+            },
+            [ordered]@{
+                role = 'entrypoint'
+                path = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+                sha256 = (Get-FileHash -LiteralPath (Join-Path $package 'lib\bin.js') -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+        )
         $receipt = [ordered]@{
             schemaVersion = $SchemaVersion
             repositoryUrl = $RepositoryUrl
@@ -62,6 +82,7 @@ Describe 'DSH Copilot bootstrap' {
             releaseManifestSha256 = $ReleaseManifestSha256
             cliPath = $(if ($ReceiptCliPath) { $ReceiptCliPath } else { $desktopCli })
             packages = $packages
+            installedFiles = $installedFiles
         }
         Set-Content -LiteralPath (Join-Path $prefix 'dsh-local-install.json') -Encoding UTF8 -Value (
             $receipt | ConvertTo-Json -Depth 5
@@ -134,7 +155,7 @@ Describe 'DSH Copilot bootstrap' {
         $path = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8
         Set-DshCopilotProfilePatch -Path $path | Out-Null
-        Add-Content -LiteralPath $path -Value "`n- id: tool-web`n  disabled: false"
+        Add-Content -LiteralPath $path -Value "`n- id: web`n  config:`n    searchProvider: other"
         $threw = $false
         try {
             Set-DshCopilotProfilePatch -Path $path | Out-Null
@@ -144,14 +165,15 @@ Describe 'DSH Copilot bootstrap' {
         $threw | Should -Be $true
     }
 
-    It 'disables conflicting search rows in the managed profile block' {
+    It 'selects hosted Search without disabling the web host or tool' {
         $path = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8
         Set-DshCopilotProfilePatch -Path $path | Out-Null
         $text = Get-Content -LiteralPath $path -Raw
+        $text | Should -Match '(?s)- id: web\s+config:\s+searchProvider: copilot-hosted'
         $text | Should -Match '(?s)- id: web-search-deepseek\s+disabled: true'
-        $text | Should -Match '(?s)- id: tool-web\s+disabled: true'
-        $text | Should -Match 'providers: \[copilot-responses\]'
+        $text | Should -Not -Match '(?m)^\s*-\s+id:\s+tool-web\s*$'
+        $text | Should -Match 'providers: \[github-copilot-gateway\]'
     }
 
     It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {
@@ -163,6 +185,7 @@ Describe 'DSH Copilot bootstrap' {
         $info.repository | Should -Be 'cloga/deepseek-harness'
         $info.version | Should -Be '1.2.3'
         $info.packageCount | Should -Be 1
+        $info.installedFileCount | Should -Be 3
     }
 
     It 'accepts the canonical user input alias with a root receipt' {
@@ -259,6 +282,40 @@ Describe 'DSH Copilot bootstrap' {
         Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
     }
 
+    It 'rejects a receipt without installed executable hashes' {
+        $fixture = New-DshReceiptFixture
+        $receipt = Get-Content -LiteralPath $fixture.receiptPath -Raw | ConvertFrom-Json
+        $receipt.PSObject.Properties.Remove('installedFiles')
+        $receipt | ConvertTo-Json -Depth 6 |
+            Set-Content -LiteralPath $fixture.receiptPath -Encoding UTF8
+        {
+            Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+        } | Should -Throw '*installed-bytes-unattested*'
+    }
+
+    It 'rejects tampered installed entrypoint and npm shim hashes' {
+        foreach ($relativePath in @(
+            'lib\bin.js',
+            '..\..\.bin\dsh.cmd'
+        )) {
+            $fixture = New-DshReceiptFixture
+            $target = Join-Path $fixture.packageRoot $relativePath
+            Add-Content -LiteralPath $target -Value 'tampered' -Encoding ASCII
+            {
+                Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+            } | Should -Throw '*installed-bytes-mismatch*'
+        }
+    }
+
+    It 'rejects a byte-changed root shim that still has the valid forwarding shape' {
+        $fixture = New-DshReceiptFixture
+        Set-Content -LiteralPath $fixture.desktopCli -Encoding ASCII -NoNewline `
+            -Value "@echo off`r`n@CALL `"%~dp0node_modules\.bin\dsh.cmd`" %*"
+        {
+            Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
+        } | Should -Throw '*installed-bytes-mismatch*'
+    }
+
     It 'does not fall back to trusted-looking package metadata' {
         $fixture = New-DshReceiptFixture
         Remove-Item -LiteralPath $fixture.receiptPath
@@ -285,12 +342,20 @@ Describe 'DSH Copilot bootstrap' {
     }
 
     It 'accepts only an active Desktop descendant using the local package' {
-        $cli = [pscustomobject]@{ cliPath = 'C:\npm\dsh.cmd'; packageRoot = 'C:\npm\node_modules\@deepseek-ai\dsh' }
+        $cli = [pscustomobject]@{
+            cliPath = 'C:\npm\dsh.cmd'
+            packageRoot = 'C:\npm\node_modules\@deepseek-ai\dsh'
+            entryPath = 'C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js'
+        }
         $processes = @(
-            [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'DeepSeek Harness.exe'; CommandLine = 'desktop' },
-            [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; Name = 'node.exe'; CommandLine = 'node C:\npm\node_modules\@deepseek-ai\dsh\apps\cli\lib\index.js web' }
+            [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'deepseek-harness-desktop.exe'; CommandLine = 'desktop' },
+            [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; Name = 'node.exe'; CommandLine = 'node C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js web' }
         )
         (Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes).healthy | Should -Be $true
+        $processes[1].Name = 'cmd.exe'
+        $processes[1].CommandLine = 'cmd.exe /c echo C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js'
+        { Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes } |
+            Should -Throw '*not running the selected local dsh package*'
     }
 
     It 'refuses a renderer without the exact SlotOutlet marker' {
@@ -349,7 +414,7 @@ Describe 'DSH Copilot bootstrap' {
         (Get-Content -LiteralPath $file -Raw).Trim() | Should -Be 'later-user-change'
     }
 
-    It 'reports the pre-fix sandbox contract as expected-fail' {
+    It 'rejects the pre-fix sandbox contract under the required gate' {
         $package = Join-Path $root 'package'
         $sandbox = Join-Path $package 'node_modules\@deepseek-ai\dsh-sandbox\lib'
         $bash = Join-Path $package 'node_modules\@deepseek-ai\dsh-tool-bash\lib'
@@ -364,9 +429,10 @@ export async function approveEscalation(request, approval) {
 '@
         Set-Content -LiteralPath (Join-Path $bash 'index.js') -Encoding UTF8 -Value 'approveEscalation'
         Set-Content -LiteralPath (Join-Path $pwsh 'index.js') -Encoding UTF8 -Value 'approveEscalation'
-        $result = Test-DshSandboxRegression -PackageRoot $package `
-            -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Report
-        $result.status | Should -Be 'expected-fail'
+        {
+            Test-DshSandboxRegression -PackageRoot $package `
+                -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Require
+        } | Should -Throw '*sandbox non-widening regression gate*'
     }
 
     It 'passes same narrower and wider sandbox behavior without lowering policy' {

@@ -69,9 +69,9 @@ broad regular-expression rewrite.
 Copilot bootstrap additionally invokes
 `tools/dsh-sandbox-regression-probe.mjs` against the active Core. The probe
 does not implement sandbox policy: it calls the installed shared escalation
-helper and verifies the pwsh/bash delegation contract. Pre-fix Core builds are
-reported as an external `expected-fail`; `-SandboxGate Require` turns that
-status into a fail-closed prerequisite after the Core fix is installed.
+helper and verifies the pwsh/bash delegation contract. The reviewed Core pin
+contains the fix and `-SandboxGate Require` is the default fail-closed
+prerequisite.
 
 Each entry labels its lifecycle:
 
@@ -83,7 +83,7 @@ The active-core renderer entry verifies the exact `SlotOutlet` export used by
 `dsh-tauri-ui`; it does not patch an unknown renderer. The replay-ID, sandbox
 sanitization, image bypass, and dynamic Copilot model
 discovery entries verify behavior already present in
-`dsh-web-search-provider 0.2.3-cloga.1`; they are labeled `upstreamed`. The Desktop
+`dsh-web-search-provider 0.2.3-cloga.3`; they are labeled `upstreamed`. The Desktop
 recovery entry remains a temporary exact-marker patch. Do not put credentials or
 complete local configuration files in the manifest.
 
@@ -92,7 +92,7 @@ complete local configuration files in the manifest.
 | Component | Detection | Replay/self-heal coverage | Validated baseline | Patch lifecycle |
 |---|---|---|---|---|
 | DSH Desktop / local core | Runtime or unpacked package version plus `DSH_CORE_ROOT` or npm flat global layout | Process/port health, active renderer SlotOutlet verification, `--no-open` recovery verification, exact-path restart | Runtime `0.1.0-rc.8`, `0.1.1-rc.2` | Temporary Desktop compatibility marker; remove when upstream exports SlotOutlet. |
-| `dsh-web-search-provider` | `package.json` plus exported `deployment-baseline.json` under `DSH_WEB_SEARCH_PROVIDER_ROOT` or DSH profile | Replay ID, grounded sandbox sanitization, image bypass, Copilot model discovery, and orphan filtering | `0.2.3-cloga.1` / exact commit `f7fc5adfebaf87a3f2d56cfdf5e60601961edcb0` | Fork deployment baseline; installer verifies all required capability IDs and the tarball SHA-256. |
+| `dsh-web-search-provider` | `package.json` plus exported `deployment-baseline.json` under `DSH_WEB_SEARCH_PROVIDER_ROOT` or DSH profile | Replay ID, grounded sandbox sanitization, image bypass, Copilot model discovery, orphan filtering, traditional Search bridge, and nonempty-only reasoning | `0.2.3-cloga.3` / exact commit `e47390c789c4939eaa6660f52e0f3d2e37d554aa` | Fork deployment baseline; installer verifies all seven required capability IDs and the tarball SHA-256. |
 | `copilot2api` | Package or executable under `COPILOT2API_ROOT`; `/v1/models` endpoint | Port/process and model catalog checks | Local service on port `7777` | Verification only; no binary rewriting. |
 | `pi-ai` | `package.json` under `PI_AI_ROOT` or DSH profile | Package version plus model/image catalog data consumed by the provider | Installed `@earendil-works/pi-ai` profile package | Verification only. |
 
@@ -114,5 +114,6 @@ bytes, component versions are detected, omitted optional configuration propertie
 remain valid under StrictMode, and traversal outside a component root is rejected.
 `WindowsCopilotInstaller.Tests.ps1` adds fixture-only coverage for source/version
 locks, release hashes, the single global npm transaction, both route protocols,
-pnpm allowBuilds, profile bundle insertion, all four physical plugin directories,
-composed configuration, backups outside sessions, and hosted-search evidence.
+pnpm allowBuilds, profile bundle insertion, five official Desktop internal
+plugin links, physical provider byte attestation, composed configuration,
+backups outside sessions, and hosted-search evidence.

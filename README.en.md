@@ -51,15 +51,15 @@ Image-capable models (vision-exp) get images via the official channel; text-only
 
 ## Relationship to dependencies and upstream projects
 
-This repository does not redistribute the Desktop, Core, gateway, or search provider. It pins reviewed versions and commits and orchestrates installation, migration, acceptance, and rollback. [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is the machine-executable baseline; the [improvement portfolio](docs/improvement-portfolio.md) records ownership and merge status.
+This repository does not redistribute the Desktop, Core, gateway, or search provider. It pins reviewed versions and commits and orchestrates installation, migration, acceptance, and rollback. [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is the machine-executable baseline; the [improvement portfolio](docs/improvement-portfolio.md) records ownership and external-upstream status. The `cloga/*` repositories are controlled deployment forks, so this table describes their default-branch capabilities and current pins rather than internal PR workflow state.
 
 | Project | Deployment responsibility | Current relationship |
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Official 0.9.2; delayed-start recovery [PR #118](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/pull/118) is merged |
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, and sandbox policy | #1/#2/#4/#5/#6/#7 merged; sandbox no-op [PR #8](https://github.com/cloga/deepseek-harness/pull/8) open |
-| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search, traditional Search bridge, Responses replay, image bypass, and nonempty reasoning | #1/#2/#3 merged; complete 0.2.3-cloga.3 baseline [PR #4](https://github.com/cloga/dsh-web-search-provider/pull/4) open |
-| [`whtsky/copilot2api`](https://github.com/whtsky/copilot2api) | GitHub Copilot `/v1/responses`, `/v1/chat/completions`, and `/v1/models` gateway | Official 0.6.1; DSH integration guide [PR #9](https://github.com/whtsky/copilot2api/pull/9) open |
-| [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first one-shot installer, migration, acceptance, and rollback | Complete Desktop 0.9.2 + Copilot baseline in [PR #27](https://github.com/cloga/dsh-windows-ops/pull/27) |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, and sandbox policy | Default branch contains the current improvements; deployment pin `bd520d6e` |
+| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search, traditional Search bridge, Responses replay, image bypass, and nonempty reasoning | Default branch contains the complete baseline; deployment pin `e47390c7` / `0.2.3-cloga.3` |
+| [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | Maintains the DSH integration guide and receives changes not yet accepted upstream | Default branch `5a042b40` contains the DSH guide; the deployed artifact remains the official upstream `whtsky/copilot2api` 0.6.1 release |
+| [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first one-shot installer, migration, acceptance, and rollback | Default branch maintains the current Desktop 0.9.2 + Copilot deployment baseline |
 
 Historical and optional integrations are tracked separately from the locked Copilot baseline:
 

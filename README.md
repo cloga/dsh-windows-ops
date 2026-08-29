@@ -48,15 +48,15 @@
 
 ## 本仓库与依赖项目的关系
 
-本仓库不分发 Desktop、Core、网关或搜索 provider；它锁定经过验证的版本和 commit，编排安装、迁移、验收与回滚。机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，改进的归属和合并状态以 [Improvement portfolio](docs/improvement-portfolio.md) 为准。
+本仓库不分发 Desktop、Core、网关或搜索 provider；它锁定经过验证的版本和 commit，编排安装、迁移、验收与回滚。机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，改进归属和外部上游状态以 [Improvement portfolio](docs/improvement-portfolio.md) 为准。`cloga/*` 是我们控制的部署 fork，表中描述其默认分支能力和当前 pin，不跟踪内部 PR 流程状态。
 
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 使用官方 0.9.2；延迟启动恢复 [PR #118](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/pull/118) 已合并 |
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装和 sandbox 策略 | #1/#2/#4/#5/#6/#7 已合并；sandbox no-op [PR #8](https://github.com/cloga/deepseek-harness/pull/8) 待合并 |
-| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search、传统 Search bridge、Responses replay、图片旁路和非空 reasoning | #1/#2/#3 已合并；完整 0.2.3-cloga.3 基线 [PR #4](https://github.com/cloga/dsh-web-search-provider/pull/4) 待合并 |
-| [`whtsky/copilot2api`](https://github.com/whtsky/copilot2api) | GitHub Copilot 的 `/v1/responses`、`/v1/chat/completions` 和 `/v1/models` 网关 | 锁定官方 0.6.1；DSH 集成说明 [PR #9](https://github.com/whtsky/copilot2api/pull/9) 待合并 |
-| [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 一次性安装器、迁移、验收和回滚 | 完整 Desktop 0.9.2 + Copilot 基线在 [PR #27](https://github.com/cloga/dsh-windows-ops/pull/27) |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装和 sandbox 策略 | 默认分支包含当前改进；部署精确 pin `bd520d6e` |
+| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search、传统 Search bridge、Responses replay、图片旁路和非空 reasoning | 默认分支包含完整基线；部署精确 pin `e47390c7` / `0.2.3-cloga.3` |
+| [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | 维护 DSH 集成说明并承接尚未进入官方的改进 | 默认分支 `5a042b40` 已包含 DSH 集成说明；当前运行 artifact 仍锁定上游 `whtsky/copilot2api` 官方 0.6.1 |
+| [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 一次性安装器、迁移、验收和回滚 | 默认分支维护当前 Desktop 0.9.2 + Copilot 部署基线 |
 
 历史/可选集成单独记录，不属于当前锁定 Copilot 基线：
 

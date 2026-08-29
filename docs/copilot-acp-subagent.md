@@ -14,10 +14,12 @@ DSH host
         -> @deepseek-ai/dsh-subagent-acp
            -> copilot --acp
 
-Authored agent preset
-  -> subagent                       (spawn)
-  -> subagent_fork                  (fork)
-  -> subagent_copilot               (copilot ACP)
+Host tool registry
+  -> subagent_copilot               (copilot ACP, visible to every preset scope)
+
+Agent presets
+  -> subagent                       (spawn, when the preset grants it)
+  -> subagent_fork                  (fork, when the preset grants it)
 ```
 
 Provider selection is deterministic. Each `dsh-tool-subagent` row names one
@@ -67,9 +69,10 @@ release does not already make it resolvable:
 dsh plugin --profile web add @deepseek-ai/dsh-subagent-acp
 ```
 
-The package has no bundle layer in the validated release, so add its provider row
-to the profile's user patch. Resolve the executable first and use that exact path
-in the local patch; do not commit a machine-specific path:
+The package has no bundle layer in the validated release, so add both its
+provider row and the model-facing tool row to the profile's user patch. Resolve
+the executable first and use that exact path in the local patch; do not commit a
+machine-specific path:
 
 ```powershell
 $copilot = (Get-Command copilot).Source
@@ -84,10 +87,22 @@ $copilot = (Get-Command copilot).Source
         command: '<absolute path returned by Get-Command copilot>'
         args: ['--acp']
         permission: reject
+
+    - id: tool-subagent-copilot
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: copilot
+        toolName: subagent_copilot
+        backgroundMode: one-shot
+        maxDepth: provider-managed
 ```
 
 The provider belongs on the host plane because `subagents` is a process-wide,
-cross-session registry and a provider name can be registered only once.
+cross-session registry and a provider name can be registered only once. The tool
+row is deliberately host-plane too: `ctx.tools.register()` contributes to the
+root tool scope, and every preset scope inherits it. This is the correct layout
+when the deployment policy explicitly grants Copilot delegation to every preset.
+Do not copy or edit shipped presets for this global capability.
 
 Keep `permission: reject` as the baseline. ACP permission prompts are not shown
 to a human: `reject` declines them, while `allow` automatically chooses the first
@@ -95,33 +110,10 @@ allow option. For a trusted implementation profile, prefer explicit Copilot CLI
 `--allow-tool` and `--deny-tool` arguments over unrestricted `--allow-all`, and
 record the policy separately.
 
-## Agent-preset tool
-
-Never edit a shipped preset. Copy the reviewed full coding preset to a user
-preset under `$DSH_HOME\.agent-presets\<id>` and add only the model-facing tool:
-
-```yaml
-- id: tool-subagent-copilot
-  name: '@deepseek-ai/dsh-tool-subagent'
-  config:
-    provider: copilot
-    toolName: subagent_copilot
-    backgroundMode: one-shot
-    maxDepth: provider-managed
-    description: >-
-      Delegate a self-contained coding implementation, GitHub workflow task,
-      or independent code review to GitHub Copilot CLI over ACP. It receives
-      the workspace but not this conversation. Prefer subagent_fork when the
-      task depends on current discussion, and ordinary subagent for routine
-      independent analysis.
-```
-
-Keep the existing `subagent` and `subagent_fork` rows. A dedicated tool name is
-the auditable routing boundary and avoids silently changing existing delegation.
-
-Mount-validate the authored preset with the `agentPresets.standingKeyFor(id)`
-service before using it. Then start a new session on that preset; a running
-session does not gain a newly added tool retroactively.
+Keep the existing preset-owned `subagent` and `subagent_fork` rows. A dedicated
+`subagent_copilot` name is the auditable routing boundary and avoids silently
+changing existing delegation. After changing the host patch, restart the Host;
+new and existing preset types then inherit the global tool on their next session.
 
 ## Validation
 
@@ -161,9 +153,10 @@ session does not gain a newly added tool retroactively.
    stopReason=end_turn
    ```
 
-5. Start a new DSH session using the authored preset and run a read-only task
-   through `subagent_copilot`. Confirm native `subagent` and `subagent_fork`
-   remain present.
+5. After restarting the Host, start sessions with more than one available preset
+   and confirm `subagent_copilot` is present in each tool catalog. In a full
+   coding preset, also confirm native `subagent` and `subagent_fork` remain
+   present. Run a read-only task through `subagent_copilot`.
 
 ## Operational limits
 
@@ -172,18 +165,19 @@ session does not gain a newly added tool retroactively.
   structured output, or a local depth limit.
 - Copilot usage is governed by the authenticated account and may consume premium
   requests.
-- The profile patch needs a host restart before the provider exists. The authored
-  preset applies only to new sessions that select it.
+- The profile patch needs a host restart before the provider and global tool
+  exist. Existing conversations should be reopened as new sessions so their tool
+  catalog includes the new root-scope tool.
 - If Copilot is unavailable, existing DSH spawn/fork delegation remains the
   fallback because it is configured as separate tools.
 
 ## Rollback
 
 1. Stop the DSH host.
-2. Remove `subagent-copilot-acp` from the profile patch.
+2. Remove both `subagent-copilot-acp` and `tool-subagent-copilot` from the
+   profile patch.
 3. Remove the ACP dependency from the profile only if no other row consumes it.
-4. Select the previous agent preset or remove the authored preset.
-5. Restart Desktop and verify native `subagent` and `subagent_fork` still work.
+4. Restart Desktop and verify native `subagent` and `subagent_fork` still work.
 
 Never delete Copilot CLI credentials as part of a DSH rollback unless the user
 explicitly requests account sign-out.

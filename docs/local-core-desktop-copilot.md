@@ -84,7 +84,7 @@ The packaged-core download source remains
 separately maintained package-release fork and a Desktop code change; it is not
 required for normal fork development.
 
-## Validated 2026-08-28 baseline
+## Validated 2026-08-30 baseline
 
 The installation described here was verified with:
 
@@ -96,7 +96,7 @@ The installation described here was verified with:
 | Node / npm / pnpm | `24.19.0` / `11.17.0` / `11.7.0` |
 | `copilot2api` | `0.6.1`, loopback `127.0.0.1:7777` |
 | Desktop profile plugins | Official internal `dsh-tauri`, panel, panel-extension, UI, and worktree links, all `0.4.9` |
-| Hosted-search provider | `cloga/dsh-web-search-provider` PR #4, `0.2.3-cloga.3`, commit `e47390c789c4939eaa6660f52e0f3d2e37d554aa`, tarball SHA-256 `5EC9B9A782712E3E05BF8E58583AA86370CED383AB389DF11CDEEBF6AAFEA647` |
+| Hosted-search provider | `cloga/dsh-web-search-provider` PR #6, `0.2.3-cloga.3`, commit `57dafb1e850c761f0b1866b5652b7fbbc4e65df3`, tarball SHA-256 `8E0BEE948BF220B975A809A054A1C8DE0168B270DB1FD2A0AB8035C49E26819F` |
 
 Record exact versions and the fork commit for each deployment. Treat this table as
 evidence for this installation, not as an unbounded compatibility claim.
@@ -255,11 +255,13 @@ Responses SSE translation, replay normalization, grounded sandbox escalation,
 and image bypass to the official attachment channel.
 
 Use
-[`cloga/dsh-web-search-provider` PR #4](https://github.com/cloga/dsh-web-search-provider/pull/4),
-exact commit `e47390c789c4939eaa6660f52e0f3d2e37d554aa`. Its exported
+[`cloga/dsh-web-search-provider` PR #6](https://github.com/cloga/dsh-web-search-provider/pull/6),
+exact commit `57dafb1e850c761f0b1866b5652b7fbbc4e65df3`. Its exported
 `cloga.dsh-windows-copilot.web-search` baseline has exactly seven required
 capabilities, including the traditional `copilot-hosted` Search bridge and
-nonempty-only Responses/Anthropic reasoning.
+nonempty-only Responses/Anthropic reasoning. PR #6 additionally fixes the
+inline parser's cumulative 8 MiB lifetime limit: one incomplete SSE event stays
+bounded while long streams of individually valid tool-call deltas continue.
 
 Build with the package manager declared by the provider repository. On Windows,
 run the cross-platform build stages directly if its `clean` script uses

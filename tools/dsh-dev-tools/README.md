@@ -1,17 +1,17 @@
 # dsh-dev-tools
 
-Agent-native development tools for DeepSeek Harness (DSH), aimed at a **Windows packaged edition** with a local source tree. Registers four tools so the agent can inspect and drive the dev/upgrade workflow **from inside the session**:
+Agent-native development tools for DeepSeek Harness (DSH), aimed at a **Windows packaged edition** with a local source tree. Registers five tools so the agent can inspect development and maintenance state **from inside the session**:
 
 | Tool | What it does |
 |---|---|
-| `dsh_status` | Source-tree version/branch/dirty state, runtime version, patch state, A/B backup state. |
+| `dsh_status` | Source-tree version/branch/dirty state, runtime version, patch state, and plugin import-compatibility summary. |
 | `dsh_patch` | Manage local patches: `list` / `apply` / `rollback` (backup before change, idempotent). |
 | `dsh_build` | Build a staging runtime (`<runtimeDir>.new`) from the source tree - does NOT touch the running app. |
-| `dsh_upgrade` | `check` new upstream versions + `apply` a full upgrade (builds + deploys + patches + restarts via the existing updater). |
+| `dsh_upgrade` | `check` lists upstream versions; retired `apply` returns guidance to use the locked installer or Desktop core manager. |
 
 ## Why
 
-The packaged DSH on this machine installs into a source tree (`D:\deepseek-harness`) whose `resources/runtime` is built from that tree. Local customizations live as **patches** re-applied after every upgrade. Doing all of this from a terminal is awkward mid-session; these tools hand the agent a native handle on status/patch/build/upgrade.
+The packaged DSH can be paired with a local source tree and an explicitly configured runtime directory. Local customizations live as reviewable patches reapplied after upgrades. These tools expose status, patch, build, version-check, and doctor operations without hard-coding one machine layout.
 
 ## Configuration
 
@@ -54,4 +54,4 @@ Run `dsh-compat-check.mjs --probe=dsh-dev-tools` before restarting, then restart
 
 ## Lifecycle
 
-All changes happen while the app is running are staging-only (`dsh_build` -> `<runtimeDir>.new`); the running instance is untouched. Anything that would restart the app (`dsh_upgrade apply`) uses the detached-scheduled-task pattern documented in `docs/ab-self-heal.md` - never a raw in-process restart.
+`dsh_build` remains staging-only (`<runtimeDir>.new`) and does not touch the running app. The legacy `dsh_upgrade apply` path is retired; use the check-first locked installer or Desktop's core manager, and restart outside the active agent process only after reviewing the plan.

@@ -1,0 +1,116 @@
+import assert from 'node:assert/strict'
+import { execFileSync, spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import test from 'node:test'
+import { fileURLToPath } from 'node:url'
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const validator = path.join(root, 'tools', 'validate-plugin-catalog.mjs')
+const sourceCatalog = path.join(root, 'catalog', 'plugins.json')
+const sourceSchema = path.join(root, 'catalog', 'schema', 'plugin-catalog.schema.json')
+const sourceLock = path.join(root, 'deployments', 'windows-copilot.lock.json')
+
+function read(file) { return JSON.parse(fs.readFileSync(file, 'utf8')) }
+function write(file, value) { fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`) }
+
+function fixture(mutate) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-plugin-catalog-'))
+  const catalog = read(sourceCatalog)
+  const schema = read(sourceSchema)
+  const lock = read(sourceLock)
+  mutate?.({ catalog, schema, lock })
+  const catalogPath = path.join(dir, 'plugins.json')
+  const schemaPath = path.join(dir, 'schema.json')
+  const lockPath = path.join(dir, 'lock.json')
+  write(catalogPath, catalog)
+  write(schemaPath, schema)
+  write(lockPath, lock)
+  return { dir, catalogPath, schemaPath, lockPath }
+}
+
+function run(paths) {
+  return spawnSync(process.execPath, [validator, `--catalog=${paths.catalogPath}`, `--schema=${paths.schemaPath}`, `--lock=${paths.lockPath}`], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+}
+
+test('current catalog validates', () => {
+  const output = execFileSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' })
+  assert.match(output, /Plugin catalog valid/)
+})
+
+test('rejects duplicate plugin ids', () => {
+  const paths = fixture(({ catalog }) => catalog.plugins.push(structuredClone(catalog.plugins[0])))
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /duplicate id/)
+})
+
+test('rejects future verification dates', () => {
+  const paths = fixture(({ catalog }) => { catalog.plugins[1].validation.verifiedAt = '2999-01-01' })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /future date/)
+})
+
+test('rejects missing repository evidence paths', () => {
+  const paths = fixture(({ catalog }) => {
+    catalog.plugins[1].validation.evidence[1] = { kind: 'source-review', description: 'missing', path: 'docs/does-not-exist.md' }
+  })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /does not exist/)
+})
+
+test('rejects optional integrations claiming baseline', () => {
+  const paths = fixture(({ catalog }) => {
+    const plugin = catalog.plugins[1]
+    plugin.validation.level = 'baseline'
+    plugin.source.commit = catalog.plugins[0].source.commit
+    plugin.package = catalog.plugins[0].package
+    plugin.source.release = catalog.plugins[0].source.release
+    plugin.artifact = structuredClone(catalog.plugins[0].artifact)
+    plugin.validation.evidence.push({ kind: 'deployment-lock', description: 'false claim', path: 'deployments/windows-copilot.lock.json' })
+    plugin.validation.evidence.push({ kind: 'import-probe', description: 'false claim', path: 'docs/local-core-desktop-copilot.md' })
+    plugin.validation.evidence.push({ kind: 'composition-mount', description: 'false claim', path: 'docs/local-core-desktop-copilot.md' })
+    plugin.validation.evidence.push({ kind: 'functional-smoke', description: 'false claim', path: 'docs/local-core-desktop-copilot.md' })
+  })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /falsely claims the current locked baseline/)
+})
+
+test('rejects deployment lock identity drift', () => {
+  const paths = fixture(({ lock }) => { lock.components.searchProvider.source.commit = '0'.repeat(40) })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /does not match deployment lock/)
+})
+
+test('rejects recommended entries with unknown high-impact security facts', () => {
+  const paths = fixture(({ catalog }) => { catalog.plugins[0].security.approvalGate = null })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /unknown high-impact security fields/)
+})
+
+test('rejects path and URL ambiguity in one evidence record', () => {
+  const paths = fixture(({ catalog }) => { catalog.plugins[1].validation.evidence[0].path = 'docs/startup-60s-timeout.md' })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /exactly one of path or url/)
+})
+
+test('rejects an L2 claim without import-probe evidence', () => {
+  const paths = fixture(({ catalog }) => { catalog.plugins[1].validation.level = 'L2' })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /requires successful import-probe evidence/)
+})
+
+test.after(() => {
+  // Fixtures live under the OS temp directory and are intentionally disposable.
+})

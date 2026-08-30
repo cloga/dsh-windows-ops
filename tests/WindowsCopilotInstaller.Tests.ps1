@@ -100,8 +100,8 @@ public static class $typeName { public static void Main() {} }
     }
 
     It 'pins every verified source and artifact identity' {
-        $lock.deploymentId | Should -Be 'windows-copilot-2026-08-28'
-        $lock.verifiedDate | Should -Be '2026-08-28'
+        $lock.deploymentId | Should -Be 'windows-copilot-2026-08-30'
+        $lock.verifiedDate | Should -Be '2026-08-30'
         $lock.components.desktop.version | Should -Be '0.9.2'
         $lock.components.desktop.source.commit | Should -Be 'c7c5a247961b1ca2d7389026ad7194ac108e5437'
         $lock.components.desktop.artifact.sha256 | Should -Be 'f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7'
@@ -116,10 +116,10 @@ public static class $typeName { public static void Main() {} }
         @($lock.components.core.install.attestedFiles).Count | Should -Be 3
         $lock.components.gateway.source.commit | Should -Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
         $lock.components.gateway.version | Should -Be '0.6.1'
-        $lock.components.searchProvider.source.commit | Should -Be 'e47390c789c4939eaa6660f52e0f3d2e37d554aa'
+        $lock.components.searchProvider.source.commit | Should -Be '57dafb1e850c761f0b1866b5652b7fbbc4e65df3'
         $lock.components.searchProvider.package.version | Should -Be '0.2.3-cloga.3'
         $lock.components.searchProvider.package.packageManager | Should -Be 'pnpm@11.7.0'
-        $lock.components.searchProvider.package.artifact.sha256 | Should -Be '5ec9b9a782712e3e05bf8e58583aa86370ced383ab389df11cdeebf6aafea647'
+        $lock.components.searchProvider.package.artifact.sha256 | Should -Be '8e0bee948bf220b975a809a054a1c8de0168b270db1fd2a0ab8035c49e26819f'
         $lock.components.searchProvider.package.bundlePatch | Should -Be './cordis.patch.yml'
         @($lock.components.searchProvider.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 7
         @($lock.acceptance.composedConfig.forbiddenActiveEntries) | Should -Be @('web-search-deepseek')
@@ -922,6 +922,18 @@ public static class $typeName { public static void Main() {} }
         $result.sourceVerified | Should -Be $true
         $result.artifactVerified | Should -Be $false
         @($result.capabilities).Count | Should -Be 7
+    }
+
+    It 'accepts packed provider metadata after pnpm strips packageManager' {
+        $providerRoot = Join-Path $TestDrive 'packed-provider-contract'
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider') -Destination $providerRoot -Recurse
+        $packagePath = Join-Path $providerRoot 'package.json'
+        $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $package.PSObject.Properties.Remove('packageManager')
+        $package | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+
+        $result = Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot
+        $result.valid | Should -Be $true
     }
 
     It 'rejects a provider source missing a required capability' {

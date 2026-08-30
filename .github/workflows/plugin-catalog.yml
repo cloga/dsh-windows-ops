@@ -1,0 +1,77 @@
+name: Plugin catalog validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/plugin-catalog.yml'
+      - 'catalog/**'
+      - 'docs/plugins/**'
+      - 'tools/dsh-compat-check.mjs'
+      - 'tools/validate-plugin-catalog.mjs'
+      - 'tools/dsh-doctor.mjs'
+      - 'tools/dsh-dev-tools/**'
+      - 'tests/plugin-catalog.test.mjs'
+      - 'deployments/windows-copilot.lock.json'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/plugin-catalog.yml'
+      - 'catalog/**'
+      - 'docs/plugins/**'
+      - 'tools/dsh-compat-check.mjs'
+      - 'tools/validate-plugin-catalog.mjs'
+      - 'tools/dsh-doctor.mjs'
+      - 'tools/dsh-dev-tools/**'
+      - 'tests/plugin-catalog.test.mjs'
+      - 'deployments/windows-copilot.lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Validate catalog and scripts
+        shell: powershell
+        run: |
+          node tools\validate-plugin-catalog.mjs
+          node --test tests\plugin-catalog.test.mjs
+          node --check tools\dsh-compat-check.mjs
+          node --check tools\validate-plugin-catalog.mjs
+          node --check tools\dsh-doctor.mjs
+          node --check tools\dsh-dev-tools\index.js
+          node --check tools\preflight-check.mjs
+
+  repository-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Reject retired dual-home recovery system
+        shell: bash
+        run: |
+          test ! -e docs/ab-self-heal.md
+          test ! -e docs/ab-tauri-adapt.md
+          test ! -e tools/dsh-backup.ps1
+          test ! -e tools/dsh-rescue.ps1
+          test ! -e tools/dsh-restart-detached.ps1
+          test ! -e tools/dsh-restart-patched.ps1
+          test ! -e tools/dsh-restart-worker.ps1
+          if grep -RInE 'dsh-(backup|rescue|restart)|ab-self-heal|ab-tauri-adapt|B-home|A/B snapshot' README.md README.en.md catalog docs tools tests deployments; then
+            echo 'Retired dual-home recovery reference found.' >&2
+            exit 1
+          fi
+      - name: Check bilingual navigation
+        shell: bash
+        run: |
+          test "$(grep -c '^## ' README.md)" -eq "$(grep -c '^## ' README.en.md)"
+          for file in README.md README.en.md; do
+            grep -q 'catalog/plugins.json' "$file"
+            grep -q 'docs/plugins/computer-use.md' "$file"
+            grep -q 'tools/README.md' "$file"
+          done

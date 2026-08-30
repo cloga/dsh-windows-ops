@@ -1,69 +1,105 @@
 # dsh-windows-ops
 
-> DeepSeek Harness (DSH) Windows 打包版实战运维经验 + 工具集。
->  English: [README.en.md](README.en.md) / [简体中文](README.md)
+> DeepSeek Harness（DSH）Windows 部署基线、运维工具箱与社区插件验证目录。
+>
+> English: [README.en.md](README.en.md) / [简体中文](README.md)
 
-本仓库收录在 **Windows 桌面版 DeepSeek Harness**（[`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop)，runtime `@deepseek-ai/dsh` 0.1.x）上实机踩坑、验证、修复后的经验与可复用脚本。
+本仓库沉淀在真实 Windows 环境中验证过的 DSH Desktop/Core/Copilot 部署、诊断、修复和集成经验。它不分发 Desktop、Core、网关或第三方插件；正式支持范围由精确锁和验收契约定义。
 
-## 改进项目总览
+## 当前正式基线
 
-完整的 DSH + GitHub Copilot 集成改进、上游/分叉归属、状态和验证证据统一维护在英文目录：
-**[Improvement portfolio](docs/improvement-portfolio.md)**。
+机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-08-30**：
 
-## 收录内容
+| 组件 | 锁定版本 |
+|---|---|
+| DeepSeek Harness Desktop | 0.9.2 |
+| `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
+| Copilot2API | 0.6.1 |
+| `dsh-web-search-provider` | 0.2.3-cloga.3 |
+| Desktop internal plugins | 官方 5 个 0.4.9 组件 |
 
-| 类别 | 内容 | 文件 |
+README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。
+
+## 快速入口
+
+| 目标 | 从这里开始 |
+|---|---|
+| 检查或安装锁定的 Windows + Copilot 基线 | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
+| 运行版本、配置、端口、模型和补丁自检 | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
+| 诊断安装问题并执行定点修复 | [`tools/README.md`](tools/README.md) |
+| 使用 Copilot ACP 子代理 | [`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md) |
+| 选择或评估社区插件 | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
+| 理解插件验证等级 | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
+| 评估 Computer Use / 浏览器自动化 | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
+| 查看机器可读插件目录 | [`catalog/plugins.json`](catalog/plugins.json) |
+| 查看改进归属、PR 状态和验证证据 | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |
+
+## 三类“验证”不要混淆
+
+1. **插件目录**：[`catalog/plugins.json`](catalog/plugins.json) 记录发现、源码审查、入口兼容、组合挂载、功能冒烟、部署验证和锁定基线等级。
+2. **兼容检查**：`tools/dsh-compat-check.mjs` 检查已放入 Profile 的社区插件依赖和 host 入口 import；通过仅表示 **import-compatible**，不证明功能或安全性。
+3. **部署锁**：`deployments/*.lock.json` 锁定精确版本、commit、制品哈希、安装步骤、验收和回滚；这是正式支持范围。
+
+安装社区插件前，先使用一次性测试 Profile：
+
+```powershell
+node tools\dsh-compat-check.mjs <profile> --probe=<package>
+node tools\validate-plugin-catalog.mjs
+```
+
+然后在隔离 `DSH_HOME` 中验证 Cordis 激活、工具注册和代表性功能，再提升目录等级。不要直接拿维护中的 `web` Profile 做首次试装。
+
+## 工具地图
+
+| 类别 | 主要工具 | 用途 |
 |---|---|---|
-| 启动稳定性 | 首次启动 60s 超时根因（MCP launcher 网络阻塞）+ 修复 | `docs/startup-60s-timeout.md` |
-| 品牌/版本 | 窗口标题品牌 + **版本号**（`DeepSeek Harness v<version>`）补丁 —— **[历史]**：Tauri 壳下由 `patch-worker.mjs applyBrand` 覆盖（3 文件），窗口标题由壳/dsh-tauri 管理，`patch-brand-title.mjs` 仅保留思路参考 | `tools/patch-brand-title.mjs`（历史）、`tools/dsh-updater/patch-worker.mjs` |
-| 视觉双通道 | 模型感知双通道（官方 + vision 兜底）设计 + admission 判定铁律 | `docs/vision-dual-channel.md` |
-| A/B 自愈 | 配置快照 + 数据 junction + 救援/晋升 —— 版本与修复细节见下方「自愈体系（Tauri 适配）」 | `docs/ab-self-heal.md`、`docs/ab-tauri-adapt.md` |
-| 插件安装 | 官方 Desktop internal plugins 保留并校验 junction；外部 provider 使用物理目录；安装前运行 compat-check | `tools/dsh-compat-check.mjs` |
-| PowerShell 坑 | 5.1 下 HttpClient 需 Add-Type（计划任务健康检查恒失败） | `docs/powershell-5.1-pitfalls.md` |
-| GitHub 网络 | ghfast 镜像 git 配置 + release/raw 下载脚本 | `tools/gh-dl.ps1`、`docs/github-network.md` |
-| 安全 | 敏感凭据只进 `.env`/环境变量，不进 patch/仓库；asar 只走官方工具 | `docs/security-notes.md` |
-| **Agent-native 开发** | **`dsh-dev-tools` 插件**：`dsh_status`/`dsh_patch`/`dsh_build`/`dsh_upgrade` 四工具，agent 会话内 native 操作开发/升级链路 | `tools/dsh-dev-tools/` |
-| **可重放/自愈工具** | 组件版本、端口/服务/配置/模型/图片能力自检；严格标记补丁；安全备份、回滚和桌面恢复 | `tools/dsh-replay.ps1`、`docs/windows-replay-tooling.md` |
-| **本地 Core + Desktop + Copilot** | 机器锁定、默认只检查的安装流程：官方 Desktop、分叉 Core、Copilot2API、loader、官方 internal-plugin junction、物理搜索 provider、双协议路由、备份和验收契约 | `deployments/windows-copilot.lock.json`、`tools/install-windows-copilot.ps1`、`docs/local-core-desktop-copilot.md` |
-| **Copilot ACP 子代理** | 保留原生 spawn/fork，同时把 GitHub Copilot CLI 接成独立 ACP coding agent；记录确定性路由、权限边界、验证与回滚 | `docs/copilot-acp-subagent.md` |
-| **Copilot 搜索/视觉一键启用** | 单命令 fail-closed bootstrap：活动本地 core、双 profile Responses provider、搜索冲突禁用、模型/视觉元数据、SlotOutlet/flat-layout、备份与回滚 | `tools/enable-copilot-search-vision.ps1` |
-| **会话数据安全** | 重复会话 ID 扫描器 + **原子迁移工具**（官方帧读写、备份在 sessions 外、header 归属校验、验证后删旧）+ **启动预检 preflight**（--smoke 隔离 home 冒烟起 backend）+ 运维脚本 `Set-StrictMode` 加固 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs`、`tools/preflight-check.mjs`、`docs/ab-self-heal.md` |
-| **会话迁移/侧边栏分组** | 侧边栏按 Host Workspace 注册表（`storages/workspace.json`）分组而非 header.cwd；**标准迁移工具 v2**（文件+注册表一步同步，幂等）、**事后修复**（定点/`--auto` 全量对账）、**运行时修复**（动态 Cordis 插件模板，DSH 运行中无需重启）、**全链路自测**（隔离 home 16 断言） | `tools/dsh-move-session.mjs`、`tools/dsh-workspace-fix.mjs`、`tools/workspace-fix-plugin.template.js`、`tools/dsh-workspace-lib.mjs`、`tools/dsh-move-session.selftest.mjs`、`docs/session-move-workspace-groups.md` |
-| **自愈体系（Tauri 适配）** | **`dsh-doctor`** 11 项体检 + `--fix` 自动修复（补丁重打/断链重建/重复 insert 禁用/禁用插件隔离/vendor 恢复）+ `--smoke` 隔离启动 + `--list-plugins`；**A/B 新壳化**（rescue=DSH_HOME=B 传参给 Tauri 壳、restart=脱树外壳重启+doctor 前置、promote=新健康条件+静态插件清单）；旧式 swap 事务升级器退役（core 升级由壳管理）；`dsh-dev-tools` 新增 **`dsh_doctor`** agent 工具 | `tools/dsh-doctor.mjs`、`tools/dsh-rescue.ps1`、`tools/dsh-restart-detached.ps1`、`tools/dsh-restart-worker.ps1`、`tools/dsh-restart-patched.ps1`、`tools/dsh-backup.ps1`、`tools/dsh-dev-tools/`、`tools/vendor/dsh-zstd/`、`docs/ab-tauri-adapt.md` |
+| 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
+| Bootstrap | `tools/enable-copilot-search-vision.ps1` | fail-closed 启用 Copilot 搜索/视觉配置 |
+| 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |
+| 插件兼容 | `tools/dsh-compat-check.mjs` | 静态依赖清单和真实 host import probe |
+| 插件目录 | `tools/validate-plugin-catalog.mjs` | 验证 schema 关键约束、证据引用和基线一致性 |
+| 诊断与修复 | `tools/dsh-doctor.mjs` | 安装健康检查、定点修复、隔离启动和插件清单 |
+| 会话安全 | `tools/check-session-duplicates.ps1`、`tools/dsh-move-session.mjs` | 重复 ID 检查和原子迁移 |
+| Agent-native 运维 | `tools/dsh-dev-tools/` | 会话内状态、补丁、构建、升级和 doctor 工具 |
 
-## 使用方式
+所有脚本的详细参数以文件头和对应文档为准。
 
-1. **补丁类**（`tools/*.mjs`）：直接 `node <script>`，路径用环境变量/参数传入（见各文件头注释），不写死本机路径。
-2. **文档类**：经验与踩坑记录，含根因分析与验证方式。
-3. **compat-check**：0 依赖 Node 脚本，装插件前跑一次（静态 import 清单 + `--probe` 实测加载）。
-4. **重放/自愈**：先运行 `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck`，再用 `-Action Apply -DryRun` 预览严格标记补丁；若本机 execution policy 禁止脚本，可为该进程添加 `-NoProfile -ExecutionPolicy Bypass`，无需修改系统策略。
-5. **Windows Copilot 部署**：运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1`。默认 check 模式不改文件；计划确认无误后，提供锁定的源码目录、发布制品、模型目录快照，并显式添加 `-Apply`。
-6. **Copilot bootstrap**：完整部署后，运行 `powershell.exe -File tools\enable-copilot-search-vision.ps1 -Model '<catalog-model-id>'`；不满足活动 core、模型、视觉或 renderer 前置条件时不会改配置。
+## 文档地图
 
-## 合规说明
+- **部署与集成**：`local-core-desktop-copilot.md`、`copilot-acp-subagent.md`、`vision-dual-channel.md`
+- **插件治理**：`docs/plugins/`、`catalog/`
+- **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
+- **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`
+- **维护状态**：`improvement-portfolio.md`、`windows-replay-tooling.md`
 
-- 所有脚本不包含任何 API key / token / 账号信息；凭据一律通过环境变量（如 `GITHUB_PERSONAL_ACCESS_TOKEN`、`DEEPSEEK_API_KEY`）注入，仓库与 patch 零敏感值。
-- 修改 runtime/asar 的任何补丁均**先备份**（`.bak-<日期>`）再改，且提供回滚说明。
-- 本仓库收录的本地修复中，已有 **PR 提交到上游**的会标注链接；不是所有本地 hack 都值得提交（如特定版本参数），会在对应文档注明。
+## 安全铁律
 
-## 本仓库与依赖项目的关系
+- 凭据只从 `.env`、环境变量或 DSH credential service 注入，绝不写入 patch、文档、fixture 或提交。
+- 社区 MCP 默认 read-only；明确需要副作用后再启用写操作。
+- Computer Use、真实浏览器控制和视觉插件可能接触屏幕、Cookie、聊天、密码和本机应用；推荐状态必须与功能验证等级分开。
+- 所有 runtime/配置改动先备份，补丁必须幂等并提供回滚。
+- 保留并校验 Desktop 的 5 个官方 internal-plugin 链接，不用猜测的 registry 包替换。
 
-本仓库不分发 Desktop、Core、网关或搜索 provider；它锁定经过验证的版本和 commit，编排安装、迁移、验收与回滚。机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，改进归属和外部上游状态以 [Improvement portfolio](docs/improvement-portfolio.md) 为准。`cloga/*` 是我们控制的部署 fork，表中描述其默认分支能力和当前 pin，不跟踪内部 PR 流程状态。
+详见 [`docs/security-notes.md`](docs/security-notes.md)。
+
+## 项目关系与维护状态
+
+本仓库不分发 Desktop、Core、网关或搜索 provider；它锁定经过验证的版本和 commit，编排安装、迁移、验收与回滚。`cloga/*` 是我们控制的部署 fork，以下描述其默认分支能力和当前部署 pin，而不是内部 PR 流程状态。
 
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
-| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 使用官方 0.9.2；延迟启动恢复 [PR #118](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/pull/118) 已合并 |
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装和 sandbox 策略 | 默认分支包含当前改进；部署精确 pin `bd520d6e` |
-| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search、传统 Search bridge、Responses replay、图片旁路和非空 reasoning | 默认分支包含完整基线；部署精确 pin `e47390c7` / `0.2.3-cloga.3` |
-| [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | 维护 DSH 集成说明并承接尚未进入官方的改进 | 默认分支 `5a042b40` 已包含 DSH 集成说明；当前运行 artifact 仍锁定上游 `whtsky/copilot2api` 官方 0.6.1 |
-| [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 一次性安装器、迁移、验收和回滚 | 默认分支维护当前 Desktop 0.9.2 + Copilot 部署基线 |
+| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 当前 lock 使用官方 0.9.2 |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装和 sandbox 策略 | 部署精确 pin `bd520d6e` |
+| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search、传统 Search bridge、Responses replay、图片旁路、reasoning 和 SSE 流 | 部署精确 pin `57dafb1e` / `0.2.3-cloga.3` |
+| [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | 维护 DSH 集成说明并承接尚未进入官方的改进 | 当前运行 artifact 仍锁定上游官方 0.6.1 |
+| [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 
-历史/可选集成单独记录，不属于当前锁定 Copilot 基线：
-
-- [`tianmingwan/dsh-vision-any` PR #2](https://github.com/tianmingwan/dsh-vision-any/pull/2) 仍为 **Open**；它记录 vision-tool fallback 的 model-aware admission。
-- [`Harusame64/desktop-touch-mcp` PR #586](https://github.com/Harusame64/desktop-touch-mcp/pull/586) 已于 2026-08-23 **Merged**；它解决可选 MCP launcher 的 offline-first release 与 fetch timeout。
+改进归属、外部上游状态和验证证据统一维护在 [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md)。发布或升级前以 deployment lock 和兼容矩阵为准，不要根据 README 中的版本字符串自行混搭组件。
 
 ## 环境要求
 
-- Windows 10/11；锁定基线要求 Node `^22.19.0 || >=24.0.0`，具体版本以 deployment lock 为准。
-- 当前验证基线为 Desktop 0.9.2、Core 0.1.1-rc.2、Copilot2API 0.6.1 和 provider 0.2.3-cloga.3；其他组合必须先更新锁并通过验收。
+- Windows 10/11；
+- 锁定基线要求 Node `^22.19.0 || >=24.0.0`；
+- 修改正式基线时必须同步更新 lock、fixture、测试和说明文档。
+
+本仓库的社区插件目录仍会包含实验或历史项目；只有标记为 `baseline` 且能对应到 deployment lock 的组件属于当前正式支持配置。

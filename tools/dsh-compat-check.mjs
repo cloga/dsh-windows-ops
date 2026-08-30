@@ -1,9 +1,10 @@
-// dsh-compat-check.mjs — DSH 桌面版插件兼容性检查器 v1（零依赖，node >= 18）
-// 用法: node dsh-compat-check.mjs [profile] [--probe] [--probe=<pkg>]
+// dsh-compat-check.mjs — DSH 桌面版插件入口兼容性检查器 v2（零依赖，node >= 18）
+// 用法: node dsh-compat-check.mjs [profile] [--probe] [--probe=<pkg>] [--json]
 //   缺省 profile=web；--probe 对插件做真实 import 加载测试（会执行插件顶层代码，慎用）；
-//   --probe=<pkg> 只测指定插件（加载即崩的插件测它绝对安全）。
+//   --probe=<pkg> 只测指定插件；--json 输出可归档的结构化入口兼容报告。
 // 原理: 插件能解析的包 = 插件目录 node_modules + <profile> 层 node_modules 白名单；
 //       对比插件代码的 import/require 清单，找出加载即崩的缺失项。
+// 边界: “通过”仅表示 import-compatible，不证明 Cordis 已激活、工具可用、功能正确或安全。
 'use strict';
 
 import fs from 'node:fs';
@@ -17,6 +18,7 @@ const profile = ARGS.find(a => !a.startsWith('--')) || 'web';
 const NM = path.join(HOME, 'profiles', profile, 'node_modules');
 const wantProbe = ARGS.includes('--probe') || ARGS.some(a => a.startsWith('--probe='));
 const probeOnly = ARGS.find(a => a.startsWith('--probe='));
+const wantJson = ARGS.includes('--json');
 
 const NATIVE_RISK = /^(sharp|koffi|node-pty|better-sqlite3|onnxruntime-node|canvas|bufferutil|utf-8-validate|fsevents|esbuild)$/;
 
@@ -194,6 +196,8 @@ function hostFiles(pj, dir) {
 
 // ---------- 4. 逐插件检查 ----------
 const out = [];
+const reports = [];
+const probes = [];
 const fatalList = [], warnList = [], okList = [];
 function resolveChain(pkg, pluginDir) {
   let isLink = false;
@@ -251,7 +255,22 @@ for (const pl of plugins) {
   if (injectMissing.length) verdict.push('警告: client.inject 缺失: ' + injectMissing.join(', ') + '（Web 端功能可能缺失）');
   if (!verdict.length) verdict.push('通过');
 
-  const level = fatal.length ? '[致命]' : (warn.length || native.length || nodeFiles.length || !enginesOk || injectMissing.length || declaredMissing.length) ? '[警告]' : '[通过]';
+  const status = fatal.length ? 'load-fatal' : (warn.length || native.length || nodeFiles.length || !enginesOk || injectMissing.length || declaredMissing.length) ? 'import-warning' : 'import-compatible';
+  const level = status === 'load-fatal' ? '[加载致命]' : status === 'import-warning' ? '[入口警告]' : '[入口兼容]';
+  reports.push({
+    package: pkg,
+    version: pj.version || null,
+    enabled: isEnabled,
+    status,
+    fatal,
+    warnings: warn,
+    informational: info,
+    declaredMissing,
+    nativeModules: [...new Set(native)],
+    nativeFiles: nodeFiles.map(f => path.basename(f)),
+    engines: pj.engines && pj.engines.node ? { required: pj.engines.node, current: process.version, compatible: enginesOk } : null,
+    missingClientInject: injectMissing,
+  });
   out.push(level + ' ' + pkg + ' v' + (pj.version || '?') + state);
   for (const v of verdict) out.push('  - ' + v);
   for (const f of fatal) out.push('    · ' + f);
@@ -289,6 +308,7 @@ if (wantProbe) {
         resolve(s || (err ? '进程失败: ' + err.message : '') + (e && !s ? ' | ' + e.split('\n')[0].slice(0, 200) : ''));
       });
     });
+    probes.push({ package: pl.pkg, result: res, passed: res.includes('LOAD_OK') });
     out.push('  ' + pl.pkg + ': ' + res);
   }
 }
@@ -297,15 +317,31 @@ if (wantProbe) {
 out.push('', '==== 总结 ====');
 out.push('  profile: ' + profile + ' | node: ' + process.version);
 out.push('  白名单: ' + whitelist.size + ' 个可解析包 | 外来插件: ' + plugins.length + ' 个');
-out.push('  可用(' + okList.length + '): ' + (okList.join(', ') || '无'));
-out.push('  有警告/风险(' + warnList.length + '): ' + (warnList.join(', ') || '无'));
-out.push('  会崩溃/致命(' + fatalList.length + '): ' + (fatalList.join(', ') || '无'));
+out.push('  入口兼容(' + okList.length + '): ' + (okList.join(', ') || '无'));
+out.push('  入口警告/风险(' + warnList.length + '): ' + (warnList.join(', ') || '无'));
+out.push('  加载致命(' + fatalList.length + '): ' + (fatalList.join(', ') || '无'));
 out.push('');
 out.push('说明:');
-out.push('  1. [致命] = 插件 main 入口顶层静态 import 的包在解析链上不存在，加载插件即崩溃。');
-out.push('  2. 解析链 = 插件目录 node_modules → ~/.dsh/profiles/' + profile + '/node_modules（白名单）→ 逐级向上。');
-out.push('  3. 官方 @deepseek-ai/* 包在 runtime asar 与 ~/.dsh/profiles/node_modules 齐全；但 symlink/junction 安装的插件按真实路径解析（如 ~/.dsh/plugins/ 源码树），够不到以上位置，需在目标真实路径旁补齐依赖。');
-out.push('  4. 修复思路: 普通目录插件把缺失包装进 profile 层 node_modules；junction 插件则在其真实路径下建 node_modules 链接（如链接到 profiles/node_modules）或改用拷贝安装；装完重跑本脚本刷新。');
-out.push('  5. --probe / --probe=<pkg> 用 node 真实 import 插件 main 验证（会执行顶层代码，慎用；对加载即崩的插件绝对安全）。');
+out.push('  1. [加载致命] = 插件 main 入口顶层静态 import 的包在解析链上不存在，加载插件即崩溃。');
+out.push('  2. [入口兼容] 仅表示依赖解析与所请求的 import probe 通过，不证明 Cordis 激活、工具注册、端到端功能或安全性。');
+out.push('  3. 解析链 = 插件目录 node_modules → ~/.dsh/profiles/' + profile + '/node_modules（白名单）→ 逐级向上。');
+out.push('  4. 官方 @deepseek-ai/* 包在 runtime 与 ~/.dsh/profiles/node_modules 齐全；但 symlink/junction 插件按真实路径解析，可能够不到 Profile 依赖。');
+out.push('  5. 修复思路: 普通目录插件把缺失包装进 Profile；junction 插件在真实路径补齐依赖或改用物理安装；装完重跑本脚本。');
+out.push('  6. --probe / --probe=<pkg> 会执行 host 入口顶层代码；请只在一次性测试 Profile 中运行未知插件。');
 
-console.log(out.join('\n'));
+if (wantJson) {
+  console.log(JSON.stringify({
+    schemaVersion: 1,
+    kind: 'dsh-plugin-import-compatibility',
+    generatedAt: new Date().toISOString(),
+    profile,
+    nodeVersion: process.version,
+    profileNodeModules: NM,
+    summary: { importCompatible: okList.length, importWarning: warnList.length, loadFatal: fatalList.length },
+    plugins: reports,
+    probes,
+    limitations: ['Does not prove Cordis activation, tool registration, functional behavior, cleanup, or security.'],
+  }, null, 2));
+} else {
+  console.log(out.join('\n'));
+}

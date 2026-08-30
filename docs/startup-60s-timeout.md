@@ -1,8 +1,6 @@
 # 首次启动 60 秒超时根因分析（The local service did not start within 60 seconds）
 
-> **2026-08-25 历史注**：本文针对旧 Electron 桌面壳（DeepSeek Harness.exe）。Tauri 壳（dsh-tauri-desk）有独立启动时序与下载流程，本案例机制不同；如需快速恢复仍可参考「孤儿进程清理」思想（见 dsh-restart-worker.ps1）。
-
-# 首次启动 60 秒超时根因分析（The local service did not start within 60 seconds）
+> **2026-08-25 历史注**：本文针对旧 Electron 桌面壳（DeepSeek Harness.exe）。Tauri 壳（dsh-tauri-desk）有独立启动时序与下载流程，本案例机制不同；恢复时应停止孤儿 DSH 后端，再由 Desktop 正常重启，不再使用仓库内已退役的双 Home 快照或重启脚本。
 
 ## 现象
 

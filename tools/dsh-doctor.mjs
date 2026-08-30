@@ -3,7 +3,7 @@
 //   node dsh-doctor.mjs                 check only (report mode, fast)
 //   node dsh-doctor.mjs --fix           check + auto-repair known issues
 //   node dsh-doctor.mjs --smoke         check (+fix) then isolated boot test
-//   node dsh-doctor.mjs --list-plugins  print the plugin manifest (for B snapshot)
+//   node dsh-doctor.mjs --list-plugins  print the installed plugin manifest
 //   node dsh-doctor.mjs --json          machine-readable output (agent/tool use)
 //
 // Every repair backs up the touched file/dir into
@@ -27,9 +27,11 @@ const HOMEDIR = os.homedir();
 const DSH_HOME = process.env.DSH_HOME || path.join(HOMEDIR, '.dsh');
 const TOOLS = path.join(DSH_HOME, 'tools');
 const BACKUP_ROOT = path.join(TOOLS, 'backups', 'dsh-doctor', new Date().toISOString().replace(/[:.]/g, '-'));
-const SHELL_DIR = 'C:/Users/sephen/AppData/Local/Deepseek Harness Desktop';
-const SHELL_EXE = path.join(SHELL_DIR, 'deepseek-harness-desktop.exe');
-const SHELL_DATA = 'C:/Users/sephen/AppData/Roaming/io.github.hairyf.deepseek-harness-desktop';
+const LOCAL_APP_DATA = process.env.LOCALAPPDATA || path.join(HOMEDIR, 'AppData', 'Local');
+const ROAMING_APP_DATA = process.env.APPDATA || path.join(HOMEDIR, 'AppData', 'Roaming');
+const SHELL_DIR = process.env.DSH_DESKTOP_ROOT || path.join(LOCAL_APP_DATA, 'Deepseek Harness Desktop');
+const SHELL_EXE = process.env.DSH_DESKTOP_EXE || path.join(SHELL_DIR, 'deepseek-harness-desktop.exe');
+const SHELL_DATA = process.env.DSH_DESKTOP_DATA || path.join(ROAMING_APP_DATA, 'io.github.hairyf.deepseek-harness-desktop');
 const CORE_DIR = path.join(SHELL_DATA, 'dependencies', 'dsh');
 const CORE_BIN = path.join(CORE_DIR, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js');
 const RUNTIME_NODE = path.join(SHELL_DATA, 'runtime', 'node.exe');
@@ -41,7 +43,6 @@ const BANNED = ['dsh-vision-router']; // known-crash plugins: keep out of the au
 const PATCHER = path.join(TOOLS, 'dsh-updater', 'patch-worker.mjs');
 const SHELL_LOG = path.join(SHELL_DATA, 'logs', 'desktop.log');
 const VENDOR_ZSTD = path.join(TOOLS, 'vendor', 'dsh-zstd', 'types', 'zstd.js');
-const B_HOME = DSH_HOME + '-backup';
 const PROFILES = ['web', 'headless'];
 
 const report = [];
@@ -92,7 +93,7 @@ async function checkConfigYaml() {
   const missing = [];
   const bad = [];
   let yaml = null;
-  for (const cand of ['C:/Users/sephen/.dsh/profiles/node_modules/yaml/dist/index.js', 'C:/Users/sephen/.dsh/profiles/web/node_modules/yaml/dist/index.js']) {
+  for (const cand of [path.join(DSH_HOME, 'profiles', 'node_modules', 'yaml', 'dist', 'index.js'), path.join(DSH_HOME, 'profiles', 'web', 'node_modules', 'yaml', 'dist', 'index.js')]) {
     try { yaml = await import(pathToFileURL(cand).href); break; } catch { }
   }
   for (const rel of targets) {
@@ -219,12 +220,6 @@ function checkVendor() {
   const ok = fs.existsSync(VENDOR_ZSTD);
   rec('vendor-zstd', ok ? 'ok' : 'fail', ok ? 'zstd vendor present' : 'zstd vendor missing: ' + VENDOR_ZSTD, !ok);
 }
-function checkBHome() {
-  const ok = fs.existsSync(path.join(B_HOME, 'profiles'));
-  let promoted = '';
-  try { promoted = fs.readFileSync(path.join(B_HOME, 'PROMOTED.txt'), 'utf8').slice(0, 60); } catch { }
-  rec('b-home', ok ? 'ok' : 'warn', ok ? ('B backup present' + (promoted ? ' (' + promoted + ')' : '')) : 'B home missing - run dsh-backup.ps1 -promote while healthy', !ok);
-}
 function checkShellProc() {
   const sh = spawnSync('powershell', ['-NoProfile', '-Command', "(Get-Process -Name 'deepseek-harness-desktop' -ErrorAction SilentlyContinue | Measure-Object).Count"], { encoding: 'utf8', timeout: 10000 });
   const n = parseInt((sh.stdout || '0').trim() || '0', 10);
@@ -319,7 +314,7 @@ if (LIST_PLUGINS) {
 // check phase
 await checkConfigYaml(); // uses top-level await; yaml probe inside
 checkShell(); checkCore(); checkPatches(); checkPluginLinks(); checkDuplicateInserts(); checkBanned();
-checkGit(); checkVendor(); checkBHome(); checkShellProc();
+checkGit(); checkVendor(); checkShellProc();
 
 const summary = { fixMode: FIX, repairableFailures: report.filter((r) => r.fixable && r.status !== 'ok') };
 if (FIX && summary.repairableFailures.length > 0) {
@@ -333,8 +328,10 @@ if (FIX && summary.repairableFailures.length > 0) {
       else if (r.id === 'banned-plugins') { r.fixResult = fixBanned(r.data || []).join('; ') || 'none'; }
       else if (r.id === 'vendor-zstd') {
         const here = path.join(path.dirname(fileURLToPath(import.meta.url)), 'vendor', 'dsh-zstd', 'types');
-        const oldShell = 'D:/deepseek-harness/DeepSeek Harness/resources/runtime/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/types';
-        const srcDir = fs.existsSync(oldShell) ? oldShell : (fs.existsSync(path.join(here, 'zstd.js')) ? here : null);
+        const configuredVendor = process.env.DSH_ZSTD_VENDOR_DIR;
+        const srcDir = configuredVendor !== undefined && fs.existsSync(configuredVendor)
+          ? configuredVendor
+          : (fs.existsSync(path.join(here, 'zstd.js')) ? here : null);
         if (srcDir) {
           fs.mkdirSync(path.dirname(VENDOR_ZSTD), { recursive: true });
           fs.cpSync(srcDir, path.dirname(VENDOR_ZSTD), { recursive: true });
@@ -353,7 +350,7 @@ function recheck() {
   // simplest correct rerun of the check phase
   report.length = 0;
   checkShell(); checkCore(); checkPatches(); checkPluginLinks(); checkDuplicateInserts(); checkBanned();
-  checkGit(); checkVendor(); checkBHome(); checkShellProc();
+  checkGit(); checkVendor(); checkShellProc();
 }
 
 if (SMOKE) {

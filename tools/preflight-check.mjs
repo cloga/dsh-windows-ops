@@ -19,7 +19,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const execP = promisify(execFile);
 const dshHome = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
@@ -29,10 +29,10 @@ const args = process.argv.slice(2);
 const doFix = args.includes('--fix');
 const doSmoke = args.includes('--smoke');
 
-const zstdUrl = pathToFileURL(
-  'D:/deepseek-harness/DeepSeek Harness/resources/runtime/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/types/zstd.js'
-).href;
-const zstd = await import(zstdUrl);
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const zstdPath = process.env.DSH_ZSTD
+  || path.join(scriptDir, 'vendor', 'dsh-zstd', 'types', 'zstd.js');
+const zstd = await import(pathToFileURL(zstdPath).href);
 
 function log(s) { console.log(s); }
 function warn(s) { console.warn('[WARN] ' + s); }
@@ -200,7 +200,7 @@ log(corruptCount ? ('corrupt/mismatch: ' + corruptCount) : '3. all sessions deco
 
 // 4: optional smoke boot - MUST use an isolated DSH_HOME (never boot a second
 //    web against the live home: im-gateway holds an instance lock and data dirs
-//    forbid concurrent access - A/B discipline).
+//    forbid concurrent access; the smoke boot must never reuse the live home).
 if (doSmoke) {
   log('=== SMOKE BOOT (isolated DSH_HOME) ===');
   const smokeHome = path.join(os.tmpdir(), 'dsh-smoke-' + Date.now());
@@ -211,10 +211,17 @@ if (doSmoke) {
   const smokeSessions = path.join(smokeHome, 'sessions');
   fs.cpSync(sessionsRoot, smokeSessions, { recursive: true, force: true });
   log('smoke home: ' + smokeHome + ' (sessions copied)');
-  const bin = 'D:/deepseek-harness/DeepSeek Harness/resources/runtime/lib/bin.js';
-  // Node >= 22 required: the session store uses zstd (node:zlib), and D:\node.exe
-  // is v20 - use the workbuddy node 22.22.2 (same as WorkBuddy's Electron v24 in spirit).
-  const node = process.env.DSH_SMOKE_NODE || 'C:/Users/sephen/.workbuddy/binaries/node/versions/22.22.2/node.exe';
+  const bin = process.env.DSH_CLI_PATH
+    || (process.env.APPDATA
+      ? path.join(process.env.APPDATA, 'npm', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+      : '');
+  const node = process.env.DSH_SMOKE_NODE || process.execPath;
+  if (bin.length === 0 || !fs.existsSync(bin)) {
+    err('SMOKE FAILED: set DSH_CLI_PATH to the active @deepseek-ai/dsh lib/bin.js');
+    problems++;
+    fs.rmSync(smokeHome, { recursive: true, force: true });
+    process.exitCode = 1;
+  } else {
   log('using node: ' + node);
   log('starting backend on isolated home...');
   try {
@@ -249,6 +256,7 @@ if (doSmoke) {
   }
   // cleanup smoke home
   try { fs.rmSync(smokeHome, { recursive: true, force: true }); } catch {}
+  }
 }
 
 log(problems === 0 ? '=== PREFLIGHT CLEAN ===' : '=== PREFLIGHT PROBLEMS: ' + problems + ' (run with --fix to quarantine; --smoke to boot-test) ===');

@@ -62,10 +62,11 @@ async function toolStatus() {
     out.dirtyCount = st.ok ? st.stdout.split('\n').filter((l) => l.trim()).length : -1
   }
   out.patchesFile = fs.existsSync(PATCHES_JSON) ? PATCHES_JSON : null
-  const bDir = path.join(DSH_HOME + '-backup')
-  out.backup = { exists: fs.existsSync(bDir), promoted: readJson(path.join(bDir, 'PROMOTED.txt')) ? true : false }
-  const cp = await run(NODE, [path.join(DSH_HOME, 'tools', 'dsh-compat-check.mjs'), 'web'], { cwd: process.cwd() })
-  out.compatCheck = { summary: (cp.stdout.split('\n').filter((l) => l.includes('可用') || l.includes('会崩溃') || l.includes('有警告')).join(' | ')) || cp.stderr.slice(0, 200) }
+  const cp = await run(NODE, [path.join(DSH_HOME, 'tools', 'dsh-compat-check.mjs'), 'web', '--json'], { cwd: process.cwd() })
+  const compat = tryJson(cp.stdout)
+  out.compatCheck = compat
+    ? { summary: compat.summary, limitations: compat.limitations }
+    : { error: cp.stderr.slice(0, 200) || 'compatibility report unavailable' }
   return out
 }
 
@@ -146,11 +147,8 @@ async function toolUpgradeCheck() {
   return { ok: true, currentVersion: cur, newestTag: tags[0] || null, recentTags: tags.slice(0, 8) }
 }
 async function toolUpgradeApply(args) {
-  const version = (args && args.version) || ''
-  const updater = path.join(DSH_HOME, 'tools', 'dsh-updater', 'apply-update.mjs')
-  if (!fs.existsSync(updater)) return { ok: false, reason: 'apply-update.mjs not found; set DSH_HOME or copy the updater from dsh-windows-ops' }
-  const argv = [updater, ...(version ? ['--version', version] : [])]
-  return { ok: true, note: 'upgrade runs in a detached flow (see docs/ab-self-heal.md). Invoked: node ' + argv.join(' ') }
+  const version = (args && args.version) || null
+  return { ok: false, reason: 'legacy apply-update flow is retired; use the locked installer or the Desktop core manager after an explicit check plan', requestedVersion: version }
 }
 
 // ---------- dsh_doctor ----------
@@ -184,9 +182,9 @@ function tool(name, description, parameters, runFn, output_extra = {}) {
 
 export function apply(ctx) {
   const register = (t) => { try { ctx.tools.register(t) } catch (e) { console.error('[dsh-dev-tools] register failed: ' + e.message) } }
-  register(tool('dsh_status', 'Inspect DSH dev state: source-tree branch/commit/dirty, runtime version, patch file, A/B backup, compat-check summary.', { type: 'object', properties: {} }, () => toolStatus()))
-  register(tool('dsh_doctor', 'Health-check + self-repair for the DSH install (shell/core/patches/config YAML/plugin links/duplicate registrations/banned plugins/git/vendor/B backup/shell process). fix=true repairs known issues; smoke=true adds an isolated boot test.', { type: 'object', properties: { fix: { type: 'boolean' }, smoke: { type: 'boolean' } } }, (a) => toolDoctor(a)))
+  register(tool('dsh_status', 'Inspect DSH dev state: source-tree branch/commit/dirty, runtime version, patch file, and import-compatibility summary.', { type: 'object', properties: {} }, () => toolStatus()))
+  register(tool('dsh_doctor', 'Health-check + targeted repair for the DSH install (shell/core/patches/config YAML/plugin links/duplicate registrations/banned plugins/git/vendor/shell process). fix=true repairs known issues; smoke=true adds an isolated boot test.', { type: 'object', properties: { fix: { type: 'boolean' }, smoke: { type: 'boolean' } } }, (a) => toolDoctor(a)))
   register(tool('dsh_patch', 'Manage local patches (list/apply/rollback) from $DSH_HOME/tools/dsh-updater/patches.json. Backup before change, idempotent.', { type: 'object', properties: { action: { type: 'string', enum: ['list', 'apply', 'rollback'] } }, required: ['action'] }, (args) => (args && args.action === 'rollback') ? toolPatchRollback(args) : toolPatch(args)))
   register(tool('dsh_build', 'Build staging runtime (<runtimeDir>.new) from the source tree. Does NOT touch the running app.', { type: 'object', properties: {} }, () => toolBuild()))
-  register(tool('dsh_upgrade', 'Check upstream tags (check) or start a full upgrade (apply).', { type: 'object', properties: { action: { type: 'string', enum: ['check', 'apply'] }, version: { type: 'string' } }, required: ['action'] }, (args) => (args && args.action === 'apply') ? toolUpgradeApply(args) : toolUpgradeCheck()))
+  register(tool('dsh_upgrade', 'Check upstream tags. The legacy apply action is retired and returns migration guidance.', { type: 'object', properties: { action: { type: 'string', enum: ['check', 'apply'] }, version: { type: 'string' } }, required: ['action'] }, (args) => (args && args.action === 'apply') ? toolUpgradeApply(args) : toolUpgradeCheck()))
 }

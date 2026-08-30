@@ -17,7 +17,7 @@ $client.Timeout = [TimeSpan]::FromSeconds(6)
 $resp = $client.GetAsync('http://127.0.0.1:' + $port + '/').Result
 ```
 
-**症状**：`Test-Healthy` 恒返回 false → promote 误判 "A unhealthy"、重启脚本误判 "FAILED: no healthy web instance"（日志能查到，但 A 实际健康）。
+**症状**：`Test-Healthy` 恒返回 false，导致健康检查或旧式重启脚本误判实例不可用（日志能查到，但 Web 实际健康）。仓库现已移除依赖该判断的双 Home 快照、晋升和救援工具。
 
 ## 2. .ps1 编码（UTF-8 无 BOM 按 GBK 解码）
 

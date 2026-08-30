@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "deploymentId": "windows-copilot-2026-08-28",
-  "verifiedDate": "2026-08-28",
+  "deploymentId": "windows-copilot-2026-08-30",
+  "verifiedDate": "2026-08-30",
   "platform": {
     "os": "windows",
     "architecture": "x64",
@@ -118,8 +118,8 @@
     "searchProvider": {
       "source": {
         "repository": "https://github.com/cloga/dsh-web-search-provider",
-        "pullRequest": 4,
-        "commit": "e47390c789c4939eaa6660f52e0f3d2e37d554aa"
+        "pullRequest": 6,
+        "commit": "57dafb1e850c761f0b1866b5652b7fbbc4e65df3"
       },
       "package": {
         "name": "dsh-web-search-provider",
@@ -133,7 +133,7 @@
         ],
         "artifact": {
           "name": "dsh-web-search-provider-0.2.3-cloga.3.tgz",
-          "sha256": "5ec9b9a782712e3e05bf8e58583aa86370ced383ab389df11cdeebf6aafea647"
+          "sha256": "8e0bee948bf220b975a809a054a1c8de0168b270db1fd2a0ab8035c49e26819f"
         },
         "deploymentBaseline": {
           "schemaVersion": 1,

@@ -501,9 +501,11 @@ function Assert-ProviderBaselineData {
         [Parameter(Mandatory)]$Baseline
     )
     $expected = $Lock.components.searchProvider.package
+    # pnpm strips its development-only packageManager field from packed package.json.
+    # The lock still owns the build tool/version; runtime payload validation must
+    # compare only metadata that survives the published artifact.
     if ([string]$Package.name -ne [string]$expected.name -or
         [string]$Package.version -ne [string]$expected.version -or
-        [string]$Package.packageManager -ne [string]$expected.packageManager -or
         [string]$Package.main -ne [string]$expected.main -or
         [string]$Package.types -ne [string]$expected.types -or
         [string]$Package.dsh.bundle.patch -ne [string]$expected.bundlePatch) {

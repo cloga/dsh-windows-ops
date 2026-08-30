@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-30",
+  "validationLevels": [
+    { "id": "L0", "name": "Discovered", "description": "The project was located, but its source and runtime behavior have not been reviewed." },
+    { "id": "L1", "name": "Source reviewed", "description": "Package metadata, composition files, lifecycle scripts, permissions, and obvious risks were reviewed." },
+    { "id": "L2", "name": "Import compatible", "description": "Static dependency analysis and a real host-entry import probe passed in the named environment." },
+    { "id": "L3", "name": "Composition mounted", "description": "An isolated DSH profile started with all expected Cordis rows active and tools registered." },
+    { "id": "L4", "name": "Functional smoke", "description": "At least one representative end-to-end capability completed successfully in a controlled target." },
+    { "id": "L5", "name": "Deployment validated", "description": "Exact source or artifact identity, acceptance checks, security notes, and rollback steps are recorded." },
+    { "id": "baseline", "name": "Locked baseline", "description": "The exact component is part of a maintained deployment lock and its complete acceptance contract." }
+  ],
+  "plugins": [
+    {
+      "id": "dsh-web-search-provider",
+      "displayName": "DSH Web Search Provider",
+      "package": "dsh-web-search-provider",
+      "categories": ["search"],
+      "integration": "cordis",
+      "artifact": {
+        "name": "dsh-web-search-provider-0.2.3-cloga.3.tgz",
+        "sha256": "8e0bee948bf220b975a809a054a1c8de0168b270db1fd2a0ab8035c49e26819f"
+      },
+      "source": {
+        "repository": "https://github.com/cloga/dsh-web-search-provider",
+        "commit": "57dafb1e850c761f0b1866b5652b7fbbc4e65df3",
+        "release": "0.2.3-cloga.3"
+      },
+      "platforms": ["cross-platform"],
+      "recommendation": "recommended",
+      "validation": {
+        "level": "baseline",
+        "verifiedAt": "2026-08-30",
+        "dshVersion": "0.1.1-rc.2",
+        "nodeVersion": "24.19.0",
+        "evidence": [
+          { "kind": "deployment-lock", "description": "Pinned artifact hash, source commit, build commands, and required capabilities are in the Windows Copilot deployment lock.", "path": "deployments/windows-copilot.lock.json" },
+          { "kind": "import-probe", "description": "The maintained web and headless Profiles completed real host-entry import probes without fatal imports.", "path": "docs/local-core-desktop-copilot.md" },
+          { "kind": "composition-mount", "description": "The validated Profiles loaded the expected plugin composition and registered the supported capabilities.", "path": "docs/local-core-desktop-copilot.md" },
+          { "kind": "functional-smoke", "description": "Search, hosted-search, model catalog, image routing, sandbox, replay, reasoning, and cumulative SSE streaming acceptance are documented.", "path": "docs/local-core-desktop-copilot.md" }
+        ]
+      },
+      "security": {
+        "controlsDesktop": false,
+        "capturesScreen": false,
+        "usesExistingBrowserProfile": false,
+        "sendsDataExternally": true,
+        "approvalGate": false,
+        "notes": ["Queries and model requests are sent to the configured provider or gateway.", "This provider does not itself gate ordinary search requests with a local approval prompt."]
+      },
+      "summary": "The maintained search and Copilot hosted-search bridge in the locked Windows deployment."
+    },
+    {
+      "id": "desktop-touch-mcp",
+      "displayName": "Desktop Touch MCP",
+      "categories": ["computer-use", "desktop-automation"],
+      "integration": "mcp",
+      "source": {
+        "repository": "https://github.com/Harusame64/desktop-touch-mcp"
+      },
+      "platforms": ["windows"],
+      "recommendation": "historical",
+      "validation": {
+        "level": "L1",
+        "verifiedAt": "2026-08-23",
+        "dshVersion": null,
+        "nodeVersion": null,
+        "evidence": [
+          { "kind": "upstream-change", "description": "Offline-first release resolution and bounded fetch behavior were merged upstream in PR #586.", "url": "https://github.com/Harusame64/desktop-touch-mcp/pull/586" },
+          { "kind": "source-review", "description": "The earlier launcher network stall and DSH startup impact are documented.", "path": "docs/startup-60s-timeout.md" }
+        ]
+      },
+      "security": {
+        "controlsDesktop": true,
+        "capturesScreen": true,
+        "usesExistingBrowserProfile": null,
+        "sendsDataExternally": null,
+        "approvalGate": null,
+        "notes": ["Run MCP servers read-only until write operations are explicitly needed.", "Not installed by the locked Windows Copilot deployment."]
+      },
+      "summary": "A historically investigated Windows desktop-control MCP; the repository records a launcher reliability fix, not current functional certification.",
+      "notes": ["Must pass current source review, import checks, isolated composition mount, and functional smoke before recommendation."]
+    },
+    {
+      "id": "dsh-vision-any",
+      "displayName": "DSH Vision Any",
+      "categories": ["vision"],
+      "integration": "cordis",
+      "source": {
+        "repository": "https://github.com/tianmingwan/dsh-vision-any"
+      },
+      "platforms": ["cross-platform"],
+      "recommendation": "experimental",
+      "validation": {
+        "level": "L1",
+        "verifiedAt": "2026-08-29",
+        "dshVersion": null,
+        "nodeVersion": null,
+        "evidence": [
+          { "kind": "source-review", "description": "Model-aware admission and neutral prompting are recorded in the optional integration PR.", "url": "https://github.com/tianmingwan/dsh-vision-any/pull/2" },
+          { "kind": "source-review", "description": "The dual-channel design and limitations are documented locally.", "path": "docs/vision-dual-channel.md" }
+        ]
+      },
+      "security": {
+        "controlsDesktop": false,
+        "capturesScreen": false,
+        "usesExistingBrowserProfile": false,
+        "sendsDataExternally": true,
+        "approvalGate": null,
+        "notes": ["Images may be sent to the configured vision provider.", "Not installed by the locked Windows Copilot deployment."]
+      },
+      "summary": "An optional vision-tool fallback design for text-only routes; it remains outside the locked baseline."
+    },
+    {
+      "id": "dsh-dev-tools",
+      "displayName": "DSH Developer Tools",
+      "package": "dsh-dev-tools",
+      "categories": ["operations"],
+      "integration": "cordis",
+      "source": {
+        "repository": "https://github.com/cloga/dsh-windows-ops"
+      },
+      "platforms": ["windows"],
+      "recommendation": "conditional",
+      "validation": {
+        "level": "L1",
+        "verifiedAt": "2026-08-29",
+        "dshVersion": "0.1.x",
+        "nodeVersion": ">=18",
+        "evidence": [
+          { "kind": "source-review", "description": "Tool behavior and installation steps are maintained with the source.", "path": "tools/dsh-dev-tools/README.md" },
+          { "kind": "compat-check", "description": "The plugin documents use of the repository compatibility checker and import probe before restart.", "path": "tools/dsh-dev-tools/README.md" }
+        ]
+      },
+      "security": {
+        "controlsDesktop": false,
+        "capturesScreen": false,
+        "usesExistingBrowserProfile": false,
+        "sendsDataExternally": false,
+        "approvalGate": true,
+        "notes": ["Provides development, patching, build, upgrade, and doctor operations; use only in trusted maintenance sessions."]
+      },
+      "summary": "Repository-local agent tools for DSH development and maintenance, suitable for trusted operator sessions."
+    }
+  ]
+}

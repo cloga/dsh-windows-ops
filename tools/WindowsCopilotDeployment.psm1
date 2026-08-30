@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'DshCopilotBootstrap.psm1')
+Import-Module (Join-Path $PSScriptRoot 'DshRuntimeSchema.psm1')
 
 function Get-LockProperty {
     param(
@@ -88,7 +89,16 @@ function Test-WindowsCopilotLock {
         'acceptance.traditionalSearch.provider',
         'acceptance.reasoning.responses',
         'acceptance.reasoning.anthropic',
-        'acceptance.sandbox.gate'
+        'acceptance.sandbox.gate',
+        'acceptance.runtimeSchema.source.repository',
+        'acceptance.runtimeSchema.source.integrationCommit',
+        'acceptance.runtimeSchema.source.pullRequestHead',
+        'acceptance.runtimeSchema.package.name',
+        'acceptance.runtimeSchema.package.version',
+        'acceptance.runtimeSchema.requiredBuiltSymbols',
+        'acceptance.runtimeSchema.behavior.forbiddenRequiredFields',
+        'acceptance.runtimeSchema.behavior.successMarker',
+        'acceptance.runtimeSchema.behavior.maximumEvidenceAgeMinutes'
     )) {
         $value = $Lock
         foreach ($segment in $path.Split('.')) {
@@ -102,9 +112,75 @@ function Test-WindowsCopilotLock {
         [string]$Lock.components.desktop.source.commit,
         [string]$Lock.components.core.source.commit,
         [string]$Lock.components.gateway.source.commit,
-        [string]$Lock.components.searchProvider.source.commit
+        [string]$Lock.components.searchProvider.source.commit,
+        [string]$Lock.acceptance.runtimeSchema.source.integrationCommit,
+        [string]$Lock.acceptance.runtimeSchema.source.pullRequestHead
     )) {
         if ($commit -notmatch '^[0-9a-f]{40}$') { throw "Invalid locked commit: $commit" }
+    }
+    $runtimeSymbols = @($Lock.acceptance.runtimeSchema.requiredBuiltSymbols)
+    $expectedRuntimeSymbols = [ordered]@{
+        'node_modules\@deepseek-ai\dsh-tools\lib\index.js' = 'projectModelSchema(agent)'
+        'node_modules\@deepseek-ai\dsh-tool-pwsh\lib\index.js' = 'modelSchema: (agent)'
+    }
+    if ($runtimeSymbols.Count -ne $expectedRuntimeSymbols.Count) {
+        throw 'Runtime schema contract must require exactly two compiled symbols.'
+    }
+    foreach ($path in $expectedRuntimeSymbols.Keys) {
+        $matches = @($runtimeSymbols | Where-Object {
+            [string]$_.path -ceq $path -and
+            [string]$_.symbol -ceq $expectedRuntimeSymbols[$path]
+        })
+        if ($matches.Count -ne 1) {
+            throw "Runtime schema contract omits exact compiled symbol '$path'."
+        }
+    }
+    $runtimeForbiddenFields = @(
+        $Lock.acceptance.runtimeSchema.behavior.forbiddenRequiredFields |
+            ForEach-Object { [string]$_ }
+    )
+    if ($runtimeForbiddenFields.Count -ne 2 -or
+        $runtimeForbiddenFields -cnotcontains 'sandbox_permissions' -or
+        $runtimeForbiddenFields -cnotcontains 'justification') {
+        throw 'Runtime schema contract must forbid exactly the two obsolete escalation fields.'
+    }
+    if ([string]$Lock.acceptance.runtimeSchema.behavior.successMarker -cne 'PWSH_SCHEMA_OK') {
+        throw 'Runtime schema contract must require PWSH_SCHEMA_OK.'
+    }
+    if ([string]$Lock.acceptance.runtimeSchema.behavior.sandboxMode -cne 'danger-full-access' -or
+        [string]$Lock.acceptance.runtimeSchema.behavior.approval -cne 'disabled') {
+        throw 'Runtime schema contract must use danger-full-access with approval disabled.'
+    }
+    if ([int]$Lock.acceptance.runtimeSchema.behavior.maximumEvidenceAgeMinutes -ne 15) {
+        throw 'Runtime schema evidence must expire after exactly 15 minutes.'
+    }
+    $stalePatterns = @(
+        $Lock.acceptance.runtimeSchema.behavior.staleErrorPatterns |
+            ForEach-Object { [string]$_ }
+    )
+    $expectedStalePatterns = @(
+        'equal escalation',
+        'sandbox_permissions.*required',
+        'justification.*required'
+    )
+    if ($stalePatterns.Count -ne $expectedStalePatterns.Count -or
+        @($expectedStalePatterns | Where-Object { $stalePatterns -cnotcontains $_ }).Count -gt 0) {
+        throw 'Runtime schema contract must preserve all stale-schema error patterns.'
+    }
+    if ([string]$Lock.acceptance.runtimeSchema.releaseStatus -cne
+        'development-link-only-until-receipt-release') {
+        throw 'Runtime schema release status must remain fail closed until a receipt release exists.'
+    }
+    if ([string]$Lock.acceptance.runtimeSchema.source.repository -cne
+        'github.com/cloga/deepseek-harness' -or
+        [int]$Lock.acceptance.runtimeSchema.source.pullRequest -ne 10 -or
+        [string]$Lock.acceptance.runtimeSchema.source.integrationCommit -cne
+        '56fdc3fd3ed14c9de2430ec517d02a98038e1197' -or
+        [string]$Lock.acceptance.runtimeSchema.source.pullRequestHead -cne
+        'aa625de7be0e25b869b8a85d4a5301e84541c51c' -or
+        [string]$Lock.acceptance.runtimeSchema.package.name -cne '@deepseek-ai/dsh' -or
+        [string]$Lock.acceptance.runtimeSchema.package.version -cne '0.1.2-alpha.1') {
+        throw 'Runtime schema identity must match the reviewed PR #10 integration exactly.'
     }
     $attestedFiles = @($Lock.components.core.install.attestedFiles)
     $expectedAttestedFiles = [ordered]@{
@@ -2304,6 +2380,7 @@ function Test-WindowsCopilotInstallation {
         [string]$GatewaySha256,
         [string]$DesktopRoot,
         [object[]]$DesktopProcesses,
+        [string]$RuntimeSchemaEvidencePath,
         [switch]$SkipRuntimeChecks
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
@@ -2316,7 +2393,6 @@ function Test-WindowsCopilotInstallation {
     $gateway = Get-WindowsCopilotGatewayState -Lock $Lock -Path $GatewayExecutablePath -Sha256 $GatewaySha256
     $coreReceipt = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
         -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath
-
     $profile = $null
     if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
         try { $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json } catch { }
@@ -2581,6 +2657,31 @@ function Test-WindowsCopilotInstallation {
             }
         }
     }
+    if ($SkipRuntimeChecks) {
+        $runtimeSchema = [pscustomobject]@{
+            valid = $false
+            status = 'skipped'
+            diagnosticCode = $null
+        }
+    } else {
+        $runtimeSchemaArguments = @{
+            Contract = $Lock.acceptance.runtimeSchema
+            BehaviorEvidencePath = $RuntimeSchemaEvidencePath
+            AttestedRepository = if ($coreReceipt.valid) {
+                [string]$Lock.components.core.source.repository
+            } else { $null }
+            AttestedSourceCommit = if ($coreReceipt.PSObject.Properties['commitSha']) {
+                [string]$coreReceipt.commitSha
+            } else { $null }
+            RequiredPackageRoot = if ($coreReceipt.PSObject.Properties['packageRoot']) {
+                [string]$coreReceipt.packageRoot
+            } else { $null }
+            RequiredProcessIds = if ($activeCore.PSObject.Properties['listenerOwnerProcessIds']) {
+                @($activeCore.listenerOwnerProcessIds)
+            } else { @() }
+        }
+        $runtimeSchema = Test-DshRuntimeSchemaState @runtimeSchemaArguments
+    }
     $sandbox = if ($SkipRuntimeChecks) {
         [pscustomobject]@{ valid = $false; status = 'skipped' }
     } elseif (-not $coreReceipt.valid) {
@@ -2688,6 +2789,7 @@ function Test-WindowsCopilotInstallation {
         $loaderImports.valid -and
         $activeCore.valid -and
         $sandbox.valid -and
+        $runtimeSchema.valid -and
         $catalogCheck.valid -and
         $composedCheck.valid
     )
@@ -2708,6 +2810,9 @@ function Test-WindowsCopilotInstallation {
     }
     if (-not $SkipRuntimeChecks -and -not $sandbox.valid) {
         $driftReasons.Add('core-sandbox-regression-gate-failed')
+    }
+    if (-not $SkipRuntimeChecks -and -not $runtimeSchema.valid) {
+        $driftReasons.Add('core-' + [string]$runtimeSchema.status)
     }
     if (-not $dependencyValid) { $driftReasons.Add('provider-dependency-unlocked') }
     if (-not $bundleValid) { $driftReasons.Add('profile-bundle-drift') }
@@ -2775,6 +2880,7 @@ function Test-WindowsCopilotInstallation {
             loaderImports = $loaderImports
             activeCore = $activeCore
             sandbox = $sandbox
+            runtimeSchema = $runtimeSchema
             modelCatalog = $catalogCheck
             composedConfig = $composedCheck
             searchSmoke = $searchCheck
@@ -2889,6 +2995,7 @@ Export-ModuleMember -Function @(
     'Set-WindowsCopilotProfile',
     'Test-WindowsCopilotSearchResponse',
     'Test-WindowsCopilotComposedConfig',
+    'Test-DshRuntimeSchemaState',
     'Test-WindowsCopilotInstallation',
     'Invoke-WindowsCopilotApply'
 )

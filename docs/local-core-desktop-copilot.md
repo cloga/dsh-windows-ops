@@ -107,6 +107,116 @@ receipt-installer commit `d931e5482181f41de0b96a9453de5f2112a4fe47`,
 keeps package version `0.1.1-rc.2`, and adds the sandbox same/narrower no-op
 fix while retaining `release:install-local` and its Desktop-compatible receipt.
 
+## Diagnose a stale active runtime schema
+
+Git source, Desktop restarts, and package version strings do not prove that a
+running DSH session has current tool schemas. Desktop's generated shim searches
+PATH for a user-installed `dsh` before using its bundled package. Consequently,
+an older user-global npm shim can override both a newer checkout and Desktop's
+bundled runtime. An already-running session also caches the schema it received
+at creation time.
+
+Run the non-mutating runtime diagnostic first without evidence:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\test-dsh-runtime-schema.ps1
+```
+
+The diagnostic enumerates `Get-Command dsh -All` in resolution order and binds
+the first command to its real `@deepseek-ai/dsh` package. For a development
+link, it resolves the junction target and Git checkout. It then verifies all of
+the following together:
+
+- package `0.1.2-alpha.1`;
+- either reviewed integration commit
+  `56fdc3fd3ed14c9de2430ec517d02a98038e1197` or its PR-head second parent
+  `aa625de7be0e25b869b8a85d4a5301e84541c51c`;
+- the merge's second parent is exactly that PR head;
+- compiled `projectModelSchema(agent)` and `modelSchema: (agent)` symbols in
+  the runtime-resolved workspace packages;
+- `--version` from a new Node process; and
+- positive or stale behavior reported for a newly created DSH process and
+  session.
+
+When invoked through the full deployment check, the accepted package root must
+also be the receipted package executed by a Desktop descendant, and the
+evidence PID must be the exact descendant that owns Desktop's
+`127.0.0.1:3080` listener. A separate healthy development process cannot attest
+a stale Desktop backend.
+
+The first run returns a DPAPI-protected, 15-minute challenge bound to the
+effective command, runtime bytes, package version, and source commit. Start a
+new DSH session after the challenge was issued, use its nonce in the Pwsh
+success marker, and save behavior evidence with this shape:
+
+```json
+{
+  "freshProcess": true,
+  "freshSession": true,
+  "challengeToken": "<token-from-first-diagnostic>",
+  "effectiveCommand": "C:\\Path\\To\\dsh.ps1",
+  "effectiveCommandSha256": "<sha256>",
+  "entrypointSha256": "<sha256>",
+  "packageVersion": "0.1.2-alpha.1",
+  "sourceCommit": "aa625de7be0e25b869b8a85d4a5301e84541c51c",
+  "processId": 1234,
+  "processStartedAtUtc": "2026-08-30T10:01:00Z",
+  "sessionId": "<new-session-id>",
+  "sessionStartedAtUtc": "2026-08-30T10:02:00Z",
+  "observedAtUtc": "2026-08-30T10:03:00Z",
+  "sandboxMode": "danger-full-access",
+  "approval": "disabled",
+  "visibleRequiredFields": [],
+  "invocationOmittedFields": ["sandbox_permissions", "justification"],
+  "outputMarkers": ["PWSH_SCHEMA_OK:<challenge-nonce>"],
+  "errors": []
+}
+```
+
+Then rerun the same command with
+`-BehaviorEvidencePath C:\Path\To\runtime-schema-evidence.json`.
+
+Under `danger-full-access` with approval disabled, the model-visible Pwsh schema
+must omit `sandbox_permissions` and `justification`. Invoke Pwsh without those
+fields and record `PWSH_SCHEMA_OK:<challenge-nonce>` only after that call
+succeeds. Required
+fields, an equal-escalation error, old package content, wrong command
+precedence, or evidence from an old session produces deterministic
+`STALE_RUNTIME_SCHEMA`. Stop retries when that code appears.
+
+The protected nonce seals each inspected path, hash, and write time, plus the
+package root, source commit, and allowed Desktop PID. The process must start
+after all four inspected files were last written, and its Node script argument
+must equal the exact entrypoint. These bindings detect accidental reuse of
+evidence after runtime files change.
+
+The current Core does not expose a trusted channel that signs or directly
+reports session identity, creation time, PID, and challenge output. The JSON
+session fields therefore remain user-supplied. Positive evidence is reported as
+`fresh-session-observed-unattested`, never as healthy; the full deployment
+check remains failed closed. A future receipt-producing Core release must add a
+live or cryptographically signed session-attestation contract before this
+behavior check can qualify deployment health.
+
+PR #10's merge contains the schema fix but does not contain the
+`release:install-local` script used by the authoritative deployment lock.
+Therefore the lock remains on receipt-capable PR #8 and the installer must not
+silently replace it with PR #10 or claim the result is fully healthy. For
+short-lived development verification only, build an exact reviewed PR #10
+checkout and run this command from `apps\cli`:
+
+```powershell
+npm link --ignore-scripts --no-audit --no-fund
+```
+
+Confirm that the first resolved command and global package junction point to
+that checkout, rerun the diagnostic, then restart the DSH process and create a
+new session. Restarting only Desktop or reusing an existing session is
+insufficient. Replace the development link with a reviewed receipt-producing
+release as soon as one includes PR #10; until then, the link is runtime evidence
+but not a receipt-attested production deployment.
+
 ## Build and install the fork core
 
 Use the Node and pnpm versions declared by the Harness repository. From a clean

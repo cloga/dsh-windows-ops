@@ -8,9 +8,12 @@ on:
       - 'deployments/windows-copilot.lock.json'
       - 'tests/DshWindowsOps.Tests.ps1'
       - 'tests/WindowsCopilotInstaller.Tests.ps1'
+      - 'tests/DshRuntimeSchema.Tests.ps1'
       - 'tests/fixtures/windows-copilot/**'
       - 'tools/DshWindowsOps.psm1'
       - 'tools/WindowsCopilotDeployment.psm1'
+      - 'tools/DshRuntimeSchema.psm1'
+      - 'tools/test-dsh-runtime-schema.ps1'
       - 'tools/install-windows-copilot.ps1'
   push:
     branches: [master]
@@ -19,9 +22,12 @@ on:
       - 'deployments/windows-copilot.lock.json'
       - 'tests/DshWindowsOps.Tests.ps1'
       - 'tests/WindowsCopilotInstaller.Tests.ps1'
+      - 'tests/DshRuntimeSchema.Tests.ps1'
       - 'tests/fixtures/windows-copilot/**'
       - 'tools/DshWindowsOps.psm1'
       - 'tools/WindowsCopilotDeployment.psm1'
+      - 'tools/DshRuntimeSchema.psm1'
+      - 'tools/test-dsh-runtime-schema.ps1'
       - 'tools/install-windows-copilot.ps1'
 
 permissions:

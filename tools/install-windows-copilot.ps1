@@ -16,6 +16,7 @@ param(
     [string]$DshCliPath,
     [string]$DesktopExecutablePath,
     [string]$GatewayExecutablePath,
+    [string]$RuntimeSchemaEvidencePath,
     [switch]$SkipRuntimeChecks,
     [switch]$Apply
 )
@@ -48,6 +49,7 @@ if (-not $Apply) {
         -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
         -DesktopExecutablePath $DesktopExecutablePath `
         -GatewayExecutablePath $GatewayExecutablePath `
+        -RuntimeSchemaEvidencePath $RuntimeSchemaEvidencePath `
         -SkipRuntimeChecks:$SkipRuntimeChecks
     $checks = [ordered]@{
         manifest = Test-WindowsCopilotLock -Lock $lock

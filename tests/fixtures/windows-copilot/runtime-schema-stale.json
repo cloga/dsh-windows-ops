@@ -1,0 +1,27 @@
+{
+  "freshProcess": true,
+  "freshSession": false,
+  "challengeToken": "fixture-challenge-token",
+  "effectiveCommand": "C:\\fixture\\dsh.ps1",
+  "effectiveCommandSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "entrypointSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "packageVersion": "0.1.2-alpha.1",
+  "sourceCommit": "aa625de7be0e25b869b8a85d4a5301e84541c51c",
+  "processId": 1234,
+  "processStartedAtUtc": "2026-08-30T10:01:00Z",
+  "sessionId": "fixture-stale-session",
+  "sessionStartedAtUtc": "2026-08-30T10:02:00Z",
+  "observedAtUtc": "2026-08-30T10:03:00Z",
+  "sandboxMode": "danger-full-access",
+  "approval": "disabled",
+  "visibleRequiredFields": [
+    "sandbox_permissions",
+    "justification"
+  ],
+  "invocationOmittedFields": [],
+  "outputMarkers": [],
+  "errors": [
+    "sandbox_permissions is required",
+    "equal escalation is not allowed"
+  ]
+}

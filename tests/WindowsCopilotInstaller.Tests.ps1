@@ -127,6 +127,16 @@ public static class $typeName { public static void Main() {} }
         $lock.acceptance.composedConfig.managedEntry.protocol | Should -Be 'openai-responses'
         $lock.acceptance.composedConfig.managedEntry.searchProvider | Should -Be 'copilot-hosted'
         $lock.acceptance.sandbox.gate | Should -Be 'Require'
+        $lock.acceptance.runtimeSchema.source.integrationCommit |
+            Should -Be '56fdc3fd3ed14c9de2430ec517d02a98038e1197'
+        $lock.acceptance.runtimeSchema.source.pullRequestHead |
+            Should -Be 'aa625de7be0e25b869b8a85d4a5301e84541c51c'
+        $lock.acceptance.runtimeSchema.package.version | Should -Be '0.1.2-alpha.1'
+        @($lock.acceptance.runtimeSchema.requiredBuiltSymbols).Count | Should -Be 2
+        $lock.acceptance.runtimeSchema.behavior.maximumEvidenceAgeMinutes | Should -Be 15
+        $lock.acceptance.runtimeSchema.behavior.sandboxMode | Should -Be 'danger-full-access'
+        $lock.acceptance.runtimeSchema.behavior.approval | Should -Be 'disabled'
+        @($lock.acceptance.runtimeSchema.behavior.staleErrorPatterns).Count | Should -Be 3
     }
 
     It 'installs Core through the receipt producer before the remaining global transaction' {
@@ -143,7 +153,7 @@ public static class $typeName { public static void Main() {} }
         ($step.packages -contains '<built-search-provider-tarball>') | Should -Be $true
     }
 
-    It 'produces a validated Core receipt and accepts the exact healthy baseline' {
+    It 'validates the Core receipt but rejects the schema-stale locked baseline' {
         $caseRoot = Join-Path $TestDrive 'healthy-baseline'
         $script:receiptPrefix = Join-Path $caseRoot 'prefix'
         $globalRoot = Join-Path $caseRoot 'global\node_modules'
@@ -267,6 +277,15 @@ public static class $typeName { public static void Main() {} }
             }
         )
         $previousCliPath = $env:DSH_CLI_PATH
+        $script:runtimeDiscovery = @([pscustomobject]@{
+            commandType = 'Application'
+            name = 'dsh.cmd'
+            path = $core.cliPath
+            identity = $core.cliPath
+        })
+        Mock Get-DshRuntimeCommandDiscovery -ModuleName DshRuntimeSchema {
+            @($script:runtimeDiscovery)
+        }
         try {
             $env:DSH_CLI_PATH = Join-Path $caseRoot 'wrong-global\dsh.cmd'
             $state = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
@@ -284,11 +303,14 @@ public static class $typeName { public static void Main() {} }
         $state.runtime.activeCore.reason | Should -BeNullOrEmpty
         $state.runtime.activeCore.status | Should -Be 'receipted-core-owns-3080'
         $state.runtime.activeCore.listenerOwnerProcessIds | Should -Be @(101)
+        $state.runtime.runtimeSchema.status | Should -Be 'stale-runtime-schema'
+        $state.runtime.runtimeSchema.diagnosticCode | Should -Be 'STALE_RUNTIME_SCHEMA'
         $healthyProvider = @($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider')[0]
         $healthyProvider.payloadReason | Should -BeNullOrEmpty
         $healthyProvider.payloadStatus | Should -Be 'verified'
-        $state.complete | Should -Be $true
-        $state.health | Should -Be 'healthy'
+        $state.complete | Should -Be $false
+        $state.health | Should -Be 'drifted'
+        @($state.drift.reasons) | Should -Contain 'core-stale-runtime-schema'
 
         $unrelatedProcesses = @(
             $activeProcesses[0],

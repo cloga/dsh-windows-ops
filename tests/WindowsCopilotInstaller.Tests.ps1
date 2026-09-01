@@ -100,8 +100,8 @@ public static class $typeName { public static void Main() {} }
     }
 
     It 'pins every verified source and artifact identity' {
-        $lock.deploymentId | Should -Be 'windows-copilot-2026-08-30'
-        $lock.verifiedDate | Should -Be '2026-08-30'
+        $lock.deploymentId | Should -Be 'windows-copilot-2026-09-01'
+        $lock.verifiedDate | Should -Be '2026-09-01'
         $lock.components.desktop.version | Should -Be '0.9.2'
         $lock.components.desktop.source.commit | Should -Be 'c7c5a247961b1ca2d7389026ad7194ac108e5437'
         $lock.components.desktop.artifact.sha256 | Should -Be 'f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7'
@@ -116,16 +116,19 @@ public static class $typeName { public static void Main() {} }
         @($lock.components.core.install.attestedFiles).Count | Should -Be 3
         $lock.components.gateway.source.commit | Should -Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
         $lock.components.gateway.version | Should -Be '0.6.1'
-        $lock.components.searchProvider.source.commit | Should -Be '57dafb1e850c761f0b1866b5652b7fbbc4e65df3'
-        $lock.components.searchProvider.package.version | Should -Be '0.2.3-cloga.3'
-        $lock.components.searchProvider.package.packageManager | Should -Be 'pnpm@11.7.0'
-        $lock.components.searchProvider.package.artifact.sha256 | Should -Be '8e0bee948bf220b975a809a054a1c8de0168b270db1fd2a0ab8035c49e26819f'
-        $lock.components.searchProvider.package.bundlePatch | Should -Be './cordis.patch.yml'
-        @($lock.components.searchProvider.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 7
-        @($lock.acceptance.composedConfig.forbiddenActiveEntries) | Should -Be @('web-search-deepseek')
-        $lock.acceptance.composedConfig.managedEntry.provider | Should -Be 'github-copilot-gateway'
+        $lock.components.copilotIntegration.source.commit | Should -Be '78745478c7323f9cb1aff46b2c2f39eaa619fa29'
+        $lock.components.copilotIntegration.package.version | Should -Be '0.3.0-cloga.1'
+        $lock.components.copilotIntegration.package.packageManager | Should -Be 'pnpm@11.7.0'
+        $lock.components.copilotIntegration.package.artifact.sha256 | Should -Be '264b0ca4923243414cabd84a5e23b77a8a71eb5c767d9b102311e0e75d8b4cda'
+        $lock.components.copilotIntegration.package.bundlePatch | Should -Be './cordis.patch.yml'
+        @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 10
+        $lock.components.copilotIntegration.package.deploymentBaseline.acpSubagents | Should -Be $false
+        @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.2.2'
+        @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.2.3-cloga.3'
+        @($lock.acceptance.composedConfig.forbiddenActiveEntries) | Should -Be @('web-search-provider')
+        $lock.acceptance.composedConfig.managedEntry.provider | Should -Be 'github-copilot'
         $lock.acceptance.composedConfig.managedEntry.protocol | Should -Be 'openai-responses'
-        $lock.acceptance.composedConfig.managedEntry.searchProvider | Should -Be 'copilot-hosted'
+        $lock.acceptance.composedConfig.managedEntry.searchProvider | Should -Be 'github-copilot-hosted'
         $lock.acceptance.sandbox.gate | Should -Be 'Require'
     }
 
@@ -140,7 +143,7 @@ public static class $typeName { public static void Main() {} }
         ($step.packages -contains '@deepseek-ai/cordis-plugin-timer@1.1.3') | Should -Be $true
         ($step.packages -contains 'node-addon-require-builtin@0.1.4') | Should -Be $true
         ($step.packages -contains '<built-core-release-family-tarballs>') | Should -Be $false
-        ($step.packages -contains '<built-search-provider-tarball>') | Should -Be $true
+        ($step.packages -contains '<built-copilot-integration-tarball>') | Should -Be $true
     }
 
     It 'produces a validated Core receipt and accepts the exact healthy baseline' {
@@ -213,15 +216,15 @@ public static class $typeName { public static void Main() {} }
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
-        $providerArtifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $providerArtifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         $providerStage = Join-Path $caseRoot 'provider-stage'
         New-Item -ItemType Directory -Path $providerStage -Force | Out-Null
-        Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-web-search-provider') `
+        Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-github-copilot') `
             -Destination (Join-Path $providerStage 'package') -Recurse
         & tar -czf $providerArtifact -C $providerStage package
         if ($LASTEXITCODE -ne 0) { throw 'Could not create provider test artifact.' }
         $healthyLock = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
-        $healthyLock.components.searchProvider.package.artifact.sha256 =
+        $healthyLock.components.copilotIntegration.package.artifact.sha256 =
             (Get-FileHash -LiteralPath $providerArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
         Set-WindowsCopilotProfile -Lock $healthyLock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $providerArtifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
@@ -284,7 +287,7 @@ public static class $typeName { public static void Main() {} }
         $state.runtime.activeCore.reason | Should -BeNullOrEmpty
         $state.runtime.activeCore.status | Should -Be 'receipted-core-owns-3080'
         $state.runtime.activeCore.listenerOwnerProcessIds | Should -Be @(101)
-        $healthyProvider = @($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider')[0]
+        $healthyProvider = @($state.profile.plugins | Where-Object name -eq 'dsh-github-copilot')[0]
         $healthyProvider.payloadReason | Should -BeNullOrEmpty
         $healthyProvider.payloadStatus | Should -Be 'verified'
         $state.complete | Should -Be $true
@@ -335,7 +338,7 @@ public static class $typeName { public static void Main() {} }
         $wrongOwner.runtime.activeCore.status | Should -Be 'receipted-core-listener-owner-mismatch'
         @($wrongOwner.drift.reasons) | Should -Contain 'core-receipted-process-does-not-own-3080'
 
-        Add-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-web-search-provider\lib\index.js') `
+        Add-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-github-copilot\lib\index.js') `
             -Value 'tampered' -Encoding ASCII
         $providerTamper = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
             -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.9.2' `
@@ -345,7 +348,7 @@ public static class $typeName { public static void Main() {} }
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
             -SkipRuntimeChecks
-        $provider = @($providerTamper.profile.plugins | Where-Object name -eq 'dsh-web-search-provider')[0]
+        $provider = @($providerTamper.profile.plugins | Where-Object name -eq 'dsh-github-copilot')[0]
         $provider.payloadStatus | Should -Be 'installed-file-mismatch'
         @($providerTamper.drift.reasons) | Should -Contain 'provider-payload-installed-file-mismatch'
 
@@ -401,14 +404,14 @@ public static class $typeName { public static void Main() {} }
         $materialize = @($plan.steps | Where-Object id -eq 'materialize-search-provider')[0]
         $preserve.plugins.Count | Should -Be 5
         ($preserve.plugins -contains 'dsh-tauri-panel-extension') | Should -Be $true
-        $materialize.plugins | Should -Be @('dsh-web-search-provider')
+        $materialize.plugins | Should -Be @('dsh-github-copilot')
     }
 
     It 'derives separate Responses and Completions model catalogs' {
         $routes = Get-WindowsCopilotRouteModels -Lock $lock -Catalog $catalog
-        @($routes['github-copilot-gateway']).Count | Should -Be 2
+        @($routes['github-copilot']).Count | Should -Be 2
         @($routes['github-copilot-chat']).Count | Should -Be 2
-        ($routes['github-copilot-gateway'] -contains 'responses-only') | Should -Be $true
+        ($routes['github-copilot'] -contains 'responses-only') | Should -Be $true
         ($routes['github-copilot-chat'] -contains 'completions-only') | Should -Be $true
     }
 
@@ -425,7 +428,15 @@ public static class $typeName { public static void Main() {} }
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
-        $artifact = Join-Path $TestDrive 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $legacyProfile = Get-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Raw | ConvertFrom-Json
+        $legacyProfile.dependencies | Add-Member -NotePropertyName 'dsh-web-search-provider' `
+            -NotePropertyValue '0.2.3-cloga.3'
+        $legacyProfile.dsh.profile.bundles += 'dsh-web-search-provider'
+        $legacyProfile | ConvertTo-Json -Depth 12 |
+            Set-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Encoding UTF8
+        Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-web-search-provider') `
+            -Destination (Join-Path $profileRoot 'node_modules\dsh-web-search-provider') -Recurse
+        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         $first = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
@@ -437,11 +448,15 @@ public static class $typeName { public static void Main() {} }
 
         $profile = Get-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Raw | ConvertFrom-Json
         $profile.dependencies.'fixture-dependency' | Should -Be '1.0.0'
-        $profile.dependencies.'dsh-web-search-provider' | Should -Match '^file:\.\./\.\./artifacts/'
+        $profile.dependencies.'dsh-github-copilot' | Should -Match '^file:\.\./\.\./artifacts/'
+        $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-web-search-provider'
         $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-tauri'
         $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-tauri-ui'
         $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-tauri-worktree'
-        @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-web-search-provider' }).Count | Should -Be 1
+        @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-github-copilot' }).Count | Should -Be 1
+        @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-web-search-provider' }).Count | Should -Be 0
+        Test-Path -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-web-search-provider') |
+            Should -Be $false
         foreach ($bundle in @($lock.profile.requiredBundles)) {
             @($profile.dsh.profile.bundles | Where-Object { $_ -eq $bundle }).Count | Should -Be 1
         }
@@ -453,18 +468,18 @@ public static class $typeName { public static void Main() {} }
 
         $settings = Get-Content -LiteralPath (Join-Path $dshHome 'settings.yaml') -Raw
         $settings | Should -Match 'fixture-provider:'
-        $settings | Should -Match 'github-copilot-gateway:'
+        $settings | Should -Match 'github-copilot:'
         $settings | Should -Match "api: 'openai-responses'"
         $settings | Should -Match 'github-copilot-chat:'
         $settings | Should -Match "api: 'openai-completions'"
-        $settings | Should -Not -Match '^\s{4}github-copilot:'
+        $settings | Should -Not -Match '^\s{4}github-copilot-gateway:'
 
         foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
             $target = Join-Path $profileRoot (Join-Path 'node_modules' $name)
             (Test-Path -LiteralPath (Join-Path $target 'package.json')) | Should -Be $true
             [bool]((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) | Should -Be $true
         }
-        $providerTarget = Join-Path $profileRoot 'node_modules\dsh-web-search-provider'
+        $providerTarget = Join-Path $profileRoot 'node_modules\dsh-github-copilot'
         [bool]((Get-Item -LiteralPath $providerTarget).Attributes -band [IO.FileAttributes]::ReparsePoint) |
             Should -Be $false
         (Test-Path -LiteralPath $first.backupRoot) | Should -Be $true
@@ -485,7 +500,7 @@ public static class $typeName { public static void Main() {} }
         @($state.profile.plugins | Where-Object {
             $_.source -eq 'desktop-internal' -and -not $_.officialDesktopLink
         }).Count | Should -Be 0
-        (@($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider'))[0].physical |
+        (@($state.profile.plugins | Where-Object name -eq 'dsh-github-copilot'))[0].physical |
             Should -Be $true
 
         $profile.dsh.profile.bundles = @($profile.dsh.profile.bundles | Where-Object { $_ -ne 'dsh-tauri' })
@@ -516,7 +531,7 @@ public static class $typeName { public static void Main() {} }
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
-        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         $result = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
@@ -552,7 +567,7 @@ public static class $typeName { public static void Main() {} }
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
         $packageBefore = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
         Mock Invoke-PinnedPnpmCommands -ModuleName WindowsCopilotDeployment { throw 'fixture pnpm failure' }
 
@@ -571,7 +586,7 @@ public static class $typeName { public static void Main() {} }
                 Should -Match ([regex]::Escape([string]$legacy.version))
         }
         $installedArtifact = Join-Path (Join-Path $dshHome 'artifacts') `
-            (Join-Path ([string]$lock.components.searchProvider.source.commit) (Split-Path -Leaf $artifact))
+            (Join-Path ([string]$lock.components.copilotIntegration.source.commit) (Split-Path -Leaf $artifact))
         Test-Path -LiteralPath $installedArtifact |
             Should -Be $false
     }
@@ -625,7 +640,7 @@ public static class $typeName { public static void Main() {} }
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-ui')
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-worktree')
         $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         {
@@ -682,7 +697,7 @@ public static class $typeName { public static void Main() {} }
         $link = Join-Path $profileRoot 'node_modules\dsh-tauri'
         [IO.Directory]::Delete($link, $false)
         New-Item -ItemType Junction -Path $link -Target $wrongTarget | Out-Null
-        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         {
@@ -827,10 +842,10 @@ public static class $typeName { public static void Main() {} }
 
     It 'rejects managed provider fields outside the config subtree' {
         $content = @'
-- id: web-search-provider
-  name: dsh-web-search-provider
+- id: github-copilot
+  name: dsh-github-copilot
   enabled: true
-  providers: [github-copilot-gateway]
+  providers: [github-copilot]
   config:
     probe: true
 '@
@@ -853,7 +868,7 @@ public static class $typeName { public static void Main() {} }
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
-        $artifact = Join-Path $caseRoot 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
         Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
@@ -861,13 +876,13 @@ public static class $typeName { public static void Main() {} }
 
         $profilePath = Join-Path $profileRoot 'package.json'
         $profile = Get-Content -LiteralPath $profilePath -Raw -Encoding UTF8 | ConvertFrom-Json
-        $profile.dependencies.'dsh-web-search-provider' =
+        $profile.dependencies | Add-Member -NotePropertyName 'dsh-web-search-provider' -NotePropertyValue `
             'file:C:/Users/incident/dsh-web-search-provider/dist-all-fixes/dsh-web-search-provider-0.2.2-all-fixes-bd40ffb.tgz'
         $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $profilePath -Encoding UTF8
         $providerRoot = Join-Path $profileRoot 'node_modules\dsh-web-search-provider'
+        New-Item -ItemType Directory -Path $providerRoot -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider-0.2.2\package.json') `
             -Destination (Join-Path $providerRoot 'package.json') -Force
-        Remove-Item -LiteralPath (Join-Path $providerRoot 'deployment-baseline.json') -Force
         Set-Content -LiteralPath $canonicalCli -Value '@echo off' -Encoding ASCII
         Set-Content -LiteralPath $desktopCli -Value "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*" -Encoding ASCII
 
@@ -888,13 +903,14 @@ public static class $typeName { public static void Main() {} }
         $state.deployment.desktop.status | Should -Be 'locked'
         $state.deployment.gateway.status | Should -Be 'locked'
         $state.deployment.core.status | Should -Be 'receipt-missing'
-        $state.profile.providerDependency | Should -Match 'dsh-web-search-provider-0\.2\.2-all-fixes-bd40ffb\.tgz$'
-        (@($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider'))[0].baselineStatus |
-            Should -Be 'missing'
-        (@($state.profile.plugins | Where-Object name -eq 'dsh-web-search-provider'))[0].payloadStatus |
-            Should -Be 'locked-artifact-missing-or-invalid'
+        $legacy = @($state.profile.legacyCopilotIntegrations | Where-Object {
+            $_.lockedLegacyVersion -eq '0.2.2'
+        })[0]
+        $legacy.dependency | Should -Match 'dsh-web-search-provider-0\.2\.2-all-fixes-bd40ffb\.tgz$'
+        $legacy.installedVersion | Should -Be '0.2.2'
+        @($state.drift.reasons) | Should -Contain 'legacy-dsh-web-search-provider-0-2-2-active'
         $state.runtime.composedConfig.managedConfigValid | Should -Be $false
-        @($state.runtime.composedConfig.forbiddenActiveEntries) | Should -Contain 'web-search-deepseek'
+        @($state.runtime.composedConfig.forbiddenActiveEntries) | Should -Contain 'web-search-provider'
         $state.drift.remediation.status | Should -Be 'locked-repair-required'
         $state.drift.remediation.automaticApplyAllowed | Should -Be $true
         @($state.drift.remediation.steps.action) | Should -Contain 'bootstrap-copilot-search'
@@ -916,12 +932,12 @@ public static class $typeName { public static void Main() {} }
         $entryResult.checks.installation.drift.remediation.status | Should -Be 'locked-repair-required'
     }
 
-    It 'validates the provider source against the exported deployment contract' {
-        $result = Test-ProviderDeploymentContract -Lock $lock -SourceRoot (Join-Path $fixtureRoot 'provider')
+    It 'validates the Copilot integration source against the exported deployment contract' {
+        $result = Test-CopilotIntegrationDeploymentContract -Lock $lock -SourceRoot (Join-Path $fixtureRoot 'provider')
         $result.valid | Should -Be $true
         $result.sourceVerified | Should -Be $true
         $result.artifactVerified | Should -Be $false
-        @($result.capabilities).Count | Should -Be 7
+        @($result.capabilities).Count | Should -Be 10
     }
 
     It 'accepts packed provider metadata after pnpm strips packageManager' {
@@ -1209,7 +1225,7 @@ public static class $typeName { public static void Main() {} }
         $officialTauri = Join-Path (Split-Path -Parent $desktopPath) 'resources\internal-plugins\dsh-tauri'
         Set-Content -LiteralPath (Join-Path $officialTauri 'sentinel.txt') -Value 'keep' -Encoding UTF8
         $nodeModules = Join-Path $profileRoot 'node_modules'
-        $artifact = Join-Path $TestDrive 'dsh-web-search-provider-0.2.3-cloga.3.tgz'
+        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.1.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `

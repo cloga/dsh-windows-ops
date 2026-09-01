@@ -17,19 +17,21 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```
 
 Check mode validates the lock and prints the complete ordered plan without
-changing the machine. `-Apply` additionally requires exact core/provider
+changing the machine. `-Apply` additionally requires exact Core/Copilot-integration
 checkouts, the two release artifacts, and a captured `/v1/models` response.
 The installer verifies release SHA-256 values and source commits, builds with
 the package managers recorded by each source repository, installs the Core
 through its receipt-producing `release:install-local` script, then installs the
-three loader dependencies and provider tarball in one global npm transaction.
+three loader dependencies and Copilot integration tarball in one global npm transaction.
 It preserves and attests Desktop 0.9.2's five official 0.4.9 internal-plugin
 links, updates the web profile and routes, and physically materializes only the
-reviewed hosted-search provider.
-Apply migrates only the prior locked physical `dsh-tauri@0.2.0`,
-`dsh-tauri-ui@0.1.0`, and `dsh-tauri-worktree@0.1.0` profile state. It backs
-up and removes those exact dependencies before `pnpm install`; any other
-physical internal-plugin state fails before Core or global installation.
+reviewed `dsh-github-copilot` integration.
+Apply migrates only the reviewed legacy states: physical `dsh-tauri@0.2.0`,
+`dsh-tauri-ui@0.1.0`, and `dsh-tauri-worktree@0.1.0`, plus
+`dsh-web-search-provider` 0.2.2 and 0.2.3 deployments. It backs up and removes
+those exact dependencies before `pnpm install`; any other physical
+internal-plugin or Copilot-integration state fails before Core or global
+installation.
 
 Every touched settings/profile file and plugin directory is copied under
 `%LOCALAPPDATA%\dsh-windows-ops\deployment-backups` before replacement. That
@@ -42,22 +44,22 @@ Use a catalog captured from the authenticated loopback gateway:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:7777/v1/models |
   ConvertTo-Json -Depth 20 |
-  Set-Content $env:TEMP\copilot-models.json -Encoding UTF8
+  Set-Content $PWD\output\copilot-models.json -Encoding UTF8
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\install-windows-copilot.ps1 -Apply `
   -HarnessSourceRoot C:\Path\To\deepseek-harness `
   -CoreInstallPrefix C:\.tools\dsh-cloga `
-  -ProviderSourceRoot C:\Path\To\dsh-web-search-provider `
+  -CopilotIntegrationSourceRoot C:\Path\To\dsh-web-search-provider `
   -DesktopArtifactPath C:\Path\To\Deepseek.Harness.Desktop_0.9.2_x64-setup.exe `
   -GatewayArtifactPath C:\Path\To\copilot2api-windows-amd64.exe `
-  -ModelCatalogPath $env:TEMP\copilot-models.json
+  -ModelCatalogPath $PWD\output\copilot-models.json
 ```
 
 The catalog's `supported_endpoints` metadata assigns models independently to
-the `openai-responses` and `openai-completions` routes. The installer never
-creates the reserved `github-copilot` route ID. Existing unsupported YAML
-shapes or an existing forbidden route fail closed before replacement.
+the `github-copilot` (`openai-responses`) and `github-copilot-chat`
+(`openai-completions`) routes. Existing unsupported YAML shapes fail closed;
+the reviewed legacy `github-copilot-gateway` route is removed during migration.
 
 The remaining sections explain the locked workflow and recovery rationale.
 Do not execute them as a substitute for the manifest and orchestrator.
@@ -84,7 +86,7 @@ The packaged-core download source remains
 separately maintained package-release fork and a Desktop code change; it is not
 required for normal fork development.
 
-## Validated 2026-08-30 baseline
+## Validated 2026-09-01 baseline
 
 The installation described here was verified with:
 
@@ -96,7 +98,7 @@ The installation described here was verified with:
 | Node / npm / pnpm | `24.19.0` / `11.17.0` / `11.7.0` |
 | `copilot2api` | `0.6.1`, loopback `127.0.0.1:7777` |
 | Desktop profile plugins | Official internal `dsh-tauri`, panel, panel-extension, UI, and worktree links, all `0.4.9` |
-| Hosted-search provider | `cloga/dsh-web-search-provider` PR #6, `0.2.3-cloga.3`, commit `57dafb1e850c761f0b1866b5652b7fbbc4e65df3`, tarball SHA-256 `8E0BEE948BF220B975A809A054A1C8DE0168B270DB1FD2A0AB8035C49E26819F` |
+| GitHub Copilot integration | `dsh-github-copilot` from `cloga/dsh-web-search-provider` PR #10, `0.3.0-cloga.1`, commit `78745478c7323f9cb1aff46b2c2f39eaa619fa29`, tarball SHA-256 `264B0CA4923243414CABD84A5E23B77A8A71EB5C767D9B102311E0E75D8B4CDA` |
 
 Record exact versions and the fork commit for each deployment. Treat this table as
 evidence for this installation, not as an unbounded compatibility claim.
@@ -222,11 +224,11 @@ Never copy either credential into DSH settings, logs, fixtures, or documentation
 
 3. In DSH, configure OpenAI-compatible routes whose base URL targets the gateway,
    normally `http://127.0.0.1:7777/v1`.
-4. Use a route ID such as `github-copilot-gateway`, not `github-copilot`.
-   `pi-ai` reserves the latter for its built-in OAuth provider; reusing it for a
-   local gateway can produce `Provider is not configured: github-copilot`.
+4. Use the integration's locked route IDs:
+   - `github-copilot` for OpenAI Responses;
+   - `github-copilot-chat` for Chat Completions.
 5. Keep one wire protocol per route:
-   - Responses models: `github-copilot-gateway` with `openai-responses`.
+   - Responses models: `github-copilot` with `openai-responses`.
    - Chat-Completions-only models: a separate `github-copilot-chat` route with
      `openai-completions`.
 6. A manually declared OpenAI-compatible route still requires an API-key entry at
@@ -234,11 +236,10 @@ Never copy either credential into DSH settings, logs, fixtures, or documentation
    Store an explicitly non-secret placeholder in the DSH credential store; do not
    put a real token or the placeholder in committed settings.
 7. Refresh model discovery and select a model returned by `/v1/models`.
-8. Install `dsh-web-search-provider` when Copilot-backed hosted search is
-   required. The Harness core improvements do not inject the provider-native
-   `web_search` wire; without this plugin, the agent-visible `web_search` tool
-   can fall back to built-in `web-search-deepseek` and require
-   `DEEPSEEK_API_KEY`.
+8. Install `dsh-github-copilot` for the main-agent model routes, capability
+   discovery, and Copilot-backed hosted search. The built-in
+   `web-search-deepseek` row may remain registered, but
+   `web.searchProvider` must select `github-copilot-hosted`.
 9. Re-run `tools\dsh-replay.ps1 -Action SelfCheck` and confirm that service,
    model-catalog, and image-capability checks match the selected model.
 
@@ -246,45 +247,62 @@ Keep all GitHub and provider credentials in ignored local environment files or
 the relevant platform credential store. Never copy them into DSH patches,
 profiles committed to Git, fixtures, logs, or documentation.
 
-## Install the hosted-search provider
+## Install the GitHub Copilot integration
 
 Core and plugin improvements are complementary. The local Harness fork owns
 generic provider metadata, readiness, and image-capability propagation.
-`dsh-web-search-provider` owns endpoint probing, native `web_search` injection,
-Responses SSE translation, replay normalization, grounded sandbox escalation,
-and image bypass to the official attachment channel.
+`dsh-github-copilot` owns Copilot route composition and model discovery,
+endpoint probing, native `web_search` injection, Responses SSE translation,
+replay normalization, grounded sandbox escalation, and image bypass to the
+official attachment channel. It intentionally provides no ACP or subagent
+integration.
 
 Use
-[`cloga/dsh-web-search-provider` PR #6](https://github.com/cloga/dsh-web-search-provider/pull/6),
-exact commit `57dafb1e850c761f0b1866b5652b7fbbc4e65df3`. Its exported
-`cloga.dsh-windows-copilot.web-search` baseline has exactly seven required
-capabilities, including the traditional `copilot-hosted` Search bridge and
-nonempty-only Responses/Anthropic reasoning. PR #6 additionally fixes the
-inline parser's cumulative 8 MiB lifetime limit: one incomplete SSE event stays
-bounded while long streams of individually valid tool-call deltas continue.
+[`cloga/dsh-web-search-provider` PR #10](https://github.com/cloga/dsh-web-search-provider/pull/10),
+exact commit `78745478c7323f9cb1aff46b2c2f39eaa619fa29`. Its exported
+`cloga.dsh-github-copilot` baseline has ten required capabilities, including
+model catalog and route composition, the traditional `github-copilot-hosted`
+Search bridge, the runtime compatibility guard, and nonempty-only
+Responses/Anthropic reasoning. The baseline explicitly records
+`acpSubagents: false`.
 
 Build with the package manager declared by the provider repository. On Windows,
 run the cross-platform build stages directly if its `clean` script uses
 `rm -rf`:
 
 ```powershell
-npx --yes pnpm@11.3.0 install --frozen-lockfile
-npx --yes pnpm@11.3.0 test
-npx --yes pnpm@11.3.0 run typecheck
+npx --yes pnpm@11.7.0 install --frozen-lockfile
+npx --yes pnpm@11.7.0 test
+npx --yes pnpm@11.7.0 run typecheck
 
 Remove-Item -LiteralPath .\lib -Recurse -Force -ErrorAction SilentlyContinue
-npx --yes pnpm@11.3.0 exec tsc -p tsconfig.json
-npx --yes pnpm@11.3.0 exec tsdown
-npx --yes pnpm@11.3.0 pack --pack-destination .\dist
+npx --yes pnpm@11.7.0 exec tsc -p tsconfig.json
+npx --yes pnpm@11.7.0 exec tsdown
+npx --yes pnpm@11.7.0 pack --pack-destination .\dist
 ```
 
 Install the reviewed tarball into the Desktop web profile, then add
-`dsh-web-search-provider` to `dsh.profile.bundles` in
+`dsh-github-copilot` to `dsh.profile.bundles` in
 `$DSH_HOME\profiles\web\package.json`:
 
 ```powershell
-dsh plugin --profile web add .\dist\dsh-web-search-provider-0.2.3-cloga.3.tgz --save-exact
+dsh plugin --profile web add .\dist\dsh-github-copilot-0.3.0-cloga.1.tgz --save-exact
 ```
+
+### Migration and rollback
+
+The installer recognizes both the historical 0.2.2 archive deployments and
+the previously locked `dsh-web-search-provider@0.2.3-cloga.3`. Apply mode
+backs up the profile, removes the old dependency, bundle, and physical package,
+then installs the pinned `dsh-github-copilot` artifact. It also migrates the
+composition ID from `web-search-provider` to `github-copilot`, the settings
+namespace from `web-search-provider` to `github-copilot`, and the Search
+provider ID from `copilot-hosted` to `github-copilot-hosted`.
+
+Rollback uses the operation backup recorded by the installer; it restores the
+prior profile manifests, settings, lockfile, artifact, and physical plugin
+directory as one operation. Do not reinstall 0.2.2 or 0.2.3 ad hoc, and do not
+remove Copilot or GitHub credentials as part of plugin rollback.
 
 pnpm 11 refuses dependency lifecycle scripts until each package is classified.
 If installation reports `ERR_PNPM_IGNORED_BUILDS`, inspect the named packages
@@ -300,7 +318,7 @@ allowBuilds:
 The official 0.4.9 Tauri packages are Desktop-internal and are not available
 from the configured npm registry. Keep their profile entries as exact links
 under Desktop's `resources\internal-plugins`; the installer fails closed if a
-link or version differs. Only `dsh-web-search-provider` is replaced with an
+link or version differs. Only `dsh-github-copilot` is replaced with an
 attested physical directory.
 
 Validate search in both a new session and a session whose previous search
@@ -442,9 +460,11 @@ Desktop 0.9.2 was released on 2026-08-28 from commit
 SHA-256 `f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7`.
 The reviewed baseline now preserves that shell and its internal plugins.
 Incident remediation is `locked-repair-required`: reinstall the exact pinned
-Core through its receipt producer, install and attest provider 0.2.3-cloga.3,
-and compose `web` with `searchProvider: copilot-hosted` while disabling only
-`web-search-deepseek`. Never synthesize a Core receipt from a version string.
+Core through its receipt producer, remove the legacy 0.2.2 package and bundle,
+install and attest `dsh-github-copilot@0.3.0-cloga.1`, and compose `web` with
+`searchProvider: github-copilot-hosted`. The built-in DeepSeek provider need
+not be disabled; it simply must not be selected by this baseline. Never
+synthesize a Core receipt from a version string.
 
 When the gateway is not under the lock's default install directory, check mode
 resolves the sole loopback listener on the locked port and hashes that process
@@ -477,17 +497,18 @@ The command is idempotent and fail-closed. Before changing files, it requires:
   the root shim, npm shim, and exact `lib\bin.js`;
 - the active Desktop process tree to run that exact sealed entrypoint, outside
   the packaged Desktop core, with the same Node PID owning loopback port 3080;
-- `COPILOT_API_KEY` to resolve from the process environment or
+- `COPILOT_GITHUB_TOKEN` to resolve from the process environment or
   `$DSH_HOME/.credentials.yaml`, without reading it into output;
 - copilot2api `GET /v1/models` to return the selected model with explicit image
   metadata;
 - the active renderer and `$DSH_HOME\profiles\node_modules` fallback to expose
   `exports.SlotOutlet = SlotOutlet;`.
 
-It then installs `dsh-web-search-provider` through the public `dsh plugin`
+It then installs `dsh-github-copilot` through the public `dsh plugin`
 command for both `web` and `headless`, writes a managed
-`github-copilot-gateway` OpenAI Responses route, selects
-`web.searchProvider: copilot-hosted`, and disables only the built-in
+`github-copilot` OpenAI Responses route plus the `github-copilot-chat`
+Completions route, and selects
+`web.searchProvider: github-copilot-hosted`. It does not manage the built-in
 `web-search-deepseek` row. The `web` host and `tool-web` remain mounted, and
 the credential value is never copied into settings.
 
@@ -531,8 +552,8 @@ the public shared-helper contract and reports the gate.
 The workflow intentionally does not repair product-layer prerequisites.
 Renderer patch ownership remains with
 [`deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs);
-local-core packaging remains with `cloga/deepseek-harness`; Responses/search
-behavior remains with `dsh-web-search-provider`. Missing or incompatible
+local-core packaging remains with `cloga/deepseek-harness`; Copilot model and
+hosted-search behavior remains with `dsh-github-copilot`. Missing or incompatible
 markers stop the workflow with an actionable failure.
 
 ## Core improvements versus plugins
@@ -545,7 +566,7 @@ they do not implement the same ownership boundary.
 | Import optional picker, policy, endpoint, token-limit, reasoning, and model metadata | Harness core | Generic OpenAI-compatible discovery; the provider plugin may expose the metadata but does not mutate Harness settings. |
 | Provider readiness and onboarding without a universal credential assumption | Harness core | Independent of plugin loading; benefits custom and local providers. |
 | Propagate discovered image capability through registry, RPC, profiles, and editor | Harness core | Complements the provider's rule that image requests stay on DSH's official vision path. |
-| Responses replay IDs, grounded sandbox escalation, hosted web search, and image bypass | `dsh-web-search-provider` | Provider-only behavior; no duplicate core patch is required. |
+| Copilot route composition, model catalog, Responses replay IDs, grounded sandbox escalation, hosted web search, and image bypass | `dsh-github-copilot` | Main-agent plugin behavior; ACP remains a separate historical option and no duplicate core patch is required. |
 | Core selection, lifecycle, delayed-start recovery, and plugin diagnostics | Desktop shell | Independent of model-provider behavior. |
 | Status, patch, build, upgrade, and doctor tools | `dsh-dev-tools` plugin | Agent-facing operations over the selected core; exact API/version compatibility still applies. |
 

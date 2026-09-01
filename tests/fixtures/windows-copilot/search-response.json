@@ -32,7 +32,7 @@
     }
   ],
   "traditionalSearch": {
-    "provider": "copilot-hosted",
+    "provider": "github-copilot-hosted",
     "content": "Fixture grounded answer.",
     "sources": [
       {
@@ -45,7 +45,7 @@
     "mounted": [
       "web",
       "tool-web",
-      "web-search-provider"
+      "github-copilot"
     ]
   },
   "reasoning": {

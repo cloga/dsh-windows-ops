@@ -170,10 +170,10 @@ Describe 'DSH Copilot bootstrap' {
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8
         Set-DshCopilotProfilePatch -Path $path | Out-Null
         $text = Get-Content -LiteralPath $path -Raw
-        $text | Should -Match '(?s)- id: web\s+config:\s+searchProvider: copilot-hosted'
-        $text | Should -Match '(?s)- id: web-search-deepseek\s+disabled: true'
+        $text | Should -Match '(?s)- id: web\s+config:\s+searchProvider: github-copilot-hosted'
+        $text | Should -Not -Match '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$'
         $text | Should -Not -Match '(?m)^\s*-\s+id:\s+tool-web\s*$'
-        $text | Should -Match 'providers: \[github-copilot-gateway\]'
+        $text | Should -Match 'providers: \[github-copilot\]'
     }
 
     It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {
@@ -326,6 +326,14 @@ Describe 'DSH Copilot bootstrap' {
     It 'validates the current local Core receipt when installed' {
         $desktopCli = 'C:\.tools\dsh-cloga\dsh.cmd'
         if (Test-Path -LiteralPath $desktopCli -PathType Leaf) {
+            $receiptPath = Join-Path (Split-Path -Parent $desktopCli) 'dsh-local-install.json'
+            $receipt = if (Test-Path -LiteralPath $receiptPath -PathType Leaf) {
+                Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            } else { $null }
+            if (-not $receipt -or -not $receipt.PSObject.Properties['installedFiles']) {
+                Set-ItResult -Skipped -Because 'The local Core receipt predates installed-file attestation.'
+                return
+            }
             $info = Resolve-DshCliInfo -DshCliPath $desktopCli
             $info.repository | Should -Be 'cloga/deepseek-harness'
             $info.packageCount | Should -BeGreaterThan 1

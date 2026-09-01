@@ -42,10 +42,10 @@
       ]
     },
     {
-      "name": "dsh-web-search-provider",
-      "rootEnv": "DSH_WEB_SEARCH_PROVIDER_ROOT",
+      "name": "dsh-github-copilot",
+      "rootEnv": "DSH_GITHUB_COPILOT_ROOT",
       "rootCandidates": [
-        "${DSH_HOME}\\profiles\\web\\node_modules\\dsh-web-search-provider"
+        "${DSH_HOME}\\profiles\\web\\node_modules\\dsh-github-copilot"
       ],
       "versionProbes": [
         {

@@ -75,7 +75,18 @@ if ($Action -eq 'Apply') {
             try {
                 $env:DSH_HOME = $DshHome
                 foreach ($profile in @('web', 'headless')) {
-                    & $cli.cliPath plugin --profile $profile add dsh-web-search-provider | Out-Null
+                    $manifestPath = Join-Path $DshHome (Join-Path "profiles\$profile" 'package.json')
+                    if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+                        $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                        if ($manifest.PSObject.Properties['dependencies'] -and
+                            $manifest.dependencies.PSObject.Properties['dsh-web-search-provider']) {
+                            & $cli.cliPath plugin --profile $profile remove dsh-web-search-provider | Out-Null
+                            if ($LASTEXITCODE -ne 0) {
+                                throw "Legacy dsh-web-search-provider removal failed for profile '$profile'."
+                            }
+                        }
+                    }
+                    & $cli.cliPath plugin --profile $profile add dsh-github-copilot | Out-Null
                     if ($LASTEXITCODE -ne 0) { throw "dsh plugin installation failed for profile '$profile'." }
                 }
             } finally {
@@ -136,7 +147,7 @@ if ($Action -eq 'Apply') {
         activeProcessIds = $core.processIds
     }
     renderer = @{ healthy = $renderer.healthy }
-    credential = @{ reference = 'COPILOT_API_KEY'; source = $credentialSource }
+    credential = @{ reference = 'COPILOT_GITHUB_TOKEN'; source = $credentialSource }
     gateway = @{
         modelsUri = $catalog.uri
         selectedModel = $catalog.selectedModel.id

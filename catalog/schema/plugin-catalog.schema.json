@@ -40,7 +40,7 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "enum": ["computer-use", "browser-automation", "desktop-automation", "vision", "search", "subagent", "operations", "recovery"] }
+          "items": { "enum": ["computer-use", "browser-automation", "desktop-automation", "vision", "search", "model-provider", "subagent", "operations", "recovery"] }
         },
         "integration": { "enum": ["cordis", "mcp", "browser-extension", "external-service", "mixed"] },
         "artifact": {

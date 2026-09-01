@@ -121,8 +121,8 @@ if (catalog && schema && deployment) {
     }
 
     if (validation.level === 'baseline') {
-      if (plugin.id !== 'dsh-web-search-provider') fail(at, 'optional integration falsely claims the current locked baseline');
-      const locked = deployment.components?.searchProvider;
+      if (plugin.id !== 'dsh-github-copilot') fail(at, 'optional integration falsely claims the current locked baseline');
+      const locked = deployment.components?.copilotIntegration;
       if (plugin.source.repository !== locked?.source?.repository) fail(`${at}.source.repository`, 'does not match deployment lock');
       if (plugin.source.commit !== locked?.source?.commit) fail(`${at}.source.commit`, 'does not match deployment lock');
       if (plugin.package !== locked?.package?.name) fail(`${at}.package`, 'does not match deployment lock');

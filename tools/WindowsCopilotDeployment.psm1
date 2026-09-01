@@ -13,6 +13,26 @@ function Get-LockProperty {
     return $property.Value
 }
 
+function Set-WindowsCopilotJsonFile {
+    param(
+        [Parameter(Mandatory)]$Value,
+        [Parameter(Mandatory)][string]$Path,
+        [int]$Depth = 8
+    )
+    $parent = Split-Path -Parent $Path
+    New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    $temporaryPath = $Path + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+    try {
+        $Value | ConvertTo-Json -Depth $Depth |
+            Set-Content -LiteralPath $temporaryPath -Encoding UTF8
+        Move-Item -LiteralPath $temporaryPath -Destination $Path -Force
+    } finally {
+        if (Test-Path -LiteralPath $temporaryPath) {
+            Remove-Item -LiteralPath $temporaryPath -Force
+        }
+    }
+}
+
 function Assert-LockValue {
     param(
         [Parameter(Mandatory)]$Value,
@@ -54,9 +74,15 @@ function Test-WindowsCopilotLock {
         'components.core.package.name',
         'components.core.package.version',
         'components.core.package.packageManager',
+        'components.core.capabilities',
         'components.core.build.artifactDirectories',
         'components.core.install.script',
         'components.core.install.attestedFiles',
+        'components.core.activation.environmentVariable',
+        'components.core.activation.currentReceipt',
+        'components.core.activation.operationReceipt',
+        'components.core.activation.conflictShims',
+        'components.core.activation.conflictShimSha256',
         'components.gateway.source.repository',
         'components.gateway.source.commit',
         'components.gateway.artifact.name',
@@ -90,7 +116,8 @@ function Test-WindowsCopilotLock {
         'acceptance.traditionalSearch.provider',
         'acceptance.reasoning.responses',
         'acceptance.reasoning.anthropic',
-        'acceptance.sandbox.gate'
+        'acceptance.sandbox.gate',
+        'acceptance.sandbox.capability'
     )) {
         $value = $Lock
         foreach ($segment in $path.Split('.')) {
@@ -312,9 +339,34 @@ function Test-WindowsCopilotLock {
         throw 'Reasoning contract must suppress empty Responses and Anthropic reasoning.'
     }
     if ([string]$Lock.acceptance.sandbox.gate -ne 'Require' -or
+        [string]$Lock.acceptance.sandbox.capability -ne 'sandbox-same-and-narrower-no-op' -or
         [string]$Lock.acceptance.sandbox.sameAndNarrower -ne 'no-op' -or
         [int]$Lock.acceptance.sandbox.widerApprovalCount -ne 1) {
         throw 'Sandbox acceptance contract must require no-op same/narrower and one wider approval.'
+    }
+    $coreCapabilities = @($Lock.components.core.capabilities)
+    if ($coreCapabilities.Count -ne 1 -or
+        [string]$coreCapabilities[0] -cne [string]$Lock.acceptance.sandbox.capability) {
+        throw 'Core capability evidence must lock the sandbox same/narrower no-op fix exactly once.'
+    }
+    $activation = $Lock.components.core.activation
+    if ([string]$activation.environmentVariable -cne 'DSH_CLI_PATH' -or
+        [string]$activation.currentReceipt -cne 'core-activation-current.json' -or
+        [string]$activation.operationReceipt -cne 'core-activation.json') {
+        throw 'Core activation contract does not use the reviewed DSH_CLI_PATH receipt names.'
+    }
+    $conflictShims = @($activation.conflictShims)
+    if ($conflictShims.Count -ne 3 -or
+        $conflictShims -notcontains 'dsh' -or
+        $conflictShims -notcontains 'dsh.cmd' -or
+        $conflictShims -notcontains 'dsh.ps1') {
+        throw 'Core activation must cover the three npm global dsh shims.'
+    }
+    foreach ($shim in $conflictShims) {
+        $sha256 = [string](Get-LockProperty -InputObject $activation.conflictShimSha256 -Name ([string]$shim))
+        if ($sha256 -notmatch '^[0-9a-f]{64}$') {
+            throw "Core activation has no canonical npm shim SHA-256 for '$shim'."
+        }
     }
 
     $baseline = $Lock.components.copilotIntegration.package.deploymentBaseline
@@ -727,6 +779,12 @@ function Get-WindowsCopilotInstallPlan {
             inputs = @($CoreInstallPrefix)
         },
         [pscustomobject]@{
+            id = 'verify-installed-core-capability'
+            action = 'receipt-bytes-and-sandbox-probe'
+            changesSystem = $false
+            inputs = @($CoreInstallPrefix)
+        },
+        [pscustomobject]@{
             id = 'install-global-transaction'
             action = 'npm-install-global'
             transactionId = [string]$Lock.globalInstall.transactionId
@@ -759,9 +817,15 @@ function Get-WindowsCopilotInstallPlan {
             inputs = @($NpmGlobalRoot, $profileRoot)
         },
         [pscustomobject]@{
+            id = 'activate-fork-core'
+            action = 'persist-dsh-cli-path-and-quarantine-official-global-shims'
+            changesSystem = $true
+            inputs = @($CoreInstallPrefix, $BackupRoot)
+        },
+        [pscustomobject]@{
             id = 'verify-installation'
             action = 'acceptance'
-            checks = @('official-desktop-plugin-links', 'provider-bytes', 'profile-bundle', 'routes', 'allow-builds', 'loader-imports', 'loopback-3080', 'loopback-7777', 'model-catalog', 'composed-config', 'search-smoke', 'sandbox-require')
+            checks = @('official-desktop-plugin-links', 'provider-bytes', 'profile-bundle', 'routes', 'allow-builds', 'loader-imports', 'loopback-3080', 'loopback-7777', 'model-catalog', 'composed-config', 'search-smoke', 'core-receipt-repository-commit-bytes', 'persisted-dsh-cli-path', 'global-dsh-conflict-free', 'sandbox-same-narrower-zero-approval', 'desktop-backend-command-line')
             changesSystem = $false
             inputs = @($BackupRoot)
         }
@@ -2218,6 +2282,8 @@ function Get-WindowsCopilotCoreReceiptState {
         return [pscustomobject]@{
             valid = [bool]($commitValid -and $versionValid)
             status = if (-not $commitValid) { 'source-commit-mismatch' } elseif (-not $versionValid) { 'version-mismatch' } else { 'verified' }
+            repository = $info.repository
+            repositoryUrl = $info.repositoryUrl
             cliPath = $info.cliPath
             canonicalCliPath = $info.canonicalCliPath
             packageRoot = $info.packageRoot
@@ -2229,6 +2295,7 @@ function Get-WindowsCopilotCoreReceiptState {
             expectedVersion = [string]$Lock.components.core.package.version
             releaseManifestSha256 = $info.releaseManifestSha256
             packageCount = $info.packageCount
+            installedFileCount = $info.installedFileCount
         }
     } catch {
         $status = if ($_.Exception.Message -like '*installed-bytes-unattested*') {
@@ -2375,6 +2442,763 @@ function Test-LoaderPackageImports {
         return [pscustomobject]@{ valid = $false; status = 'node-invocation-failed' }
     } finally {
         Pop-Location
+    }
+}
+
+function Get-WindowsCopilotUserEnvironment {
+    param([Parameter(Mandatory)][string]$Name)
+    return [Environment]::GetEnvironmentVariable($Name, 'User')
+}
+
+function Set-WindowsCopilotUserEnvironment {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [AllowNull()][string]$Value
+    )
+    [Environment]::SetEnvironmentVariable($Name, $Value, 'User')
+}
+
+function Get-WindowsCopilotCoreConflictState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)][string]$SelectedCliPath
+    )
+    $globalRoot = Resolve-DeploymentPath $NpmGlobalRoot
+    if ((Split-Path -Leaf $globalRoot) -ine 'node_modules') {
+        throw "The global npm root must end in 'node_modules': '$globalRoot'."
+    }
+    $globalPrefix = Split-Path -Parent $globalRoot
+    $selectedPrefix = Split-Path -Parent (Resolve-DeploymentPath $SelectedCliPath)
+    if ($globalPrefix -ieq $selectedPrefix) {
+        throw 'The selected fork Core must use a dedicated prefix outside the npm global prefix.'
+    }
+    $packagePath = Join-Path $globalRoot '@deepseek-ai\dsh\package.json'
+    $packageName = $null
+    $packageVersion = $null
+    $packageEntrypoint = $null
+    $packageEntrypointSha256 = $null
+    if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
+        try {
+            $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $packageName = [string]$package.name
+            $packageVersion = [string]$package.version
+            $packageEntrypoint = if ($package.bin -is [string]) {
+                [string]$package.bin
+            } else {
+                [string]$package.bin.dsh
+            }
+        } catch {
+            $packageName = 'unreadable'
+        }
+    }
+    $globalReceipt = Join-Path $globalPrefix 'dsh-local-install.json'
+    $hasManagedReceipt = Test-Path -LiteralPath $globalReceipt -PathType Leaf
+    $normalizedPackageEntrypoint = if ($packageEntrypoint) {
+        $packageEntrypoint.Replace('\', '/')
+    } else {
+        ''
+    }
+    if ($normalizedPackageEntrypoint -eq 'lib/bin.js') {
+        $entrypointPath = Join-Path (Split-Path -Parent $packagePath) $packageEntrypoint
+        if (Test-Path -LiteralPath $entrypointPath -PathType Leaf) {
+            $packageEntrypointSha256 = (
+                Get-FileHash -LiteralPath $entrypointPath -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+        }
+    }
+    $shims = @($Lock.components.core.activation.conflictShims | ForEach-Object {
+        $name = [string]$_
+        $path = Join-Path $globalPrefix $name
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return }
+        $sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        $expectedSha256 = [string](Get-LockProperty `
+            -InputObject $Lock.components.core.activation.conflictShimSha256 -Name $name)
+        $canonicalShim = [bool]($sha256 -ceq $expectedSha256)
+        $officialGlobal = [bool](
+            $packageName -ceq '@deepseek-ai/dsh' -and
+            $packageVersion -and
+            $normalizedPackageEntrypoint -ceq 'lib/bin.js' -and
+            $packageEntrypointSha256 -and
+            -not $hasManagedReceipt -and
+            $canonicalShim
+        )
+        [pscustomobject]@{
+            name = $name
+            path = [IO.Path]::GetFullPath($path)
+            sha256 = $sha256
+            expectedSha256 = $expectedSha256
+            kind = if ($officialGlobal) { 'official-unreceipted-global' } else { 'unmanaged-global' }
+            canonicalShim = $canonicalShim
+            quarantinable = $officialGlobal
+        }
+    })
+    $unmanaged = @($shims | Where-Object { -not $_.quarantinable })
+    return [pscustomobject]@{
+        valid = [bool]($shims.Count -eq 0)
+        status = if ($shims.Count -eq 0) {
+            'none'
+        } elseif ($unmanaged.Count -gt 0) {
+            'unmanaged-global-dsh-conflict'
+        } else {
+            'official-global-dsh-conflict'
+        }
+        globalPrefix = $globalPrefix
+        packageName = $packageName
+        packageVersion = $packageVersion
+        packageEntrypoint = $packageEntrypoint
+        packageEntrypointSha256 = $packageEntrypointSha256
+        managedReceipt = $hasManagedReceipt
+        shims = @($shims)
+    }
+}
+
+function Assert-WindowsCopilotCoreConflictSafe {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)][string]$SelectedCliPath
+    )
+    $conflicts = Get-WindowsCopilotCoreConflictState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -SelectedCliPath $SelectedCliPath
+    $unmanaged = @($conflicts.shims | Where-Object { -not $_.quarantinable })
+    if ($unmanaged.Count -gt 0) {
+        throw "Refusing to remove unmanaged global dsh shims: $($unmanaged.path -join ', ')."
+    }
+    return $conflicts
+}
+
+function Get-WindowsCopilotCoreActivationState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [string]$CoreInstallPrefix,
+        [string]$DshCliPath
+    )
+    $core = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath
+    $environmentName = [string]$Lock.components.core.activation.environmentVariable
+    $persisted = Get-WindowsCopilotUserEnvironment -Name $environmentName
+    $selected = [string]$core.cliPath
+    $environmentValid = [bool](
+        $core.valid -and $persisted -and
+        [IO.Path]::GetFullPath($persisted) -ieq [IO.Path]::GetFullPath($selected)
+    )
+    $conflicts = if ($core.valid -and $selected) {
+        Get-WindowsCopilotCoreConflictState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+            -SelectedCliPath $selected
+    } else {
+        [pscustomobject]@{
+            valid = $false
+            status = 'selected-cli-unavailable'
+            globalPrefix = Split-Path -Parent (Resolve-DeploymentPath $NpmGlobalRoot)
+            shims = @()
+        }
+    }
+    return [pscustomobject]@{
+        valid = [bool]($core.valid -and $environmentValid -and $conflicts.valid)
+        status = if (-not $core.valid) {
+            'core-receipt-invalid'
+        } elseif (-not $environmentValid) {
+            'user-dsh-cli-path-mismatch'
+        } elseif (-not $conflicts.valid) {
+            $conflicts.status
+        } else {
+            'enabled'
+        }
+        environmentVariable = $environmentName
+        selectedCliPath = $selected
+        persistedUserValue = $persisted
+        processValue = $env:DSH_CLI_PATH
+        environmentValid = $environmentValid
+        conflicts = $conflicts
+        core = $core
+    }
+}
+
+function Enter-WindowsCopilotActivationLock {
+    param([Parameter(Mandatory)][string]$BackupRoot)
+    $normalized = (Resolve-DeploymentPath $BackupRoot).ToLowerInvariant()
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        $hash = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized))
+    } finally {
+        $sha256.Dispose()
+    }
+    $hashText = ([BitConverter]::ToString($hash) -replace '-', '').ToLowerInvariant()
+    $name = 'Local\DshWindowsOpsCoreActivation-' + $hashText.Substring(0, 32)
+    $mutex = [Threading.Mutex]::new($false, $name)
+    $acquired = $false
+    try {
+        try {
+            $acquired = $mutex.WaitOne(0)
+        } catch [Threading.AbandonedMutexException] {
+            $acquired = $true
+        }
+        if (-not $acquired) {
+            throw "Another Windows Copilot activation operation is using '$normalized'."
+        }
+        return $mutex
+    } catch {
+        $mutex.Dispose()
+        throw
+    }
+}
+
+function Exit-WindowsCopilotActivationLock {
+    param([Parameter(Mandatory)][Threading.Mutex]$Mutex)
+    try {
+        $Mutex.ReleaseMutex()
+    } finally {
+        $Mutex.Dispose()
+    }
+}
+
+function Get-WindowsCopilotCurrentActivation {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$BackupRoot
+    )
+    $path = Join-Path (Resolve-DeploymentPath $BackupRoot) `
+        ([string]$Lock.components.core.activation.currentReceipt)
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    $receipt = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+    $operationId = [string]$receipt.operationId
+    $status = [string](Get-LockProperty -InputObject $receipt -Name 'status')
+    if (-not $status) { $status = 'active' }
+    if ([int]$receipt.schemaVersion -ne 1 -or
+        [string]$receipt.deploymentId -cne [string]$Lock.deploymentId -or
+        $operationId -notmatch '^\d{8}T\d{9}Z$' -or
+        $status -notin @('pending', 'active', 'rolled-back')) {
+        throw 'Current activation receipt is invalid or does not match the locked deployment.'
+    }
+    return [pscustomobject]@{
+        path = $path
+        operationId = $operationId
+        status = $status
+        receipt = $receipt
+    }
+}
+
+function Get-WindowsCopilotActivationReceipt {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [Parameter(Mandatory)][string]$OperationId
+    )
+    if ($OperationId -notmatch '^\d{8}T\d{9}Z$') {
+        throw "Invalid activation operation id '$OperationId'."
+    }
+    $root = Resolve-DeploymentPath $BackupRoot
+    $operationRoot = [IO.Path]::GetFullPath((Join-Path $root $OperationId))
+    if (-not $operationRoot.StartsWith($root.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Activation rollback operation escapes the backup root.'
+    }
+    $path = Join-Path $operationRoot ([string]$Lock.components.core.activation.operationReceipt)
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Activation rollback receipt not found: '$path'."
+    }
+    $receipt = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ([int]$receipt.schemaVersion -ne 1 -or
+        [string]$receipt.deploymentId -cne [string]$Lock.deploymentId -or
+        [string]$receipt.operationId -cne $OperationId -or
+        [string]$receipt.environmentVariable -cne [string]$Lock.components.core.activation.environmentVariable -or
+        [string]$receipt.commitSha -cne [string]$Lock.components.core.source.commit -or
+        [string]$receipt.packageVersion -cne [string]$Lock.components.core.package.version -or
+        [string]$receipt.capability -cne [string]$Lock.acceptance.sandbox.capability) {
+        throw 'Activation rollback receipt does not match the locked Core identity.'
+    }
+    try {
+        $receiptRepository = ConvertTo-DshRepositorySlug -RepositoryUrl ([string]$receipt.repositoryUrl)
+        $lockedRepository = ConvertTo-DshRepositorySlug `
+            -RepositoryUrl ([string]$Lock.components.core.source.repository)
+    } catch {
+        throw 'Activation rollback receipt repository does not match the locked fork.'
+    }
+    if ($receiptRepository -ine $lockedRepository) {
+        throw 'Activation rollback receipt repository does not match the locked fork.'
+    }
+    $selectedCliPath = [IO.Path]::GetFullPath([string]$receipt.selectedCliPath)
+    if ((Split-Path -Leaf $selectedCliPath) -ine 'dsh.cmd') {
+        throw 'Activation rollback receipt selected CLI is not a prefix-root dsh.cmd.'
+    }
+    return [pscustomobject]@{
+        operationRoot = $operationRoot
+        path = $path
+        receipt = $receipt
+        selectedCliPath = $selectedCliPath
+    }
+}
+
+function Assert-WindowsCopilotNoPendingActivation {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$BackupRoot
+    )
+    $current = Get-WindowsCopilotCurrentActivation -Lock $Lock -BackupRoot $BackupRoot
+    if ($current -and $current.status -eq 'pending') {
+        throw "Pending activation operation '$($current.operationId)' must be rolled back before Apply can continue."
+    }
+}
+
+function Invoke-WindowsCopilotForkCoreActivation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)][string]$CoreInstallPrefix,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [Parameter(Mandatory)][string]$OperationRoot
+    )
+    $core = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix
+    if (-not $core.valid) {
+        throw "Cannot activate the fork Core because its receipt is '$($core.status)'."
+    }
+    $sandbox = Assert-WindowsCopilotCoreCapability -Lock $Lock -Core $core
+    $conflicts = Assert-WindowsCopilotCoreConflictSafe -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -SelectedCliPath ([string]$core.cliPath)
+    $environmentName = [string]$Lock.components.core.activation.environmentVariable
+    $previousUserValue = Get-WindowsCopilotUserEnvironment -Name $environmentName
+    $selectedCliPath = [IO.Path]::GetFullPath([string]$core.cliPath)
+    $currentState = Get-WindowsCopilotCurrentActivation -Lock $Lock -BackupRoot $BackupRoot
+    $currentOperationId = if ($currentState) { [string]$currentState.operationId } else { $null }
+    $currentStatus = if ($currentState) { [string]$currentState.status } else { $null }
+    $selectedAlready = [bool](
+        $conflicts.valid -and
+        $previousUserValue -and
+        [IO.Path]::GetFullPath($previousUserValue) -ieq $selectedCliPath
+    )
+    if ($currentStatus -eq 'pending') {
+        $pending = Get-WindowsCopilotActivationReceipt -Lock $Lock -BackupRoot $BackupRoot `
+            -OperationId $currentOperationId
+        if ([string]$pending.selectedCliPath -ine $selectedCliPath) {
+            throw "Pending activation operation '$currentOperationId' selects a different Core; run Rollback."
+        }
+        if (-not $selectedAlready) {
+            throw "Pending activation operation '$currentOperationId' must be rolled back before Apply can continue."
+        }
+        $currentState.receipt.status = 'active'
+        Set-WindowsCopilotJsonFile -Value $currentState.receipt -Path $currentState.path -Depth 4
+        $currentStatus = 'active'
+    }
+    if ($currentStatus -eq 'active') {
+        if (-not $selectedAlready) {
+            throw "Active activation operation '$currentOperationId' is drifted; run Verify or Rollback before Apply."
+        }
+        $env:DSH_CLI_PATH = $selectedCliPath
+        return [pscustomobject]@{
+            status = 'already-enabled'
+            changed = $false
+            operationId = $currentOperationId
+            selectedCliPath = $selectedCliPath
+            core = $core
+            sandbox = $sandbox
+        }
+    }
+
+    New-Item -ItemType Directory -Path $OperationRoot -Force | Out-Null
+    $shimBackups = @($conflicts.shims | ForEach-Object {
+        $relativePath = Join-Path 'core-activation\global-shims' ([string]$_.name)
+        Backup-DeploymentPath -Path ([string]$_.path) -RelativePath $relativePath `
+            -OperationRoot $OperationRoot
+        [pscustomobject]@{
+            path = [string]$_.path
+            relativePath = $relativePath
+            sha256 = [string]$_.sha256
+        }
+    })
+    $receipt = [ordered]@{
+        schemaVersion = 1
+        deploymentId = [string]$Lock.deploymentId
+        operationId = Split-Path -Leaf (Resolve-DeploymentPath $OperationRoot)
+        environmentVariable = $environmentName
+        selectedCliPath = $selectedCliPath
+        previousUserValue = $previousUserValue
+        repositoryUrl = [string]$core.repositoryUrl
+        commitSha = [string]$core.commitSha
+        packageVersion = [string]$core.version
+        capability = [string]$sandbox.capability
+        globalPackage = [ordered]@{
+            name = [string]$conflicts.packageName
+            version = [string]$conflicts.packageVersion
+            entrypoint = [string]$conflicts.packageEntrypoint
+            entrypointSha256 = [string]$conflicts.packageEntrypointSha256
+        }
+        shims = @($shimBackups)
+    }
+    $receiptPath = Join-Path $OperationRoot ([string]$Lock.components.core.activation.operationReceipt)
+    $currentPath = Join-Path (Resolve-DeploymentPath $BackupRoot) `
+        ([string]$Lock.components.core.activation.currentReceipt)
+    $currentReceipt = [ordered]@{
+        schemaVersion = 1
+        deploymentId = [string]$Lock.deploymentId
+        operationId = [string]$receipt.operationId
+        status = 'pending'
+    }
+    Set-WindowsCopilotJsonFile -Value $receipt -Path $receiptPath
+    Set-WindowsCopilotJsonFile -Value $currentReceipt -Path $currentPath -Depth 4
+    try {
+        foreach ($shim in @($conflicts.shims)) {
+            Remove-Item -LiteralPath ([string]$shim.path) -Force
+        }
+        Set-WindowsCopilotUserEnvironment -Name $environmentName -Value $selectedCliPath
+        $env:DSH_CLI_PATH = $selectedCliPath
+        $currentReceipt.status = 'active'
+        Set-WindowsCopilotJsonFile -Value $currentReceipt -Path $currentPath -Depth 4
+    } catch {
+        Set-WindowsCopilotUserEnvironment -Name $environmentName -Value $previousUserValue
+        $env:DSH_CLI_PATH = $previousUserValue
+        foreach ($shim in $shimBackups) {
+            $backup = Join-Path $OperationRoot ([string]$shim.relativePath)
+            if (-not (Test-Path -LiteralPath ([string]$shim.path) -PathType Leaf) -and
+                (Test-Path -LiteralPath $backup -PathType Leaf)) {
+                Copy-Item -LiteralPath $backup -Destination ([string]$shim.path) -Force
+            }
+        }
+        $currentReceipt.status = 'rolled-back'
+        Set-WindowsCopilotJsonFile -Value $currentReceipt -Path $currentPath -Depth 4
+        throw
+    }
+    return [pscustomobject]@{
+        status = 'enabled'
+        changed = $true
+        operationId = [string]$receipt.operationId
+        receiptPath = $receiptPath
+        selectedCliPath = $selectedCliPath
+        quarantinedShims = @($shimBackups.path)
+        core = $core
+        sandbox = $sandbox
+    }
+}
+
+function Enable-WindowsCopilotForkCore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)][string]$CoreInstallPrefix,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [Parameter(Mandatory)][string]$OperationRoot
+    )
+    $mutex = Enter-WindowsCopilotActivationLock -BackupRoot $BackupRoot
+    try {
+        return Invoke-WindowsCopilotForkCoreActivation @PSBoundParameters
+    } finally {
+        Exit-WindowsCopilotActivationLock -Mutex $mutex
+    }
+}
+
+function Assert-WindowsCopilotCoreCapability {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)]$Core
+    )
+    $sandbox = Test-DshSandboxRegression -PackageRoot ([string]$Core.packageRoot) `
+        -ProbeScript (Join-Path $PSScriptRoot 'dsh-sandbox-regression-probe.mjs') `
+        -Mode ([string]$Lock.acceptance.sandbox.gate)
+    if ([string]$sandbox.capability -cne [string]$Lock.acceptance.sandbox.capability -or
+        [int]$sandbox.sameAndNarrowerApprovalCalls -ne 0 -or
+        [int]$sandbox.widerApprovalCalls -ne [int]$Lock.acceptance.sandbox.widerApprovalCount) {
+        throw 'Installed Core did not produce the locked sandbox capability evidence.'
+    }
+    return $sandbox
+}
+
+function Invoke-WindowsCopilotForkCoreRollback {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [string]$OperationId
+    )
+    $currentState = Get-WindowsCopilotCurrentActivation -Lock $Lock -BackupRoot $BackupRoot
+    $currentOperationId = if ($currentState) { [string]$currentState.operationId } else { $null }
+    $currentStatus = if ($currentState) { [string]$currentState.status } else { $null }
+    if (-not $OperationId) {
+        if (-not $currentOperationId) {
+            return [pscustomobject]@{ status = 'nothing-to-rollback'; changed = $false }
+        }
+        $OperationId = $currentOperationId
+    } elseif (-not $currentOperationId) {
+        throw "Activation operation '$OperationId' is not current; no active operation receipt exists."
+    } elseif ($currentOperationId -cne $OperationId) {
+        throw "Activation operation '$OperationId' is not current; active operation is '$currentOperationId'."
+    }
+    $activationReceipt = Get-WindowsCopilotActivationReceipt -Lock $Lock -BackupRoot $BackupRoot `
+        -OperationId $OperationId
+    $operationRoot = [string]$activationReceipt.operationRoot
+    $receipt = $activationReceipt.receipt
+    $environmentName = [string]$receipt.environmentVariable
+    $selectedCliPath = [string]$activationReceipt.selectedCliPath
+    if ($currentStatus -eq 'rolled-back') {
+        return [pscustomobject]@{
+            status = 'already-rolled-back'
+            changed = $false
+            operationId = $OperationId
+            restoredUserValue = Get-LockProperty -InputObject $receipt -Name 'previousUserValue'
+            restoredShims = @()
+        }
+    }
+    $globalRoot = Resolve-DeploymentPath $NpmGlobalRoot
+    if ((Split-Path -Leaf $globalRoot) -ine 'node_modules') {
+        throw "The global npm root must end in 'node_modules': '$globalRoot'."
+    }
+    $expectedGlobalPrefix = Split-Path -Parent $globalRoot
+    $globalPackagePath = Join-Path $globalRoot '@deepseek-ai\dsh\package.json'
+    if (@($receipt.shims).Count -gt 0) {
+        if (-not (Test-Path -LiteralPath $globalPackagePath -PathType Leaf)) {
+            throw 'The npm-global @deepseek-ai/dsh package is missing; refusing to restore dangling shims.'
+        }
+        $globalPackage = Get-Content -LiteralPath $globalPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $globalEntrypoint = if ($globalPackage.bin -is [string]) {
+            [string]$globalPackage.bin
+        } else {
+            [string]$globalPackage.bin.dsh
+        }
+        $normalizedGlobalEntrypoint = if ($globalEntrypoint) {
+            $globalEntrypoint.Replace('\', '/')
+        } else {
+            ''
+        }
+        if ([string]$globalPackage.name -cne [string]$receipt.globalPackage.name -or
+            [string]$globalPackage.version -cne [string]$receipt.globalPackage.version -or
+            $normalizedGlobalEntrypoint -cne [string]$receipt.globalPackage.entrypoint) {
+            throw 'The npm-global @deepseek-ai/dsh package changed after activation; refusing to restore its shims.'
+        }
+        $globalEntrypointPath = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $globalPackagePath) $globalEntrypoint))
+        $packageBoundary = [IO.Path]::GetFullPath((Split-Path -Parent $globalPackagePath)).TrimEnd('\') + '\'
+        if (-not $globalEntrypointPath.StartsWith($packageBoundary, [StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $globalEntrypointPath -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $globalEntrypointPath -Algorithm SHA256).Hash -ine
+                [string]$receipt.globalPackage.entrypointSha256) {
+            throw 'The npm-global @deepseek-ai/dsh entrypoint bytes changed after activation; refusing to restore its shims.'
+        }
+    }
+    $currentUserValue = Get-WindowsCopilotUserEnvironment -Name $environmentName
+    $previousUserValue = Get-LockProperty -InputObject $receipt -Name 'previousUserValue'
+    $environmentAlreadyRestored = [string]::Equals(
+        [string]$currentUserValue,
+        [string]$previousUserValue,
+        [StringComparison]::OrdinalIgnoreCase
+    )
+    if (-not $environmentAlreadyRestored -and
+        -not [string]::Equals(
+            [string]$currentUserValue,
+            $selectedCliPath,
+            [StringComparison]::OrdinalIgnoreCase
+        )) {
+        throw "User $environmentName changed after activation; refusing to overwrite it."
+    }
+    foreach ($shim in @($receipt.shims)) {
+        $target = [IO.Path]::GetFullPath([string]$shim.path)
+        $globalPrefix = Split-Path -Parent $target
+        if ($globalPrefix -ine $expectedGlobalPrefix) {
+            throw "Activation rollback shim is outside the selected npm global prefix: '$target'."
+        }
+        if (@($Lock.components.core.activation.conflictShims) -notcontains (Split-Path -Leaf $target)) {
+            throw "Activation rollback receipt contains an unsupported shim '$target'."
+        }
+        $backup = [IO.Path]::GetFullPath((Join-Path $operationRoot ([string]$shim.relativePath)))
+        if (-not $backup.StartsWith($operationRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $backup -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash -ine [string]$shim.sha256) {
+            throw "Activation rollback backup is missing or invalid for '$target'."
+        }
+        if (Test-Path -LiteralPath $target -PathType Leaf) {
+            if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ine [string]$shim.sha256) {
+                throw "Global dsh shim changed after activation; refusing to overwrite '$target'."
+            }
+        } elseif (-not (Test-Path -LiteralPath $globalPrefix -PathType Container)) {
+            throw "Global npm prefix no longer exists: '$globalPrefix'."
+        }
+    }
+    if (-not $environmentAlreadyRestored) {
+        Set-WindowsCopilotUserEnvironment -Name $environmentName -Value $previousUserValue
+    }
+    $env:DSH_CLI_PATH = $previousUserValue
+    $restored = [Collections.Generic.List[string]]::new()
+    foreach ($shim in @($receipt.shims)) {
+        $target = [IO.Path]::GetFullPath([string]$shim.path)
+        if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
+            Copy-Item -LiteralPath (Join-Path $operationRoot ([string]$shim.relativePath)) `
+                -Destination $target -Force
+            $restored.Add($target)
+        }
+    }
+    $currentState.receipt.status = 'rolled-back'
+    Set-WindowsCopilotJsonFile -Value $currentState.receipt -Path $currentState.path -Depth 4
+    return [pscustomobject]@{
+        status = if ($environmentAlreadyRestored -and $restored.Count -eq 0) {
+            'already-rolled-back'
+        } else {
+            'rolled-back'
+        }
+        changed = [bool](-not $environmentAlreadyRestored -or $restored.Count -gt 0)
+        operationId = $OperationId
+        restoredUserValue = $previousUserValue
+        restoredShims = @($restored)
+    }
+}
+
+function Restore-WindowsCopilotForkCore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [string]$OperationId
+    )
+    $mutex = Enter-WindowsCopilotActivationLock -BackupRoot $BackupRoot
+    try {
+        return Invoke-WindowsCopilotForkCoreRollback @PSBoundParameters
+    } finally {
+        Exit-WindowsCopilotActivationLock -Mutex $mutex
+    }
+}
+
+function Restart-WindowsCopilotDesktop {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$DesktopExecutablePath,
+        $CliInfo,
+        [int]$TimeoutSeconds = 90,
+        [switch]$DryRun,
+        [object[]]$Processes
+    )
+    $executable = Resolve-DeploymentPath $DesktopExecutablePath
+    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+        throw "Desktop executable not found: '$executable'."
+    }
+    if ($null -eq $Processes) {
+        $Processes = @(Get-CimInstance Win32_Process |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
+    }
+    $desktopProcesses = @($Processes | Where-Object {
+        $_.ExecutablePath -and
+        [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq $executable
+    })
+    if ($DryRun) {
+        return [pscustomobject]@{
+            status = 'would-restart'
+            executable = $executable
+            processIds = @($desktopProcesses.ProcessId)
+        }
+    }
+    foreach ($process in $desktopProcesses) {
+        Stop-Process -Id ([int]$process.ProcessId) -Force
+    }
+    Start-Process -FilePath $executable | Out-Null
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastError = $null
+    do {
+        Start-Sleep -Milliseconds 500
+        $current = @(Get-CimInstance Win32_Process |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
+        $currentDesktop = @($current | Where-Object {
+            $_.ExecutablePath -and
+            [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq $executable
+        })
+        if (-not $CliInfo -and $currentDesktop.Count -gt 0) {
+            return [pscustomobject]@{
+                status = 'restarted'
+                executable = $executable
+                stoppedProcessIds = @($desktopProcesses.ProcessId)
+                backendProcessIds = @()
+                backendVerification = 'not-applicable-after-rollback'
+            }
+        }
+        try {
+            $active = Test-DshActiveDesktopCore -CliInfo $CliInfo -Processes $current `
+                -DesktopExecutablePath $executable
+            return [pscustomobject]@{
+                status = 'restarted'
+                executable = $executable
+                stoppedProcessIds = @($desktopProcesses.ProcessId)
+                backendProcessIds = @($active.processIds)
+            }
+        } catch {
+            $lastError = $_.Exception.Message
+        }
+    } while ((Get-Date) -lt $deadline)
+    throw "Desktop restarted, but its backend command line did not select the fork Core within $TimeoutSeconds seconds. Last check: $lastError"
+}
+
+function Test-WindowsCopilotForkCore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [string]$CoreInstallPrefix,
+        [string]$DshCliPath,
+        [string]$DesktopRoot,
+        [string]$DesktopExecutablePath,
+        [object[]]$DesktopProcesses,
+        [switch]$SkipRuntimeChecks
+    )
+    $activation = Get-WindowsCopilotCoreActivationState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath
+    $sandbox = if (-not $activation.core.valid) {
+        [pscustomobject]@{ valid = $false; status = 'receipt-invalid' }
+    } else {
+        try {
+            $result = Test-DshSandboxRegression -PackageRoot ([string]$activation.core.packageRoot) `
+                -ProbeScript (Join-Path $PSScriptRoot 'dsh-sandbox-regression-probe.mjs') `
+                -Mode ([string]$Lock.acceptance.sandbox.gate)
+            $valid = [bool](
+                [string]$result.capability -ceq [string]$Lock.acceptance.sandbox.capability -and
+                [int]$result.sameAndNarrowerApprovalCalls -eq 0 -and
+                [int]$result.widerApprovalCalls -eq [int]$Lock.acceptance.sandbox.widerApprovalCount
+            )
+            $result | Add-Member -MemberType NoteProperty -Name valid -Value $valid -Force
+            $result
+        } catch {
+            [pscustomobject]@{ valid = $false; status = 'failed'; reason = $_.Exception.Message }
+        }
+    }
+    $activeCore = if ($SkipRuntimeChecks) {
+        [pscustomobject]@{ valid = $true; status = 'skipped' }
+    } elseif (-not $activation.core.valid) {
+        [pscustomobject]@{ valid = $false; status = 'receipt-invalid' }
+    } else {
+        $desktop = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
+        if (-not $desktop.valid) {
+            [pscustomobject]@{
+                valid = $false
+                status = 'locked-desktop-not-found'
+                path = $desktop.path
+            }
+        } else {
+            try {
+                $active = Test-DshActiveDesktopCore -CliInfo $activation.core -DesktopRoot $DesktopRoot `
+                    -DesktopExecutablePath ([string]$desktop.path) -Processes $DesktopProcesses
+                [pscustomobject]@{
+                    valid = [bool]$active.healthy
+                    status = 'fork-core-command-line-active'
+                    processIds = @($active.processIds)
+                }
+            } catch {
+                [pscustomobject]@{
+                    valid = $false
+                    status = 'fork-core-command-line-inactive'
+                    reason = $_.Exception.Message
+                }
+            }
+        }
+    }
+    return [pscustomobject]@{
+        valid = [bool]($activation.valid -and $sandbox.valid -and $activeCore.valid)
+        expectedRepository = [string]$Lock.components.core.source.repository
+        expectedCommit = [string]$Lock.components.core.source.commit
+        expectedVersion = [string]$Lock.components.core.package.version
+        expectedCapability = [string]$Lock.acceptance.sandbox.capability
+        activation = $activation
+        sandbox = $sandbox
+        activeCore = $activeCore
     }
 }
 
@@ -2673,7 +3497,7 @@ function Test-WindowsCopilotInstallation {
         try {
             if (-not $DesktopRoot) { $DesktopRoot = $env:DSH_DESKTOP_ROOT }
             $active = Test-DshActiveDesktopCore -CliInfo $coreReceipt -DesktopRoot $DesktopRoot `
-                -Processes $DesktopProcesses
+                -DesktopExecutablePath ([string]$desktop.path) -Processes $DesktopProcesses
             $desktopListener = @($listeners | Where-Object { [int]$_.port -eq 3080 })
             $ownerProcessIds = @()
             if ($desktopListener.Count -eq 1) {
@@ -2911,7 +3735,7 @@ function Test-WindowsCopilotInstallation {
     }
 }
 
-function Invoke-WindowsCopilotApply {
+function Invoke-WindowsCopilotApplyLocked {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]$Lock,
@@ -2925,9 +3749,12 @@ function Invoke-WindowsCopilotApply {
         [Parameter(Mandatory)][string]$CoreInstallPrefix,
         [Parameter(Mandatory)][string]$BackupRoot,
         [Parameter(Mandatory)]$Catalog,
-        [string]$DesktopExecutablePath
+        [string]$DesktopExecutablePath,
+        [switch]$RestartDesktop,
+        [int]$TimeoutSeconds = 90
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    Assert-WindowsCopilotNoPendingActivation -Lock $Lock -BackupRoot $BackupRoot
     $desktopState = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
     if ($desktopState.newerThanLock) {
         throw "Installed Desktop $($desktopState.version) is newer than locked Desktop $($desktopState.lockedVersion). Refusing a downgrade; update the lock or use a reviewed compatible migration."
@@ -2951,12 +3778,20 @@ function Invoke-WindowsCopilotApply {
     Test-LockedArtifact -Path $GatewayArtifactPath `
         -Sha256 ([string]$Lock.components.gateway.artifact.sha256) `
         -ExpectedName ([string]$Lock.components.gateway.artifact.name) | Out-Null
+    Assert-WindowsCopilotCoreConflictSafe -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -SelectedCliPath (Join-Path (Resolve-DeploymentPath $CoreInstallPrefix) 'dsh.cmd') | Out-Null
 
     Invoke-PinnedPnpmCommands -PackageManager ([string]$Lock.components.core.package.packageManager) `
         -Commands @($Lock.components.core.build.commands) -WorkingDirectory $HarnessSourceRoot
     $coreRelease = Get-CoreReleaseArtifacts -Lock $Lock -Root $HarnessSourceRoot
     $coreInstall = Install-WindowsCopilotCoreRelease -Lock $Lock -SourceRoot $HarnessSourceRoot `
         -NpmGlobalRoot $NpmGlobalRoot -CoreInstallPrefix $CoreInstallPrefix -CoreRelease $coreRelease
+    $installedCore = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix
+    if (-not $installedCore.valid) {
+        throw "Installed fork Core receipt validation failed before deployment mutation: '$($installedCore.status)'."
+    }
+    Assert-WindowsCopilotCoreCapability -Lock $Lock -Core $installedCore | Out-Null
 
     $providerLib = Join-Path $CopilotIntegrationSourceRoot 'lib'
     if (Test-Path -LiteralPath $providerLib) { Remove-Item -LiteralPath $providerLib -Recurse -Force }
@@ -2992,10 +3827,23 @@ function Invoke-WindowsCopilotApply {
         -NpmGlobalRoot $NpmGlobalRoot -CopilotIntegrationArtifactPath $copilotIntegrationArtifact `
         -Catalog $Catalog -BackupRoot $BackupRoot -OperationRoot $operationRoot `
         -DesktopExecutablePath ([string]$desktopState.path)
+    $activation = Enable-WindowsCopilotForkCore -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix -BackupRoot $BackupRoot -OperationRoot $operationRoot
+    $restart = if ($RestartDesktop) {
+        Restart-WindowsCopilotDesktop -DesktopExecutablePath ([string]$desktopState.path) `
+            -CliInfo $activation.core -TimeoutSeconds $TimeoutSeconds
+    } else {
+        [pscustomobject]@{
+            status = 'not-requested'
+            executable = [string]$desktopState.path
+        }
+    }
 
     return [pscustomobject]@{
         mode = 'apply'
         deploymentId = [string]$Lock.deploymentId
+        deploymentOperationId = Split-Path -Leaf $operationRoot
+        activationOperationId = $activation.operationId
         globalTransaction = [string]$Lock.globalInstall.transactionId
         coreArtifacts = @($coreRelease.packages)
         coreReceipt = $coreInstall
@@ -3006,7 +3854,35 @@ function Invoke-WindowsCopilotApply {
             Get-FileHash -LiteralPath $copilotIntegrationArtifact -Algorithm SHA256
         ).Hash.ToLowerInvariant()
         profile = $profileReceipt
-        nextCheck = 'Re-run tools\install-windows-copilot.ps1 without -Apply after Desktop and copilot2api are running.'
+        activation = $activation
+        desktopRestart = $restart
+        nextCheck = 'Run tools\install-windows-copilot.ps1 -Action Verify with the same CoreInstallPrefix.'
+    }
+}
+
+function Invoke-WindowsCopilotApply {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DshHome,
+        [Parameter(Mandatory)][string]$NpmGlobalRoot,
+        [Parameter(Mandatory)][string]$HarnessSourceRoot,
+        [Parameter(Mandatory)][Alias('ProviderSourceRoot')][string]$CopilotIntegrationSourceRoot,
+        [Parameter(Mandatory)][string]$DesktopArtifactPath,
+        [Parameter(Mandatory)][string]$GatewayArtifactPath,
+        [Parameter(Mandatory)][string]$GatewayInstallRoot,
+        [Parameter(Mandatory)][string]$CoreInstallPrefix,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [Parameter(Mandatory)]$Catalog,
+        [string]$DesktopExecutablePath,
+        [switch]$RestartDesktop,
+        [int]$TimeoutSeconds = 90
+    )
+    $mutex = Enter-WindowsCopilotActivationLock -BackupRoot $BackupRoot
+    try {
+        return Invoke-WindowsCopilotApplyLocked @PSBoundParameters
+    } finally {
+        Exit-WindowsCopilotActivationLock -Mutex $mutex
     }
 }
 
@@ -3025,6 +3901,14 @@ Export-ModuleMember -Function @(
     'Set-WindowsCopilotProfile',
     'Test-WindowsCopilotSearchResponse',
     'Test-WindowsCopilotComposedConfig',
+    'Get-WindowsCopilotDesktopState',
+    'Get-WindowsCopilotCoreConflictState',
+    'Assert-WindowsCopilotCoreConflictSafe',
+    'Get-WindowsCopilotCoreActivationState',
+    'Enable-WindowsCopilotForkCore',
+    'Restore-WindowsCopilotForkCore',
+    'Restart-WindowsCopilotDesktop',
+    'Test-WindowsCopilotForkCore',
     'Test-WindowsCopilotInstallation',
     'Invoke-WindowsCopilotApply'
 )

@@ -7,7 +7,9 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Need | Command | Mutation | Evidence / rollback |
 |---|---|---:|---|
 | Check the locked Desktop/Core/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply` |
-| Apply the exact locked deployment | Same command with required source/artifact arguments and `-Apply` | High | Installer backups and acceptance report |
+| Apply and activate the exact locked fork Core | Same command with required source/artifact arguments, `-Apply -RestartDesktop` | High | Receipt-backed Core, persisted `DSH_CLI_PATH`, quarantined conflicting official npm shims, and rollback receipt |
+| Verify the rc.2 sandbox fix is active | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop backend command line |
+| Roll back Core selection | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -RestartDesktop` | Environment and shim restore | Restores the previous user `DSH_CLI_PATH` and exact backed-up npm global shims |
 | Enable the unified Copilot model/search/vision integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 -Model '<id>'` | Configuration | Installs `dsh-github-copilot`, backs up settings, and fails closed |
 | Check versions, endpoints, models, and replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Structured self-check output |
 | Preview replay patches | `powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun` | None | Exact-marker plan only |
@@ -47,6 +49,7 @@ Even with `--probe`, this is only the catalog's **L2** boundary. It does not pro
 ## Safety and contribution rules
 
 - Run check/dry-run before apply/fix.
+- Treat `-Action Verify` exit code `0` as success and `2` as failed fork activation evidence.
 - Never expose credentials in output or evidence.
 - Preserve deployment-lock identities and the five official Desktop internal-plugin links.
 - Use synthetic fixtures; do not test browser/desktop controllers against personal profiles or arbitrary real applications.

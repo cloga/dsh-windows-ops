@@ -26,6 +26,60 @@ three loader dependencies and Copilot integration tarball in one global npm tran
 It preserves and attests Desktop 0.9.2's five official 0.4.9 internal-plugin
 links, updates the web profile and routes, and physically materializes only the
 reviewed `dsh-github-copilot` integration.
+
+For issue #34, use this same entry point to apply and activate the reviewed
+rc.2 fork build:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-windows-copilot.ps1 -Apply -RestartDesktop `
+  -HarnessSourceRoot C:\Path\To\deepseek-harness `
+  -CoreInstallPrefix C:\.tools\dsh-cloga `
+  -CopilotIntegrationSourceRoot C:\Path\To\dsh-github-copilot `
+  -DesktopArtifactPath C:\Path\To\Deepseek.Harness.Desktop_0.9.2_x64-setup.exe `
+  -GatewayArtifactPath C:\Path\To\copilot2api-windows-amd64.exe `
+  -ModelCatalogPath C:\Path\To\copilot-models.json
+```
+
+Apply validates the receipt repository URL, exact locked commit, package
+version, and installed executable bytes before selection. It then runs the
+installed `dsh-sandbox` behavioral probe. Equal and narrower requests must
+retain `danger-full-access` with zero approval calls, while one wider request
+must make exactly one approval call. Official rc.2 bytes fail this gate.
+
+Apply persists the attested prefix-root `dsh.cmd` as the user
+`DSH_CLI_PATH`. If an unreceipted official `@deepseek-ai/dsh` global install
+still owns npm's `dsh`, `dsh.cmd`, or `dsh.ps1` shims, Apply backs up and
+removes those shims only when all bytes match the npm 11.17.0 hashes in the
+deployment lock. It refuses modified, unknown, or receipted global shim owners.
+`-RestartDesktop` stops only processes whose executable path exactly matches
+the locked Desktop executable, starts that same file, and waits until the
+Desktop child Node command line names the fork entry point.
+
+Verify after Desktop is running:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-windows-copilot.ps1 -Action Verify `
+  -CoreInstallPrefix C:\.tools\dsh-cloga
+```
+
+Success is `valid: true` with exit code `0`. Exit code `2` means the receipt,
+commit, installed bytes, persisted CLI path, global shim state, sandbox
+behavior, or active Desktop backend command line did not match.
+
+Rollback restores only the previous Core selection and backed-up global npm
+shims; it does not uninstall the reviewed fork:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-windows-copilot.ps1 -Action Rollback -RestartDesktop
+```
+
+Rollback uses the latest activation receipt by default. Pass `-OperationId`
+with the reported `activationOperationId` only to select an older operation
+explicitly. It refuses to overwrite
+a user environment value or shim changed after activation.
 Apply migrates only the reviewed legacy states: physical `dsh-tauri@0.2.0`,
 `dsh-tauri-ui@0.1.0`, and `dsh-tauri-worktree@0.1.0`, plus
 `dsh-web-search-provider` 0.2.2 and 0.2.3 deployments. It backs up and removes
@@ -35,9 +89,9 @@ installation.
 
 Every touched settings/profile file and plugin directory is copied under
 `%LOCALAPPDATA%\dsh-windows-ops\deployment-backups` before replacement. That
-root is rejected if it resolves under `$DSH_HOME\sessions`. The installer does
-not persist credentials, user-specific paths, execution-policy changes,
-`NODE_OPTIONS`, or any other global environment policy.
+root is rejected if it resolves under `$DSH_HOME\sessions`. The installer does not persist credentials, execution-policy changes,
+`NODE_OPTIONS`, or broad environment policy. Its only user environment change
+is the receipt-backed `DSH_CLI_PATH` selection described above.
 
 Use a catalog captured from the authenticated loopback gateway:
 
@@ -45,17 +99,9 @@ Use a catalog captured from the authenticated loopback gateway:
 Invoke-RestMethod http://127.0.0.1:7777/v1/models |
   ConvertTo-Json -Depth 20 |
   Set-Content $PWD\output\copilot-models.json -Encoding UTF8
-
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tools\install-windows-copilot.ps1 -Apply `
-  -HarnessSourceRoot C:\Path\To\deepseek-harness `
-  -CoreInstallPrefix C:\.tools\dsh-cloga `
-  -CopilotIntegrationSourceRoot C:\Path\To\dsh-web-search-provider `
-  -DesktopArtifactPath C:\Path\To\Deepseek.Harness.Desktop_0.9.2_x64-setup.exe `
-  -GatewayArtifactPath C:\Path\To\copilot2api-windows-amd64.exe `
-  -ModelCatalogPath $PWD\output\copilot-models.json
 ```
 
+Pass that file as `-ModelCatalogPath` to the single Apply command above.
 The catalog's `supported_endpoints` metadata assigns models independently to
 the `github-copilot` (`openai-responses`) and `github-copilot-chat`
 (`openai-completions`) routes. Existing unsupported YAML shapes fail closed;
@@ -176,16 +222,11 @@ call "%~dp0node_modules\.bin\dsh.cmd" %*
 1. Install the official Desktop release for Windows.
 2. If only one `dsh` is installed, start Desktop and select `local` on the
    **Core** page.
-3. If multiple CLIs may resolve, set `DSH_CLI_PATH` to the verified executable
-   before launching Desktop:
-
-   ```powershell
-   $dsh = 'C:\.tools\dsh-cloga\dsh.cmd'
-   [Environment]::SetEnvironmentVariable('DSH_CLI_PATH', $dsh, 'User')
-   ```
-
-4. Restart Desktop and verify the selected core path and version.
-5. Run the repository self-check:
+3. Run the locked installer with `-Apply`; it persists the attested
+   `DSH_CLI_PATH` and safely handles an official npm-global shim conflict.
+4. Use `-RestartDesktop` when the exact locked Desktop should be restarted.
+5. Run `-Action Verify`; package version alone is not acceptance evidence.
+6. Run the repository self-check:
 
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\dsh-replay.ps1 `

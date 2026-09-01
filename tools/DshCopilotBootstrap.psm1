@@ -360,6 +360,7 @@ function Resolve-DshCliInfo {
         entryPath = $entryPath
         version = $packageVersion
         repository = $ExpectedRepository
+        repositoryUrl = $repositoryUrl
         commitSha = $commitSha.ToLowerInvariant()
         receiptPath = [IO.Path]::GetFullPath($receiptPath)
         releaseManifestSha256 = $releaseManifestSha256.ToLowerInvariant()
@@ -372,6 +373,7 @@ function Test-DshActiveDesktopCore {
     param(
         [Parameter(Mandatory)]$CliInfo,
         [string]$DesktopRoot,
+        [string]$DesktopExecutablePath,
         [object[]]$Processes
     )
 
@@ -379,7 +381,12 @@ function Test-DshActiveDesktopCore {
         $Processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
     }
     $desktop = @($Processes | Where-Object {
-        [string]$_.Name -match '^(?:DeepSeek Harness|deepseek-harness-desktop)(?:\.exe)?$'
+        [string]$_.Name -match '^(?:DeepSeek Harness|deepseek-harness-desktop)(?:\.exe)?$' -and
+        (-not $DesktopExecutablePath -or (
+            $_.ExecutablePath -and
+            [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq
+                [IO.Path]::GetFullPath($DesktopExecutablePath)
+        ))
     })
     if ($desktop.Count -eq 0) { throw 'No active DSH Desktop process was found.' }
 
@@ -861,10 +868,14 @@ function Test-DshSandboxRegression {
         return [pscustomobject]@{
             status = 'passed'
             required = [bool]($Mode -eq 'Require')
+            capability = [string]$result.capability
             sameMode = [string]$result.sameMode
             narrowerMode = [string]$result.narrowerMode
             widerMode = [string]$result.widerMode
             effectiveMode = [string]$result.effectiveMode
+            sameAndNarrowerApprovalCalls = [int]$result.sameAndNarrowerApprovalCalls
+            widerApprovalCalls = [int]$result.widerApprovalCalls
+            tools = @($result.tools)
         }
     }
     if ($Mode -eq 'Require') {
@@ -879,6 +890,7 @@ function Test-DshSandboxRegression {
 }
 
 Export-ModuleMember -Function @(
+    'ConvertTo-DshRepositorySlug',
     'Get-DshExplicitVisionCapability',
     'Get-DshCatalogModel',
     'Get-DshCopilotCatalog',

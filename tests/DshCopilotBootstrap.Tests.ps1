@@ -435,8 +435,31 @@ export async function approveEscalation(request, approval) {
   return request.requestedMode
 }
 '@
-        Set-Content -LiteralPath (Join-Path $bash 'index.js') -Encoding UTF8 -Value 'approveEscalation'
-        Set-Content -LiteralPath (Join-Path $pwsh 'index.js') -Encoding UTF8 -Value 'approveEscalation'
+        foreach ($tool in @(
+            [pscustomobject]@{ root = $bash; name = 'bash' },
+            [pscustomobject]@{ root = $pwsh; name = 'pwsh' }
+        )) {
+            Set-Content -LiteralPath (Join-Path $tool.root 'index.js') -Encoding UTF8 -Value @"
+const approveEscalation = () => {}
+approveEscalation()
+export function apply(ctx) {
+  ctx.tools.register({
+    name: '$($tool.name)',
+    parameters: {
+      sandbox_permissions: { type: 'string' },
+      justification: { type: 'string' },
+    },
+    async execute(args, exec) {
+      return ctx.shell.run(ctx.shell.resolve({
+        command: args.command,
+        sandboxPolicy: { mode: 'danger-full-access' },
+        signal: exec.signal,
+      }))
+    },
+  })
+}
+"@
+        }
         {
             Test-DshSandboxRegression -PackageRoot $package `
                 -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Require
@@ -457,11 +480,48 @@ export async function approveEscalation(request, approval) {
   return request.requestedMode
 }
 '@
-        Set-Content -LiteralPath (Join-Path $bash 'index.js') -Encoding UTF8 -Value 'approveEscalation'
-        Set-Content -LiteralPath (Join-Path $pwsh 'index.js') -Encoding UTF8 -Value 'approveEscalation'
+        foreach ($tool in @(
+            [pscustomobject]@{ root = $bash; name = 'bash' },
+            [pscustomobject]@{ root = $pwsh; name = 'pwsh' }
+        )) {
+            Set-Content -LiteralPath (Join-Path $tool.root 'index.js') -Encoding UTF8 -Value @"
+const approveEscalation = () => {}
+approveEscalation()
+export function apply(ctx) {
+  ctx.tools.register({
+    name: '$($tool.name)',
+    parameters: {
+      sandbox_permissions: { type: 'string' },
+      justification: { type: 'string' },
+    },
+    async execute(args, exec) {
+      return ctx.shell.run(ctx.shell.resolve({
+        command: args.command,
+        sandboxPolicy: { mode: 'danger-full-access' },
+        signal: exec.signal,
+      }))
+    },
+  })
+}
+"@
+        }
         $result = Test-DshSandboxRegression -PackageRoot $package `
             -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Require
         $result.status | Should -Be 'passed'
         $result.effectiveMode | Should -Be 'danger-full-access'
+        $result.sameAndNarrowerApprovalCalls | Should -Be 0
+        $result.widerApprovalCalls | Should -Be 1
+        @($result.tools).Count | Should -Be 2
+        @($result.tools | Where-Object { $_.approvalCalls -ne 0 }).Count | Should -Be 0
+
+        Set-Content -LiteralPath (Join-Path $pwsh 'index.js') -Encoding UTF8 -Value @'
+const approveEscalation = () => {}
+approveEscalation()
+export const applyMissing = true
+'@
+        {
+            Test-DshSandboxRegression -PackageRoot $package `
+                -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Require
+        } | Should -Throw '*sandbox non-widening regression gate*'
     }
 }

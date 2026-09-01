@@ -59,6 +59,102 @@ public static class $typeName { public static void Main() {} }
                     -Target $target | Out-Null
             }
         }
+        function New-ForkCoreFixture {
+            param([Parameter(Mandatory)][string]$Prefix)
+            $packageRoot = Join-Path $Prefix 'node_modules\@deepseek-ai\dsh'
+            $binRoot = Join-Path $Prefix 'node_modules\.bin'
+            $sandboxRoot = Join-Path $packageRoot 'node_modules\@deepseek-ai\dsh-sandbox\lib'
+            $bashRoot = Join-Path $packageRoot 'node_modules\@deepseek-ai\dsh-tool-bash\lib'
+            $pwshRoot = Join-Path $packageRoot 'node_modules\@deepseek-ai\dsh-tool-pwsh\lib'
+            New-Item -ItemType Directory -Path $packageRoot, $binRoot, $sandboxRoot, $bashRoot, $pwshRoot -Force |
+                Out-Null
+            [ordered]@{
+                name = '@deepseek-ai/dsh'
+                version = [string]$script:lock.components.core.package.version
+                type = 'module'
+                bin = [ordered]@{ dsh = 'lib/bin.js' }
+            } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $packageRoot 'package.json') -Encoding UTF8
+            New-Item -ItemType Directory -Path (Join-Path $packageRoot 'lib') -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $packageRoot 'lib\bin.js') -Value 'process.exit(0)' -Encoding UTF8
+            Set-Content -LiteralPath (Join-Path $binRoot 'dsh.cmd') -Value '@echo off' -Encoding ASCII
+            Set-Content -LiteralPath (Join-Path $Prefix 'dsh.cmd') `
+                -Value "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*" -Encoding ASCII
+            Set-Content -LiteralPath (Join-Path $sandboxRoot 'index.js') -Encoding UTF8 -Value @'
+export async function approveEscalation(request, approval) {
+  const rank = { 'read-only': 0, 'workspace-write': 1, 'danger-full-access': 2 }
+  if (rank[request.requestedMode] <= rank[request.effectiveMode]) return request.effectiveMode
+  await approval.approver.request()
+  return request.requestedMode
+}
+'@
+            foreach ($tool in @(
+                [pscustomobject]@{ root = $bashRoot; name = 'bash' },
+                [pscustomobject]@{ root = $pwshRoot; name = 'pwsh' }
+            )) {
+                Set-Content -LiteralPath (Join-Path $tool.root 'index.js') -Encoding UTF8 -Value @"
+const approveEscalation = () => {}
+approveEscalation()
+export function apply(ctx) {
+  ctx.tools.register({
+    name: '$($tool.name)',
+    parameters: {
+      sandbox_permissions: { type: 'string' },
+      justification: { type: 'string' },
+    },
+    async execute(args, exec) {
+      return ctx.shell.run(ctx.shell.resolve({
+        command: args.command,
+        sandboxPolicy: { mode: 'danger-full-access' },
+        signal: exec.signal,
+      }))
+    },
+  })
+}
+"@
+            }
+            $packages = @([ordered]@{
+                name = '@deepseek-ai/dsh'
+                version = [string]$script:lock.components.core.package.version
+                filename = 'deepseek-ai-dsh-fixture.tgz'
+                sha256 = ('a' * 64)
+                files = 10
+            })
+            $installedFiles = @(
+                [ordered]@{
+                    role = 'root-shim'
+                    path = 'dsh.cmd'
+                    sha256 = (Get-FileHash -LiteralPath (Join-Path $Prefix 'dsh.cmd') -Algorithm SHA256).Hash
+                },
+                [ordered]@{
+                    role = 'npm-shim'
+                    path = 'node_modules\.bin\dsh.cmd'
+                    sha256 = (Get-FileHash -LiteralPath (Join-Path $binRoot 'dsh.cmd') -Algorithm SHA256).Hash
+                },
+                [ordered]@{
+                    role = 'entrypoint'
+                    path = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+                    sha256 = (Get-FileHash -LiteralPath (Join-Path $packageRoot 'lib\bin.js') -Algorithm SHA256).Hash
+                }
+            )
+            [ordered]@{
+                schemaVersion = 1
+                repositoryUrl = 'https://github.com/cloga/deepseek-harness.git'
+                commitSha = [string]$script:lock.components.core.source.commit
+                packageName = '@deepseek-ai/dsh'
+                packageVersion = [string]$script:lock.components.core.package.version
+                releaseManifestSha256 = Get-TestSha256Text `
+                    -Text (ConvertTo-Json -InputObject $packages -Compress -Depth 4)
+                cliPath = Join-Path $Prefix 'dsh.cmd'
+                packages = $packages
+                installedFiles = $installedFiles
+            } | ConvertTo-Json -Depth 8 |
+                Set-Content -LiteralPath (Join-Path $Prefix 'dsh-local-install.json') -Encoding UTF8
+            return [pscustomobject]@{
+                prefix = $Prefix
+                cliPath = Join-Path $Prefix 'dsh.cmd'
+                packageRoot = $packageRoot
+            }
+        }
         function Set-LegacyPhysicalPluginFixture {
             param(
                 [Parameter(Mandatory)][string]$ProfileRoot,
@@ -112,8 +208,14 @@ public static class $typeName { public static void Main() {} }
             Should -Be '0.2.0'
         $lock.components.core.source.commit | Should -Be 'bd520d6e47e0c9cc690bf6d7211512cb044fd095'
         $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
+        @($lock.components.core.capabilities) | Should -Be @('sandbox-same-and-narrower-no-op')
         $lock.components.core.install.script | Should -Be 'release:install-local'
         @($lock.components.core.install.attestedFiles).Count | Should -Be 3
+        $lock.components.core.activation.environmentVariable | Should -Be 'DSH_CLI_PATH'
+        @($lock.components.core.activation.conflictShims).Count | Should -Be 3
+        foreach ($shim in @($lock.components.core.activation.conflictShims)) {
+            $lock.components.core.activation.conflictShimSha256.$shim | Should -Match '^[0-9a-f]{64}$'
+        }
         $lock.components.gateway.source.commit | Should -Be 'a4aac95d4a8f430f02121f79ea36aeaaa06daea1'
         $lock.components.gateway.version | Should -Be '0.6.1'
         $lock.components.copilotIntegration.source.commit | Should -Be '78745478c7323f9cb1aff46b2c2f39eaa619fa29'
@@ -130,20 +232,295 @@ public static class $typeName { public static void Main() {} }
         $lock.acceptance.composedConfig.managedEntry.protocol | Should -Be 'openai-responses'
         $lock.acceptance.composedConfig.managedEntry.searchProvider | Should -Be 'github-copilot-hosted'
         $lock.acceptance.sandbox.gate | Should -Be 'Require'
+        $lock.acceptance.sandbox.capability | Should -Be 'sandbox-same-and-narrower-no-op'
+    }
+
+    It 'checks applies verifies and rolls back fork Core activation with official global conflict backup' {
+        $caseRoot = Join-Path $TestDrive 'fork-core-activation'
+        $core = New-ForkCoreFixture -Prefix (Join-Path $caseRoot 'fork-prefix')
+        $globalRoot = Join-Path $caseRoot 'global\node_modules'
+        $globalPrefix = Split-Path -Parent $globalRoot
+        $globalPackage = Join-Path $globalRoot '@deepseek-ai\dsh'
+        New-Item -ItemType Directory -Path $globalPackage -Force | Out-Null
+        [ordered]@{
+            name = '@deepseek-ai/dsh'
+            version = '0.1.1-rc.2'
+            bin = [ordered]@{ dsh = 'lib/bin.js' }
+        } | ConvertTo-Json -Compress |
+            Set-Content -LiteralPath (Join-Path $globalPackage 'package.json') -Encoding UTF8
+        New-Item -ItemType Directory -Path (Join-Path $globalPackage 'lib') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $globalPackage 'lib\bin.js') `
+            -Value 'official global entrypoint' -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $globalPrefix 'dsh.cmd') -Encoding UTF8 -Value @'
+@ECHO off
+GOTO start
+:find_dp0
+SET dp0=%~dp0
+EXIT /b
+:start
+"%dp0%\node_modules\@deepseek-ai\dsh\lib\bin.js" %*
+'@
+        Set-Content -LiteralPath (Join-Path $globalPrefix 'dsh.ps1') -Encoding UTF8 -Value @'
+$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent
+& "$basedir/node_modules/@deepseek-ai/dsh/lib/bin.js" $args
+exit $ret
+'@
+        Set-Content -LiteralPath (Join-Path $globalPrefix 'dsh') -Encoding UTF8 -Value @'
+#!/bin/sh
+basedir=$(dirname "$0")
+"$basedir/node_modules/@deepseek-ai/dsh/lib/bin.js" "$@"
+'@
+        $activationLock = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        foreach ($shim in @($activationLock.components.core.activation.conflictShims)) {
+            $activationLock.components.core.activation.conflictShimSha256.$shim =
+                (Get-FileHash -LiteralPath (Join-Path $globalPrefix ([string]$shim)) -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        $backupRoot = Join-Path $caseRoot 'backups'
+        $operationId = '20260901T120000000Z'
+        $operationRoot = Join-Path $backupRoot $operationId
+        $script:userDshCliPath = 'C:\previous\dsh.cmd'
+        Mock Get-WindowsCopilotUserEnvironment -ModuleName WindowsCopilotDeployment {
+            $script:userDshCliPath
+        }
+        Mock Set-WindowsCopilotUserEnvironment -ModuleName WindowsCopilotDeployment {
+            param($Name, $Value)
+            $script:userDshCliPath = $Value
+        }
+
+        $before = Get-WindowsCopilotCoreActivationState -Lock $activationLock -NpmGlobalRoot $globalRoot `
+            -CoreInstallPrefix $core.prefix
+        $before.valid | Should -Be $false
+        $before.status | Should -Be 'user-dsh-cli-path-mismatch'
+        $before.conflicts.status | Should -Be 'official-global-dsh-conflict'
+
+        $apply = Enable-WindowsCopilotForkCore -Lock $activationLock -NpmGlobalRoot $globalRoot `
+            -CoreInstallPrefix $core.prefix -BackupRoot $backupRoot -OperationRoot $operationRoot
+        $apply.status | Should -Be 'enabled'
+        $apply.sandbox.capability | Should -Be 'sandbox-same-and-narrower-no-op'
+        $apply.sandbox.sameAndNarrowerApprovalCalls | Should -Be 0
+        $script:userDshCliPath | Should -Be $core.cliPath
+        foreach ($shim in @($lock.components.core.activation.conflictShims)) {
+            Test-Path -LiteralPath (Join-Path $globalPrefix ([string]$shim)) | Should -Be $false
+        }
+
+        $verify = Test-WindowsCopilotForkCore -Lock $activationLock -NpmGlobalRoot $globalRoot `
+            -CoreInstallPrefix $core.prefix -SkipRuntimeChecks
+        $verify.valid | Should -Be $true
+        $verify.activation.core.commitSha | Should -Be $lock.components.core.source.commit
+        $verify.activation.core.repositoryUrl | Should -Be 'https://github.com/cloga/deepseek-harness.git'
+        $verify.activation.core.installedFileCount | Should -Be 3
+        $verify.sandbox.sameAndNarrowerApprovalCalls | Should -Be 0
+        $desktopPath = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+        New-VersionedDesktopFixture -Path $desktopPath -Version '0.9.2'
+        $runtimeVerify = Test-WindowsCopilotForkCore -Lock $activationLock -NpmGlobalRoot $globalRoot `
+            -CoreInstallPrefix $core.prefix -DesktopProcesses @(
+                [pscustomobject]@{
+                    ProcessId = 20
+                    ParentProcessId = 0
+                    Name = 'deepseek-harness-desktop.exe'
+                    ExecutablePath = $desktopPath
+                    CommandLine = "`"$desktopPath`""
+                },
+                [pscustomobject]@{
+                    ProcessId = 21
+                    ParentProcessId = 20
+                    Name = 'node.exe'
+                    ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                    CommandLine = "node `"$($verify.activation.core.entryPath)`""
+                }
+            )
+        $runtimeVerify.valid | Should -Be $true
+        $runtimeVerify.activeCore.status | Should -Be 'fork-core-command-line-active'
+
+        $secondOperation = Join-Path $backupRoot '20260901T120001000Z'
+        $currentReceiptPath = Join-Path $backupRoot 'core-activation-current.json'
+        $currentReceipt = Get-Content -LiteralPath $currentReceiptPath -Raw | ConvertFrom-Json
+        $currentReceipt.status = 'pending'
+        $currentReceipt | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath $currentReceiptPath -Encoding UTF8
+        $pendingReceipt = Get-Content -LiteralPath (Join-Path $operationRoot 'core-activation.json') -Raw |
+            ConvertFrom-Json
+        $pendingShim = @($pendingReceipt.shims)[0]
+        Copy-Item -LiteralPath (Join-Path $operationRoot ([string]$pendingShim.relativePath)) `
+            -Destination ([string]$pendingShim.path) -Force
+        {
+            Enable-WindowsCopilotForkCore -Lock $activationLock -NpmGlobalRoot $globalRoot `
+                -CoreInstallPrefix $core.prefix -BackupRoot $backupRoot -OperationRoot $secondOperation
+        } | Should -Throw '*must be rolled back before Apply*'
+        (Get-Content -LiteralPath $currentReceiptPath -Raw | ConvertFrom-Json).operationId |
+            Should -Be $operationId
+        Remove-Item -LiteralPath ([string]$pendingShim.path) -Force
+        $second = Enable-WindowsCopilotForkCore -Lock $activationLock -NpmGlobalRoot $globalRoot `
+            -CoreInstallPrefix $core.prefix -BackupRoot $backupRoot -OperationRoot $secondOperation
+        $second.status | Should -Be 'already-enabled'
+        $second.operationId | Should -Be $operationId
+        Test-Path -LiteralPath $secondOperation | Should -Be $false
+
+        $currentReceipt = Get-Content -LiteralPath $currentReceiptPath -Raw | ConvertFrom-Json
+        $currentReceipt.operationId = '20260901T120001000Z'
+        $currentReceipt | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath $currentReceiptPath -Encoding UTF8
+        {
+            Restore-WindowsCopilotForkCore -Lock $activationLock -BackupRoot $backupRoot `
+                -NpmGlobalRoot $globalRoot -OperationId $operationId
+        } | Should -Throw '*is not current*'
+        $script:userDshCliPath | Should -Be $core.cliPath
+        $currentReceipt.operationId = $operationId
+        $currentReceipt | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath $currentReceiptPath -Encoding UTF8
+
+        $activationReceiptPath = Join-Path $operationRoot 'core-activation.json'
+        $activationReceipt = Get-Content -LiteralPath $activationReceiptPath -Raw | ConvertFrom-Json
+        $activationReceipt.environmentVariable = 'PATH'
+        $activationReceipt | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath $activationReceiptPath -Encoding UTF8
+        {
+            Restore-WindowsCopilotForkCore -Lock $activationLock -BackupRoot $backupRoot `
+                -NpmGlobalRoot $globalRoot -OperationId $operationId
+        } | Should -Throw '*locked Core identity*'
+        $activationReceipt.environmentVariable = 'DSH_CLI_PATH'
+        $activationReceipt | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath $activationReceiptPath -Encoding UTF8
+        $globalPackageMetadata = Get-Content -LiteralPath (Join-Path $globalPackage 'package.json') -Raw |
+            ConvertFrom-Json
+        $globalPackageMetadata.version = '9.9.9'
+        $globalPackageMetadata | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath (Join-Path $globalPackage 'package.json') -Encoding UTF8
+        {
+            Restore-WindowsCopilotForkCore -Lock $activationLock -BackupRoot $backupRoot `
+                -NpmGlobalRoot $globalRoot -OperationId $operationId
+        } | Should -Throw '*package changed after activation*'
+        $globalPackageMetadata.version = '0.1.1-rc.2'
+        $globalPackageMetadata | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath (Join-Path $globalPackage 'package.json') -Encoding UTF8
+        Add-Content -LiteralPath (Join-Path $globalPackage 'lib\bin.js') -Value 'changed' -Encoding UTF8
+        {
+            Restore-WindowsCopilotForkCore -Lock $activationLock -BackupRoot $backupRoot `
+                -NpmGlobalRoot $globalRoot -OperationId $operationId
+        } | Should -Throw '*entrypoint bytes changed after activation*'
+        Set-Content -LiteralPath (Join-Path $globalPackage 'lib\bin.js') `
+            -Value 'official global entrypoint' -Encoding UTF8
+        $activationReceipt.repositoryUrl = 'git@github.com:cloga/deepseek-harness.git'
+        $activationReceipt | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath $activationReceiptPath -Encoding UTF8
+        $currentReceipt = Get-Content -LiteralPath $currentReceiptPath -Raw | ConvertFrom-Json
+        $currentReceipt.status = 'pending'
+        $currentReceipt | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath $currentReceiptPath -Encoding UTF8
+
+        $rollback = Restore-WindowsCopilotForkCore -Lock $activationLock -BackupRoot $backupRoot -NpmGlobalRoot $globalRoot `
+            -OperationId $operationId
+        $rollback.status | Should -Be 'rolled-back'
+        $script:userDshCliPath | Should -Be 'C:\previous\dsh.cmd'
+        (Get-Content -LiteralPath $currentReceiptPath -Raw | ConvertFrom-Json).status |
+            Should -Be 'rolled-back'
+        foreach ($shim in @($lock.components.core.activation.conflictShims)) {
+            Test-Path -LiteralPath (Join-Path $globalPrefix ([string]$shim)) | Should -Be $true
+        }
+        (Restore-WindowsCopilotForkCore -Lock $activationLock -BackupRoot $backupRoot -NpmGlobalRoot $globalRoot `
+            -OperationId $operationId).status | Should -Be 'already-rolled-back'
+        Remove-Item -LiteralPath $currentReceiptPath -Force
+        {
+            Restore-WindowsCopilotForkCore -Lock $activationLock -BackupRoot $backupRoot `
+                -NpmGlobalRoot $globalRoot -OperationId $operationId
+        } | Should -Throw '*no active operation receipt exists*'
+    }
+
+    It 'refuses to remove an unmanaged npm-global dsh conflict' {
+        $caseRoot = Join-Path $TestDrive 'unmanaged-global-conflict'
+        $core = New-ForkCoreFixture -Prefix (Join-Path $caseRoot 'fork-prefix')
+        $globalRoot = Join-Path $caseRoot 'global\node_modules'
+        $globalPrefix = Split-Path -Parent $globalRoot
+        New-Item -ItemType Directory -Path $globalRoot -Force | Out-Null
+        $shimPath = Join-Path $globalPrefix 'dsh.cmd'
+        Set-Content -LiteralPath $shimPath -Value 'unmanaged' -Encoding UTF8
+        $script:userDshCliPath = $null
+        Mock Get-WindowsCopilotUserEnvironment -ModuleName WindowsCopilotDeployment {
+            $script:userDshCliPath
+        }
+        Mock Set-WindowsCopilotUserEnvironment -ModuleName WindowsCopilotDeployment {
+            throw 'must not mutate user environment'
+        }
+
+        {
+            Enable-WindowsCopilotForkCore -Lock $lock -NpmGlobalRoot $globalRoot `
+                -CoreInstallPrefix $core.prefix -BackupRoot (Join-Path $caseRoot 'backups') `
+                -OperationRoot (Join-Path $caseRoot 'backups\20260901T130000000Z')
+        } | Should -Throw '*unmanaged global dsh shims*'
+        Test-Path -LiteralPath $shimPath | Should -Be $true
+    }
+
+    It 'targets only the exact Desktop executable during a restart dry run' {
+        $caseRoot = Join-Path $TestDrive 'desktop-restart'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-VersionedDesktopFixture -Path $desktopPath -Version '0.9.2'
+        $processes = @(
+            [pscustomobject]@{
+                ProcessId = 10
+                ParentProcessId = 0
+                Name = 'deepseek-harness-desktop.exe'
+                ExecutablePath = $desktopPath
+                CommandLine = "`"$desktopPath`""
+            },
+            [pscustomobject]@{
+                ProcessId = 11
+                ParentProcessId = 0
+                Name = 'deepseek-harness-desktop.exe'
+                ExecutablePath = Join-Path $caseRoot 'other\deepseek-harness-desktop.exe'
+                CommandLine = 'other'
+            }
+        )
+        $result = Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
+            -CliInfo ([pscustomobject]@{}) -Processes $processes -DryRun
+        $result.processIds | Should -Be @(10)
     }
 
     It 'installs Core through the receipt producer before the remaining global transaction' {
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
             -NpmGlobalRoot (Join-Path $TestDrive 'global')
         $coreStep = @($plan.steps | Where-Object id -eq 'install-core-with-receipt')[0]
+        $probeStep = @($plan.steps | Where-Object id -eq 'verify-installed-core-capability')[0]
         $step = @($plan.steps | Where-Object id -eq 'install-global-transaction')[0]
+        $stepIds = @($plan.steps | ForEach-Object { [string]$_.id })
         $coreStep.action | Should -Be 'release-install-local'
+        $probeStep.action | Should -Be 'receipt-bytes-and-sandbox-probe'
+        [array]::IndexOf($stepIds, 'verify-installed-core-capability') |
+            Should -BeLessThan ([array]::IndexOf($stepIds, 'install-global-transaction'))
         $step.packages.Count | Should -Be 4
         ($step.packages -contains '@deepseek-ai/cordis-plugin-hmr@1.0.16') | Should -Be $true
         ($step.packages -contains '@deepseek-ai/cordis-plugin-timer@1.1.3') | Should -Be $true
         ($step.packages -contains 'node-addon-require-builtin@0.1.4') | Should -Be $true
         ($step.packages -contains '<built-core-release-family-tarballs>') | Should -Be $false
         ($step.packages -contains '<built-copilot-integration-tarball>') | Should -Be $true
+    }
+
+    It 'blocks a new Apply before mutation when an activation is pending' {
+        $caseRoot = Join-Path $TestDrive 'pending-apply'
+        $backupRoot = Join-Path $caseRoot 'backups'
+        New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
+        [ordered]@{
+            schemaVersion = 1
+            deploymentId = [string]$lock.deploymentId
+            operationId = '20260901T125959000Z'
+            status = 'pending'
+        } | ConvertTo-Json | Set-Content `
+            -LiteralPath (Join-Path $backupRoot 'core-activation-current.json') -Encoding UTF8
+        $catalog = Get-Content -LiteralPath (Join-Path $fixtureRoot 'model-catalog.json') -Raw |
+            ConvertFrom-Json
+
+        {
+            Invoke-WindowsCopilotApply -Lock $lock -DshHome (Join-Path $caseRoot '.dsh') `
+                -NpmGlobalRoot (Join-Path $caseRoot 'global\node_modules') `
+                -HarnessSourceRoot (Join-Path $caseRoot 'missing-core') `
+                -CopilotIntegrationSourceRoot (Join-Path $caseRoot 'missing-provider') `
+                -DesktopArtifactPath (Join-Path $caseRoot 'missing-desktop.exe') `
+                -GatewayArtifactPath (Join-Path $caseRoot 'missing-gateway.exe') `
+                -GatewayInstallRoot (Join-Path $caseRoot 'gateway') `
+                -CoreInstallPrefix (Join-Path $caseRoot 'core') `
+                -BackupRoot $backupRoot -Catalog $catalog
+        } | Should -Throw '*must be rolled back before Apply*'
+        Test-Path -LiteralPath (Join-Path $caseRoot 'core') | Should -Be $false
+        Test-Path -LiteralPath (Join-Path $caseRoot 'gateway') | Should -Be $false
     }
 
     It 'produces a validated Core receipt and accepts the exact healthy baseline' {
@@ -257,9 +634,9 @@ public static class $typeName { public static void Main() {} }
             [pscustomobject]@{
                 ProcessId = 100
                 ParentProcessId = 0
-                Name = 'DeepSeek Harness.exe'
-                ExecutablePath = 'C:\Program Files\DeepSeek Harness\DeepSeek Harness.exe'
-                CommandLine = '"C:\Program Files\DeepSeek Harness\DeepSeek Harness.exe"'
+                Name = 'deepseek-harness-desktop.exe'
+                ExecutablePath = $desktopPath
+                CommandLine = "`"$desktopPath`""
             },
             [pscustomobject]@{
                 ProcessId = 101

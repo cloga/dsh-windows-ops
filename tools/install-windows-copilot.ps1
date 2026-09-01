@@ -17,6 +17,11 @@ param(
     [string]$DshCliPath,
     [string]$DesktopExecutablePath,
     [string]$GatewayExecutablePath,
+    [ValidateSet('Check', 'Apply', 'Verify', 'Rollback')]
+    [string]$Action = 'Check',
+    [string]$OperationId,
+    [switch]$RestartDesktop,
+    [int]$TimeoutSeconds = 90,
     [switch]$SkipRuntimeChecks,
     [switch]$Apply
 )
@@ -29,6 +34,12 @@ if (-not $ManifestPath) {
     $ManifestPath = Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'
 }
 $lock = Read-WindowsCopilotLock -Path $ManifestPath
+if ($Apply) {
+    if ($Action -notin @('Check', 'Apply')) {
+        throw '-Apply cannot be combined with -Action Verify or Rollback.'
+    }
+    $Action = 'Apply'
+}
 
 if (-not $NpmGlobalRoot) {
     $NpmGlobalRoot = (& npm root --global).Trim()
@@ -42,13 +53,54 @@ $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome $DshHome `
     -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot -DesktopArtifactPath $DesktopArtifactPath `
     -GatewayArtifactPath $GatewayArtifactPath -CoreInstallPrefix $CoreInstallPrefix -BackupRoot $BackupRoot
 
-if (-not $Apply) {
+if ($Action -eq 'Rollback') {
+    $rollback = Restore-WindowsCopilotForkCore -Lock $lock -BackupRoot $BackupRoot `
+        -NpmGlobalRoot $NpmGlobalRoot -OperationId $OperationId
+    $restart = if ($RestartDesktop) {
+        $desktop = Get-WindowsCopilotDesktopState -Lock $lock -Path $DesktopExecutablePath
+        if (-not $desktop.valid) {
+            throw 'Rollback completed, but the exact locked Desktop executable is unavailable for restart.'
+        }
+        Restart-WindowsCopilotDesktop -DesktopExecutablePath ([string]$desktop.path) `
+            -TimeoutSeconds $TimeoutSeconds
+    } else {
+        [pscustomobject]@{ status = 'not-requested' }
+    }
+    [pscustomobject]@{
+        mode = 'rollback'
+        rollback = $rollback
+        desktopRestart = $restart
+    } | ConvertTo-Json -Depth 20
+    exit 0
+}
+
+if ($Action -eq 'Verify') {
+    $verification = Test-WindowsCopilotForkCore -Lock $lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
+        -DesktopRoot $(if ($DesktopExecutablePath) { Split-Path -Parent $DesktopExecutablePath } else { $null }) `
+        -DesktopExecutablePath $DesktopExecutablePath `
+        -SkipRuntimeChecks:$SkipRuntimeChecks
+    [pscustomobject]@{
+        mode = 'verify'
+        valid = [bool]$verification.valid
+        forkCore = $verification
+    } | ConvertTo-Json -Depth 20
+    if (-not $verification.valid) { exit 2 }
+    exit 0
+}
+
+if ($Action -eq 'Check') {
     $installation = Test-WindowsCopilotInstallation -Lock $lock -DshHome $DshHome `
         -NpmGlobalRoot $NpmGlobalRoot -ModelCatalogPath $ModelCatalogPath `
         -ComposedConfigPath $ComposedConfigPath -SearchSmokeResponsePath $SearchSmokeResponsePath `
         -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
         -DesktopExecutablePath $DesktopExecutablePath `
         -GatewayExecutablePath $GatewayExecutablePath `
+        -SkipRuntimeChecks:$SkipRuntimeChecks
+    $forkCore = Test-WindowsCopilotForkCore -Lock $lock -NpmGlobalRoot $NpmGlobalRoot `
+        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
+        -DesktopRoot $(if ($DesktopExecutablePath) { Split-Path -Parent $DesktopExecutablePath } else { $null }) `
+        -DesktopExecutablePath $DesktopExecutablePath `
         -SkipRuntimeChecks:$SkipRuntimeChecks
     $checks = [ordered]@{
         manifest = Test-WindowsCopilotLock -Lock $lock
@@ -77,6 +129,7 @@ if (-not $Apply) {
         searchSmoke = if ($SearchSmokeResponsePath) {
             Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $SearchSmokeResponsePath
         } else { [pscustomobject]@{ status = 'manual-or-injectable'; contract = $lock.acceptance.searchSmoke } }
+        forkCore = $forkCore
         installation = $installation
     }
     [pscustomobject]@{ mode = 'check'; plan = $plan; checks = $checks } | ConvertTo-Json -Depth 20
@@ -102,5 +155,6 @@ Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlob
     -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
     -GatewayInstallRoot $GatewayInstallRoot -CoreInstallPrefix $CoreInstallPrefix `
     -BackupRoot $BackupRoot -Catalog $catalog `
-    -DesktopExecutablePath $DesktopExecutablePath |
+    -DesktopExecutablePath $DesktopExecutablePath -RestartDesktop:$RestartDesktop `
+    -TimeoutSeconds $TimeoutSeconds |
     ConvertTo-Json -Depth 20

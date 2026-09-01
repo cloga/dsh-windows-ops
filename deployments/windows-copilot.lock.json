@@ -64,6 +64,9 @@
         "version": "0.1.1-rc.2",
         "packageManager": "pnpm@11.7.0"
       },
+      "capabilities": [
+        "sandbox-same-and-narrower-no-op"
+      ],
       "build": {
         "artifactDirectories": [
           "dist\\npm",
@@ -96,6 +99,21 @@
             "path": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js"
           }
         ]
+      },
+      "activation": {
+        "environmentVariable": "DSH_CLI_PATH",
+        "currentReceipt": "core-activation-current.json",
+        "operationReceipt": "core-activation.json",
+        "conflictShims": [
+          "dsh",
+          "dsh.cmd",
+          "dsh.ps1"
+        ],
+        "conflictShimSha256": {
+          "dsh": "5c0ebf041d893e13eeb0019cb4779fca3bf23c0be4de8bebec3004bfd897efa7",
+          "dsh.cmd": "7add58b833bfdf0696a6a6f08516997af3abb2b570f62a6588478cde78cd4888",
+          "dsh.ps1": "e2c07177f9f20a61ba98e55a4a21a3c6e295ae611fb8ef579bbc1b009e1d9c87"
+        }
       }
     },
     "gateway": {
@@ -407,6 +425,7 @@
     },
     "sandbox": {
       "gate": "Require",
+      "capability": "sandbox-same-and-narrower-no-op",
       "sameAndNarrower": "no-op",
       "widerApprovalCount": 1
     }

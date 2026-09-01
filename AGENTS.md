@@ -38,7 +38,7 @@
 - Treat plugins and the core as separate compatibility layers. Preserve and
   attest Desktop's five official internal-plugin links; never replace them with
   guessed registry packages. The locked installer physically materializes only
-  the reviewed hosted-search provider after each profile package install. Run
+  the reviewed `dsh-github-copilot` integration after each profile package install. Run
   its check plus the repository replay self-check and exact-marker dry run
   before applying unrelated patches.
 

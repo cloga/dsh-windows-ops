@@ -8,7 +8,7 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 |---|---|---:|---|
 | Check the locked Desktop/Core/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply` |
 | Apply the exact locked deployment | Same command with required source/artifact arguments and `-Apply` | High | Installer backups and acceptance report |
-| Enable Copilot search/vision | `powershell.exe -File tools\enable-copilot-search-vision.ps1 -Model '<id>'` | Configuration | Backs up settings and fails closed |
+| Enable the unified Copilot model/search/vision integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 -Model '<id>'` | Configuration | Installs `dsh-github-copilot`, backs up settings, and fails closed |
 | Check versions, endpoints, models, and replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Structured self-check output |
 | Preview replay patches | `powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun` | None | Exact-marker plan only |
 | Diagnose or repair the installation | `node tools\dsh-doctor.mjs` / `--fix` / `--smoke` | None / targeted | Read the report before `--fix`; repairs back up or quarantine where supported |
@@ -29,6 +29,10 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 - **Historical helpers:** scripts whose guides explicitly mark them historical, such as `patch-brand-title.mjs`
 
 Existing paths are intentionally retained so tested commands and links do not break. A future physical reorganization should leave wrappers at old paths until consumers migrate.
+`enable-copilot-search-vision.ps1` is therefore retained as a compatibility
+path even though it now configures the broader `dsh-github-copilot`
+integration. For deployment apply, prefer `-CopilotIntegrationSourceRoot`;
+the old `-ProviderSourceRoot` spelling remains an alias.
 
 ## Plugin validation boundary
 

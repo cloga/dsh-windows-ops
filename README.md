@@ -15,7 +15,7 @@
 | DeepSeek Harness Desktop | 0.9.2 |
 | `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
 | Copilot2API | 0.6.1 |
-| `dsh-web-search-provider` | 0.2.3-cloga.3 |
+| `dsh-github-copilot` | 0.3.0-cloga.1 |
 | Desktop internal plugins | 官方 5 个 0.4.9 组件 |
 
 README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。
@@ -27,7 +27,6 @@ README、插件目录或历史文档中出现一个项目，**不代表它属于
 | 检查或安装锁定的 Windows + Copilot 基线 | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
 | 运行版本、配置、端口、模型和补丁自检 | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | 诊断安装问题并执行定点修复 | [`tools/README.md`](tools/README.md) |
-| 使用 Copilot ACP 子代理 | [`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md) |
 | 选择或评估社区插件 | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
 | 理解插件验证等级 | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | 评估 Computer Use / 浏览器自动化 | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
@@ -66,7 +65,7 @@ node tools\validate-plugin-catalog.mjs
 
 ## 文档地图
 
-- **部署与集成**：`local-core-desktop-copilot.md`、`copilot-acp-subagent.md`、`vision-dual-channel.md`
+- **部署与集成**：`local-core-desktop-copilot.md`、`vision-dual-channel.md`
 - **插件治理**：`docs/plugins/`、`catalog/`
 - **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
 - **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`
@@ -90,9 +89,13 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 当前 lock 使用官方 0.9.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装和 sandbox 策略 | 部署精确 pin `bd520d6e` |
-| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search、传统 Search bridge、Responses replay、图片旁路、reasoning 和 SSE 流 | 部署精确 pin `57dafb1e` / `0.2.3-cloga.3` |
+| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | `dsh-github-copilot` 主代理模型路由、能力发现、Copilot hosted search、传统 Search bridge、Responses replay、图片旁路、reasoning 和 SSE 流；不包含 ACP | 部署精确 pin `78745478` / `0.3.0-cloga.1` |
 | [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | 维护 DSH 集成说明并承接尚未进入官方的改进 | 当前运行 artifact 仍锁定上游官方 0.6.1 |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
+
+历史 ACP 子代理实践仍保留在
+[`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md)，但它是独立的可选集成，
+不属于 `dsh-github-copilot` 的统一主代理模型路径。
 
 改进归属、外部上游状态和验证证据统一维护在 [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md)。发布或升级前以 deployment lock 和兼容矩阵为准，不要根据 README 中的版本字符串自行混搭组件。
 

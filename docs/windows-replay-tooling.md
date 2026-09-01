@@ -17,7 +17,7 @@ Copy-Item tools\dsh-replay.config.example.json $env:LOCALAPPDATA\dsh-replay.json
 
 # Point only to component roots that exist on this computer.
 $env:DSH_DESKTOP_ROOT = 'C:\Path\To\DeepSeek Harness'
-$env:DSH_WEB_SEARCH_PROVIDER_ROOT = 'C:\Path\To\dsh-web-search-provider'
+$env:DSH_GITHUB_COPILOT_ROOT = 'C:\Path\To\dsh-github-copilot'
 $env:COPILOT2API_ROOT = 'C:\Path\To\copilot2api'
 $env:PI_AI_ROOT = 'C:\Path\To\pi-ai'
 
@@ -46,7 +46,7 @@ This does not change the user or machine execution policy.
 
 | Action | Behavior |
 |---|---|
-| `Preflight` | Detect Desktop, `dsh-web-search-provider`, `copilot2api`, and `pi-ai`; report versions and patch compatibility. |
+| `Preflight` | Detect Desktop, `dsh-github-copilot`, `copilot2api`, and `pi-ai`; report versions and patch compatibility. |
 | `SelfCheck` | Add process/port checks, JSON/YAML/profile hashes, local and HTTP model catalog discovery, explicit image-capability metadata, and active-core SlotOutlet compatibility. |
 | `Verify` | Report each patch as `already-applied`, `applicable`, `incompatible`, `target-not-found`, or `component-not-found`. |
 | `Apply -DryRun` | Show what would change without creating state or touching files. |
@@ -83,7 +83,7 @@ The active-core renderer entry verifies the exact `SlotOutlet` export used by
 `dsh-tauri-ui`; it does not patch an unknown renderer. The replay-ID, sandbox
 sanitization, image bypass, and dynamic Copilot model
 discovery entries verify behavior already present in
-`dsh-web-search-provider 0.2.3-cloga.3`; they are labeled `upstreamed`. The Desktop
+`dsh-github-copilot 0.3.0-cloga.1`; they are labeled `upstreamed`. The Desktop
 recovery entry remains a temporary exact-marker patch. Do not put credentials or
 complete local configuration files in the manifest.
 
@@ -92,7 +92,7 @@ complete local configuration files in the manifest.
 | Component | Detection | Replay/self-heal coverage | Validated baseline | Patch lifecycle |
 |---|---|---|---|---|
 | DSH Desktop / local core | Runtime or unpacked package version plus `DSH_CORE_ROOT` or npm flat global layout | Process/port health, active renderer SlotOutlet verification, `--no-open` recovery verification, exact-path restart | Runtime `0.1.0-rc.8`, `0.1.1-rc.2` | Temporary Desktop compatibility marker; remove when upstream exports SlotOutlet. |
-| `dsh-web-search-provider` | `package.json` plus exported `deployment-baseline.json` under `DSH_WEB_SEARCH_PROVIDER_ROOT` or DSH profile | Replay ID, grounded sandbox sanitization, image bypass, Copilot model discovery, orphan filtering, traditional Search bridge, and nonempty-only reasoning | `0.2.3-cloga.3` / exact commit `57dafb1e850c761f0b1866b5652b7fbbc4e65df3` | Fork deployment baseline; installer verifies all seven required capability IDs and the tarball SHA-256. |
+| `dsh-github-copilot` | `package.json` plus exported `deployment-baseline.json` under `DSH_GITHUB_COPILOT_ROOT` or DSH profile | Copilot route composition, model discovery, replay ID, grounded sandbox sanitization, official vision bypass, orphan filtering, traditional Search bridge, runtime compatibility, and nonempty-only reasoning | `0.3.0-cloga.1` / exact commit `78745478c7323f9cb1aff46b2c2f39eaa619fa29` | Fork deployment baseline; installer verifies all ten required capability IDs, `acpSubagents: false`, and the tarball SHA-256. |
 | `copilot2api` | Package or executable under `COPILOT2API_ROOT`; `/v1/models` endpoint | Port/process and model catalog checks | Local service on port `7777` | Verification only; no binary rewriting. |
 | `pi-ai` | `package.json` under `PI_AI_ROOT` or DSH profile | Package version plus model/image catalog data consumed by the provider | Installed `@earendil-works/pi-ai` profile package | Verification only. |
 

@@ -444,7 +444,7 @@ function Test-DshRendererCompatibility {
 function Test-DshCredentialReference {
     param(
         [Parameter(Mandatory)][string]$DshHome,
-        [string]$Reference = 'COPILOT_API_KEY'
+        [string]$Reference = 'COPILOT_GITHUB_TOKEN'
     )
     if ([Environment]::GetEnvironmentVariable($Reference)) { return 'environment' }
     $path = Join-Path $DshHome '.credentials.yaml'
@@ -536,16 +536,24 @@ function Set-DshCopilotSettings {
 $script:SettingsBegin
 llm-pi-ai:
   providers:
-    github-copilot-gateway:
+    github-copilot:
       displayName: GitHub Copilot via copilot2api
-      apiKeyEnv: COPILOT_API_KEY
+      apiKeyEnv: COPILOT_GITHUB_TOKEN
       api: openai-responses
       baseURL: $(ConvertTo-DshSingleQuotedYaml $BaseUrl)
       models:
         - id: $(ConvertTo-DshSingleQuotedYaml $Model)
 $input
+    github-copilot-chat:
+      displayName: GitHub Copilot Chat via copilot2api
+      apiKeyEnv: COPILOT_GITHUB_TOKEN
+      api: openai-completions
+      baseURL: $(ConvertTo-DshSingleQuotedYaml $BaseUrl)
+      models:
+        - id: $(ConvertTo-DshSingleQuotedYaml $Model)
+$input
 agent-default-model:
-  provider: github-copilot-gateway
+  provider: github-copilot
   model: $(ConvertTo-DshSingleQuotedYaml $Model)
 $script:SettingsEnd
 "@
@@ -562,20 +570,18 @@ function Set-DshCopilotProfilePatch {
 $script:ProfileBegin
 - id: web
   config:
-    searchProvider: copilot-hosted
-- id: web-search-deepseek
-  disabled: true
-- id: web-search-provider
+    searchProvider: github-copilot-hosted
+- id: github-copilot
   config:
     enabled: true
-    providers: [github-copilot-gateway]
+    providers: [github-copilot]
     probe: true
 $script:ProfileEnd
 "@
     return Set-DshManagedTextBlock -Path $Path -Begin $script:ProfileBegin -End $script:ProfileEnd `
         -Block $block -ConflictPatterns @(
             '(?m)^\s*-\s+id:\s+web\s*$',
-            '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
+            '(?m)^\s*-\s+id:\s+github-copilot\s*$',
             '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
         ) -DryRun:$DryRun
 }
@@ -602,19 +608,20 @@ function Test-DshCopilotSettings {
     }
     foreach ($marker in @(
         $script:SettingsBegin,
-        'github-copilot-gateway:',
-        'apiKeyEnv: COPILOT_API_KEY',
+        'github-copilot:',
+        'github-copilot-chat:',
+        'apiKeyEnv: COPILOT_GITHUB_TOKEN',
         'api: openai-responses',
         "baseURL: $(ConvertTo-DshSingleQuotedYaml $BaseUrl)",
         "id: $(ConvertTo-DshSingleQuotedYaml $Model)",
         'input: [text, image]',
-        'provider: github-copilot-gateway',
+        'provider: github-copilot',
         "model: $(ConvertTo-DshSingleQuotedYaml $Model)",
         $script:SettingsEnd
     )) {
         if (-not $managed.Contains($marker)) { throw 'DSH settings do not match the managed Copilot route.' }
     }
-    return [pscustomobject]@{ healthy = $true; path = $Path; provider = 'github-copilot-gateway'; model = $Model }
+    return [pscustomobject]@{ healthy = $true; path = $Path; provider = 'github-copilot'; model = $Model }
 }
 
 function New-DshCopilotBackup {
@@ -747,23 +754,23 @@ function Test-DshCopilotProfile {
     $patchPath = Join-Path $profileRoot 'cordis.patch.yml'
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Profile '$Profile' is not initialized." }
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $dependency = $manifest.dependencies.PSObject.Properties['dsh-web-search-provider']
-    if (-not $dependency) { throw "Profile '$Profile' does not install dsh-web-search-provider." }
-    if (@($manifest.dsh.profile.bundles) -notcontains 'dsh-web-search-provider') {
-        throw "Profile '$Profile' does not activate the dsh-web-search-provider bundle."
+    $dependency = $manifest.dependencies.PSObject.Properties['dsh-github-copilot']
+    if (-not $dependency) { throw "Profile '$Profile' does not install dsh-github-copilot." }
+    if (@($manifest.dsh.profile.bundles) -notcontains 'dsh-github-copilot') {
+        throw "Profile '$Profile' does not activate the dsh-github-copilot bundle."
     }
-    $pluginManifest = Join-Path $profileRoot 'node_modules\dsh-web-search-provider\package.json'
+    $pluginManifest = Join-Path $profileRoot 'node_modules\dsh-github-copilot\package.json'
     if (-not (Test-Path -LiteralPath $pluginManifest -PathType Leaf)) {
-        throw "Profile '$Profile' cannot resolve dsh-web-search-provider."
+        throw "Profile '$Profile' cannot resolve dsh-github-copilot."
     }
-    $pluginPatchPath = Join-Path $profileRoot 'node_modules\dsh-web-search-provider\cordis.patch.yml'
+    $pluginPatchPath = Join-Path $profileRoot 'node_modules\dsh-github-copilot\cordis.patch.yml'
     if (-not (Test-Path -LiteralPath $pluginPatchPath -PathType Leaf)) {
         throw "Profile '$Profile' plugin bundle patch is missing."
     }
     $pluginPatch = Get-Content -LiteralPath $pluginPatchPath -Raw -Encoding UTF8
-    if (-not $pluginPatch.Contains('id: web-search-provider') -or
-        -not $pluginPatch.Contains('name: dsh-web-search-provider')) {
-        throw "Profile '$Profile' plugin bundle does not insert web-search-provider."
+    if (-not $pluginPatch.Contains('id: github-copilot') -or
+        -not $pluginPatch.Contains('name: dsh-github-copilot')) {
+        throw "Profile '$Profile' plugin bundle does not insert github-copilot."
     }
     $patch = Get-Content -LiteralPath $patchPath -Raw -Encoding UTF8
     if ([regex]::Matches($patch, [regex]::Escape($script:ProfileBegin)).Count -ne 1 -or
@@ -777,7 +784,7 @@ function Test-DshCopilotProfile {
     $outside = $patch.Substring(0, $start) + $patch.Substring($finish + $script:ProfileEnd.Length)
     foreach ($pattern in @(
         '(?m)^\s*-\s+id:\s+web\s*$',
-        '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
+        '(?m)^\s*-\s+id:\s+github-copilot\s*$',
         '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
     )) {
         if ($outside -match $pattern) { throw "Profile '$Profile' contains unmanaged conflicting search configuration." }
@@ -785,12 +792,10 @@ function Test-DshCopilotProfile {
     foreach ($marker in @(
         $script:ProfileBegin,
         '- id: web',
-        'searchProvider: copilot-hosted',
-        '- id: web-search-deepseek',
-        'disabled: true',
-        '- id: web-search-provider',
+        'searchProvider: github-copilot-hosted',
+        '- id: github-copilot',
         'enabled: true',
-        'providers: [github-copilot-gateway]',
+        'providers: [github-copilot]',
         $script:ProfileEnd
     )) {
         if (-not $managed.Contains($marker)) { throw "Profile '$Profile' is missing managed search configuration." }
@@ -809,8 +814,8 @@ function Invoke-DshVisionProbe {
         return [pscustomobject]@{ mode = 'contract'; healthy = $true; evidence = 'explicit catalog metadata plus openai-responses input contract' }
     }
 
-    $key = [Environment]::GetEnvironmentVariable('COPILOT_API_KEY')
-    if (-not $key) { throw 'Live vision probe requires COPILOT_API_KEY in the process environment.' }
+    $key = [Environment]::GetEnvironmentVariable('COPILOT_GITHUB_TOKEN')
+    if (-not $key) { throw 'Live vision probe requires COPILOT_GITHUB_TOKEN in the process environment.' }
     $png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n0kAAAAASUVORK5CYII='
     $body = @{
         model = $Model

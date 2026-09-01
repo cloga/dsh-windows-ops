@@ -5,7 +5,8 @@ param(
     [string]$NpmGlobalRoot,
     [string]$CoreInstallPrefix,
     [string]$HarnessSourceRoot,
-    [string]$ProviderSourceRoot,
+    [Alias('ProviderSourceRoot')]
+    [string]$CopilotIntegrationSourceRoot,
     [string]$DesktopArtifactPath,
     [string]$GatewayArtifactPath,
     [string]$GatewayInstallRoot = $(Join-Path $env:LOCALAPPDATA 'dsh-windows-ops\bin'),
@@ -38,7 +39,7 @@ if (-not $NpmGlobalRoot) {
 
 $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome $DshHome `
     -NpmGlobalRoot $NpmGlobalRoot -HarnessSourceRoot $HarnessSourceRoot `
-    -ProviderSourceRoot $ProviderSourceRoot -DesktopArtifactPath $DesktopArtifactPath `
+    -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot -DesktopArtifactPath $DesktopArtifactPath `
     -GatewayArtifactPath $GatewayArtifactPath -CoreInstallPrefix $CoreInstallPrefix -BackupRoot $BackupRoot
 
 if (-not $Apply) {
@@ -84,7 +85,7 @@ if (-not $Apply) {
 
 foreach ($required in @{
     HarnessSourceRoot = $HarnessSourceRoot
-    ProviderSourceRoot = $ProviderSourceRoot
+    CopilotIntegrationSourceRoot = $CopilotIntegrationSourceRoot
     DesktopArtifactPath = $DesktopArtifactPath
     GatewayArtifactPath = $GatewayArtifactPath
     ModelCatalogPath = $ModelCatalogPath
@@ -97,7 +98,7 @@ foreach ($required in @{
 
 $catalog = Get-Content -LiteralPath $ModelCatalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
 Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlobalRoot `
-    -HarnessSourceRoot $HarnessSourceRoot -ProviderSourceRoot $ProviderSourceRoot `
+    -HarnessSourceRoot $HarnessSourceRoot -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
     -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
     -GatewayInstallRoot $GatewayInstallRoot -CoreInstallPrefix $CoreInstallPrefix `
     -BackupRoot $BackupRoot -Catalog $catalog `

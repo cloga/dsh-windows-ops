@@ -15,7 +15,7 @@ This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, reco
 | DeepSeek Harness Desktop | 0.9.2 |
 | `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
 | Copilot2API | 0.6.1 |
-| `dsh-web-search-provider` | 0.2.3-cloga.3 |
+| `dsh-github-copilot` | 0.3.0-cloga.1 |
 | Desktop internal plugins | five official 0.4.9 components |
 
 A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline.
@@ -27,7 +27,6 @@ A project appearing in a README, catalog, or historical incident does **not** me
 | Check or install the locked Windows + Copilot baseline | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
 | Check versions, configuration, services, models, and replay patches | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | Diagnose installation problems and apply targeted repairs | [`tools/README.md`](tools/README.md) |
-| Use the Copilot ACP subagent | [`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md) |
 | Choose or evaluate a community plugin | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
 | Understand plugin validation levels | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | Evaluate Computer Use and browser automation | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
@@ -66,7 +65,7 @@ Use each script's header and linked guide for full parameters.
 
 ## Documentation map
 
-- **Deployment and integration:** `local-core-desktop-copilot.md`, `copilot-acp-subagent.md`, `vision-dual-channel.md`
+- **Deployment and integration:** `local-core-desktop-copilot.md`, `vision-dual-channel.md`
 - **Plugin governance:** `docs/plugins/`, `catalog/`
 - **Diagnostics and migration:** `tools/README.md`, `windows-replay-tooling.md`, `session-move-workspace-groups.md`
 - **Incidents and platform issues:** `startup-60s-timeout.md`, `powershell-5.1-pitfalls.md`, `github-network.md`
@@ -90,9 +89,14 @@ This repository does not redistribute Desktop, Core, gateways, or the search pro
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Current lock uses official 0.9.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, and sandbox policy | Deployment pin `bd520d6e` |
-| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search, traditional Search bridge, Responses replay, image bypass, reasoning, and SSE streaming | Deployment pin `57dafb1e` / `0.2.3-cloga.3` |
+| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | `dsh-github-copilot` main-agent model routes, capability discovery, hosted search, traditional Search bridge, Responses replay, image bypass, reasoning, and SSE streaming; no ACP | Deployment pin `78745478` / `0.3.0-cloga.1` |
 | [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | Maintains the DSH integration guide and receives changes not yet accepted upstream | Deployed artifact remains official upstream 0.6.1 |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
+
+The historical ACP subagent practice remains in
+[`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md), but it is a
+separate optional integration and not part of the `dsh-github-copilot`
+unified main-agent model path.
 
 [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) is the single status index for ownership, external-upstream status, and validation evidence. Before publishing or upgrading, follow the deployment lock and compatibility matrix rather than mixing versions from README strings.
 

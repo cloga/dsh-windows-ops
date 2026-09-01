@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "deploymentId": "windows-copilot-2026-08-30",
-  "verifiedDate": "2026-08-30",
+  "deploymentId": "windows-copilot-2026-09-01",
+  "verifiedDate": "2026-09-01",
   "platform": {
     "os": "windows",
     "architecture": "x64",
@@ -115,15 +115,15 @@
         "port": 7777
       }
     },
-    "searchProvider": {
+    "copilotIntegration": {
       "source": {
         "repository": "https://github.com/cloga/dsh-web-search-provider",
-        "pullRequest": 6,
-        "commit": "57dafb1e850c761f0b1866b5652b7fbbc4e65df3"
+        "pullRequest": 10,
+        "commit": "78745478c7323f9cb1aff46b2c2f39eaa619fa29"
       },
       "package": {
-        "name": "dsh-web-search-provider",
-        "version": "0.2.3-cloga.3",
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.1",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
@@ -132,33 +132,43 @@
           "lib/index.js"
         ],
         "artifact": {
-          "name": "dsh-web-search-provider-0.2.3-cloga.3.tgz",
-          "sha256": "8e0bee948bf220b975a809a054a1c8de0168b270db1fd2a0ab8035c49e26819f"
+          "name": "dsh-github-copilot-0.3.0-cloga.1.tgz",
+          "sha256": "264b0ca4923243414cabd84a5e23b77a8a71eb5c767d9b102311e0e75d8b4cda"
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
-          "id": "cloga.dsh-windows-copilot.web-search",
+          "id": "cloga.dsh-github-copilot",
           "kind": "fork-deployment-baseline",
           "sourceCommitPolicy": "exact-external-pin",
           "platform": "windows",
           "node": ">=22.0.0",
-          "dshRelease": "0.1.0-rc.6",
-          "copilotApi": "openai-responses",
+          "dshRelease": "0.1.1-rc.2",
+          "dshDevelopmentRelease": "0.1.2-alpha.3",
+          "dshPeerRange": "^0.1.1-rc.2 || ^0.1.2-alpha.2",
+          "copilotApis": [
+            "openai-responses",
+            "openai-completions"
+          ],
           "modelCatalogEndpoint": "/v1/models",
           "metadataProfile": "optional-copilot-model-capabilities",
+          "mainAgent": true,
+          "acpSubagents": false,
           "requiredCapabilities": [
             "responses-replay-item-id-normalization",
             "grounded-sandbox-escalation",
-            "image-attachment-bypass",
-            "failure-safe-copilot-model-catalog",
+            "official-vision-route-bypass",
+            "github-copilot-model-catalog",
+            "github-copilot-route-composition",
+            "dsh-runtime-compatibility-guard",
             "orphaned-replay-item-filtering",
             "traditional-search-compatibility-bridge",
-            "nonempty-reasoning-blocks"
+            "nonempty-reasoning-blocks",
+            "settings-provider-instance-api"
           ]
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-web-search-provider-0.2.3-cloga.3.tgz",
+        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.1.tgz",
         "commands": [
           ["install", "--frozen-lockfile"],
           ["test"],
@@ -220,7 +230,7 @@
       "dsh-tauri-panel-extension",
       "dsh-tauri-ui",
       "dsh-tauri-worktree",
-      "dsh-web-search-provider"
+      "dsh-github-copilot"
     ],
     "plugins": [
       {
@@ -259,8 +269,8 @@
         "preserve": true
       },
       {
-        "name": "dsh-web-search-provider",
-        "version": "0.2.3-cloga.3",
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.1",
         "source": "built-artifact",
         "materialize": true
       }
@@ -271,22 +281,34 @@
     ],
     "routes": [
       {
-        "id": "github-copilot-gateway",
+        "id": "github-copilot",
         "protocol": "openai-responses",
         "endpointCapability": "/v1/responses",
         "baseURL": "http://127.0.0.1:7777/v1",
-        "apiKeyEnv": "COPILOT2API_API_KEY"
+        "apiKeyEnv": "COPILOT_GITHUB_TOKEN"
       },
       {
         "id": "github-copilot-chat",
         "protocol": "openai-completions",
         "endpointCapability": "/v1/chat/completions",
         "baseURL": "http://127.0.0.1:7777/v1",
-        "apiKeyEnv": "COPILOT2API_API_KEY"
+        "apiKeyEnv": "COPILOT_GITHUB_TOKEN"
       }
     ],
     "forbiddenRouteIds": [
-      "github-copilot"
+      "github-copilot-gateway"
+    ],
+    "legacyCopilotIntegrations": [
+      {
+        "name": "dsh-web-search-provider",
+        "version": "0.2.2",
+        "artifactPattern": "dsh-web-search-provider-0.2.2*.tgz"
+      },
+      {
+        "name": "dsh-web-search-provider",
+        "version": "0.2.3-cloga.3",
+        "artifactPattern": "dsh-web-search-provider-0.2.3-cloga.3.tgz"
+      }
     ]
   },
   "acceptance": {
@@ -318,8 +340,8 @@
         "--dump-config"
       ],
       "requiredMarkers": [
-        "dsh-web-search-provider",
-        "searchProvider: copilot-hosted"
+        "dsh-github-copilot",
+        "searchProvider: github-copilot-hosted"
       ],
       "requiredEntries": [
         {
@@ -331,23 +353,25 @@
           "name": "@deepseek-ai/dsh-tool-web"
         },
         {
-          "id": "web-search-provider",
-          "name": "dsh-web-search-provider"
+          "id": "github-copilot",
+          "name": "dsh-github-copilot"
         }
       ],
       "forbiddenMarkers": [
+        "searchProvider: copilot-hosted",
         "searchProvider: deepseek-official"
       ],
       "forbiddenActiveEntries": [
-        "web-search-deepseek"
+        "web-search-provider"
       ],
       "managedEntry": {
-        "id": "web-search-provider",
+        "id": "github-copilot",
         "enabled": true,
-        "provider": "github-copilot-gateway",
+        "provider": "github-copilot",
         "protocol": "openai-responses",
         "hostEntry": "web",
-        "searchProvider": "copilot-hosted"
+        "settingsNamespace": "github-copilot",
+        "searchProvider": "github-copilot-hosted"
       }
     },
     "loaderImports": [
@@ -370,7 +394,7 @@
       "manualWhenModelIsUnset": true
     },
     "traditionalSearch": {
-      "provider": "copilot-hosted",
+      "provider": "github-copilot-hosted",
       "requiredEvidenceProperty": "sources",
       "forbiddenText": [
         "DEEPSEEK_API_KEY",

@@ -18,8 +18,8 @@
     },
     {
       "id": "web-search-replay-id",
-      "description": "Verify replay item IDs and session request IDs are preserved by the installed provider.",
-      "component": "dsh-web-search-provider",
+      "description": "Verify replay item IDs and session request IDs are preserved by the installed Copilot integration.",
+      "component": "dsh-github-copilot",
       "files": [
         "lib\\index.js",
         "dist\\index.js",
@@ -35,7 +35,7 @@
     {
       "id": "web-search-sandbox-sanitization",
       "description": "Verify ungrounded sandbox escalation arguments are removed while grounded retries are retained.",
-      "component": "dsh-web-search-provider",
+      "component": "dsh-github-copilot",
       "files": [
         "lib\\index.js",
         "dist\\index.js",
@@ -51,32 +51,32 @@
     {
       "id": "web-search-image-bypass",
       "description": "Verify image-bearing requests bypass the text-only inline search wire.",
-      "component": "dsh-web-search-provider",
+      "component": "dsh-github-copilot",
       "files": [
         "lib\\index.js",
         "dist\\index.js",
         "index.js"
       ],
       "verifyMarkers": [
-        "function contentHasImages(request)",
-        "if (contentHasImages(request)) return false;"
+        "function contentHasImageAttachments(request)",
+        "if (contentHasImageAttachments(request)) return false"
       ],
       "upstreamStatus": "upstreamed",
       "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
     },
     {
       "id": "web-search-copilot-model-discovery",
-      "description": "Verify live Copilot model discovery records vision support in the pi-ai catalog.",
-      "component": "dsh-web-search-provider",
+      "description": "Verify live GitHub Copilot model discovery records route and vision capabilities.",
+      "component": "dsh-github-copilot",
       "files": [
         "lib\\index.js",
         "dist\\index.js",
         "index.js"
       ],
       "verifyMarkers": [
-        "function copilotModelsFromListing(body)",
-        "supports.vision === true",
-        "synchronized %d Copilot models"
+        "function modelsFromGitHubCopilotListing",
+        "supported_endpoints",
+        "openai-responses"
       ],
       "upstreamStatus": "upstreamed",
       "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"

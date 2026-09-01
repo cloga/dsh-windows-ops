@@ -57,7 +57,8 @@
       "source": {
         "repository": "https://github.com/cloga/deepseek-harness",
         "pullRequest": 8,
-        "commit": "bd520d6e47e0c9cc690bf6d7211512cb044fd095"
+        "maintenanceBranch": "cloga-local-install-file-attestation",
+        "commit": "ef6b355136af7e9d7f4ed603a5422137c89d44e0"
       },
       "package": {
         "name": "@deepseek-ai/dsh",

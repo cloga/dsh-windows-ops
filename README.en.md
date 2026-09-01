@@ -88,7 +88,7 @@ This repository does not redistribute Desktop, Core, gateways, or the search pro
 | Project | Deployment responsibility | Current relationship |
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Current lock uses official 0.9.2 |
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, and sandbox policy | Deployment pin `bd520d6e` |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, and sandbox policy | Deployment pin `ef6b3551` |
 | [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | `dsh-github-copilot` main-agent model routes, capability discovery, hosted search, traditional Search bridge, Responses replay, image bypass, reasoning, and SSE streaming; no ACP | Deployment pin `78745478` / `0.3.0-cloga.1` |
 | [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | Maintains the DSH integration guide and receives changes not yet accepted upstream | Deployed artifact remains official upstream 0.6.1 |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |

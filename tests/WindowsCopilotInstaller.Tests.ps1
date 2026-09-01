@@ -206,7 +206,8 @@ export function apply(ctx) {
         @($lock.profile.legacyPhysicalPlugins).Count | Should -Be 3
         (@($lock.profile.legacyPhysicalPlugins | Where-Object name -eq 'dsh-tauri'))[0].version |
             Should -Be '0.2.0'
-        $lock.components.core.source.commit | Should -Be 'bd520d6e47e0c9cc690bf6d7211512cb044fd095'
+        $lock.components.core.source.commit | Should -Be 'ef6b355136af7e9d7f4ed603a5422137c89d44e0'
+        $lock.components.core.source.maintenanceBranch | Should -Be 'cloga-local-install-file-attestation'
         $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
         @($lock.components.core.capabilities) | Should -Be @('sandbox-same-and-narrower-no-op')
         $lock.components.core.install.script | Should -Be 'release:install-local'

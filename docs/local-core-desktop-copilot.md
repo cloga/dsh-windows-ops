@@ -140,7 +140,7 @@ The installation described here was verified with:
 |---|---|
 | DSH Desktop | `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437`, setup SHA-256 `F7055155FFDAF1671761D5BA85030009CF3207D4C9C46649C211C2217BB1C1C7` |
 | Local `@deepseek-ai/dsh` | `0.1.1-rc.2` |
-| `cloga/deepseek-harness` | PR #8, `bd520d6e47e0c9cc690bf6d7211512cb044fd095` |
+| `cloga/deepseek-harness` | PR #8 base plus receipt attestation, `ef6b355136af7e9d7f4ed603a5422137c89d44e0` |
 | Node / npm / pnpm | `24.19.0` / `11.17.0` / `11.7.0` |
 | `copilot2api` | `0.6.1`, loopback `127.0.0.1:7777` |
 | Desktop profile plugins | Official internal `dsh-tauri`, panel, panel-extension, UI, and worktree links, all `0.4.9` |
@@ -149,11 +149,13 @@ The installation described here was verified with:
 Record exact versions and the fork commit for each deployment. Treat this table as
 evidence for this installation, not as an unbounded compatibility claim.
 
-The Core pin is PR #8 commit
-`bd520d6e47e0c9cc690bf6d7211512cb044fd095`. It descends from the reviewed
-receipt-installer commit `d931e5482181f41de0b96a9453de5f2112a4fe47`,
-keeps package version `0.1.1-rc.2`, and adds the sandbox same/narrower no-op
-fix while retaining `release:install-local` and its Desktop-compatible receipt.
+The Core pin is maintenance commit
+`ef6b355136af7e9d7f4ed603a5422137c89d44e0` on
+`cloga-local-install-file-attestation`. It descends from PR #8 commit
+`bd520d6e47e0c9cc690bf6d7211512cb044fd095`, keeps package version
+`0.1.1-rc.2`, retains the sandbox same/narrower no-op fix, and adds SHA-256
+attestations for the root shim, npm shim, and CLI entrypoint to the
+`release:install-local` receipt.
 
 ## Build and install the fork core
 
@@ -161,7 +163,7 @@ Use the Node and pnpm versions declared by the Harness repository. From a clean
 checkout of `cloga/deepseek-harness`:
 
 ```powershell
-$expectedCommit = 'bd520d6e47e0c9cc690bf6d7211512cb044fd095'
+$expectedCommit = 'ef6b355136af7e9d7f4ed603a5422137c89d44e0'
 git switch --detach $expectedCommit
 if ((git rev-parse HEAD) -ne $expectedCommit) {
   throw 'Harness checkout does not match the reviewed commit.'

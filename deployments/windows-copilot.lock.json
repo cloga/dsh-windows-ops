@@ -117,7 +117,7 @@
     },
     "copilotIntegration": {
       "source": {
-        "repository": "https://github.com/cloga/dsh-web-search-provider",
+        "repository": "https://github.com/cloga/dsh-github-copilot",
         "pullRequest": 10,
         "commit": "78745478c7323f9cb1aff46b2c2f39eaa619fa29"
       },

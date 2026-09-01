@@ -98,7 +98,7 @@ The installation described here was verified with:
 | Node / npm / pnpm | `24.19.0` / `11.17.0` / `11.7.0` |
 | `copilot2api` | `0.6.1`, loopback `127.0.0.1:7777` |
 | Desktop profile plugins | Official internal `dsh-tauri`, panel, panel-extension, UI, and worktree links, all `0.4.9` |
-| GitHub Copilot integration | `dsh-github-copilot` from `cloga/dsh-web-search-provider` PR #10, `0.3.0-cloga.1`, commit `78745478c7323f9cb1aff46b2c2f39eaa619fa29`, tarball SHA-256 `264B0CA4923243414CABD84A5E23B77A8A71EB5C767D9B102311E0E75D8B4CDA` |
+| GitHub Copilot integration | `dsh-github-copilot` from `cloga/dsh-github-copilot` PR #10, `0.3.0-cloga.1`, commit `78745478c7323f9cb1aff46b2c2f39eaa619fa29`, tarball SHA-256 `264B0CA4923243414CABD84A5E23B77A8A71EB5C767D9B102311E0E75D8B4CDA` |
 
 Record exact versions and the fork commit for each deployment. Treat this table as
 evidence for this installation, not as an unbounded compatibility claim.
@@ -258,7 +258,7 @@ official attachment channel. It intentionally provides no ACP or subagent
 integration.
 
 Use
-[`cloga/dsh-web-search-provider` PR #10](https://github.com/cloga/dsh-web-search-provider/pull/10),
+[`cloga/dsh-github-copilot` PR #10](https://github.com/cloga/dsh-github-copilot/pull/10),
 exact commit `78745478c7323f9cb1aff46b2c2f39eaa619fa29`. Its exported
 `cloga.dsh-github-copilot` baseline has ten required capabilities, including
 model catalog and route composition, the traditional `github-copilot-hosted`

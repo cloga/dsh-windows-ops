@@ -22,7 +22,7 @@
         "sha256": "264b0ca4923243414cabd84a5e23b77a8a71eb5c767d9b102311e0e75d8b4cda"
       },
       "source": {
-        "repository": "https://github.com/cloga/dsh-web-search-provider",
+        "repository": "https://github.com/cloga/dsh-github-copilot",
         "commit": "78745478c7323f9cb1aff46b2c2f39eaa619fa29",
         "release": "0.3.0-cloga.1"
       },

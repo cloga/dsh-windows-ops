@@ -89,7 +89,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 当前 lock 使用官方 0.9.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装和 sandbox 策略 | 部署精确 pin `bd520d6e` |
-| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | `dsh-github-copilot` 主代理模型路由、能力发现、Copilot hosted search、传统 Search bridge、Responses replay、图片旁路、reasoning 和 SSE 流；不包含 ACP | 部署精确 pin `78745478` / `0.3.0-cloga.1` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | `dsh-github-copilot` 主代理模型路由、能力发现、Copilot hosted search、传统 Search bridge、Responses replay、图片旁路、reasoning 和 SSE 流；不包含 ACP | 部署精确 pin `78745478` / `0.3.0-cloga.1` |
 | [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | 维护 DSH 集成说明并承接尚未进入官方的改进 | 当前运行 artifact 仍锁定上游官方 0.6.1 |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 

@@ -10,8 +10,8 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Apply and activate the exact locked fork Core | Same command with required source/artifact arguments, `-Apply -RestartDesktop` | High | Receipt-backed Core, persisted `DSH_CLI_PATH`, quarantined conflicting official npm shims, and rollback receipt |
 | Verify the rc.2 sandbox fix is active | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop backend command line |
 | Roll back Core selection | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -RestartDesktop` | Environment and shim restore | Restores the previous user `DSH_CLI_PATH` and exact backed-up npm global shims |
-| Enable the unified Copilot model/search/vision integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 -Model '<id>' [-CopilotIntegrationPackage '<tgz>']` | Configuration | Installs `dsh-github-copilot`, backs up settings, and fails closed |
-| Check versions, endpoints, models, and replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Structured self-check output |
+| Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<tgz>']` | Configuration | Installs `dsh-github-copilot`, backs up migration state, and returns `sign-in-required` until UI authorization completes |
+| Check versions and direct-provider replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Structured self-check output; no local gateway endpoint |
 | Preview replay patches | `powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun` | None | Exact-marker plan only |
 | Diagnose or repair the installation | `node tools\dsh-doctor.mjs` / `--fix` / `--smoke` | None / targeted | Read the report before `--fix`; repairs back up or quarantine where supported |
 | Check community-plugin host imports | `node tools\dsh-compat-check.mjs <profile> --probe=<package>` | Executes plugin top-level code | `--json` emits L2 evidence; not a functional test |
@@ -35,6 +35,11 @@ Existing paths are intentionally retained so tested commands and links do not br
 path even though it now configures the broader `dsh-github-copilot`
 integration. For deployment apply, prefer `-CopilotIntegrationSourceRoot`;
 the old `-ProviderSourceRoot` spelling remains an alias.
+
+The direct baseline is one DSH plugin reusing built-in `llm-pi-ai`, not an
+embedded gateway. The wrapper never writes provider routes, endpoints, API-key
+references, or model lists. Use **Settings → GitHub Copilot** on rc.2 or the
+**Models** provider card on alpha.3 for the interactive device flow.
 
 ## Plugin validation boundary
 

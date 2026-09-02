@@ -1,119 +1,57 @@
-# Durable Windows replay and self-heal tooling
+# Windows replay tooling
 
-`tools/dsh-replay.ps1` inventories the local integration, verifies known patches,
-applies compatible patches idempotently, and restores the exact pre-change files.
-It never reads or prints token values, `.env` contents, or arbitrary configuration
-content. Configuration checks report only path, parse state, and SHA-256.
+`tools\dsh-replay.ps1` inventories the installed Desktop, local Core,
+`dsh-github-copilot`, and pi-ai packages and verifies exact source markers. It
+does not mutate the active deployment in `SelfCheck`, `Inventory`, or
+`Preflight`.
 
-For a complete Desktop + Copilot installation, first use the locked,
-check-by-default `tools\install-windows-copilot.ps1` workflow. Replay tooling
-repairs exact known markers after installation; it is not a substitute for the
-locked component, route, plugin-materialization, and smoke contracts.
+## Configuration
 
-## Quick start
+Copy `tools\dsh-replay.config.example.json` and override roots only when
+auto-discovery cannot find them:
 
 ```powershell
-Copy-Item tools\dsh-replay.config.example.json $env:LOCALAPPDATA\dsh-replay.json
-
-# Point only to component roots that exist on this computer.
-$env:DSH_DESKTOP_ROOT = 'C:\Path\To\DeepSeek Harness'
-$env:DSH_GITHUB_COPILOT_ROOT = 'C:\Path\To\dsh-github-copilot'
-$env:COPILOT2API_ROOT = 'C:\Path\To\copilot2api'
-$env:PI_AI_ROOT = 'C:\Path\To\pi-ai'
-
-powershell.exe -File tools\dsh-replay.ps1 -Action Preflight -Config $env:LOCALAPPDATA\dsh-replay.json
-powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck -Config $env:LOCALAPPDATA\dsh-replay.json
-powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun -Config $env:LOCALAPPDATA\dsh-replay.json
-powershell.exe -File tools\dsh-replay.ps1 -Action Apply -Config $env:LOCALAPPDATA\dsh-replay.json
+$env:DSH_HOME = "$HOME\.dsh"
+$env:DSH_CORE_ROOT = 'C:\.tools\dsh-cloga\node_modules\@deepseek-ai\dsh'
+$env:DSH_GITHUB_COPILOT_ROOT = "$HOME\.dsh\profiles\web\node_modules\dsh-github-copilot"
 ```
 
-The example configuration uses environment variables and standard install
-locations. Keep local paths in the copied configuration, not in this repository.
-`rootEnv`, `rootCandidates`, `versionProbes`, `fileVersionProbes`, and
-`baseUrlEnv` are optional. Minimal local configurations may omit them; the module
-must remain valid under `Set-StrictMode`.
-
-If local execution policy blocks `.ps1` files, use a process-scoped override:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\dsh-replay.ps1 `
-  -Action SelfCheck -Config $env:LOCALAPPDATA\dsh-replay.json
-```
-
-This does not change the user or machine execution policy.
+There is no active gateway component, service, model endpoint, or port 7777
+check. Legacy gateway detection belongs to the explicit migration contract in
+`deployments\windows-copilot.lock.json`.
 
 ## Commands
 
-| Action | Behavior |
-|---|---|
-| `Preflight` | Detect Desktop, `dsh-github-copilot`, `copilot2api`, and `pi-ai`; report versions and patch compatibility. |
-| `SelfCheck` | Add process/port checks, JSON/YAML/profile hashes, local and HTTP model catalog discovery, explicit image-capability metadata, and active-core SlotOutlet compatibility. |
-| `Verify` | Report each patch as `already-applied`, `applicable`, `incompatible`, `target-not-found`, or `component-not-found`. |
-| `Apply -DryRun` | Show what would change without creating state or touching files. |
-| `Apply` | Back up each target, write through a temporary file, and record a rollback inventory. Re-running is a no-op. |
-| `Rollback [-OperationId ...]` | Restore an operation atomically; without an ID, restore the newest recorded operation. Refuses stale or tampered files by SHA-256. Supports `-DryRun`. |
-| `RecoverDesktop -DryRun` | Resolve the configured executable and show the recovery action. |
-| `RecoverDesktop` | Stop only processes whose executable path exactly matches the configured Desktop executable, restart it, and wait for the configured service check. |
-
-Backups default to `%LOCALAPPDATA%\dsh-windows-ops\backups`. Override with
-`DSH_OPS_STATE_ROOT` or `-StateRoot`. Backups are never stored inside
-`DSH_HOME\sessions`.
-
-## Patch lifecycle
-
-`tools/dsh-replay.patches.json` is intentionally strict. A patch applies only
-when both the component root and an exact known source marker match. Unknown
-versions are reported as `incompatible`; the tool never guesses or performs a
-broad regular-expression rewrite.
-
-Copilot bootstrap additionally invokes
-`tools/dsh-sandbox-regression-probe.mjs` against the active Core. The probe
-does not implement sandbox policy: it calls the installed shared escalation
-helper and verifies the pwsh/bash delegation contract. The reviewed Core pin
-contains the fix and `-SandboxGate Require` is the default fail-closed
-prerequisite.
-
-Each entry labels its lifecycle:
-
-- `upstreamed`: an upstream release or linked pull request contains the durable fix.
-- `temporary`: a local compatibility patch that should be removed after the
-  compatibility matrix confirms the installed version includes the upstream fix.
-
-The active-core renderer entry verifies the exact `SlotOutlet` export used by
-`dsh-tauri-ui`; it does not patch an unknown renderer. The replay-ID, sandbox
-sanitization, image bypass, and dynamic Copilot model
-discovery entries verify behavior already present in
-`dsh-github-copilot 0.3.0-cloga.1`; they are labeled `upstreamed`. The Desktop
-recovery entry remains a temporary exact-marker patch. Do not put credentials or
-complete local configuration files in the manifest.
-
-## Compatibility matrix
-
-| Component | Detection | Replay/self-heal coverage | Validated baseline | Patch lifecycle |
-|---|---|---|---|---|
-| DSH Desktop / local core | Runtime or unpacked package version plus `DSH_CORE_ROOT` or npm flat global layout | Process/port health, active renderer SlotOutlet verification, `--no-open` recovery verification, exact-path restart | Runtime `0.1.0-rc.8`, `0.1.1-rc.2` | Temporary Desktop compatibility marker; remove when upstream exports SlotOutlet. |
-| `dsh-github-copilot` | `package.json` plus exported `deployment-baseline.json` under `DSH_GITHUB_COPILOT_ROOT` or DSH profile | Copilot route composition, model discovery, replay ID, grounded sandbox sanitization, official vision bypass, orphan filtering, traditional Search bridge, runtime compatibility, and nonempty-only reasoning | `0.3.0-cloga.1` / exact commit `78745478c7323f9cb1aff46b2c2f39eaa619fa29` | Fork deployment baseline; installer verifies all ten required capability IDs, `acpSubagents: false`, and the tarball SHA-256. |
-| `copilot2api` | Package or executable under `COPILOT2API_ROOT`; `/v1/models` endpoint | Port/process and model catalog checks | Local service on port `7777` | Verification only; no binary rewriting. |
-| `pi-ai` | `package.json` under `PI_AI_ROOT` or DSH profile | Package version plus model/image catalog data consumed by the provider | Installed `@earendil-works/pi-ai` profile package | Verification only. |
-
-“Marker-driven” means the tool refuses to modify an unrecognized build. This is
-safer than claiming compatibility from a package version alone.
-
-## Tests
-
 ```powershell
-Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser
-Import-Module Pester -RequiredVersion 5.7.1
-Invoke-Pester tests
-node tools\dsh-move-session.selftest.mjs
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\dsh-replay.ps1 -Action SelfCheck
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\dsh-replay.ps1 -Action Inventory
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\dsh-replay.ps1 -Action Apply -DryRun
 ```
 
-The Pester suite uses only temporary fixture trees. It proves dry-run has no side
-effects, repeated application is idempotent, rollback restores the original
-bytes, component versions are detected, omitted optional configuration properties
-remain valid under StrictMode, and traversal outside a component root is rejected.
-`WindowsCopilotInstaller.Tests.ps1` adds fixture-only coverage for source/version
-locks, release hashes, the single global npm transaction, both route protocols,
-pnpm allowBuilds, profile bundle insertion, five official Desktop internal
-plugin links, physical provider byte attestation, composed configuration,
-backups outside sessions, and hosted-search evidence.
+`Apply` remains exact-marker based and backs up changed files. Use dry-run
+before mutation.
+
+## Direct Copilot markers
+
+The `.2` baseline checks:
+
+| Component | Evidence |
+|---|---|
+| `dsh-github-copilot` host | shared `llm-pi-ai/github-copilot` credential record and `models.getAuth()` refresh |
+| Direct hosted search | Copilot request metadata, two-round bounded probe, `github-copilot-hosted`, and direct Copilot endpoint boundary |
+| Client UI | alpha.3 Models provider-card and rc.2 Settings fallback |
+| Core | renderer `SlotOutlet` compatibility and sandbox regression |
+| Desktop | no-open recovery marker where still required |
+
+The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.2`, source commit
+`8af7edb70c07e9da4b451e1ae07d73e99040340e`, artifact SHA-256
+`deb35365b42dfc353ab094a3da7c1e3560708e97ab0c85a82f571b5c2cd38236`.
+
+Replay checks package/source markers only. Credential acceptance is performed
+by the deployment/bootstrap modules and reports record key, kind, and status
+without exposing the grant payload.

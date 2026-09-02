@@ -1,6 +1,6 @@
 {
   "name": "dsh-github-copilot",
-  "version": "0.3.0-cloga.1",
+  "version": "0.3.0-cloga.2",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "dsh": {

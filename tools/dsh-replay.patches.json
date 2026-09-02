@@ -17,69 +17,42 @@
       "upstreamUrl": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs"
     },
     {
-      "id": "web-search-replay-id",
-      "description": "Verify replay item IDs and session request IDs are preserved by the installed Copilot integration.",
+      "id": "github-copilot-shared-credential",
+      "description": "Verify the plugin uses DSH's built-in llm-pi-ai Copilot grant and refresh path.",
       "component": "dsh-github-copilot",
-      "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
-      ],
+      "files": ["lib\\index.js"],
       "verifyMarkers": [
-        "const replayItemId =",
-        "\"x-client-request-id\": String(request.sessionId)"
+        "llm-pi-ai/github-copilot",
+        "models.getAuth(catalogModel)"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
     },
     {
-      "id": "web-search-sandbox-sanitization",
-      "description": "Verify ungrounded sandbox escalation arguments are removed while grounded retries are retained.",
+      "id": "github-copilot-direct-hosted-search",
+      "description": "Verify direct Copilot API metadata, bounded probe retry, and hosted-search bridge.",
       "component": "dsh-github-copilot",
-      "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
-      ],
+      "files": ["lib\\index.js"],
       "verifyMarkers": [
-        "function sanitizeSandboxEscalationArguments",
-        "delete args.sandbox_permissions;"
+        "Openai-Intent",
+        "const RESPONSES_PROBE_ROUNDS = 2;",
+        "github-copilot-hosted",
+        "api.individual.githubcopilot.com"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
     },
     {
-      "id": "web-search-image-bypass",
-      "description": "Verify image-bearing requests bypass the text-only inline search wire.",
+      "id": "github-copilot-models-ui",
+      "description": "Verify alpha.3 provider-card and rc.2 Settings fallback authorization UI.",
       "component": "dsh-github-copilot",
-      "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
-      ],
+      "files": ["lib\\client.js"],
       "verifyMarkers": [
-        "function contentHasImageAttachments(request)",
-        "if (contentHasImageAttachments(request)) return false"
+        "settings.models.provider-card",
+        "GitHubCopilotSettingsSection"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
-    },
-    {
-      "id": "web-search-copilot-model-discovery",
-      "description": "Verify live GitHub Copilot model discovery records route and vision capabilities.",
-      "component": "dsh-github-copilot",
-      "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
-      ],
-      "verifyMarkers": [
-        "const modelsFromGitHubCopilotListing",
-        "supported_endpoints",
-        "openai-responses"
-      ],
-      "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
     },
     {
       "id": "desktop-no-open-recovery",

@@ -3,17 +3,17 @@ param(
     [ValidateSet('Apply', 'Verify', 'Rollback')]
     [string]$Action = 'Apply',
     [string]$Model,
-    [string]$BaseUrl = 'http://127.0.0.1:7777/v1',
     [string]$CopilotIntegrationPackage = 'dsh-github-copilot',
+    [Alias('ProviderPackage')]
+    [string]$PluginPackage,
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }),
     [string]$DshCliPath,
     [string]$DesktopRoot = $env:DSH_DESKTOP_ROOT,
     [string]$StateRoot = $(if ($env:DSH_OPS_STATE_ROOT) { $env:DSH_OPS_STATE_ROOT } else { Join-Path $env:LOCALAPPDATA 'dsh-windows-ops' }),
     [string]$OperationId,
-    [ValidateSet('Contract', 'Live')]
-    [string]$VisionProbe = 'Contract',
     [ValidateSet('Report', 'Require', 'Skip')]
     [string]$SandboxGate = 'Require',
+    [string]$BaseUrl,
     [switch]$DryRun
 )
 
@@ -22,6 +22,10 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot 'DshCopilotBootstrap.psm1') -Force
 
+if ($BaseUrl) {
+    throw '-BaseUrl belongs to the retired copilot2api bootstrap and is not accepted by the direct plugin baseline.'
+}
+if ($PluginPackage) { $CopilotIntegrationPackage = $PluginPackage }
 $DshHome = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DshHome))
 $StateRoot = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($StateRoot))
 $CopilotIntegrationPackage = [Environment]::ExpandEnvironmentVariables($CopilotIntegrationPackage)
@@ -34,16 +38,10 @@ if ($Action -eq 'Rollback') {
         ConvertTo-Json -Depth 8
     exit
 }
-if (-not $Model) { throw '-Model is required for Apply and Verify.' }
 
 $cli = Resolve-DshCliInfo -DshCliPath $DshCliPath
 $core = Test-DshActiveDesktopCore -CliInfo $cli -DesktopRoot $DesktopRoot
 $renderer = Test-DshRendererCompatibility -PackageRoot $cli.packageRoot -DshHome $DshHome
-$credentialSource = Test-DshCredentialReference -DshHome $DshHome
-$catalog = Get-DshCopilotCatalog -BaseUrl $BaseUrl -Model $Model
-if (-not $catalog.selectedModel.visionCapable) {
-    throw "Selected model '$Model' has no explicit image-capability metadata; its name is not evidence."
-}
 $sandbox = Test-DshSandboxRegression -PackageRoot $cli.packageRoot `
     -ProbeScript (Join-Path $PSScriptRoot 'dsh-sandbox-regression-probe.mjs') -Mode $SandboxGate
 
@@ -64,15 +62,7 @@ foreach ($profile in @('web', 'headless')) {
 
 $backup = $null
 $changes = @()
-$profiles = @()
-$settings = $null
-$vision = $null
 if ($Action -eq 'Apply') {
-    Set-DshCopilotSettings -Path $settingsPath -BaseUrl $BaseUrl -Model $Model `
-        -VisionCapable $true -DryRun | Out-Null
-    foreach ($path in $profilePaths) {
-        Set-DshCopilotProfilePatch -Path $path -DryRun | Out-Null
-    }
     $backup = New-DshCopilotBackup -Paths $trackedPaths -StateRoot $StateRoot -DryRun:$DryRun
     try {
         if (-not $DryRun) {
@@ -92,16 +82,21 @@ if ($Action -eq 'Apply') {
                         }
                     }
                     & $cli.cliPath plugin --profile $profile add $CopilotIntegrationPackage | Out-Null
-                    if ($LASTEXITCODE -ne 0) { throw "dsh plugin installation failed for profile '$profile'." }
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "dsh-github-copilot installation failed for profile '$profile'."
+                    }
                 }
             } finally {
                 $env:DSH_HOME = $previousDshHome
             }
         }
-        $changes += Set-DshCopilotSettings -Path $settingsPath -BaseUrl $BaseUrl -Model $Model `
-            -VisionCapable $true -DryRun:$DryRun
+        $changes += Remove-DshLegacyCopilotSettings -Path $settingsPath -DryRun:$DryRun
         foreach ($path in $profilePaths) {
             $changes += Set-DshCopilotProfilePatch -Path $path -DryRun:$DryRun
+        }
+        $credential = Test-DshCopilotCredentialRecord -DshHome $DshHome
+        if ($credential.configured -and $Model) {
+            $changes += Set-DshCopilotModelSelection -Path $settingsPath -Model $Model -DryRun:$DryRun
         }
         if (-not $DryRun) {
             $expectedStates = @($trackedPaths | Select-Object -Unique | ForEach-Object {
@@ -112,34 +107,40 @@ if ($Action -eq 'Apply') {
                     sha256 = if ($exists) { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash } else { $null }
                 }
             })
-            $profiles = @('web', 'headless') | ForEach-Object {
-                Test-DshCopilotProfile -DshHome $DshHome -Profile $_
-            }
-            $settings = Test-DshCopilotSettings -Path $settingsPath -BaseUrl $BaseUrl -Model $Model
-            $vision = Invoke-DshVisionProbe -BaseUrl $BaseUrl -Model $Model -Mode $VisionProbe
             Complete-DshCopilotBackup -StateRoot $StateRoot -OperationId $backup.operationId `
                 -ExpectedStates $expectedStates | Out-Null
-        } else {
-            $vision = Invoke-DshVisionProbe -BaseUrl $BaseUrl -Model $Model -Mode 'Contract'
         }
     } catch {
         if (-not $DryRun -and $backup) {
-            Restore-DshCopilotBackup -StateRoot $StateRoot -OperationId $backup.operationId -ForceIncomplete | Out-Null
+            Restore-DshCopilotBackup -StateRoot $StateRoot -OperationId $backup.operationId -ForceIncomplete |
+                Out-Null
         }
         throw
     }
 } else {
-    $profiles = @('web', 'headless') | ForEach-Object {
-        Test-DshCopilotProfile -DshHome $DshHome -Profile $_
-    }
-    $settings = Test-DshCopilotSettings -Path $settingsPath -BaseUrl $BaseUrl -Model $Model
-    $vision = Invoke-DshVisionProbe -BaseUrl $BaseUrl -Model $Model -Mode $VisionProbe
+    $credential = Test-DshCopilotCredentialRecord -DshHome $DshHome
+}
+
+$profiles = @('web', 'headless') | ForEach-Object {
+    Test-DshCopilotProfile -DshHome $DshHome -Profile $_
+}
+$route = if ($credential.configured) {
+    Test-DshCopilotSettings -Path $settingsPath -Model $Model
+} else {
+    Get-DshCopilotRouteState -SettingsPath $settingsPath
 }
 
 [pscustomobject]@{
-    status = if ($DryRun) { 'dry-run-ok' } else { 'verified' }
+    status = if ($DryRun) { 'dry-run-ok' } elseif (-not $credential.configured) { 'sign-in-required' } else { 'verified' }
     action = $Action
     operationId = if ($backup) { $backup.operationId } else { $null }
+    signIn = if ($credential.configured) {
+        $null
+    } elseif ($cli.version -eq '0.1.1-rc.2') {
+        'Open Settings -> GitHub Copilot and complete the device flow.'
+    } else {
+        'Open Models, select the GitHub Copilot provider card, and complete the device flow.'
+    }
     core = @{
         cliPath = $cli.cliPath
         packageRoot = $cli.packageRoot
@@ -152,15 +153,19 @@ if ($Action -eq 'Apply') {
         activeProcessIds = $core.processIds
     }
     renderer = @{ healthy = $renderer.healthy }
-    credential = @{ reference = 'COPILOT_GITHUB_TOKEN'; source = $credentialSource }
-    gateway = @{
-        modelsUri = $catalog.uri
-        selectedModel = $catalog.selectedModel.id
-        visionEvidence = $catalog.selectedModel.visionEvidence
+    credential = @{
+        record = $credential.record
+        kind = $credential.kind
+        configured = $credential.configured
+        status = $credential.status
+    }
+    provider = @{
+        route = 'github-copilot'
+        referenceFree = [bool]$route.referenceFree
+        availableModels = @($route.availableModels)
+        selectedModel = $Model
     }
     profiles = @($profiles)
-    settings = $settings
-    vision = $vision
     sandbox = $sandbox
     changes = @($changes)
 } | ConvertTo-Json -Depth 10

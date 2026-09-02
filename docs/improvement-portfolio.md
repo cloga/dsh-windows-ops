@@ -3,7 +3,7 @@
 This catalog tracks completed integration work, where the durable implementation
 is owned, and whether it has reached an external upstream project. The controlled
 `cloga/*` forks are described by deployed capability and exact pin, not internal
-PR workflow status. External statuses are a point-in-time view as of 2026-08-30:
+PR workflow status. External statuses are a point-in-time view as of 2026-09-02:
 **Open** does not mean merged or released.
 
 ## Ownership and status
@@ -19,7 +19,7 @@ PR workflow status. External statuses are a point-in-time view as of 2026-08-30:
 | The complete deployment baseline needed replay, sandbox, image, catalog, and orphan filtering fixes under one self-describing artifact. | `cloga/dsh-web-search-provider`, deployment history [`#3`](https://github.com/cloga/dsh-web-search-provider/pull/3) | **Fork default branch** | Linux and Windows CI, 169 tests, typecheck, build, pack, and deployment metadata verification passed. |
 | DSH's traditional `Search` tool could not use Copilot hosted search, and empty Responses/Anthropic reasoning items rendered blank Think cards. The provider now registers `copilot-hosted` in `ctx.web` and lazily opens only nonempty reasoning blocks. | `cloga/dsh-web-search-provider`, history [`#4`](https://github.com/cloga/dsh-web-search-provider/pull/4) | **Fork default branch / 0.2.3-cloga.3** | Linux and Windows CI passed; 184 tests, typecheck, seven-capability baseline verification, build, and pack passed. |
 | The inline parser incorrectly capped total lifetime SSE bytes, rejecting valid long tool-call streams and reporting `UNKNOWN`. It now bounds only one incomplete event and classifies a genuine oversize event as `INVALID_REQUEST`. | `cloga/dsh-web-search-provider`, historical deployment pin `57dafb1e`, history [`#6`](https://github.com/cloga/dsh-web-search-provider/pull/6) | **Fork history / superseded 0.2.3 pin** | 188/188 tests, typecheck, baseline verification, production build, pack, installed import probe, and an 8,455,113-byte cumulative SSE regression passed. |
-| Search-only composition obscured that the integration also owns GitHub Copilot model discovery and Responses/Chat route composition. The package is now `dsh-github-copilot`, uses the `github-copilot` settings namespace and `github-copilot-hosted` Search provider, and explicitly excludes ACP. | [`cloga/dsh-github-copilot#10`](https://github.com/cloga/dsh-github-copilot/pull/10), deployment pin `78745478` | **Current locked baseline / 0.3.0-cloga.1** | Package, Cordis patch, configuration schema, README, ten-capability deployment baseline, and packed SHA-256 were independently pinned by the Windows operations lock. |
+| A gateway-backed package duplicated auth, catalog, route, and token concerns already owned by DSH's built-in pi-ai adapter. The standalone plugin now shares `llm-pi-ai/github-copilot`, adds rc.2/alpha.3 authorization UI, restricts routes to account-available models, refreshes through pi-ai, and sends hosted search directly to Copilot. “All-in-one” means one DSH plugin, not an embedded gateway; ACP remains excluded. | [`cloga/dsh-github-copilot#19`](https://github.com/cloga/dsh-github-copilot/pull/19), deployment pin `8af7edb7` | **Current locked baseline / 0.3.0-cloga.2** | Artifact SHA-256, standalone baseline kind, both supported DSH releases, and exactly seven required capabilities are independently pinned by the Windows operations lock. |
 
 Merged `cloga` fork PRs are deployment inputs, not evidence of acceptance by
 `hiyms`. Prefer an upstream release after the matching upstream PR is merged;
@@ -45,17 +45,17 @@ release commitments.
 |---|---|---|---|
 | A service that became ready after the initial window was left in a stale error state, and silent plugin installs lacked actionable diagnostics. The shell now keeps probing, clears delayed-startup errors, remounts the UI, cancels stale probes, and reports missing manifests. | [`dsh-tauri-desk/deepseek-harness-desktop#118`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/pull/118) | **Merged** | ESLint, typecheck, Vitest 9/9, production build, `cargo check`, and Rust tests 226/226 passed. The unrelated full-prebuild dependency 404 was explicitly documented. |
 | Local integrations needed repeatable detection, exact-marker patching, dry-run, backup, rollback, and recovery rather than one-off machine edits. | [`cloga/dsh-windows-ops#13`](https://github.com/cloga/dsh-windows-ops/pull/13) | **Merged** | Pester 10/10, Windows PowerShell 5.1 self-check, and JavaScript syntax checks passed. See the maintained [replay/self-heal guide and compatibility matrix](windows-replay-tooling.md#compatibility-matrix). |
-| Partial upgrades mixed Desktop 0.9.2 with an old Core/provider and legacy search configuration. The one-shot installer now pins reviewed component commits and bytes, migrates the prior Tauri layout, preserves official internal-plugin junctions, and requires Search, hosted-search, sandbox, and reasoning acceptance. | `cloga/dsh-windows-ops` | **Current deployment baseline** | Pester CI passed; PowerShell 7 and 5.1 suites passed 80/80; final migration and acceptance review passed. |
+| Partial upgrades mixed Desktop 0.9.2 with old Core/plugin and gateway routes. The check-first installer pins reviewed component bytes, preserves official internal-plugin junctions, migrates reviewed gateway/route/reference state with backup, and accepts only the built-in pi-ai grant plus reference-free direct route. | `cloga/dsh-windows-ops#53` | **Current deployment baseline** | Combined installer/bootstrap Pester suites, plugin catalog tests, validator, and default read-only check define the verification gate. |
 
-### `copilot2api`
+### Historical gateway work
 
 | Root cause and validated behavior | Owning change | Status | Validation evidence |
 |---|---|---|---|
 | The integration boundary was undocumented, causing provider/Harness responsibilities to be mistaken for gateway defects. The guide documents `/v1/responses`, hosted web search, official vision routing, and complete `/v1/models` metadata. | [`cloga/copilot2api@5a042b40`](https://github.com/cloga/copilot2api/commit/5a042b4033a845789da5926bb3beea92c4cd7115); upstream [`whtsky/copilot2api#9`](https://github.com/whtsky/copilot2api/pull/9) | **Upstream PR open** | Fork default branch contains the guide. Markdown structure, links, diff, and sensitive-data checks passed. |
 
-Copilot2API did **not** require a functional fix for this portfolio. Replay
-serialization, sandbox cleanup, image routing, picker filtering, and Harness
-settings synchronization are owned by the provider or Harness layers above.
+This is migration history only. The current Windows lock keeps its binary,
+listener, route, and credential-reference signatures under an explicit legacy
+migration contract; none is an active component or success criterion.
 
 ### Historical and optional integrations
 

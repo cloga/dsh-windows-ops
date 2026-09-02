@@ -17,6 +17,20 @@
       "upstreamUrl": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs"
     },
     {
+      "id": "github-copilot-client-module-loader-handoff",
+      "description": "Verify the built client entry hands its exports to the rc.2 Desktop ModuleLoader.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\client.js"],
+      "verifyMarkers": [
+        "window.__ModuleLoader__.load({",
+        "id: \"dsh-github-copilot\"",
+        "factory: (require) => {",
+        "return module.exports;"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/23"
+    },
+    {
       "id": "github-copilot-authorization-bootstrap",
       "description": "Verify rc.2 bootstraps the authorization service while alpha.3 reuses its existing service.",
       "component": "dsh-github-copilot",

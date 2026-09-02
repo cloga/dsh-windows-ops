@@ -9,8 +9,8 @@ is the machine-readable deployment contract.
 |---|---|
 | Desktop | official `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437` |
 | Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `ef6b355136af7e9d7f4ed603a5422137c89d44e0` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.3`, source commit `d6da9f4a0b64cdf18ab3e25581d84b55b8421076`, merge commit `da3ee5657a54874eefe35e4133a3d55663c2de36`, PR #21 |
-| Plugin artifact | `dsh-github-copilot-0.3.0-cloga.3.tgz`, SHA-256 `d7e9c262e2a53cef7f46a7d37b93f9d11bef7ea398fac143c9f588deb5011f1c` |
+| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.4`, source commit `b8b720362598370bc890a82d9a4c25d432d54616`, merge commit `4b6876631942f1bba9410f5ce1b141aea066049f`, PR #23 |
+| Plugin artifact | `dsh-github-copilot-0.3.0-cloga.4.tgz`, SHA-256 `deb25a29ccfc97bf06c9be08b5cf69a7bce18d37b83447728d72afc6f1eb2b45` |
 | Desktop internal plugins | the five official `0.4.9` links |
 
 Do not independently upgrade one component. Update the lock, fixtures, tests,
@@ -27,22 +27,25 @@ reuses built-in `@deepseek-ai/dsh-llm-pi-ai` and pi-ai for:
 - credential record `llm-pi-ai/github-copilot`;
 - serialized token refresh and direct Copilot model transport.
 
-The plugin adds the authorization UI and direct provider-hosted search. It does
-not embed or launch a gateway. The active baseline has no local gateway URL,
-port 7777 listener, placeholder API key, pasted GitHub token, or separate
-search-provider package.
+The plugin adds the authorization UI and direct provider-hosted search. Its
+built client entry hands the plugin id, injected `require`, and materialized
+exports to Desktop's `window.__ModuleLoader__.load` contract. It does not embed
+or launch a gateway. The active baseline has no local gateway URL, port 7777
+listener, placeholder API key, pasted GitHub token, or separate search-provider
+package.
 
-The eight required plugin capabilities are copied exactly from its exported
+The nine required plugin capabilities are copied exactly from its exported
 `deployment-baseline.json`:
 
-1. `authorization-service-bootstrap`
-2. `models-provider-card-authorization`
-3. `reference-free-route-mutation`
-4. `shared-copilot-credential-refresh`
-5. `direct-provider-hosted-search`
-6. `traditional-search-bridge`
-7. `dsh-supported-baselines-fail-loud-guard`
-8. `dsh-rc2-models-settings-fallback`
+1. `client-module-loader-handoff`
+2. `authorization-service-bootstrap`
+3. `models-provider-card-authorization`
+4. `reference-free-route-mutation`
+5. `shared-copilot-credential-refresh`
+6. `direct-provider-hosted-search`
+7. `traditional-search-bridge`
+8. `dsh-supported-baselines-fail-loud-guard`
+9. `dsh-rc2-models-settings-fallback`
 
 The plugin has a runtime dependency on `@deepseek-ai/dsh-authorization` across
 the supported `0.1.1-rc.2` and `0.1.2-alpha.3` ranges. It bootstraps that
@@ -69,7 +72,7 @@ A missing `llm-pi-ai/github-copilot` grant is reported as
 ## Apply the locked Desktop, Core, and plugin
 
 Use exact source checkouts and the locked Desktop artifact. The plugin checkout
-must be at source commit `d6da9f4a0b64cdf18ab3e25581d84b55b8421076`.
+must be at source commit `b8b720362598370bc890a82d9a4c25d432d54616`.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -101,7 +104,7 @@ The historical script name remains as a compatibility wrapper:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\enable-copilot-search-vision.ps1 `
-  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.3.tgz
+  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.4.tgz
 ```
 
 The package argument may also be a registry spec. The wrapper installs the
@@ -143,15 +146,15 @@ not active components or acceptance criteria.
    the exact reviewed binary.
 4. Run locked `-Apply` with the Core/plugin source checkouts and Desktop
    artifact shown above. Do not pass a gateway artifact or model catalog.
-5. Run the compatibility bootstrap with the locked `.3` tarball. It removes
-   the old `.1`, `.2`, or search-plugin dependency, backed-up local route
+5. Run the compatibility bootstrap with the locked `.4` tarball. It removes
+   the old `.1`, `.2`, `.3`, or search-plugin dependency, backed-up local route
    blocks, and the legacy credential reference; it never deletes the new DSH
    grant.
 6. When the result is `sign-in-required`, complete sign-in from the correct
    Desktop UI for the installed DSH version.
 7. Optionally run wrapper `-Action Verify -Model <id>` to select an
    account-available model. Never paste a token into settings.
-8. Run the default installer check again. Success requires the `.3` plugin,
+8. Run the default installer check again. Success requires the `.4` plugin,
    credential grant metadata, reference-free route, direct search composition,
    official internal-plugin links, receipted Core, and only the Desktop
    loopback listener contract.

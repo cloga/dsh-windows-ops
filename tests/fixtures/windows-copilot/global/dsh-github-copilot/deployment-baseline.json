@@ -8,7 +8,7 @@
   },
   "package": {
     "name": "dsh-github-copilot",
-    "version": "0.3.0-cloga.3"
+    "version": "0.3.0-cloga.4"
   },
   "supportedBaselines": {
     "platforms": ["windows", "linux"],
@@ -24,6 +24,7 @@
     }
   },
   "capabilities": [
+    { "id": "client-module-loader-handoff", "required": true },
     { "id": "authorization-service-bootstrap", "required": true },
     { "id": "models-provider-card-authorization", "required": true },
     { "id": "reference-free-route-mutation", "required": true },

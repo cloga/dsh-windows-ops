@@ -597,14 +597,11 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         } finally {
             $env:ARG_CAPTURE_PATH = $previousCapturePath
         }
-        Get-Content -LiteralPath $capturePath -Raw -Encoding UTF8 | ConvertFrom-Json |
-            Should -Be @(
-                '--from', 'release-one',
-                '--from', 'release-two',
-                '--from', 'release-three',
-                '--prefix', 'install-prefix',
-                '--expect-commit', 'a772dbbde82780bff2b9394427e9f0a24cafa1d5',
-                '--expect-version', '0.1.1-rc.2'
+        Get-Content -LiteralPath $capturePath -Raw -Encoding UTF8 |
+            Should -Be (
+                '["--from","release-one","--from","release-two","--from","release-three",' +
+                '"--prefix","install-prefix","--expect-commit",' +
+                '"a772dbbde82780bff2b9394427e9f0a24cafa1d5","--expect-version","0.1.1-rc.2"]'
             )
     }
 

@@ -46,10 +46,11 @@ $sandbox = Test-DshSandboxRegression -PackageRoot $cli.packageRoot `
     -ProbeScript (Join-Path $PSScriptRoot 'dsh-sandbox-regression-probe.mjs') -Mode $SandboxGate
 
 $settingsPath = Join-Path $DshHome 'settings.yaml'
+$credentialsPath = Join-Path $DshHome '.credentials.yaml'
 $profilePaths = @('web', 'headless') | ForEach-Object {
     Join-Path $DshHome (Join-Path (Join-Path 'profiles' $_) 'cordis.patch.yml')
 }
-$trackedPaths = @($settingsPath)
+$trackedPaths = @($settingsPath, $credentialsPath)
 foreach ($profile in @('web', 'headless')) {
     $root = Join-Path $DshHome (Join-Path 'profiles' $profile)
     $trackedPaths += @(
@@ -91,6 +92,7 @@ if ($Action -eq 'Apply') {
             }
         }
         $changes += Remove-DshLegacyCopilotSettings -Path $settingsPath -DryRun:$DryRun
+        $changes += Remove-DshLegacyCopilotCredentialReference -Path $credentialsPath -DryRun:$DryRun
         foreach ($path in $profilePaths) {
             $changes += Set-DshCopilotProfilePatch -Path $path -DryRun:$DryRun
         }

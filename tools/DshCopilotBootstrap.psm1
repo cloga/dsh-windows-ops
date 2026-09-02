@@ -691,21 +691,21 @@ function Remove-DshLegacyCopilotCredentialReference {
         return [pscustomobject]@{ path = $Path; changed = $false; status = 'unchanged' }
     }
     $lines = @(Get-Content -LiteralPath $Path -Encoding UTF8)
-    $matches = @()
+    $matchIndexes = @()
     $inRefs = $false
     for ($i = 0; $i -lt $lines.Count; $i++) {
         if ($lines[$i] -match '^refs\s*:\s*$') { $inRefs = $true; continue }
         if ($inRefs -and $lines[$i] -match '^\S') { $inRefs = $false }
         if ($inRefs -and $lines[$i] -match ("^\s{2}['""]?" + [regex]::Escape($Reference) + "['""]?\s*:")) {
-            $matches += $i
+            $matchIndexes += $i
         }
     }
-    if ($matches.Count -gt 1) { throw "Credential reference '$Reference' is duplicated." }
-    if ($matches.Count -eq 0) {
+    if ($matchIndexes.Count -gt 1) { throw "Credential reference '$Reference' is duplicated." }
+    if ($matchIndexes.Count -eq 0) {
         return [pscustomobject]@{ path = $Path; changed = $false; status = 'unchanged' }
     }
     $next = for ($i = 0; $i -lt $lines.Count; $i++) {
-        if ($i -ne $matches[0]) { $lines[$i] }
+        if ($i -ne $matchIndexes[0]) { $lines[$i] }
     }
     if (-not $DryRun) {
         Set-Content -LiteralPath $Path -Value $next -Encoding UTF8

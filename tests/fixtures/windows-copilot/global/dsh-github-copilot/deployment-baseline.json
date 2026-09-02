@@ -8,7 +8,7 @@
   },
   "package": {
     "name": "dsh-github-copilot",
-    "version": "0.3.0-cloga.6"
+    "version": "0.3.0-cloga.7"
   },
   "supportedBaselines": {
     "platforms": ["windows", "linux"],
@@ -30,6 +30,7 @@
     { "id": "authorization-service-bootstrap", "required": true },
     { "id": "models-provider-card-authorization", "required": true },
     { "id": "reference-free-route-mutation", "required": true },
+    { "id": "per-model-api-route-materialization", "required": true },
     { "id": "shared-copilot-credential-refresh", "required": true },
     { "id": "strict-json-oauth-grant-normalization", "required": true },
     { "id": "direct-provider-hosted-search", "required": true },

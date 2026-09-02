@@ -81,7 +81,25 @@ Describe 'DSH replay patching' {
             'payload: normalizeGrantPayload(credential)'
         )
         $patch[0].upstreamUrl |
-            Should -Be 'https://github.com/cloga/deepseek-harness/commit/ec7aa6518db656de9bbcdfbf7900eb21f2c75c9f'
+            Should -Be 'https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5'
+    }
+
+    It 'locks Core pi-ai per-model API route replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'core-pi-ai-per-model-api-routes')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @(
+            'node_modules\@deepseek-ai\dsh-llm-pi-ai\lib\index.js'
+        )
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'api: z.union(supportedProtocols())',
+            'function assertSupportedModelApis',
+            'const api = entry.api ?? request.api ?? base?.api ?? routeApi;'
+        )
+        $patch[0].upstreamUrl |
+            Should -Be 'https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5'
     }
 
     It 'locks strict remote result codec replay markers' {
@@ -130,6 +148,21 @@ Describe 'DSH replay patching' {
             'payload: normalizeGitHubCopilotOAuthCredential(credential)'
         )
         $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/29'
+    }
+
+    It 'locks per-model API route materialization replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'github-copilot-per-model-api-route-materialization')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\index.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            '[model.id, model.api]',
+            'const effectiveApi = selectedApi ?? routeApi;'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/31'
     }
 
     It 'accepts components without optional root and version properties under StrictMode' {

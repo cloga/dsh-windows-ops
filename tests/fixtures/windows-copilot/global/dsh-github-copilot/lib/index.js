@@ -5,3 +5,8 @@ export const strictJsonOAuthGrantMarkers = [
   'Number.isFinite(expires)',
   'payload: normalizeGitHubCopilotOAuthCredential(credential)',
 ]
+
+export const perModelApiRouteMarkers = [
+  '[model.id, model.api]',
+  'const effectiveApi = selectedApi ?? routeApi;',
+]

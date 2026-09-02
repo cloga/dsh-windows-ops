@@ -9,8 +9,8 @@ is the machine-readable deployment contract.
 |---|---|
 | Desktop | official `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437` |
 | Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `a772dbbde82780bff2b9394427e9f0a24cafa1d5`, maintenance branch `cloga-pi-ai-model-api` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.7`, source commit `37261cfe969d9066842e66296ffa0e8257ef0a1e`, merge commit `a3d0179d8b919785148d08942c1e2622db8e0ead`, PR #31 |
-| Plugin artifact | `dsh-github-copilot-0.3.0-cloga.7.tgz`, SHA-256 `4ee1b5b4346df8b52ce2581ab578bdef175d0998d21ae4ad590ee19567fa980a` |
+| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.8`, source commit `94d921dc7bad4d5035c27ed9543d638694cb7391`, merge commit `eae8b56715e197d5e206a7852bfaa418bbc70dc5`, PR #33 |
+| Plugin artifact | [`dsh-github-copilot-0.3.0-cloga.8.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.8.tgz), SHA-256 `b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32` |
 | Desktop internal plugins | the five official `0.4.9` links |
 
 Do not independently upgrade one component. Update the lock, fixtures, tests,
@@ -42,6 +42,11 @@ The plugin adds the authorization UI and direct provider-hosted search. Its
 built client entry hands the plugin id, injected `require`, and materialized
 exports to Desktop's `window.__ModuleLoader__.load` contract. Client Remote
 calls use strict Zod result codecs so malformed authorization views fail closed.
+When the shared `llm-pi-ai/github-copilot` grant is already valid, activation
+also repairs an absent, empty, or incomplete provider route instead of waiting
+for a new OAuth completion. The repaired route remains reference-free and every
+account-available model retains its installed `id` and `api`, including mixed
+Responses and Chat Completions protocols.
 Before storage or reuse, the Host rebuilds Copilot OAuth grants from validated
 provider-owned fields as a fresh plain JSON object; unrelated extension fields
 are discarded and malformed owned fields fail without exposing their values.
@@ -49,7 +54,7 @@ It does not embed or launch a gateway. The active baseline has no local gateway
 URL, port 7777 listener, placeholder API key, pasted GitHub token, or separate
 search-provider package.
 
-The twelve required plugin capabilities are copied exactly from its exported
+The thirteen required plugin capabilities are copied exactly from its exported
 `deployment-baseline.json`:
 
 1. `client-module-loader-handoff`
@@ -58,12 +63,13 @@ The twelve required plugin capabilities are copied exactly from its exported
 4. `models-provider-card-authorization`
 5. `reference-free-route-mutation`
 6. `per-model-api-route-materialization`
-7. `shared-copilot-credential-refresh`
-8. `strict-json-oauth-grant-normalization`
-9. `direct-provider-hosted-search`
-10. `traditional-search-bridge`
-11. `dsh-supported-baselines-fail-loud-guard`
-12. `dsh-rc2-models-settings-fallback`
+7. `existing-grant-route-self-healing`
+8. `shared-copilot-credential-refresh`
+9. `strict-json-oauth-grant-normalization`
+10. `direct-provider-hosted-search`
+11. `traditional-search-bridge`
+12. `dsh-supported-baselines-fail-loud-guard`
+13. `dsh-rc2-models-settings-fallback`
 
 The plugin has runtime dependencies on `@deepseek-ai/dsh-authorization` across
 the supported `0.1.1-rc.2` and `0.1.2-alpha.4` ranges and on `zod@^4.4.3` for
@@ -83,7 +89,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-co
 Check mode validates the lock, Desktop, the Core receipt and installed-file
 attestation, official Desktop plugin links, the direct plugin payload, composed
 configuration, credential-record metadata, the reference-free Copilot route,
-and Desktop listener ownership. It never treats a legacy gateway as success.
+complete per-model `{id, api}` entries with mixed protocol coverage, and Desktop
+listener ownership. It never treats a legacy gateway as success.
 
 A missing `llm-pi-ai/github-copilot` grant is reported as
 `sign-in-required`. Credential payloads are never included in output.
@@ -91,7 +98,7 @@ A missing `llm-pi-ai/github-copilot` grant is reported as
 ## Apply the locked Desktop, Core, and plugin
 
 Use exact source checkouts and the locked Desktop artifact. The plugin checkout
-must be at source commit `37261cfe969d9066842e66296ffa0e8257ef0a1e`.
+must be at source commit `94d921dc7bad4d5035c27ed9543d638694cb7391`.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -123,7 +130,7 @@ The historical script name remains as a compatibility wrapper:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\enable-copilot-search-vision.ps1 `
-  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.7.tgz
+  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.8.tgz
 ```
 
 The package argument may also be a registry spec. The wrapper installs the
@@ -140,8 +147,10 @@ The shell does not automate the interactive device flow:
 
 Complete the displayed GitHub device flow. DSH writes the shared grant and an
 account-filtered, reference-free route whose model entries retain their exact
-installed `api`. After sign-in, an optional model may be selected only if it
-already appears in that route:
+installed `api`. If the grant already exists but Desktop saved an empty or
+incomplete route, plugin activation self-heals the route without another device
+flow. After sign-in, an optional model may be selected only if it already
+appears in the complete mixed-protocol route:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -166,15 +175,15 @@ not active components or acceptance criteria.
    the exact reviewed binary.
 4. Run locked `-Apply` with the Core/plugin source checkouts and Desktop
    artifact shown above. Do not pass a gateway artifact or model catalog.
-5. Run the compatibility bootstrap with the locked `.5` tarball. It removes
-   the old `.1`, `.2`, `.3`, `.4`, or search-plugin dependency, backed-up local route
+5. Run the compatibility bootstrap with the locked `.8` tarball. It removes
+   the old `.1` through `.7` or search-plugin dependency, backed-up local route
    blocks, and the legacy credential reference; it never deletes the new DSH
    grant.
 6. When the result is `sign-in-required`, complete sign-in from the correct
    Desktop UI for the installed DSH version.
 7. Optionally run wrapper `-Action Verify -Model <id>` to select an
    account-available model. Never paste a token into settings.
-8. Run the default installer check again. Success requires the `.5` plugin,
+8. Run the default installer check again. Success requires the `.8` plugin,
    credential grant metadata, reference-free route, direct search composition,
    official internal-plugin links, receipted Core, and only the Desktop
    loopback listener contract.

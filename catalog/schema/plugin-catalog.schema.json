@@ -46,9 +46,10 @@
         "artifact": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "sha256"],
+          "required": ["name", "url", "sha256"],
           "properties": {
             "name": { "type": "string", "minLength": 1 },
+            "url": { "type": "string", "pattern": "^https://github\\.com/" },
             "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
           }
         },

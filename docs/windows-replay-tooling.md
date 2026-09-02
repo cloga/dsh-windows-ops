@@ -53,9 +53,9 @@ The `.7` baseline checks:
 | Core | renderer `SlotOutlet` compatibility, sandbox regression, and built `llm-pi-ai` strict OAuth JSON normalization plus model-level protocol markers |
 | Desktop | no-open recovery marker where still required |
 
-The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.7`, source commit
-`37261cfe969d9066842e66296ffa0e8257ef0a1e`, artifact SHA-256
-`4ee1b5b4346df8b52ce2581ab578bdef175d0998d21ae4ad590ee19567fa980a`.
+The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.8`, source commit
+`94d921dc7bad4d5035c27ed9543d638694cb7391`, artifact SHA-256
+`b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32`.
 
 Replay checks package/source markers only. Credential acceptance is performed
 by the deployment/bootstrap modules and reports record key, kind, and status

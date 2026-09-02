@@ -10,3 +10,9 @@ export const perModelApiRouteMarkers = [
   '[model.id, model.api]',
   'const effectiveApi = selectedApi ?? routeApi;',
 ]
+
+export const existingGrantRouteSelfHealingMarkers = [
+  'ensureGitHubCopilotProviderProfile(ctx)',
+  'function sameProviderProfile(current, expected)',
+  'normalizeGitHubCopilotOAuthCredential(record.payload)',
+]

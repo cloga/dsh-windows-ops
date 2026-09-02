@@ -205,7 +205,7 @@ records:
         $text | Should -Match 'providers: \[github-copilot\]'
     }
 
-    It 'selects only a model already present in the reference-free account route' {
+    It 'accepts a repaired reference-free route with complete mixed protocol models' {
         $settings = Join-Path $root 'settings.yaml'
         @'
 llm-pi-ai:
@@ -213,15 +213,82 @@ llm-pi-ai:
     github-copilot:
       displayName: GitHub Copilot
       models:
+        - id: responses-model
+          api: openai-responses
         - id: account-model
+          api: openai-completions
 '@ | Set-Content -LiteralPath $settings -Encoding UTF8
-        (Get-DshCopilotRouteState -SettingsPath $settings).referenceFree | Should -Be $true
+        $route = Get-DshCopilotRouteState -SettingsPath $settings
+        $route.referenceFree | Should -Be $true
+        $route.modelsComplete | Should -Be $true
+        $route.mixedProtocolApis | Should -Be $true
+        $route.status | Should -Be 'available'
         (Set-DshCopilotModelSelection -Path $settings -Model account-model).status | Should -Be 'changed'
         { Set-DshCopilotModelSelection -Path $settings -Model unavailable-model } |
             Should -Throw '*not in the signed-in account*'
         $text = Get-Content -LiteralPath $settings -Raw
         $text | Should -Not -Match 'baseURL|apiKeyEnv'
         $text | Should -Match 'provider: github-copilot'
+    }
+
+    It 'accepts complete model entries regardless of id and api field order' {
+        $settings = Join-Path $root 'settings.yaml'
+        @'
+llm-pi-ai:
+  providers:
+    github-copilot:
+      models:
+        - api: openai-responses
+          id: responses-model
+        - id: completions-model
+          api: openai-completions
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+
+        $route = Get-DshCopilotRouteState -SettingsPath $settings
+        $route.status | Should -Be 'available'
+        $route.modelsComplete | Should -Be $true
+        $route.mixedProtocolApis | Should -Be $true
+        @($route.availableModels) | Should -Be @('responses-model', 'completions-model')
+    }
+
+    It 'reports empty and incomplete existing-grant routes as repair required' {
+        $settings = Join-Path $root 'settings.yaml'
+        @'
+llm-pi-ai:
+  providers:
+    github-copilot: {}
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+        $empty = Get-DshCopilotRouteState -SettingsPath $settings
+        $empty.exists | Should -Be $true
+        $empty.status | Should -Be 'route-has-no-models'
+
+        @'
+llm-pi-ai:
+  providers:
+    github-copilot:
+      models:
+        - id: responses-model
+          api: openai-responses
+        - id: incomplete-model
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+        $incomplete = Get-DshCopilotRouteState -SettingsPath $settings
+        $incomplete.modelsComplete | Should -Be $false
+        $incomplete.status | Should -Be 'route-model-api-missing'
+        { Set-DshCopilotModelSelection -Path $settings -Model responses-model } |
+            Should -Throw '*complete reference-free mixed-protocol*'
+
+        @'
+llm-pi-ai:
+  providers:
+    github-copilot:
+      models:
+        - id: responses-model
+          api: openai-responses
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+        $singleProtocol = Get-DshCopilotRouteState -SettingsPath $settings
+        $singleProtocol.modelsComplete | Should -Be $true
+        $singleProtocol.mixedProtocolApis | Should -Be $false
+        $singleProtocol.status | Should -Be 'route-mixed-protocol-apis-missing'
     }
 
     It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {

@@ -14,7 +14,7 @@ This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, reco
 |---|---|
 | DeepSeek Harness Desktop | 0.9.2 |
 | `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
-| `dsh-github-copilot` | 0.3.0-cloga.7 |
+| `dsh-github-copilot` | 0.3.0-cloga.8 |
 | Desktop internal plugins | five official 0.4.9 components |
 
 A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline.
@@ -88,7 +88,7 @@ This repository does not redistribute Desktop, Core, or the Copilot plugin. It p
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Current lock uses official 0.9.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, sandbox policy, strict pi-ai OAuth JSON record normalization, and per-model API routes | Deployment pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | One DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict Remote result codecs, strict JSON OAuth grant normalization, and account-filtered per-model API materialization, using built-in `@deepseek-ai/dsh-llm-pi-ai` for OAuth, token refresh, direct Copilot transport, and hosted search; it bootstraps rc.2 authorization and reuses alpha.4 authorization; no ACP | Deployment pin `37261cfe` / `0.3.0-cloga.7` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | One DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict Remote result codecs, strict JSON OAuth grant normalization, existing-grant route self-heal, and account-filtered per-model API materialization, using built-in `@deepseek-ai/dsh-llm-pi-ai` for OAuth, token refresh, direct Copilot transport, and hosted search; repaired routes remain reference-free with complete mixed-protocol `{id, api}` entries; no ACP | Deployment pin `94d921dc` / `0.3.0-cloga.8` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 
 The historical ACP subagent practice remains in

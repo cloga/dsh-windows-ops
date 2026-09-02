@@ -16,6 +16,19 @@
   through a pull request to the resolved default branch; never push directly to
   `master` or `main`.
 
+## DSH PowerShell sandbox escalation for installation agents
+
+- On an installation agent's initial `pwsh` call, omit `sandbox_permissions`
+  and `justification` entirely.
+- If approval prompts are disabled, never include either field.
+- If the current sandbox mode is `danger-full-access`, never request sandbox
+  escalation.
+- Use both fields only once, when retrying the exact same command after a real
+  sandbox denial, approval is available, and the target mode is strictly wider
+  than the current mode.
+- Omit the keys themselves; do not send them as `null`, empty strings, or the
+  current sandbox mode.
+
 ## DSH Desktop integration baseline
 
 - Treat `deployments/windows-copilot.lock.json` as the authoritative Windows

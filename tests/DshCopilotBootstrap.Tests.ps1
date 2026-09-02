@@ -251,6 +251,42 @@ llm-pi-ai:
         @($route.availableModels) | Should -Be @('responses-model', 'completions-model')
     }
 
+    It 'accepts the plugin-generated flow map and model list route' {
+        $settings = Join-Path $root 'settings.yaml'
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixtures\windows-copilot\settings-flow.yaml') `
+            -Destination $settings
+
+        $route = Get-DshCopilotRouteState -SettingsPath $settings
+
+        $route.status | Should -Be 'available'
+        $route.referenceFree | Should -Be $true
+        $route.modelsComplete | Should -Be $true
+        $route.mixedProtocolApis | Should -Be $true
+        @($route.availableModels) | Should -Be @('gemini-3.6-flash', 'gpt-5.6-sol')
+        (Set-DshCopilotModelSelection -Path $settings -Model 'gpt-5.6-sol').status |
+            Should -Be 'changed'
+    }
+
+    It 'detects forbidden and incomplete fields in flow routes' {
+        $settings = Join-Path $root 'settings.yaml'
+        @'
+llm-pi-ai:
+  providers:
+    github-copilot:
+      {
+        apiKeyEnv: COPILOT_GITHUB_TOKEN,
+        models: [{ id: good, api: openai-responses }, { id: incomplete }],
+      }
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+
+        $route = Get-DshCopilotRouteState -SettingsPath $settings
+
+        $route.status | Should -Be 'legacy-reference-route'
+        $route.referenceFree | Should -Be $false
+        $route.modelsComplete | Should -Be $false
+        @($route.forbiddenKeys) | Should -Contain 'apiKeyEnv'
+    }
+
     It 'reports empty and incomplete existing-grant routes as repair required' {
         $settings = Join-Path $root 'settings.yaml'
         @'
@@ -482,21 +518,64 @@ records:
             Should -Be 'sign-in-required'
     }
 
-    It 'accepts only an active Desktop descendant using the local package' {
+    It 'accepts exact controlled and official Desktop runtime selectors' {
         $cli = [pscustomobject]@{
-            cliPath = 'C:\npm\dsh.cmd'
-            packageRoot = 'C:\npm\node_modules\@deepseek-ai\dsh'
-            entryPath = 'C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js'
+            version = '0.1.1-rc.2'
+            packageRoot = 'C:\controlled\node_modules\@deepseek-ai\dsh'
+            entryPath = 'C:\controlled\node_modules\@deepseek-ai\dsh\lib\bin.js'
         }
-        $processes = @(
-            [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'deepseek-harness-desktop.exe'; CommandLine = 'desktop' },
-            [pscustomobject]@{ ProcessId = 11; ParentProcessId = 10; Name = 'node.exe'; CommandLine = 'node C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js web' }
+        $lock = [pscustomobject]@{
+            components = [pscustomobject]@{
+                desktop = [pscustomobject]@{
+                    runtimeSelectors = @(
+                        [pscustomobject]@{
+                            id = 'controlled-fork'
+                            source = 'controlled-core-receipt'
+                            package = [pscustomobject]@{ version = '0.1.1-rc.2' }
+                        },
+                        [pscustomobject]@{
+                            id = 'desktop-official'
+                            source = 'desktop-managed-download'
+                            root = '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh'
+                            package = [pscustomobject]@{
+                                version = '0.1.2-alpha.4'
+                                entrypoint = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        $controlled = [pscustomobject]@{
+            valid = $true
+            selector = 'controlled-fork'
+            source = 'controlled-core-receipt'
+            version = '0.1.1-rc.2'
+            packageRoot = $cli.packageRoot
+            entryPath = $cli.entryPath
+            processIds = @(11)
+        }
+        (Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
+            -DesktopRuntimeState $controlled).selector | Should -Be 'controlled-fork'
+
+        $officialRoot = [IO.Path]::GetFullPath(
+            [Environment]::ExpandEnvironmentVariables([string]$lock.components.desktop.runtimeSelectors[1].root)
         )
-        (Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes).healthy | Should -Be $true
-        $processes[1].Name = 'cmd.exe'
-        $processes[1].CommandLine = 'cmd.exe /c echo C:\npm\node_modules\@deepseek-ai\dsh\lib\bin.js'
-        { Test-DshActiveDesktopCore -CliInfo $cli -Processes $processes } |
-            Should -Throw '*not running the selected local dsh package*'
+        $official = [pscustomobject]@{
+            valid = $true
+            selector = 'desktop-official'
+            source = 'desktop-managed-download'
+            version = '0.1.2-alpha.4'
+            packageRoot = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh'
+            entryPath = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+            processIds = @(12)
+        }
+        (Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
+            -DesktopRuntimeState $official).selector | Should -Be 'desktop-official'
+
+        $official.version = '0.1.2-alpha.5'
+        { Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
+            -DesktopRuntimeState $official } | Should -Throw '*exact managed path and locked version*'
     }
 
     It 'refuses a renderer without the exact SlotOutlet marker' {
@@ -531,6 +610,20 @@ records:
 
         $result.healthy | Should -Be $true
         $result.renderer | Should -Be (Join-Path $renderer 'client.js')
+    }
+
+    It 'does not require the controlled flat renderer for the official Desktop runtime' {
+        $package = Join-Path $root 'official\node_modules\@deepseek-ai\dsh'
+        $renderer = Join-Path $package 'node_modules\@deepseek-ai\dsh-client-ui-renderer\lib'
+        New-Item -ItemType Directory -Path $renderer -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $renderer 'client.js') `
+            -Value "function SlotOutlet() {}`nexports.SlotOutlet = SlotOutlet;" -Encoding UTF8
+
+        $result = Test-DshRendererCompatibility -PackageRoot $package `
+            -DshHome (Join-Path $root 'home') -RequireFlatFallback:$false
+
+        $result.healthy | Should -Be $true
+        $result.flatRenderer | Should -BeNullOrEmpty
     }
 
     It 'backs up and restores every tracked profile file' {

@@ -156,6 +156,13 @@ plugin in the `web` and `headless` profiles, configures only the plugin and
 references, and reports credential metadata. It does not write provider
 routes, model lists, base URLs, or API-key references.
 
+The wrapper reads `deployments\windows-copilot.lock.json` by default and
+requires the exact locked Desktop executable. It always uses the receipted
+controlled CLI for plugin commands, while the active Desktop backend may use
+either the controlled selector or the exact lock-attested Desktop-managed
+`0.1.2-alpha.4` selector. Override `-DeploymentLockPath` or
+`-DesktopExecutablePath` only for an equivalent reviewed deployment.
+
 The shell does not automate the interactive device flow:
 
 - on `0.1.1-rc.2`, open **Settings → GitHub Copilot**;

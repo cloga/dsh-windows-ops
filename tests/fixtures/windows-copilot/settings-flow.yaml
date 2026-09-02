@@ -1,0 +1,13 @@
+llm-pi-ai:
+  providers:
+    github-copilot:
+      {
+        models:
+          [
+            { id: gemini-3.6-flash, api: openai-completions },
+            { id: gpt-5.6-sol, api: openai-responses },
+          ],
+      }
+agent-default-model:
+  provider: github-copilot
+  model: gpt-5.6-sol

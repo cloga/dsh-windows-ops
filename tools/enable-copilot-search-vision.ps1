@@ -8,7 +8,8 @@ param(
     [string]$PluginPackage,
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }),
     [string]$DshCliPath,
-    [string]$DesktopRoot = $env:DSH_DESKTOP_ROOT,
+    [string]$DeploymentLockPath,
+    [string]$DesktopExecutablePath = $(Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'),
     [string]$StateRoot = $(if ($env:DSH_OPS_STATE_ROOT) { $env:DSH_OPS_STATE_ROOT } else { Join-Path $env:LOCALAPPDATA 'dsh-windows-ops' }),
     [string]$OperationId,
     [ValidateSet('Report', 'Require', 'Skip')]
@@ -21,6 +22,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot 'DshCopilotBootstrap.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'WindowsCopilotDeployment.psm1') -Force
+if (-not $DeploymentLockPath) {
+    $DeploymentLockPath = Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'
+}
 
 if ($BaseUrl) {
     throw '-BaseUrl belongs to the retired copilot2api bootstrap and is not accepted by the direct plugin baseline.'
@@ -40,8 +45,22 @@ if ($Action -eq 'Rollback') {
 }
 
 $cli = Resolve-DshCliInfo -DshCliPath $DshCliPath
-$core = Test-DshActiveDesktopCore -CliInfo $cli -DesktopRoot $DesktopRoot
-$renderer = Test-DshRendererCompatibility -PackageRoot $cli.packageRoot -DshHome $DshHome
+$lock = Read-WindowsCopilotLock -Path $DeploymentLockPath
+$desktop = Get-WindowsCopilotDesktopState -Lock $lock -Path $DesktopExecutablePath
+if (-not $desktop.valid) {
+    throw "The exact locked Desktop is unavailable: '$($desktop.status)'."
+}
+$runtimeCli = [pscustomobject]@{
+    valid = $true
+    version = $cli.version
+    packageRoot = $cli.packageRoot
+    entryPath = $cli.entryPath
+}
+$runtime = Get-WindowsCopilotDesktopRuntimeState -Lock $lock -DesktopExecutablePath ([string]$desktop.path) `
+    -ForkCliInfo $runtimeCli
+$core = Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock -DesktopRuntimeState $runtime
+$renderer = Test-DshRendererCompatibility -PackageRoot $core.packageRoot -DshHome $DshHome `
+    -RequireFlatFallback:($core.selector -ceq 'controlled-fork')
 $sandbox = Test-DshSandboxRegression -PackageRoot $cli.packageRoot `
     -ProbeScript (Join-Path $PSScriptRoot 'dsh-sandbox-regression-probe.mjs') -Mode $SandboxGate
 
@@ -124,7 +143,8 @@ if ($Action -eq 'Apply') {
 }
 
 $profiles = @('web', 'headless') | ForEach-Object {
-    Test-DshCopilotProfile -DshHome $DshHome -Profile $_
+    Test-DshCopilotProfile -DshHome $DshHome -Profile $_ `
+        -ExpectedPluginVersion ([string]$lock.components.copilotIntegration.package.version)
 }
 $route = if ($credential.configured) {
     Test-DshCopilotSettings -Path $settingsPath -Model $Model
@@ -138,7 +158,7 @@ $route = if ($credential.configured) {
     operationId = if ($backup) { $backup.operationId } else { $null }
     signIn = if ($credential.configured) {
         $null
-    } elseif ($cli.version -eq '0.1.1-rc.2') {
+    } elseif ($core.version -eq '0.1.1-rc.2') {
         'Open Settings -> GitHub Copilot and complete the device flow.'
     } else {
         'Open Models, select the GitHub Copilot provider card, and complete the device flow.'
@@ -153,6 +173,9 @@ $route = if ($credential.configured) {
         releaseManifestSha256 = $cli.releaseManifestSha256
         packageCount = $cli.packageCount
         activeProcessIds = $core.processIds
+        desktopRuntimeSelector = $core.selector
+        desktopRuntimeSource = $core.source
+        desktopRuntimeVersion = $core.version
     }
     renderer = @{ healthy = $renderer.healthy }
     credential = @{

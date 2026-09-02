@@ -99,6 +99,8 @@ function Test-WindowsCopilotLock {
         'components.copilotIntegration.package.deploymentBaseline.id',
         'components.copilotIntegration.package.deploymentBaseline.kind',
         'components.copilotIntegration.package.deploymentBaseline.sourceCommitPolicy',
+        'components.copilotIntegration.build.artifactPattern',
+        'components.copilotIntegration.build.commands',
         'profile.lockManifest',
         'profile.legacyPhysicalPlugins',
         'profile.legacyCopilotIntegrations',
@@ -186,6 +188,26 @@ function Test-WindowsCopilotLock {
             $providerAttestedFiles -notcontains $_
         }).Count -gt 0) {
         throw 'Provider installed-file contract must attest the exact server, client, and remote entrypoints.'
+    }
+    $expectedProviderBuildCommands = @(
+        'install --frozen-lockfile',
+        'run typecheck',
+        'run verify:baseline',
+        'exec tsc -p tsconfig.json',
+        'exec tsdown',
+        'test',
+        'pack --pack-destination .\dist'
+    )
+    $providerBuildCommands = @($Lock.components.copilotIntegration.build.commands | ForEach-Object {
+        @($_ | ForEach-Object { [string]$_ }) -join ' '
+    })
+    if ($providerBuildCommands.Count -ne $expectedProviderBuildCommands.Count) {
+        throw 'Provider build contract must preserve the verified clean-source command sequence.'
+    }
+    for ($index = 0; $index -lt $expectedProviderBuildCommands.Count; $index++) {
+        if ($providerBuildCommands[$index] -cne $expectedProviderBuildCommands[$index]) {
+            throw 'Provider build contract must compile and bundle before artifact-dependent tests.'
+        }
     }
     if (@($Lock.components.desktop.install.arguments).Count -eq 0 -or
         @($Lock.components.desktop.install.acceptedExitCodes).Count -eq 0) {

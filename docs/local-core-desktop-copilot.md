@@ -118,6 +118,9 @@ Apply builds and installs the receipted local Core, verifies commit
 Copilot plugin, installs the reviewed loader packages, preserves the five
 official Desktop internal-plugin junctions, physically materializes only the
 Copilot plugin, and activates the local Core through `DSH_CLI_PATH`.
+For a clean plugin checkout, the locked build follows the plugin's verified
+order: install dependencies, typecheck, verify deployment metadata, compile
+with `tsc`, bundle with `tsdown`, run artifact-dependent tests, then pack.
 `-CoreInstallTimeoutSeconds` bounds Core's internal package installation and
 defaults to 900 seconds; it is separate from the 90-second Desktop/runtime
 `-TimeoutSeconds` control.

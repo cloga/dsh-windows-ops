@@ -133,7 +133,7 @@ function Get-DshCopilotRouteState {
     $providersRange = Get-DshYamlBlockRange -Lines $lines -Start $providersStart -Indent 2
     $routeStart = -1
     for ($i = $providersStart + 1; $i -lt $providersRange.end; $i++) {
-        if ($lines[$i] -match '^\s{4}[''"]?github-copilot[''"]?\s*:\s*(?:\{\s*\})?\s*$') {
+        if ($lines[$i] -match '^\s{4}[''"]?github-copilot[''"]?\s*:\s*(?:\{\s*\}|\{\s*)?$') {
             $routeStart = $i
             break
         }
@@ -144,9 +144,10 @@ function Get-DshCopilotRouteState {
     $routeRange = Get-DshYamlBlockRange -Lines $lines -Start $routeStart -Indent 4
     $routeLines = @($lines[$routeStart..($routeRange.end - 1)])
     $forbiddenKeys = @('baseURL', 'apiKeyEnv')
+    $routeText = $routeLines -join "`n"
     $foundForbidden = @($forbiddenKeys | Where-Object {
         $key = [regex]::Escape($_)
-        @($routeLines | Where-Object { $_ -match ("^\s{6}" + $key + '\s*:') }).Count -gt 0
+        $routeText -match ('(?m)(?:^\s*|[{,]\s*)[''"]?' + $key + '[''"]?\s*:')
     })
     $modelRoutes = [Collections.Generic.List[object]]::new()
     $modelsStart = -1
@@ -166,6 +167,34 @@ function Get-DshCopilotRouteState {
             }
         }
         if ($current) { $modelRoutes.Add([pscustomobject]$current) }
+    }
+    $flowModels = [regex]::Match(
+        $routeText,
+        '(?s)(?:^|[\s,{])[''"]?models[''"]?\s*:\s*\[(?<models>.*?)\]'
+    )
+    if ($flowModels.Success) {
+        foreach ($modelMatch in [regex]::Matches($flowModels.Groups['models'].Value, '\{(?<model>[^{}]*)\}')) {
+            $model = [ordered]@{ id = $null; api = $null }
+            $fieldCounts = @{ id = 0; api = 0 }
+            foreach ($fieldMatch in [regex]::Matches(
+                $modelMatch.Groups['model'].Value,
+                '(?:^|,)\s*[''"]?(?<key>id|api)[''"]?\s*:\s*(?<value>[^,}]+)'
+            )) {
+                $key = [string]$fieldMatch.Groups['key'].Value
+                $value = [string]$fieldMatch.Groups['value'].Value.Trim()
+                if (($value.StartsWith("'") -and $value.EndsWith("'")) -or
+                    ($value.StartsWith('"') -and $value.EndsWith('"'))) {
+                    $value = $value.Substring(1, $value.Length - 2)
+                }
+                $fieldCounts[$key]++
+                $model[$key] = $value.Trim()
+            }
+            if ($fieldCounts.id -ne 1 -or $fieldCounts.api -ne 1) {
+                $model.id = $null
+                $model.api = $null
+            }
+            $modelRoutes.Add([pscustomobject]$model)
+        }
     }
     $models = @($modelRoutes | ForEach-Object { $_.id } | Select-Object -Unique)
     $apis = @($modelRoutes | ForEach-Object { $_.api } | Where-Object { $_ } | Select-Object -Unique)
@@ -479,58 +508,72 @@ function Resolve-DshCliInfo {
 function Test-DshActiveDesktopCore {
     param(
         [Parameter(Mandatory)]$CliInfo,
-        [string]$DesktopRoot,
-        [string]$DesktopExecutablePath,
-        [object[]]$Processes
+        [Parameter(Mandatory)]$DeploymentLock,
+        [Parameter(Mandatory)]$DesktopRuntimeState
     )
-
-    if ($null -eq $Processes) {
-        $Processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
-    }
-    $desktop = @($Processes | Where-Object {
-        [string]$_.Name -match '^(?:DeepSeek Harness|deepseek-harness-desktop)(?:\.exe)?$' -and
-        (-not $DesktopExecutablePath -or (
-            $_.ExecutablePath -and
-            [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq
-                [IO.Path]::GetFullPath($DesktopExecutablePath)
-        ))
+    $selectors = @($DeploymentLock.components.desktop.runtimeSelectors)
+    $controlled = @($selectors | Where-Object {
+        [string]$_.id -ceq 'controlled-fork' -and
+        [string]$_.source -ceq 'controlled-core-receipt'
     })
-    if ($desktop.Count -eq 0) { throw 'No active DSH Desktop process was found.' }
-
-    $descendants = [Collections.Generic.HashSet[int]]::new()
-    foreach ($item in $desktop) { [void]$descendants.Add([int]$item.ProcessId) }
-    do {
-        $added = $false
-        foreach ($item in $Processes) {
-            if ($descendants.Contains([int]$item.ParentProcessId) -and $descendants.Add([int]$item.ProcessId)) {
-                $added = $true
-            }
-        }
-    } while ($added)
-
-    $entryPath = ([string]$CliInfo.entryPath).Replace('/', '\')
-    if (-not $entryPath) { throw 'The receipted dsh entry point is missing.' }
-    $entryPattern = '(?i)(?:^|[\s"''])' + [regex]::Escape($entryPath) + '(?:$|[\s"''])'
-    $active = @($Processes | Where-Object {
-        $descendants.Contains([int]$_.ProcessId) -and
-        [string]$_.Name -match '^node(?:\.exe)?$' -and
-        $_.CommandLine -and
-        ([string]$_.CommandLine).Replace('/', '\') -match $entryPattern
+    $official = @($selectors | Where-Object {
+        [string]$_.id -ceq 'desktop-official' -and
+        [string]$_.source -ceq 'desktop-managed-download'
     })
-    if ($active.Count -eq 0) { throw 'Desktop is not running the selected local dsh package.' }
-    if ($DesktopRoot) {
-        $desktopPrefix = [IO.Path]::GetFullPath($DesktopRoot).TrimEnd('\') + '\'
-        if ($CliInfo.packageRoot.StartsWith($desktopPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-            throw 'The selected dsh package is inside the Desktop packaged-core directory.'
-        }
+    if ($controlled.Count -ne 1 -or $official.Count -ne 1) {
+        throw 'The deployment lock does not define the exact supported Desktop runtime selectors.'
     }
-    return [pscustomobject]@{ healthy = $true; processIds = @($active | Select-Object -ExpandProperty ProcessId) }
+    if ([string]$CliInfo.version -cne [string]$controlled[0].package.version) {
+        throw 'The receipted controlled CLI version does not match the deployment lock.'
+    }
+    if (-not [bool]$DesktopRuntimeState.valid) {
+        throw "Desktop runtime selector is not accepted: '$($DesktopRuntimeState.status)'."
+    }
+
+    $selector = [string]$DesktopRuntimeState.selector
+    if ($selector -ceq 'controlled-fork') {
+        if ([string]$DesktopRuntimeState.source -cne [string]$controlled[0].source -or
+            [string]$DesktopRuntimeState.version -cne [string]$controlled[0].package.version -or
+            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.entryPath) -ine
+                [IO.Path]::GetFullPath([string]$CliInfo.entryPath)) {
+            throw 'Desktop controlled-fork runtime does not match the receipted controlled CLI.'
+        }
+    } elseif ($selector -ceq 'desktop-official') {
+        $officialRoot = [IO.Path]::GetFullPath(
+            [Environment]::ExpandEnvironmentVariables([string]$official[0].root)
+        )
+        $expectedPackageRoot = [IO.Path]::GetFullPath(
+            (Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh')
+        )
+        $expectedEntry = [IO.Path]::GetFullPath(
+            (Join-Path $officialRoot ([string]$official[0].package.entrypoint))
+        )
+        if ([string]$DesktopRuntimeState.source -cne [string]$official[0].source -or
+            [string]$DesktopRuntimeState.version -cne [string]$official[0].package.version -or
+            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.packageRoot) -ine $expectedPackageRoot -or
+            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.entryPath) -ine $expectedEntry) {
+            throw 'Desktop official runtime does not match the exact managed path and locked version.'
+        }
+    } else {
+        throw "Unsupported Desktop runtime selector '$selector'."
+    }
+
+    return [pscustomobject]@{
+        healthy = $true
+        selector = $selector
+        source = [string]$DesktopRuntimeState.source
+        version = [string]$DesktopRuntimeState.version
+        packageRoot = [string]$DesktopRuntimeState.packageRoot
+        entryPath = [string]$DesktopRuntimeState.entryPath
+        processIds = @($DesktopRuntimeState.processIds)
+    }
 }
 
 function Test-DshRendererCompatibility {
     param(
         [Parameter(Mandatory)][string]$PackageRoot,
-        [Parameter(Mandatory)][string]$DshHome
+        [Parameter(Mandatory)][string]$DshHome,
+        [bool]$RequireFlatFallback = $true
     )
 
     $packageNodeModules = Split-Path -Parent (Split-Path -Parent $PackageRoot)
@@ -553,6 +596,9 @@ function Test-DshRendererCompatibility {
         throw 'Renderer SlotOutlet export is absent. Apply the Desktop exact-marker patch before bootstrap.'
     }
     $flatRenderer = Join-Path $DshHome 'profiles\node_modules\@deepseek-ai\dsh-client-ui-renderer\lib\client.js'
+    if (-not $RequireFlatFallback) {
+        return [pscustomobject]@{ healthy = $true; renderer = $renderer; flatRenderer = $null }
+    }
     if (-not (Test-Path -LiteralPath $flatRenderer -PathType Leaf)) {
         throw 'The DSH profiles flat module fallback does not expose the active renderer.'
     }
@@ -956,7 +1002,8 @@ function Restore-DshCopilotBackup {
 function Test-DshCopilotProfile {
     param(
         [Parameter(Mandatory)][string]$DshHome,
-        [Parameter(Mandatory)][string]$Profile
+        [Parameter(Mandatory)][string]$Profile,
+        [Parameter(Mandatory)][string]$ExpectedPluginVersion
     )
     $profileRoot = Join-Path $DshHome (Join-Path 'profiles' $Profile)
     $manifestPath = Join-Path $profileRoot 'package.json'
@@ -1009,7 +1056,11 @@ function Test-DshCopilotProfile {
     )) {
         if (-not $managed.Contains($marker)) { throw "Profile '$Profile' is missing managed search configuration." }
     }
-    return [pscustomobject]@{ profile = $Profile; healthy = $true; pluginVersion = [string](Get-Content $pluginManifest -Raw | ConvertFrom-Json).version }
+    $pluginVersion = [string](Get-Content $pluginManifest -Raw | ConvertFrom-Json).version
+    if ($pluginVersion -cne $ExpectedPluginVersion) {
+        throw "Profile '$Profile' resolves dsh-github-copilot@$pluginVersion instead of locked $ExpectedPluginVersion."
+    }
+    return [pscustomobject]@{ profile = $Profile; healthy = $true; pluginVersion = $pluginVersion }
 }
 
 function Invoke-DshVisionProbe {

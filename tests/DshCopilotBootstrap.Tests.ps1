@@ -150,6 +150,29 @@ legacy
         Get-Content -LiteralPath $settings -Raw | Should -Be $before
     }
 
+    It 'removes the reviewed legacy credential reference without changing records' {
+        $path = Join-Path $root '.credentials.yaml'
+        @'
+version: 1
+refs:
+  COPILOT_GITHUB_TOKEN: legacy/copilot
+records:
+  legacy/copilot:
+    kind: api-key
+    payload:
+      version: 1
+      secret: redacted-test-value
+'@ | Set-Content -LiteralPath $path -Encoding UTF8
+
+        $result = Remove-DshLegacyCopilotCredentialReference -Path $path
+        $text = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+
+        $result.changed | Should -Be $true
+        $text | Should -Not -Match '(?m)^\s{2}COPILOT_GITHUB_TOKEN\s*:'
+        $text | Should -Match '(?m)^\s{2}legacy/copilot\s*:'
+        (Remove-DshLegacyCopilotCredentialReference -Path $path).changed | Should -Be $false
+    }
+
     It 'is idempotent for direct plugin profile patches' {
         $patch = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $patch -Value "[]`n" -Encoding UTF8

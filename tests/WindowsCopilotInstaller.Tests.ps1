@@ -710,10 +710,15 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
             '--from', [IO.Path]::GetFullPath($landlockReleaseRoot),
             '--prefix', [IO.Path]::GetFullPath($receiptPrefix),
             '--expect-commit', [string]$lock.components.core.source.commit,
-            '--expect-version', [string]$lock.components.core.package.version
+            '--expect-version', [string]$lock.components.core.package.version,
+            '--install-timeout-ms', '900000'
         )
         @($script:coreInstallCommand.arguments | Where-Object { $_ -ceq '--' }).Count | Should -Be 0
-        Should -Invoke Invoke-LockedCommand -ModuleName WindowsCopilotDeployment -Times 1 -Exactly
+        Install-WindowsCopilotCoreRelease -Lock $lock -SourceRoot $sourceRoot `
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -CoreRelease $coreRelease `
+            -CoreInstallTimeoutSeconds 1200 | Out-Null
+        $script:coreInstallCommand.arguments[-2..-1] | Should -Be @('--install-timeout-ms', '1200000')
+        Should -Invoke Invoke-LockedCommand -ModuleName WindowsCopilotDeployment -Times 2 -Exactly
         $core.commitSha | Should -Be $lock.components.core.source.commit
         Test-Path -LiteralPath $core.receiptPath | Should -Be $true
         $core.installedFileCount | Should -Be 3
@@ -1181,6 +1186,20 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         $missingBundle.profile.bundleValid | Should -Be $false
         @($missingBundle.drift.reasons) | Should -Contain 'profile-bundle-drift'
         $missingBundle.drift.remediation.status | Should -Not -Be 'not-required'
+    }
+
+    It 'rejects invalid or overflowing Core install timeout seconds' {
+        $arguments = @{
+            Lock = $lock
+            SourceRoot = $TestDrive
+            NpmGlobalRoot = (Join-Path $TestDrive 'global\node_modules')
+            CoreInstallPrefix = (Join-Path $TestDrive 'core')
+            CoreRelease = [pscustomobject]@{}
+        }
+        { Install-WindowsCopilotCoreRelease @arguments -CoreInstallTimeoutSeconds 0 } |
+            Should -Throw '*CoreInstallTimeoutSeconds*'
+        { Install-WindowsCopilotCoreRelease @arguments -CoreInstallTimeoutSeconds 2147484 } |
+            Should -Throw '*CoreInstallTimeoutSeconds*'
     }
 
     It 'atomically migrates the exact legacy physical Tauri profile state' {

@@ -12,6 +12,7 @@ auto-discovery cannot find them:
 
 ```powershell
 $env:DSH_HOME = "$HOME\.dsh"
+$env:DSH_DESKTOP_ROOT = "$env:LOCALAPPDATA\Deepseek Harness Desktop"
 $env:DSH_CORE_ROOT = 'C:\.tools\dsh-cloga\node_modules\@deepseek-ai\dsh'
 $env:DSH_GITHUB_COPILOT_ROOT = "$HOME\.dsh\profiles\web\node_modules\dsh-github-copilot"
 ```
@@ -38,7 +39,7 @@ before mutation.
 
 ## Direct Copilot markers
 
-The `.7` baseline checks:
+The `.8` baseline checks:
 
 | Component | Evidence |
 |---|---|
@@ -51,7 +52,7 @@ The `.7` baseline checks:
 | Direct hosted search | Copilot request metadata, two-round bounded probe, `github-copilot-hosted`, and direct Copilot endpoint boundary |
 | Client UI | alpha.4 Models provider-card and rc.2 Settings fallback |
 | Core | renderer `SlotOutlet` compatibility, sandbox regression, and built `llm-pi-ai` strict OAuth JSON normalization plus model-level protocol markers |
-| Desktop | no-open recovery marker where still required |
+| Desktop | official 0.10.2 `deepseek-harness-desktop.exe` inventory and no-open recovery marker where still required |
 
 The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.8`, source commit
 `94d921dc7bad4d5035c27ed9543d638694cb7391`, artifact SHA-256

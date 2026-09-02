@@ -10,16 +10,16 @@
   },
   "components": {
     "desktop": {
-      "version": "0.9.2",
+      "version": "0.10.2",
       "source": {
         "repository": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop",
-        "releaseTag": "v0.9.2",
-        "commit": "c7c5a247961b1ca2d7389026ad7194ac108e5437"
+        "releaseTag": "v0.10.2",
+        "commit": "2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63"
       },
       "artifact": {
-        "name": "Deepseek.Harness.Desktop_0.9.2_x64-setup.exe",
-        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.9.2/Deepseek.Harness.Desktop_0.9.2_x64-setup.exe",
-        "sha256": "f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7"
+        "name": "Deepseek.Harness.Desktop_0.10.2_x64-setup.exe",
+        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe",
+        "sha256": "54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa"
       },
       "install": {
         "arguments": ["/S"],
@@ -28,28 +28,28 @@
       "internalPlugins": [
         {
           "name": "dsh-tauri",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri"
         },
         {
           "name": "dsh-tauri-panel",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-panel"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-panel"
         },
         {
           "name": "dsh-tauri-panel-extension",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-panel-extension"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-panel-extension"
         },
         {
           "name": "dsh-tauri-ui",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-ui"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-ui"
         },
         {
           "name": "dsh-tauri-worktree",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-worktree"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-worktree"
         }
       ]
     },
@@ -243,35 +243,35 @@
     "plugins": [
       {
         "name": "dsh-tauri",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-panel",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-panel-extension",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-ui",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-worktree",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true

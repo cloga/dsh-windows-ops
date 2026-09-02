@@ -5,6 +5,10 @@ window.__ModuleLoader__.load({
     var exports = module.exports;
     exports.apply = function apply() {};
     exports.inject = ["api", "settings"];
+    exports.markers = [
+      "settings.models.provider-card",
+      "GitHubCopilotSettingsSection"
+    ];
     return module.exports;
   }
 });

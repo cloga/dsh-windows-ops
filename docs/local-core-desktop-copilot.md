@@ -7,11 +7,12 @@ is the machine-readable deployment contract.
 
 | Component | Locked identity |
 |---|---|
-| Desktop | official `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437` |
+| Desktop | official `0.10.2`, commit `2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63` |
 | Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `a772dbbde82780bff2b9394427e9f0a24cafa1d5`, maintenance branch `cloga-pi-ai-model-api` |
 | Copilot plugin | `dsh-github-copilot@0.3.0-cloga.8`, source commit `94d921dc7bad4d5035c27ed9543d638694cb7391`, merge commit `eae8b56715e197d5e206a7852bfaa418bbc70dc5`, PR #33 |
 | Plugin artifact | [`dsh-github-copilot-0.3.0-cloga.8.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.8.tgz), SHA-256 `b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32` |
-| Desktop internal plugins | the five official `0.4.9` links |
+| Desktop artifact | [`Deepseek.Harness.Desktop_0.10.2_x64-setup.exe`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe), SHA-256 `54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa` |
+| Desktop internal plugins | the five official `0.6.7` links into `resources\node_modules` |
 
 Do not independently upgrade one component. Update the lock, fixtures, tests,
 catalog, and this guide together after a new baseline is verified.
@@ -106,7 +107,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -Apply `
   -HarnessSourceRoot C:\src\deepseek-harness `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
-  -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.9.2_x64-setup.exe `
+  -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.10.2_x64-setup.exe `
   -CoreInstallPrefix C:\.tools\dsh-cloga `
   -BackupRoot C:\dsh-ops-backups
 ```

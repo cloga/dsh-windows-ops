@@ -854,6 +854,41 @@ basedir=$(dirname "$0")
         $materialize.plugins | Should -Be @('dsh-github-copilot')
     }
 
+    It 'accepts and preserves exact official Desktop link dependencies' {
+        $caseRoot = Join-Path $TestDrive 'official-link-dependencies'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $expectedDependencies = @{}
+        foreach ($plugin in @($lock.components.desktop.internalPlugins)) {
+            $target = Join-Path (Split-Path -Parent $desktopPath) ([string]$plugin.relativePath)
+            $dependency = 'link:' + ([IO.Path]::GetFullPath($target).Replace('\', '/'))
+            $profile.dependencies | Add-Member -NotePropertyName ([string]$plugin.name) `
+                -NotePropertyValue $dependency
+            $expectedDependencies[[string]$plugin.name] = $dependency
+        }
+        $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+
+        $module = Get-Module WindowsCopilotDeployment
+        $plan = & $module {
+            param($Lock, $DshHome, $DesktopExecutablePath)
+            Get-WindowsCopilotProfileMigrationPlan -Lock $Lock -DshHome $DshHome `
+                -DesktopExecutablePath $DesktopExecutablePath
+        } $lock $dshHome $desktopPath
+
+        @($plan.dependenciesToRemove).Count | Should -Be 0
+        $preserved = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($plugin in @($lock.components.desktop.internalPlugins)) {
+            $preserved.dependencies.([string]$plugin.name) |
+                Should -Be $expectedDependencies[[string]$plugin.name]
+        }
+    }
+
     It 'fails closed when the retired gateway catalog helper is called' {
         { Get-WindowsCopilotRouteModels -Lock $lock -Catalog $catalog } |
             Should -Throw '*direct baseline uses the account-available built-in pi-ai route*'
@@ -874,6 +909,14 @@ basedir=$(dirname "$0")
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         $legacyProfile = Get-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Raw | ConvertFrom-Json
+        $expectedOfficialDependencies = @{}
+        foreach ($plugin in @($lock.components.desktop.internalPlugins)) {
+            $target = Join-Path (Split-Path -Parent $desktopPath) ([string]$plugin.relativePath)
+            $dependency = 'link:' + ([IO.Path]::GetFullPath($target).Replace('\', '/'))
+            $legacyProfile.dependencies | Add-Member -NotePropertyName ([string]$plugin.name) `
+                -NotePropertyValue $dependency
+            $expectedOfficialDependencies[[string]$plugin.name] = $dependency
+        }
         $legacyProfile.dependencies | Add-Member -NotePropertyName 'dsh-web-search-provider' `
             -NotePropertyValue '0.2.3-cloga.3'
         $legacyProfile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
@@ -907,9 +950,10 @@ basedir=$(dirname "$0")
         $profile.dependencies.'fixture-dependency' | Should -Be '1.0.0'
         $profile.dependencies.'dsh-github-copilot' | Should -Match '^file:\.\./\.\./artifacts/'
         $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-web-search-provider'
-        $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-tauri'
-        $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-tauri-ui'
-        $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain 'dsh-tauri-worktree'
+        foreach ($plugin in @($lock.components.desktop.internalPlugins)) {
+            $profile.dependencies.([string]$plugin.name) |
+                Should -Be $expectedOfficialDependencies[[string]$plugin.name]
+        }
         @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-github-copilot' }).Count | Should -Be 1
         @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-web-search-provider' }).Count | Should -Be 0
         Test-Path -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-web-search-provider') |
@@ -997,6 +1041,15 @@ basedir=$(dirname "$0")
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
         $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.8.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+
+        $module = Get-Module WindowsCopilotDeployment
+        $migration = & $module {
+            param($Lock, $DshHome, $DesktopExecutablePath)
+            Get-WindowsCopilotProfileMigrationPlan -Lock $Lock -DshHome $DshHome `
+                -DesktopExecutablePath $DesktopExecutablePath
+        } $lock $dshHome $desktopPath
+        @($migration.dependenciesToRemove | Sort-Object) |
+            Should -Be @($lock.profile.legacyPhysicalPlugins.name | Sort-Object)
 
         $result = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
@@ -1150,27 +1203,30 @@ basedir=$(dirname "$0")
         $caseRoot = Join-Path $TestDrive 'wrong-internal-link'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
-        $globalRoot = Join-Path $caseRoot 'global'
+        $packagePath = Join-Path $profileRoot 'package.json'
         $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
-        New-Item -ItemType Directory -Path $profileRoot, $globalRoot -Force | Out-Null
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
-        Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         $wrongTarget = Join-Path $caseRoot 'unofficial\dsh-tauri'
         New-Item -ItemType Directory -Path $wrongTarget -Force | Out-Null
         '{"name":"dsh-tauri","version":"0.6.7"}' |
             Set-Content -LiteralPath (Join-Path $wrongTarget 'package.json') -Encoding UTF8
-        $link = Join-Path $profileRoot 'node_modules\dsh-tauri'
-        [IO.Directory]::Delete($link, $false)
-        New-Item -ItemType Junction -Path $link -Target $wrongTarget | Out-Null
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.8.tgz'
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $profile.dependencies | Add-Member -NotePropertyName 'dsh-tauri' `
+            -NotePropertyValue ('link:' + ([IO.Path]::GetFullPath($wrongTarget).Replace('\', '/')))
+        $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+        $module = Get-Module WindowsCopilotDeployment
 
         {
-            Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
-                -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
-                -DesktopExecutablePath $desktopPath -SkipPackageInstall
-        } | Should -Throw '*official Desktop internal-plugin link*'
-        Test-Path -LiteralPath (Join-Path $dshHome 'artifacts') | Should -Be $false
+            & $module {
+                param($Lock, $DshHome, $DesktopExecutablePath)
+                Get-WindowsCopilotProfileMigrationPlan -Lock $Lock -DshHome $DshHome `
+                    -DesktopExecutablePath $DesktopExecutablePath
+            } $lock $dshHome $desktopPath
+        } | Should -Throw '*neither an exact official Desktop link nor a reviewed legacy dependency*'
+        (Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json).
+            dependencies.'dsh-tauri' | Should -Match '^link:'
     }
 
     It 'validates composed provider and hosted-search evidence fixtures' {

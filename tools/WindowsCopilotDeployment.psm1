@@ -3645,13 +3645,14 @@ function Test-WindowsCopilotInstallation {
                 if ($name -eq [string]$Lock.components.copilotIntegration.package.name) {
                     $providerDependency = $dependency
                 }
-                $expected = if ($name -eq [string]$Lock.components.copilotIntegration.package.name) {
-                    'file:../../artifacts/' + [string]$Lock.components.copilotIntegration.source.commit + '/' +
-                        [string]$Lock.components.copilotIntegration.package.artifact.name
-                } else {
-                    [string]$plugin.version
+                if ($name -eq [string]$Lock.components.copilotIntegration.package.name) {
+                    if (-not (Test-WindowsCopilotDesiredArtifactDependency -Lock $Lock `
+                        -Dependency $dependency -DshHome $home -ProfileRoot $profileRoot)) {
+                        $dependencyValid = $false
+                    }
+                } elseif ($dependency.Replace('\', '/') -ne [string]$plugin.version) {
+                    $dependencyValid = $false
                 }
-                if ($dependency.Replace('\', '/') -ne $expected) { $dependencyValid = $false }
             }
         }
         $dsh = Get-LockProperty -InputObject $profile -Name 'dsh'

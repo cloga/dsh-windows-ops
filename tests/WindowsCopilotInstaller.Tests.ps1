@@ -1406,6 +1406,67 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         }
     }
 
+    It 'normalizes exact locked provider dependencies during installation checks' {
+        $caseRoot = Join-Path $TestDrive 'installation-provider-dependencies'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $globalRoot = Join-Path $caseRoot 'global'
+        New-Item -ItemType Directory -Path $profileRoot, $globalRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        $expectedArtifact = Join-Path $dshHome (
+            Join-Path 'artifacts' (
+                Join-Path ([string]$lock.components.copilotIntegration.source.commit) `
+                    ([string]$lock.components.copilotIntegration.package.artifact.name)
+            )
+        )
+        $accepted = @(
+            [string]$lock.components.copilotIntegration.package.artifact.url
+            "file:../../artifacts/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
+            ('file:' + ([IO.Path]::GetFullPath($expectedArtifact).Replace('\', '/')))
+        )
+        foreach ($dependency in $accepted) {
+            $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $profile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
+                -NotePropertyValue $dependency -Force
+            $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+
+            $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
+                -NpmGlobalRoot $globalRoot -DshCliPath (Join-Path $caseRoot 'missing-dsh.cmd') `
+                -DesktopExecutablePath (Join-Path $caseRoot 'missing-desktop.exe') -SkipRuntimeChecks
+
+            $state.profile.dependencyValid | Should -Be $true
+            @($state.drift.reasons) | Should -Not -Contain 'provider-dependency-unlocked'
+        }
+
+        $rejected = @(
+            ('file:' + (Join-Path $dshHome (
+                Join-Path 'artifacts' (
+                    Join-Path 'wrong-commit' ([string]$lock.components.copilotIntegration.package.artifact.name)
+                )
+            )).Replace('\', '/'))
+            ('file:' + (Join-Path $dshHome (
+                Join-Path 'artifact-sibling' (
+                    Join-Path ([string]$lock.components.copilotIntegration.source.commit) `
+                        ([string]$lock.components.copilotIntegration.package.artifact.name)
+                )
+            )).Replace('\', '/'))
+        )
+        foreach ($dependency in $rejected) {
+            $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $profile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
+                -NotePropertyValue $dependency -Force
+            $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+
+            $state = Test-WindowsCopilotInstallation -Lock $lock -DshHome $dshHome `
+                -NpmGlobalRoot $globalRoot -DshCliPath (Join-Path $caseRoot 'missing-dsh.cmd') `
+                -DesktopExecutablePath (Join-Path $caseRoot 'missing-desktop.exe') -SkipRuntimeChecks
+
+            $state.profile.dependencyValid | Should -Be $false
+            @($state.drift.reasons) | Should -Contain 'provider-dependency-unlocked'
+        }
+    }
+
     It 'resumes Apply after the provider dependency was updated before materialization' {
         $caseRoot = Join-Path $TestDrive 'provider-reentry'
         $dshHome = Join-Path $caseRoot '.dsh'

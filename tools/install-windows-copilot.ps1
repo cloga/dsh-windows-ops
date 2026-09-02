@@ -30,12 +30,19 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$npmGlobalRootWasExplicit = $PSBoundParameters.ContainsKey('NpmGlobalRoot')
 
 Import-Module (Join-Path $PSScriptRoot 'WindowsCopilotDeployment.psm1') -Force
 if (-not $ManifestPath) {
     $ManifestPath = Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'
 }
 $lock = Read-WindowsCopilotLock -Path $ManifestPath
+if (-not $DshCliPath -and -not $CoreInstallPrefix -and -not $npmGlobalRootWasExplicit) {
+    $DshCliPath = [Environment]::GetEnvironmentVariable(
+        [string]$lock.components.core.activation.environmentVariable,
+        'User'
+    )
+}
 if ($Apply) {
     if ($Action -notin @('Check', 'Apply')) {
         throw '-Apply cannot be combined with -Action Verify or Rollback.'

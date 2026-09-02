@@ -69,6 +69,7 @@ function Test-WindowsCopilotLock {
         'components.desktop.artifact.sha256',
         'components.desktop.install.arguments',
         'components.desktop.install.acceptedExitCodes',
+        'components.desktop.runtimeSelectors',
         'components.core.source.repository',
         'components.core.source.commit',
         'components.core.package.name',
@@ -170,6 +171,42 @@ function Test-WindowsCopilotLock {
         [string]$Lock.components.copilotIntegration.package.artifact.sha256
     )) {
         if ($sha -notmatch '^[0-9a-f]{64}$') { throw "Invalid locked artifact SHA-256: $sha" }
+    }
+    $runtimeSelectors = @($Lock.components.desktop.runtimeSelectors)
+    if ($runtimeSelectors.Count -ne 2) {
+        throw 'Desktop runtime contract must define exactly the controlled fork and Desktop official selectors.'
+    }
+    $forkSelector = @($runtimeSelectors | Where-Object {
+        [string]$_.id -ceq 'controlled-fork' -and
+        [string]$_.source -ceq 'controlled-core-receipt'
+    })
+    if ($forkSelector.Count -ne 1 -or
+        [string]$forkSelector[0].package.name -cne [string]$Lock.components.core.package.name -or
+        [string]$forkSelector[0].package.version -cne [string]$Lock.components.core.package.version) {
+        throw 'The controlled-fork Desktop runtime selector must match the locked fork Core package.'
+    }
+    $officialSelector = @($runtimeSelectors | Where-Object {
+        [string]$_.id -ceq 'desktop-official' -and
+        [string]$_.source -ceq 'desktop-managed-download'
+    })
+    if ($officialSelector.Count -ne 1 -or
+        [string]$officialSelector[0].desktopVersion -cne [string]$Lock.components.desktop.version -or
+        [string]$officialSelector[0].package.name -cne [string]$Lock.components.core.package.name -or
+        [string]$officialSelector[0].package.version -cne
+            [string]$Lock.components.copilotIntegration.package.deploymentBaseline.dshRelease -or
+        [string]$officialSelector[0].root -cne
+            '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh' -or
+        [string]$officialSelector[0].rootPackage.name -cne 'deepseek-harness-pkg' -or
+        [string]$officialSelector[0].rootPackage.version -cne
+            [string]$officialSelector[0].package.version -or
+        [string]$officialSelector[0].rootPackage.manifest -cne 'package.json' -or
+        [string]$officialSelector[0].package.manifest -cne
+            'node_modules\@deepseek-ai\dsh\package.json' -or
+        [string]$officialSelector[0].package.entrypoint -cne
+            'node_modules\@deepseek-ai\dsh\lib\bin.js' -or
+        [int]$officialSelector[0].package.fileCount -le 0 -or
+        [string]$officialSelector[0].package.treeSha256 -notmatch '^[0-9a-f]{64}$') {
+        throw 'The Desktop official runtime selector does not match the reviewed Desktop 0.10.2 dependency contract.'
     }
     $expectedProviderArtifactUrl = 'https://github.com/cloga/dsh-github-copilot/releases/download/v' +
         [string]$Lock.components.copilotIntegration.package.version + '/' +
@@ -2243,6 +2280,264 @@ function Get-WindowsCopilotDesktopState {
     }
 }
 
+function Get-WindowsCopilotDirectoryTreeState {
+    param([Parameter(Mandatory)][string]$Path)
+    $root = [IO.Path]::GetFullPath($Path).TrimEnd('\') + '\'
+    $entries = @(Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object {
+        [pscustomobject]@{
+            relativePath = $_.FullName.Substring($root.Length).Replace('\', '/')
+            sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    } | Sort-Object relativePath)
+    $text = ($entries | ForEach-Object {
+        [string]$_.relativePath + "`t" + [string]$_.sha256
+    }) -join "`n"
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $treeSha256 = ([BitConverter]::ToString(
+            $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($text))
+        )).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+    return [pscustomobject]@{
+        fileCount = $entries.Count
+        treeSha256 = $treeSha256
+    }
+}
+
+function Get-WindowsCopilotCommandScriptPath {
+    param([Parameter(Mandatory)][string]$CommandLine)
+    $tokens = @([regex]::Matches($CommandLine, '"([^"]*)"|''([^'']*)''|(\S+)') | ForEach-Object {
+        if ($_.Groups[1].Success) {
+            $_.Groups[1].Value
+        } elseif ($_.Groups[2].Success) {
+            $_.Groups[2].Value
+        } else {
+            $_.Groups[3].Value
+        }
+    })
+    if ($tokens.Count -lt 2) { return $null }
+    if ([IO.Path]::GetFileName([string]$tokens[0]) -notmatch '^node(?:\.exe)?$') { return $null }
+    if ([string]$tokens[1] -match '^-') { return $null }
+    try {
+        return [IO.Path]::GetFullPath([string]$tokens[1])
+    } catch {
+        return $null
+    }
+}
+
+function Get-WindowsCopilotDesktopRuntimeState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DesktopExecutablePath,
+        $ForkCliInfo,
+        [object[]]$Processes,
+        [object[]]$ListenerStates
+    )
+    $desktopExecutable = Resolve-DeploymentPath $DesktopExecutablePath
+    if ($null -eq $Processes) {
+        $Processes = @(Get-CimInstance Win32_Process |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
+    }
+    $desktopProcesses = @($Processes | Where-Object {
+        [string]$_.Name -match '^(?:DeepSeek Harness|deepseek-harness-desktop)(?:\.exe)?$' -and
+        $_.ExecutablePath -and
+        [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq $desktopExecutable
+    })
+    if ($desktopProcesses.Count -eq 0) {
+        return [pscustomobject]@{
+            valid = $false
+            status = 'desktop-not-running'
+            selector = $null
+            source = $null
+            version = $null
+            packageRoot = $null
+            entryPath = $null
+            processIds = @()
+            desktopProcessIds = @()
+            listenerOwnerProcessIds = @()
+            listenerBound = $false
+        }
+    }
+
+    $descendants = [Collections.Generic.HashSet[int]]::new()
+    foreach ($desktopProcess in $desktopProcesses) {
+        [void]$descendants.Add([int]$desktopProcess.ProcessId)
+    }
+    do {
+        $added = $false
+        foreach ($process in $Processes) {
+            if ($descendants.Contains([int]$process.ParentProcessId) -and
+                $descendants.Add([int]$process.ProcessId)) {
+                $added = $true
+            }
+        }
+    } while ($added)
+    $backendProcesses = @($Processes | Where-Object {
+        $descendants.Contains([int]$_.ProcessId) -and
+        [string]$_.Name -match '^node(?:\.exe)?$' -and
+        $_.CommandLine
+    })
+
+    $candidates = [Collections.Generic.List[object]]::new()
+    if ($ForkCliInfo -and [bool]$ForkCliInfo.valid -and [string]$ForkCliInfo.entryPath) {
+        $forkEntry = [IO.Path]::GetFullPath([string]$ForkCliInfo.entryPath)
+        $candidates.Add([pscustomobject]@{
+            id = 'controlled-fork'
+            source = 'controlled-core-receipt'
+            version = [string]$ForkCliInfo.version
+            packageRoot = [string]$ForkCliInfo.packageRoot
+            entryPath = $forkEntry
+            metadataValid = $true
+            metadataStatus = 'receipt-verified'
+        })
+    }
+
+    $officialSelector = @($Lock.components.desktop.runtimeSelectors | Where-Object {
+        [string]$_.id -ceq 'desktop-official'
+    })[0]
+    $officialRoot = [IO.Path]::GetFullPath(
+        [Environment]::ExpandEnvironmentVariables([string]$officialSelector.root)
+    )
+    $officialManifest = [IO.Path]::GetFullPath(
+        (Join-Path $officialRoot ([string]$officialSelector.package.manifest))
+    )
+    $officialRootManifest = [IO.Path]::GetFullPath(
+        (Join-Path $officialRoot ([string]$officialSelector.rootPackage.manifest))
+    )
+    $officialEntry = [IO.Path]::GetFullPath(
+        (Join-Path $officialRoot ([string]$officialSelector.package.entrypoint))
+    )
+    $officialPackageRoot = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh'
+    $officialMetadataValid = $false
+    $officialMetadataStatus = 'package-not-found'
+    $officialPathAncestorsPhysical = $true
+    try {
+        Assert-NoReparsePointAncestor -Path $officialPackageRoot
+    } catch {
+        $officialPathAncestorsPhysical = $false
+        $officialMetadataStatus = 'reparse-point-path'
+    }
+    $officialPathsArePhysical = [bool](
+        $officialPathAncestorsPhysical -and
+        (Test-Path -LiteralPath $officialRoot -PathType Container) -and
+        (Test-Path -LiteralPath $officialPackageRoot -PathType Container) -and
+        -not ((Get-Item -LiteralPath $officialRoot).Attributes -band [IO.FileAttributes]::ReparsePoint) -and
+        -not ((Get-Item -LiteralPath $officialPackageRoot).Attributes -band [IO.FileAttributes]::ReparsePoint)
+    )
+    if ($officialPathsArePhysical -and
+        (Test-Path -LiteralPath $officialRootManifest -PathType Leaf) -and
+        (Test-Path -LiteralPath $officialManifest -PathType Leaf) -and
+        (Test-Path -LiteralPath $officialEntry -PathType Leaf)) {
+        try {
+            $rootMetadata = Get-Content -LiteralPath $officialRootManifest -Raw -Encoding UTF8 |
+                ConvertFrom-Json
+            $metadata = Get-Content -LiteralPath $officialManifest -Raw -Encoding UTF8 | ConvertFrom-Json
+            $tree = Get-WindowsCopilotDirectoryTreeState -Path $officialPackageRoot
+            $officialMetadataValid = [bool](
+                [string]$rootMetadata.name -ceq [string]$officialSelector.rootPackage.name -and
+                [string]$rootMetadata.version -ceq [string]$officialSelector.rootPackage.version -and
+                [string]$metadata.name -ceq [string]$officialSelector.package.name -and
+                [string]$metadata.version -ceq [string]$officialSelector.package.version -and
+                [string]$metadata.bin.dsh -ceq 'lib/bin.js' -and
+                [int]$tree.fileCount -eq [int]$officialSelector.package.fileCount -and
+                [string]$tree.treeSha256 -ceq [string]$officialSelector.package.treeSha256
+            )
+            $officialMetadataStatus = if ($officialMetadataValid) {
+                'package-verified'
+            } else {
+                'package-identity-mismatch'
+            }
+        } catch {
+            $officialMetadataStatus = 'package-metadata-invalid'
+        }
+    }
+    $candidates.Add([pscustomobject]@{
+        id = 'desktop-official'
+        source = 'desktop-managed-download'
+        version = [string]$officialSelector.package.version
+        packageRoot = $officialPackageRoot
+        entryPath = $officialEntry
+        metadataValid = $officialMetadataValid
+        metadataStatus = $officialMetadataStatus
+    })
+
+    foreach ($candidate in $candidates) {
+        if (-not $candidate.metadataValid) { continue }
+        $active = @($backendProcesses | Where-Object {
+            $scriptPath = Get-WindowsCopilotCommandScriptPath -CommandLine ([string]$_.CommandLine)
+            $scriptPath -and $scriptPath -ieq [string]$candidate.entryPath
+        })
+        if ($active.Count -gt 0) {
+            if ($null -eq $ListenerStates) {
+                $ListenerStates = @($Lock.acceptance.listeners | ForEach-Object {
+                    Test-LoopbackListener -HostName ([string]$_.host) -Port ([int]$_.port)
+                })
+            }
+            $desktopListener = @($ListenerStates | Where-Object { [int]$_.port -eq 3080 })
+            $listenerOwnerProcessIds = if ($desktopListener.Count -eq 1) {
+                @($desktopListener[0].owningProcessIds)
+            } else {
+                @()
+            }
+            $listenerBound = [bool](
+                $desktopListener.Count -eq 1 -and
+                $desktopListener[0].bindingVerified -and
+                $desktopListener[0].loopbackOnly -and
+                @($listenerOwnerProcessIds).Count -eq 1 -and
+                @($active.ProcessId | Where-Object {
+                    [int]$_ -eq [int]$listenerOwnerProcessIds[0]
+                }).Count -eq 1
+            )
+            return [pscustomobject]@{
+                valid = $listenerBound
+                status = [string]$candidate.id + $(if ($listenerBound) {
+                    '-active-owns-3080'
+                } else {
+                    '-listener-owner-mismatch'
+                })
+                selector = [string]$candidate.id
+                source = [string]$candidate.source
+                version = [string]$candidate.version
+                packageRoot = [string]$candidate.packageRoot
+                entryPath = [string]$candidate.entryPath
+                processIds = @($active.ProcessId)
+                desktopProcessIds = @($desktopProcesses.ProcessId)
+                listenerOwnerProcessIds = @($listenerOwnerProcessIds)
+                listenerBound = $listenerBound
+                metadataStatus = [string]$candidate.metadataStatus
+            }
+        }
+    }
+
+    $officialCommandActive = @($backendProcesses | Where-Object {
+        $scriptPath = Get-WindowsCopilotCommandScriptPath -CommandLine ([string]$_.CommandLine)
+        $scriptPath -and $scriptPath -ieq $officialEntry
+    }).Count -gt 0
+    return [pscustomobject]@{
+        valid = $false
+        status = if ($officialCommandActive -and -not $officialMetadataValid) {
+            'desktop-official-runtime-invalid'
+        } elseif ($backendProcesses.Count -eq 0) {
+            'desktop-backend-not-running'
+        } else {
+            'unsupported-runtime-selector'
+        }
+        selector = $null
+        source = $null
+        version = $null
+        packageRoot = $null
+        entryPath = $null
+        processIds = @()
+        desktopProcessIds = @($desktopProcesses.ProcessId)
+        listenerOwnerProcessIds = @()
+        listenerBound = $false
+        officialMetadataStatus = $officialMetadataStatus
+    }
+}
+
 function Get-WindowsCopilotLegacyGatewayState {
     param(
         [Parameter(Mandatory)]$Lock,
@@ -3152,6 +3447,7 @@ function Restart-WindowsCopilotDesktop {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$DesktopExecutablePath,
+        $Lock,
         $CliInfo,
         [int]$TimeoutSeconds = 90,
         [switch]$DryRun,
@@ -3200,19 +3496,25 @@ function Restart-WindowsCopilotDesktop {
             }
         }
         try {
-            $active = Test-DshActiveDesktopCore -CliInfo $CliInfo -Processes $current `
-                -DesktopExecutablePath $executable
+            if (-not $Lock) { throw 'The Desktop runtime lock is required for restart acceptance.' }
+            $active = Get-WindowsCopilotDesktopRuntimeState -Lock $Lock -ForkCliInfo $CliInfo `
+                -Processes $current -DesktopExecutablePath $executable
+            if (-not $active.valid) {
+                throw "Desktop runtime selector is not accepted: '$($active.status)'."
+            }
             return [pscustomobject]@{
                 status = 'restarted'
                 executable = $executable
                 stoppedProcessIds = @($desktopProcesses.ProcessId)
                 backendProcessIds = @($active.processIds)
+                runtimeSelector = $active.selector
+                runtimeVersion = $active.version
             }
         } catch {
             $lastError = $_.Exception.Message
         }
     } while ((Get-Date) -lt $deadline)
-    throw "Desktop restarted, but its backend command line did not select the fork Core within $TimeoutSeconds seconds. Last check: $lastError"
+    throw "Desktop restarted, but its backend did not select an exact supported runtime within $TimeoutSeconds seconds. Last check: $lastError"
 }
 
 function Test-WindowsCopilotForkCore {
@@ -3261,17 +3563,20 @@ function Test-WindowsCopilotForkCore {
             }
         } else {
             try {
-                $active = Test-DshActiveDesktopCore -CliInfo $activation.core -DesktopRoot $DesktopRoot `
+                $active = Get-WindowsCopilotDesktopRuntimeState -Lock $Lock -ForkCliInfo $activation.core `
                     -DesktopExecutablePath ([string]$desktop.path) -Processes $DesktopProcesses
                 [pscustomobject]@{
-                    valid = [bool]$active.healthy
-                    status = 'fork-core-command-line-active'
+                    valid = [bool]$active.valid
+                    status = [string]$active.status
+                    selector = $active.selector
+                    source = $active.source
+                    version = $active.version
                     processIds = @($active.processIds)
                 }
             } catch {
                 [pscustomobject]@{
                     valid = $false
-                    status = 'fork-core-command-line-inactive'
+                    status = 'desktop-runtime-inactive'
                     reason = $_.Exception.Message
                 }
             }
@@ -3579,36 +3884,24 @@ function Test-WindowsCopilotInstallation {
     } else {
         try {
             if (-not $DesktopRoot) { $DesktopRoot = $env:DSH_DESKTOP_ROOT }
-            $active = Test-DshActiveDesktopCore -CliInfo $coreReceipt -DesktopRoot $DesktopRoot `
-                -DesktopExecutablePath ([string]$desktop.path) -Processes $DesktopProcesses
-            $desktopListener = @($listeners | Where-Object { [int]$_.port -eq 3080 })
-            $ownerProcessIds = @()
-            if ($desktopListener.Count -eq 1) {
-                $ownerProcessIds = @($desktopListener[0].owningProcessIds)
-            }
-            $listenerBound = [bool](
-                $desktopListener.Count -eq 1 -and
-                $desktopListener[0].bindingVerified -and
-                $desktopListener[0].loopbackOnly -and
-                $ownerProcessIds.Count -eq 1 -and
-                @($active.processIds | Where-Object { [int]$_ -eq [int]$ownerProcessIds[0] }).Count -eq 1
-            )
+            $active = Get-WindowsCopilotDesktopRuntimeState -Lock $Lock -ForkCliInfo $coreReceipt `
+                -DesktopExecutablePath ([string]$desktop.path) -Processes $DesktopProcesses `
+                -ListenerStates $listeners
             [pscustomobject]@{
-                valid = [bool]($active.healthy -and $listenerBound)
-                status = if ($listenerBound) {
-                    'receipted-core-owns-3080'
-                } else {
-                    'receipted-core-listener-owner-mismatch'
-                }
+                valid = [bool]$active.valid
+                status = [string]$active.status
+                selector = $active.selector
+                source = $active.source
+                version = $active.version
                 processIds = @($active.processIds)
-                listenerOwnerProcessIds = @($ownerProcessIds)
-                listenerBound = $listenerBound
+                listenerOwnerProcessIds = @($active.listenerOwnerProcessIds)
+                listenerBound = [bool]$active.listenerBound
                 reason = $null
             }
         } catch {
             [pscustomobject]@{
                 valid = $false
-                status = 'receipted-core-not-active'
+                status = 'desktop-runtime-not-active'
                 reason = $_.Exception.Message
             }
         }
@@ -3722,10 +4015,10 @@ function Test-WindowsCopilotInstallation {
     if ($legacyGateway.detected) { $driftReasons.Add('legacy-copilot2api-detected') }
     if (-not $coreReceipt.valid) { $driftReasons.Add('core-' + [string]$coreReceipt.status) }
     elseif (-not $activeCore.valid) {
-        if ($activeCore.status -eq 'receipted-core-listener-owner-mismatch') {
-            $driftReasons.Add('core-receipted-process-does-not-own-3080')
+        if ([string]$activeCore.status -like '*-listener-owner-mismatch') {
+            $driftReasons.Add('desktop-runtime-process-does-not-own-3080')
         } else {
-            $driftReasons.Add('core-receipted-package-not-active-under-desktop')
+            $driftReasons.Add('desktop-runtime-unsupported-or-inactive')
         }
     }
     if (-not $SkipRuntimeChecks -and -not $sandbox.valid) {
@@ -3939,7 +4232,7 @@ function Invoke-WindowsCopilotApplyLocked {
         -CoreInstallPrefix $CoreInstallPrefix -BackupRoot $BackupRoot -OperationRoot $operationRoot
     $restart = if ($RestartDesktop) {
         Restart-WindowsCopilotDesktop -DesktopExecutablePath ([string]$desktopState.path) `
-            -CliInfo $activation.core -TimeoutSeconds $TimeoutSeconds
+            -Lock $Lock -CliInfo $activation.core -TimeoutSeconds $TimeoutSeconds
     } else {
         [pscustomobject]@{
             status = 'not-requested'
@@ -4013,6 +4306,7 @@ Export-ModuleMember -Function @(
     'Test-WindowsCopilotSearchResponse',
     'Test-WindowsCopilotComposedConfig',
     'Get-WindowsCopilotDesktopState',
+    'Get-WindowsCopilotDesktopRuntimeState',
     'Get-WindowsCopilotCoreConflictState',
     'Assert-WindowsCopilotCoreConflictSafe',
     'Get-WindowsCopilotCoreActivationState',

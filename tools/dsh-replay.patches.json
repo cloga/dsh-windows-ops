@@ -17,6 +17,22 @@
       "upstreamUrl": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs"
     },
     {
+      "id": "core-pi-ai-oauth-json-record-normalization",
+      "description": "Verify llm-pi-ai rebuilds provider-owned OAuth grants as detached strict JSON before credential persistence.",
+      "component": "dsh-local-core",
+      "files": [
+        "node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js"
+      ],
+      "verifyMarkers": [
+        "class GrantPayloadError extends TypeError",
+        "function normalizeGrantPayload",
+        "function cloneJsonValue",
+        "payload: normalizeGrantPayload(credential)"
+      ],
+      "upstreamStatus": "temporary",
+      "upstreamUrl": "https://github.com/cloga/deepseek-harness/commit/ec7aa6518db656de9bbcdfbf7900eb21f2c75c9f"
+    },
+    {
       "id": "github-copilot-client-module-loader-handoff",
       "description": "Verify the built client entry hands its exports to the rc.2 Desktop ModuleLoader.",
       "component": "dsh-github-copilot",

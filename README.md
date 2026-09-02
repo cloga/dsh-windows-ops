@@ -87,7 +87,7 @@ node tools\validate-plugin-catalog.mjs
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 当前 lock 使用官方 0.9.2 |
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装和 sandbox 策略 | 部署精确 pin `ef6b3551` |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装、sandbox 策略和严格 pi-ai OAuth JSON 记录规范化 | 部署精确 pin `ec7aa651` |
 | [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 一个包含 rc.2 Desktop 客户端 ModuleLoader handoff、严格 Remote 结果 codec 和严格 JSON OAuth grant 规范化的 DSH 插件，复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 OAuth、账户模型、刷新、Copilot 直连和 hosted search；在 rc.2 中启动 authorization service，并在 alpha.4 中复用已有服务；不包含 ACP | 部署精确 pin `dd562f8a` / `0.3.0-cloga.6` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 

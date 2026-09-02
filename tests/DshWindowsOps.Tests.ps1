@@ -64,6 +64,26 @@ Describe 'DSH replay patching' {
         $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/23'
     }
 
+    It 'locks Core pi-ai OAuth JSON record normalization replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'core-pi-ai-oauth-json-record-normalization')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @(
+            'node_modules\@deepseek-ai\dsh-llm-pi-ai\lib\index.js'
+        )
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'class GrantPayloadError extends TypeError',
+            'function normalizeGrantPayload',
+            'function cloneJsonValue',
+            'payload: normalizeGrantPayload(credential)'
+        )
+        $patch[0].upstreamUrl |
+            Should -Be 'https://github.com/cloga/deepseek-harness/commit/ec7aa6518db656de9bbcdfbf7900eb21f2c75c9f'
+    }
+
     It 'locks strict remote result codec replay markers' {
         $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
         $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json

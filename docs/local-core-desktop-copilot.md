@@ -8,7 +8,7 @@ is the machine-readable deployment contract.
 | Component | Locked identity |
 |---|---|
 | Desktop | official `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437` |
-| Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `ef6b355136af7e9d7f4ed603a5422137c89d44e0` |
+| Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `ec7aa6518db656de9bbcdfbf7900eb21f2c75c9f` |
 | Copilot plugin | `dsh-github-copilot@0.3.0-cloga.6`, source commit `dd562f8a715a76ae2bc28a344f1da6ec72977b0a`, merge commit `1cb719c969217133c3b07212c9e98e2765773c15`, PR #29 |
 | Plugin artifact | `dsh-github-copilot-0.3.0-cloga.6.tgz`, SHA-256 `bf7dc4935e5780a94fd21873837c1618ace29da0b53d6ff1b3b55b2b7881921d` |
 | Desktop internal plugins | the five official `0.4.9` links |
@@ -26,6 +26,12 @@ reuses built-in `@deepseek-ai/dsh-llm-pi-ai` and pi-ai for:
 - the reference-free `llm-pi-ai.providers.github-copilot` route;
 - credential record `llm-pi-ai/github-copilot`;
 - serialized token refresh and direct Copilot model transport.
+
+At the Core credential-adapter boundary, `llm-pi-ai` rebuilds every provider's
+OAuth grant as detached strict JSON. Undefined object members are omitted,
+undefined array entries become `null`, and cyclic or non-JSON values are
+rejected without exposing their values. JSON extension fields remain intact
+because each provider owns its grant schema.
 
 The plugin adds the authorization UI and direct provider-hosted search. Its
 built client entry hands the plugin id, injected `require`, and materialized
@@ -93,7 +99,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```
 
 Apply builds and installs the receipted local Core, verifies commit
-`ef6b3551` and the three installed executable hashes, builds and attests the
+`ec7aa651` and the three installed executable hashes, builds and attests the
 Copilot plugin, installs the reviewed loader packages, preserves the five
 official Desktop internal-plugin junctions, physically materializes only the
 Copilot plugin, and activates the local Core through `DSH_CLI_PATH`.

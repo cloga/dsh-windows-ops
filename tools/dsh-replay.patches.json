@@ -74,7 +74,7 @@
         "index.js"
       ],
       "verifyMarkers": [
-        "function modelsFromGitHubCopilotListing",
+        "const modelsFromGitHubCopilotListing",
         "supported_endpoints",
         "openai-responses"
       ],

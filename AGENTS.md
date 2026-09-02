@@ -4,9 +4,10 @@
 
 - Use the `cloga` GitHub identity for every issue, push, pull request, review,
   and merge in this repository.
-- Load the credential from the repository-local, ignored `.env` file into the
-  current process only. Never print, copy into documentation, or commit the
-  credential.
+- Load the credential into the current process only from a user-designated
+  trusted `.env`. Prefer a repository-local ignored `.env`, but a centralized
+  credential file explicitly designated by the user is allowed. Never print,
+  copy into documentation, or commit the credential.
 - Before any GitHub write, run `gh api user --jq .login` and require the exact
   result `cloga`. Stop if the identity differs.
 - Every published branch must be named `cloga-<task-slug>`. Never publish an

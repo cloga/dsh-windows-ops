@@ -9,5 +9,7 @@
 # local
 node_modules/
 dist/
+__pycache__/
+*.pyc
 *.log
 .dsh-windows-ops/

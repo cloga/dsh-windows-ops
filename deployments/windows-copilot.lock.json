@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "deploymentId": "windows-copilot-2026-08-30",
-  "verifiedDate": "2026-08-30",
+  "deploymentId": "windows-copilot-2026-09-02",
+  "verifiedDate": "2026-09-02",
   "platform": {
     "os": "windows",
     "architecture": "x64",
@@ -10,46 +10,75 @@
   },
   "components": {
     "desktop": {
-      "version": "0.9.2",
+      "version": "0.10.2",
       "source": {
         "repository": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop",
-        "releaseTag": "v0.9.2",
-        "commit": "c7c5a247961b1ca2d7389026ad7194ac108e5437"
+        "releaseTag": "v0.10.2",
+        "commit": "2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63"
       },
       "artifact": {
-        "name": "Deepseek.Harness.Desktop_0.9.2_x64-setup.exe",
-        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.9.2/Deepseek.Harness.Desktop_0.9.2_x64-setup.exe",
-        "sha256": "f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7"
+        "name": "Deepseek.Harness.Desktop_0.10.2_x64-setup.exe",
+        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe",
+        "sha256": "54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa"
       },
       "install": {
         "arguments": ["/S"],
         "acceptedExitCodes": [0]
       },
+      "runtimeSelectors": [
+        {
+          "id": "controlled-fork",
+          "source": "controlled-core-receipt",
+          "package": {
+            "name": "@deepseek-ai/dsh",
+            "version": "0.1.1-rc.2"
+          }
+        },
+        {
+          "id": "desktop-official",
+          "source": "desktop-managed-download",
+          "desktopVersion": "0.10.2",
+          "root": "%APPDATA%\\io.github.hairyf.deepseek-harness-desktop\\dependencies\\dsh",
+          "rootPackage": {
+            "name": "deepseek-harness-pkg",
+            "version": "0.1.2-alpha.4",
+            "manifest": "package.json"
+          },
+          "package": {
+            "name": "@deepseek-ai/dsh",
+            "version": "0.1.2-alpha.4",
+            "manifest": "node_modules\\@deepseek-ai\\dsh\\package.json",
+            "entrypoint": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js",
+            "fileCount": 9,
+            "treeSha256": "d8c143c3c05826fbb64439e28324d2f6e92a1f312d5fde217c88cd90312f98aa"
+          }
+        }
+      ],
       "internalPlugins": [
         {
           "name": "dsh-tauri",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri"
         },
         {
           "name": "dsh-tauri-panel",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-panel"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-panel"
         },
         {
           "name": "dsh-tauri-panel-extension",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-panel-extension"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-panel-extension"
         },
         {
           "name": "dsh-tauri-ui",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-ui"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-ui"
         },
         {
           "name": "dsh-tauri-worktree",
-          "version": "0.4.9",
-          "relativePath": "resources\\internal-plugins\\dsh-tauri-worktree"
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-worktree"
         }
       ]
     },
@@ -57,13 +86,19 @@
       "source": {
         "repository": "https://github.com/cloga/deepseek-harness",
         "pullRequest": 8,
-        "commit": "bd520d6e47e0c9cc690bf6d7211512cb044fd095"
+        "maintenanceBranch": "cloga-pi-ai-model-api",
+        "commit": "a772dbbde82780bff2b9394427e9f0a24cafa1d5"
       },
       "package": {
         "name": "@deepseek-ai/dsh",
         "version": "0.1.1-rc.2",
         "packageManager": "pnpm@11.7.0"
       },
+      "capabilities": [
+        "sandbox-same-and-narrower-no-op",
+        "pi-ai-oauth-json-record-normalization",
+        "pi-ai-per-model-api-routes"
+      ],
       "build": {
         "artifactDirectories": [
           "dist\\npm",
@@ -96,76 +131,88 @@
             "path": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js"
           }
         ]
+      },
+      "activation": {
+        "environmentVariable": "DSH_CLI_PATH",
+        "currentReceipt": "core-activation-current.json",
+        "operationReceipt": "core-activation.json",
+        "conflictShims": [
+          "dsh",
+          "dsh.cmd",
+          "dsh.ps1"
+        ],
+        "conflictShimSha256": {
+          "dsh": "5c0ebf041d893e13eeb0019cb4779fca3bf23c0be4de8bebec3004bfd897efa7",
+          "dsh.cmd": "7add58b833bfdf0696a6a6f08516997af3abb2b570f62a6588478cde78cd4888",
+          "dsh.ps1": "e2c07177f9f20a61ba98e55a4a21a3c6e295ae611fb8ef579bbc1b009e1d9c87"
+        }
       }
     },
-    "gateway": {
-      "version": "0.6.1",
+    "copilotIntegration": {
       "source": {
-        "repository": "https://github.com/whtsky/copilot2api",
-        "releaseTag": "v0.6.1",
-        "commit": "a4aac95d4a8f430f02121f79ea36aeaaa06daea1"
-      },
-      "artifact": {
-        "name": "copilot2api-windows-amd64.exe",
-        "url": "https://github.com/whtsky/copilot2api/releases/download/v0.6.1/copilot2api-windows-amd64.exe",
-        "sha256": "3e823664415e4f0a59c9c3be00548efeb6d58839111be2795b1cdc57cf699935"
-      },
-      "listen": {
-        "host": "127.0.0.1",
-        "port": 7777
-      }
-    },
-    "searchProvider": {
-      "source": {
-        "repository": "https://github.com/cloga/dsh-web-search-provider",
-        "pullRequest": 6,
-        "commit": "57dafb1e850c761f0b1866b5652b7fbbc4e65df3"
+        "repository": "https://github.com/cloga/dsh-github-copilot",
+        "pullRequest": 33,
+        "commit": "94d921dc7bad4d5035c27ed9543d638694cb7391",
+        "mergeCommit": "eae8b56715e197d5e206a7852bfaa418bbc70dc5"
       },
       "package": {
-        "name": "dsh-web-search-provider",
-        "version": "0.2.3-cloga.3",
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.8",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
         "bundlePatch": "./cordis.patch.yml",
         "attestedFiles": [
-          "lib/index.js"
+          "lib/index.js",
+          "lib/client.js",
+          "lib/remote.js"
         ],
         "artifact": {
-          "name": "dsh-web-search-provider-0.2.3-cloga.3.tgz",
-          "sha256": "8e0bee948bf220b975a809a054a1c8de0168b270db1fd2a0ab8035c49e26819f"
+          "name": "dsh-github-copilot-0.3.0-cloga.8.tgz",
+          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.8.tgz",
+          "sha256": "b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32"
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
-          "id": "cloga.dsh-windows-copilot.web-search",
-          "kind": "fork-deployment-baseline",
+          "id": "cloga.dsh-github-copilot",
+          "kind": "standalone-dsh-plugin",
           "sourceCommitPolicy": "exact-external-pin",
-          "platform": "windows",
+          "platforms": ["windows", "linux"],
           "node": ">=22.0.0",
-          "dshRelease": "0.1.0-rc.6",
-          "copilotApi": "openai-responses",
-          "modelCatalogEndpoint": "/v1/models",
-          "metadataProfile": "optional-copilot-model-capabilities",
+          "dshRelease": "0.1.2-alpha.4",
+          "dshDevelopmentRelease": "0.1.1-rc.2",
+          "dshPeerRange": "^0.1.1-rc.2 || ^0.1.2-alpha.4",
+          "piAi": "^0.84.2",
+          "runtimeDependencies": {
+            "@deepseek-ai/dsh-authorization": "^0.1.1-rc.2 || ^0.1.2-alpha.4",
+            "zod": "^4.4.3"
+          },
           "requiredCapabilities": [
-            "responses-replay-item-id-normalization",
-            "grounded-sandbox-escalation",
-            "image-attachment-bypass",
-            "failure-safe-copilot-model-catalog",
-            "orphaned-replay-item-filtering",
-            "traditional-search-compatibility-bridge",
-            "nonempty-reasoning-blocks"
+            "client-module-loader-handoff",
+            "strict-remote-result-codecs",
+            "authorization-service-bootstrap",
+            "models-provider-card-authorization",
+            "reference-free-route-mutation",
+            "per-model-api-route-materialization",
+            "existing-grant-route-self-healing",
+            "shared-copilot-credential-refresh",
+            "strict-json-oauth-grant-normalization",
+            "direct-provider-hosted-search",
+            "traditional-search-bridge",
+            "dsh-supported-baselines-fail-loud-guard",
+            "dsh-rc2-models-settings-fallback"
           ]
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-web-search-provider-0.2.3-cloga.3.tgz",
+        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.8.tgz",
         "commands": [
           ["install", "--frozen-lockfile"],
-          ["test"],
           ["run", "typecheck"],
           ["run", "verify:baseline"],
           ["exec", "tsc", "-p", "tsconfig.json"],
           ["exec", "tsdown"],
+          ["test"],
           ["pack", "--pack-destination", ".\\dist"]
         ]
       }
@@ -220,47 +267,47 @@
       "dsh-tauri-panel-extension",
       "dsh-tauri-ui",
       "dsh-tauri-worktree",
-      "dsh-web-search-provider"
+      "dsh-github-copilot"
     ],
     "plugins": [
       {
         "name": "dsh-tauri",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-panel",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-panel-extension",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-ui",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
         "name": "dsh-tauri-worktree",
-        "version": "0.4.9",
+        "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
         "preserve": true
       },
       {
-        "name": "dsh-web-search-provider",
-        "version": "0.2.3-cloga.3",
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.8",
         "source": "built-artifact",
         "materialize": true
       }
@@ -269,24 +316,52 @@
       "@google/genai",
       "protobufjs"
     ],
-    "routes": [
+    "legacyCopilotIntegrations": [
       {
-        "id": "github-copilot-gateway",
-        "protocol": "openai-responses",
-        "endpointCapability": "/v1/responses",
-        "baseURL": "http://127.0.0.1:7777/v1",
-        "apiKeyEnv": "COPILOT2API_API_KEY"
+        "name": "dsh-web-search-provider",
+        "version": "0.2.2",
+        "artifactPattern": "dsh-web-search-provider-0.2.2*.tgz"
       },
       {
-        "id": "github-copilot-chat",
-        "protocol": "openai-completions",
-        "endpointCapability": "/v1/chat/completions",
-        "baseURL": "http://127.0.0.1:7777/v1",
-        "apiKeyEnv": "COPILOT2API_API_KEY"
+        "name": "dsh-web-search-provider",
+        "version": "0.2.3-cloga.3",
+        "artifactPattern": "dsh-web-search-provider-0.2.3-cloga.3.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.1",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.1.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.2",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.2.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.3",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.3.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.4",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.4.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.5",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.5.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.6",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.6.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.7",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.7.tgz"
       }
-    ],
-    "forbiddenRouteIds": [
-      "github-copilot"
     ]
   },
   "acceptance": {
@@ -295,20 +370,24 @@
         "name": "dsh-desktop",
         "host": "127.0.0.1",
         "port": 3080
-      },
-      {
-        "name": "copilot2api",
-        "host": "127.0.0.1",
-        "port": 7777
       }
     ],
-    "modelCatalog": {
-      "url": "http://127.0.0.1:7777/v1/models",
-      "minimumModels": 1,
-      "requiredFields": [
-        "id",
-        "supported_endpoints"
-      ]
+    "credential": {
+      "record": "llm-pi-ai/github-copilot",
+      "kind": "grant",
+      "payloadMustNotBeReported": true,
+      "missingStatus": "sign-in-required"
+    },
+    "providerRoute": {
+      "settingsNamespace": "llm-pi-ai",
+      "provider": "github-copilot",
+      "referenceFree": true,
+      "forbiddenKeys": ["baseURL", "apiKeyEnv"],
+      "repairTrigger": "existing-valid-grant",
+      "repairStates": ["route-missing", "route-has-no-models", "route-model-api-missing", "route-mixed-protocol-apis-missing"],
+      "requiredModelFields": ["id", "api"],
+      "requiredApis": ["openai-responses", "openai-completions"],
+      "modelsSource": "account-available-installed-catalog-intersection"
     },
     "composedConfig": {
       "command": [
@@ -318,8 +397,8 @@
         "--dump-config"
       ],
       "requiredMarkers": [
-        "dsh-web-search-provider",
-        "searchProvider: copilot-hosted"
+        "dsh-github-copilot",
+        "searchProvider: github-copilot-hosted"
       ],
       "requiredEntries": [
         {
@@ -331,23 +410,27 @@
           "name": "@deepseek-ai/dsh-tool-web"
         },
         {
-          "id": "web-search-provider",
-          "name": "dsh-web-search-provider"
+          "id": "github-copilot",
+          "name": "dsh-github-copilot"
         }
       ],
       "forbiddenMarkers": [
-        "searchProvider: deepseek-official"
+        "searchProvider: copilot-hosted",
+        "searchProvider: deepseek-official",
+        "via copilot2api",
+        "127.0.0.1:7777",
+        "COPILOT_GITHUB_TOKEN"
       ],
       "forbiddenActiveEntries": [
-        "web-search-deepseek"
+        "web-search-provider"
       ],
       "managedEntry": {
-        "id": "web-search-provider",
+        "id": "github-copilot",
         "enabled": true,
-        "provider": "github-copilot-gateway",
-        "protocol": "openai-responses",
+        "provider": "github-copilot",
         "hostEntry": "web",
-        "searchProvider": "copilot-hosted"
+        "settingsNamespace": "github-copilot",
+        "searchProvider": "github-copilot-hosted"
       }
     },
     "loaderImports": [
@@ -356,8 +439,8 @@
       "node-addon-require-builtin"
     ],
     "searchSmoke": {
-      "method": "POST",
-      "url": "http://127.0.0.1:7777/v1/responses",
+      "transport": "direct-github-copilot-api",
+      "credentialRecord": "llm-pi-ai/github-copilot",
       "requiredToolType": "web_search",
       "requiredEvidenceProperties": [
         "sources",
@@ -370,7 +453,7 @@
       "manualWhenModelIsUnset": true
     },
     "traditionalSearch": {
-      "provider": "copilot-hosted",
+      "provider": "github-copilot-hosted",
       "requiredEvidenceProperty": "sources",
       "forbiddenText": [
         "DEEPSEEK_API_KEY",
@@ -383,6 +466,7 @@
     },
     "sandbox": {
       "gate": "Require",
+      "capability": "sandbox-same-and-narrower-no-op",
       "sameAndNarrower": "no-op",
       "widerApprovalCount": 1
     },
@@ -428,5 +512,29 @@
   "backup": {
     "defaultRoot": "%LOCALAPPDATA%\\dsh-windows-ops\\deployment-backups",
     "forbiddenPathSegment": "\\sessions\\"
+  },
+  "migration": {
+    "legacyGateway": {
+      "active": false,
+      "name": "copilot2api",
+      "version": "0.6.1",
+      "source": {
+        "repository": "https://github.com/whtsky/copilot2api",
+        "releaseTag": "v0.6.1",
+        "commit": "a4aac95d4a8f430f02121f79ea36aeaaa06daea1"
+      },
+      "artifact": {
+        "name": "copilot2api-windows-amd64.exe",
+        "sha256": "3e823664415e4f0a59c9c3be00548efeb6d58839111be2795b1cdc57cf699935"
+      },
+      "binaryNames": ["copilot2api.exe", "copilot2api-windows-amd64.exe"],
+      "processNames": ["copilot2api", "copilot2api.exe"],
+      "listenerPorts": [7777],
+      "baseUrls": ["http://127.0.0.1:7777", "http://127.0.0.1:7777/v1"],
+      "routeIds": ["github-copilot", "github-copilot-chat", "github-copilot-gateway"],
+      "credentialReferences": ["COPILOT_GITHUB_TOKEN"],
+      "backupRequired": true,
+      "successCriteria": false
+    }
   }
 }

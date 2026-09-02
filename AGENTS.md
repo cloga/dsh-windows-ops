@@ -4,9 +4,10 @@
 
 - Use the `cloga` GitHub identity for every issue, push, pull request, review,
   and merge in this repository.
-- Load the credential from the repository-local, ignored `.env` file into the
-  current process only. Never print, copy into documentation, or commit the
-  credential.
+- Load the credential into the current process only from a user-designated
+  trusted `.env`. Prefer a repository-local ignored `.env`, but a centralized
+  credential file explicitly designated by the user is allowed. Never print,
+  copy into documentation, or commit the credential.
 - Before any GitHub write, run `gh api user --jq .login` and require the exact
   result `cloga`. Stop if the identity differs.
 - Every published branch must be named `cloga-<task-slug>`. Never publish an
@@ -15,6 +16,19 @@
 - Create or identify a tracking issue before editing. Deliver every change
   through a pull request to the resolved default branch; never push directly to
   `master` or `main`.
+
+## DSH PowerShell sandbox escalation for installation agents
+
+- On an installation agent's initial `pwsh` call, omit `sandbox_permissions`
+  and `justification` entirely.
+- If approval prompts are disabled, never include either field.
+- If the current sandbox mode is `danger-full-access`, never request sandbox
+  escalation.
+- Use both fields only once, when retrying the exact same command after a real
+  sandbox denial, approval is available, and the target mode is strictly wider
+  than the current mode.
+- Omit the keys themselves; do not send them as `null`, empty strings, or the
+  current sandbox mode.
 
 ## DSH Desktop integration baseline
 
@@ -38,7 +52,7 @@
 - Treat plugins and the core as separate compatibility layers. Preserve and
   attest Desktop's five official internal-plugin links; never replace them with
   guessed registry packages. The locked installer physically materializes only
-  the reviewed hosted-search provider after each profile package install. Run
+  the reviewed `dsh-github-copilot` integration after each profile package install. Run
   its check plus the repository replay self-check and exact-marker dry run
   before applying unrelated patches.
 

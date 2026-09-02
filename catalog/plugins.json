@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-30",
+  "updatedAt": "2026-09-02",
   "validationLevels": [
     { "id": "L0", "name": "Discovered", "description": "The project was located, but its source and runtime behavior have not been reviewed." },
     { "id": "L1", "name": "Source reviewed", "description": "Package metadata, composition files, lifecycle scripts, permissions, and obvious risks were reviewed." },
@@ -12,32 +12,33 @@
   ],
   "plugins": [
     {
-      "id": "dsh-web-search-provider",
-      "displayName": "DSH Web Search Provider",
-      "package": "dsh-web-search-provider",
-      "categories": ["search"],
+      "id": "dsh-github-copilot",
+      "displayName": "DSH GitHub Copilot",
+      "package": "dsh-github-copilot",
+      "categories": ["model-provider", "search"],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-web-search-provider-0.2.3-cloga.3.tgz",
-        "sha256": "8e0bee948bf220b975a809a054a1c8de0168b270db1fd2a0ab8035c49e26819f"
+        "name": "dsh-github-copilot-0.3.0-cloga.8.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.8.tgz",
+        "sha256": "b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32"
       },
       "source": {
-        "repository": "https://github.com/cloga/dsh-web-search-provider",
-        "commit": "57dafb1e850c761f0b1866b5652b7fbbc4e65df3",
-        "release": "0.2.3-cloga.3"
+        "repository": "https://github.com/cloga/dsh-github-copilot",
+        "commit": "94d921dc7bad4d5035c27ed9543d638694cb7391",
+        "release": "0.3.0-cloga.8"
       },
       "platforms": ["cross-platform"],
       "recommendation": "recommended",
       "validation": {
         "level": "baseline",
-        "verifiedAt": "2026-08-30",
-        "dshVersion": "0.1.1-rc.2",
+        "verifiedAt": "2026-09-02",
+        "dshVersion": "0.1.1-rc.2 / 0.1.2-alpha.4",
         "nodeVersion": "24.19.0",
         "evidence": [
-          { "kind": "deployment-lock", "description": "Pinned artifact hash, source commit, build commands, and required capabilities are in the Windows Copilot deployment lock.", "path": "deployments/windows-copilot.lock.json" },
+          { "kind": "deployment-lock", "description": "The Windows Copilot deployment lock pins official Desktop 0.10.2 and its five 0.6.7 resources/node_modules links together with the Copilot artifact, source commit, build commands, and required capabilities.", "path": "deployments/windows-copilot.lock.json" },
           { "kind": "import-probe", "description": "The maintained web and headless Profiles completed real host-entry import probes without fatal imports.", "path": "docs/local-core-desktop-copilot.md" },
           { "kind": "composition-mount", "description": "The validated Profiles loaded the expected plugin composition and registered the supported capabilities.", "path": "docs/local-core-desktop-copilot.md" },
-          { "kind": "functional-smoke", "description": "Search, hosted-search, model catalog, image routing, sandbox, replay, reasoning, and cumulative SSE streaming acceptance are documented.", "path": "docs/local-core-desktop-copilot.md" }
+          { "kind": "functional-smoke", "description": "The rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai OAuth, authorization-service bootstrap, existing-grant route self-heal, account-available mixed-protocol per-model API routing, direct Copilot hosted search, Desktop authorization UI, and fail-closed compatibility acceptance are documented.", "path": "docs/local-core-desktop-copilot.md" }
         ]
       },
       "security": {
@@ -46,9 +47,9 @@
         "usesExistingBrowserProfile": false,
         "sendsDataExternally": true,
         "approvalGate": false,
-        "notes": ["Queries and model requests are sent to the configured provider or gateway.", "This provider does not itself gate ordinary search requests with a local approval prompt."]
+        "notes": ["Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.", "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.", "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration."]
       },
-      "summary": "The maintained search and Copilot hosted-search bridge in the locked Windows deployment."
+      "summary": "The locked standalone DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai Copilot authorization, existing-grant route self-heal, complete mixed-protocol per-model API routes, and direct provider-hosted search; no embedded gateway or ACP scope."
     },
     {
       "id": "desktop-touch-mcp",

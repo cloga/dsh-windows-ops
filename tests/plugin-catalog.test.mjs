@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -16,7 +15,9 @@ function read(file) { return JSON.parse(fs.readFileSync(file, 'utf8')) }
 function write(file, value) { fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`) }
 
 function fixture(mutate) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-plugin-catalog-'))
+  const scratchRoot = path.join(root, 'tests', '.plugin-catalog-scratch')
+  fs.mkdirSync(scratchRoot, { recursive: true })
+  const dir = fs.mkdtempSync(path.join(scratchRoot, 'case-'))
   const catalog = read(sourceCatalog)
   const schema = read(sourceSchema)
   const lock = read(sourceLock)
@@ -84,7 +85,7 @@ test('rejects optional integrations claiming baseline', () => {
 })
 
 test('rejects deployment lock identity drift', () => {
-  const paths = fixture(({ lock }) => { lock.components.searchProvider.source.commit = '0'.repeat(40) })
+  const paths = fixture(({ lock }) => { lock.components.copilotIntegration.source.commit = '0'.repeat(40) })
   const result = run(paths)
   assert.equal(result.status, 1)
   assert.match(result.stderr, /does not match deployment lock/)
@@ -112,5 +113,5 @@ test('rejects an L2 claim without import-probe evidence', () => {
 })
 
 test.after(() => {
-  // Fixtures live under the OS temp directory and are intentionally disposable.
+  fs.rmSync(path.join(root, 'tests', '.plugin-catalog-scratch'), { recursive: true, force: true })
 })

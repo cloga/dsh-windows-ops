@@ -73,6 +73,103 @@ As of 2026-08-30:
 
 See `docs/startup-60s-timeout.md` for the launcher incident and `docs/plugins/plugin-validation.md` for promotion requirements.
 
+## Maintained browser-verification practice
+
+For local DSH Web development and repair, use Microsoft's upstream
+[`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) through DSH's
+shipped `@deepseek-ai/dsh-mcp-client`. This is the preferred baseline for
+self-verifying Web changes: it minimizes DSH-specific compatibility surface
+while retaining accessibility snapshots, deterministic interactions,
+screenshots, Console inspection, and network inspection. Community wrappers
+that embed a live browser panel remain candidates until they independently
+pass the repository validation ladder.
+
+Mount the MCP client in a **user-authored Agent Preset**, not in the Host
+composition and never by editing a shipped preset. Pin the upstream version and
+upgrade it deliberately. This Windows example uses installed Microsoft Edge
+and an isolated, disposable browser profile:
+
+```yaml
+- id: mcp-playwright
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: playwright
+    transport: stdio
+    command: npx
+    args:
+      - '-y'
+      - '@playwright/mcp@0.0.80'
+      - '--isolated'
+      - '--browser'
+      - 'msedge'
+      - '--caps'
+      - 'testing,devtools,vision'
+      - '--viewport-size'
+      - '1440x900'
+    toolCallTimeoutMs: 120000
+    failOnStartupError: true
+```
+
+Do not add unrestricted file access, attach the user's everyday browser
+profile, or disable origin controls merely for convenience. A normal isolated
+browser can navigate to loopback DSH URLs without an unrestricted filesystem
+or desktop grant.
+
+After editing the preset, mount-validate it with the live Agent Preset roster,
+then start a **new session** on that preset so its MCP tools enter the tool
+catalog. Browser launch is lazy, so a successful preset mount is necessary but
+not sufficient evidence. For a DSH Web change, verify the already-running GUI
+(normally `http://127.0.0.1:3080`) rather than starting a replacement server:
+
+1. navigate to the existing GUI and capture an accessibility snapshot;
+2. exercise the changed interaction and assert the resulting page state;
+3. capture a screenshot when visual behavior matters;
+4. inspect Console errors and relevant failed network requests;
+5. confirm teardown closes the isolated browser process.
+
+A successful build without this browser pass is not sufficient UI validation.
+Record the exact DSH and Playwright MCP versions with any failure because both
+are prerelease-sensitive integration surfaces.
+
+### Preset-independent fallback for every coding session
+
+A coding session that did not start on the Playwright MCP preset cannot switch
+its own preset, and delegated subagents inherit the parent's composed preset.
+That must not prevent self-verification. Install the reviewed Python binding pin
+once at user scope; it uses the installed Edge channel and does not require a
+separate Chromium download:
+
+```powershell
+python -m pip install --user playwright==1.62.0
+python tools\dsh-web-smoke.py --expect-text "New Session"
+```
+
+`dsh-web-smoke.py` launches an isolated headless Edge context, opens
+`DSH_WEB_URL` or `http://127.0.0.1:3080`, waits for the rendered page, asserts a
+successful non-empty document and requested text, and writes both a screenshot
+and a JSON report under `.dsh-windows-ops/browser-verification/`. Console
+errors, failed requests, and HTTP failures are always recorded; callers can
+make each category fatal with the matching `--fail-on-*` option. The tool never
+starts or replaces the DSH server.
+
+The smoke tool proves reachability and captures broad regressions; it does not
+prove the feature being changed. After reconnaissance, the agent must write and
+run a narrow temporary Python Playwright script that performs the changed
+interaction and asserts its expected state. Prefer MCP when it is already in
+the session because its accessibility snapshots are efficient for exploratory
+work; use the Python path as the universal fallback from any PowerShell-capable
+coding session.
+
+## Capturing reusable local practice
+
+When local DSH work reveals a reusable installation, compatibility, debugging,
+recovery, or verification technique, proactively add an evidence-based note to
+this repository instead of leaving it only in chat or machine-local notes.
+Keep the note portable: omit credentials, private data, employer/device
+identifiers, and unnecessary machine-specific paths. Every such update still
+uses the repository's Issue, `cloga-<task-slug>` branch, verification, pull
+request, merge, and sync workflow.
+
 ## Recommendation policy
 
 Until a candidate reaches at least `L4` in an isolated test environment:

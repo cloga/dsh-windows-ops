@@ -4,19 +4,19 @@
 >
 > [English](README.en.md) / [简体中文](README.md)
 
-This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, Core, gateways, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
+This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, Core, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
 ## Current supported baseline
 
-[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-08-30**.
+[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-02**.
 
 | Component | Locked version |
 |---|---|
-| DeepSeek Harness Desktop | 0.9.2 |
-| `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
-| Copilot2API | 0.6.1 |
-| `dsh-web-search-provider` | 0.2.3-cloga.3 |
-| Desktop internal plugins | five official 0.4.9 components |
+| DeepSeek Harness Desktop | 0.10.2 |
+| Controlled `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
+| Desktop-selected `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 or Desktop-managed official 0.1.2-alpha.4 |
+| `dsh-github-copilot` | 0.3.0-cloga.8 |
+| Desktop internal plugins | five official 0.6.7 components under `resources\node_modules` |
 
 A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline.
 
@@ -27,7 +27,6 @@ A project appearing in a README, catalog, or historical incident does **not** me
 | Check or install the locked Windows + Copilot baseline | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
 | Check versions, configuration, services, models, and replay patches | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | Diagnose installation problems and apply targeted repairs | [`tools/README.md`](tools/README.md) |
-| Use the Copilot ACP subagent | [`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md) |
 | Choose or evaluate a community plugin | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
 | Understand plugin validation levels | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | Evaluate Computer Use and browser automation | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
@@ -54,7 +53,7 @@ Then use an isolated `DSH_HOME` to verify Cordis activation, tool registration, 
 | Category | Primary tool | Purpose |
 |---|---|---|
 | Deployment | `tools/install-windows-copilot.ps1` | Check by default; install the locked baseline only with explicit `-Apply` |
-| Bootstrap | `tools/enable-copilot-search-vision.ps1` | Fail-closed Copilot search and vision configuration |
+| Bootstrap | `tools/enable-copilot-search-vision.ps1` | Install the direct plugin, select hosted search, and report UI sign-in requirements |
 | Replay and acceptance | `tools/dsh-replay.ps1` | Self-check, strict-marker patches, dry-run, backup, and rollback |
 | Plugin compatibility | `tools/dsh-compat-check.mjs` | Static dependency inventory and real host import probe |
 | Plugin catalog | `tools/validate-plugin-catalog.mjs` | Validate catalog constraints, evidence references, and baseline consistency |
@@ -66,7 +65,7 @@ Use each script's header and linked guide for full parameters.
 
 ## Documentation map
 
-- **Deployment and integration:** `local-core-desktop-copilot.md`, `copilot-acp-subagent.md`, `vision-dual-channel.md`
+- **Deployment and integration:** `local-core-desktop-copilot.md`, `vision-dual-channel.md`
 - **Plugin governance:** `docs/plugins/`, `catalog/`
 - **Diagnostics and migration:** `tools/README.md`, `windows-replay-tooling.md`, `session-move-workspace-groups.md`
 - **Incidents and platform issues:** `startup-60s-timeout.md`, `powershell-5.1-pitfalls.md`, `github-network.md`
@@ -84,15 +83,23 @@ See [`docs/security-notes.md`](docs/security-notes.md).
 
 ## Project relationships and maintenance
 
-This repository does not redistribute Desktop, Core, gateways, or the search provider. It pins reviewed versions and commits and orchestrates installation, migration, acceptance, and rollback. The `cloga/*` repositories are controlled deployment forks, so this table describes default-branch capability and the current deployment pin rather than internal PR workflow state.
+This repository does not redistribute Desktop, Core, or the Copilot plugin. It pins reviewed versions and commits and orchestrates installation, migration, acceptance, and rollback. The `cloga/*` repositories are controlled deployment forks, so this table describes default-branch capability and the current deployment pin rather than internal PR workflow state.
 
 | Project | Deployment responsibility | Current relationship |
 |---|---|---|
-| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Current lock uses official 0.9.2 |
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, and sandbox policy | Deployment pin `bd520d6e` |
-| [`cloga/dsh-web-search-provider`](https://github.com/cloga/dsh-web-search-provider) | Copilot hosted search, traditional Search bridge, Responses replay, image bypass, reasoning, and SSE streaming | Deployment pin `57dafb1e` / `0.2.3-cloga.3` |
-| [`cloga/copilot2api`](https://github.com/cloga/copilot2api) | Maintains the DSH integration guide and receives changes not yet accepted upstream | Deployed artifact remains official upstream 0.6.1 |
+| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Current lock uses official 0.10.2 |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, sandbox policy, strict pi-ai OAuth JSON record normalization, and per-model API routes | Deployment pin `a772dbbd` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | One DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict Remote result codecs, strict JSON OAuth grant normalization, existing-grant route self-heal, and account-filtered per-model API materialization, using built-in `@deepseek-ai/dsh-llm-pi-ai` for OAuth, token refresh, direct Copilot transport, and hosted search; repaired routes remain reference-free with complete mixed-protocol `{id, api}` entries; no ACP | Deployment pin `94d921dc` / `0.3.0-cloga.8` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
+
+The historical ACP subagent practice remains in
+[`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md), but it is a
+separate optional integration and not part of the `dsh-github-copilot`
+unified main-agent model path.
+
+“All-in-one” means one DSH plugin reusing the built-in `llm-pi-ai` services. It
+does **not** mean an embedded gateway: there is no local gateway process, port
+7777, pasted GitHub token, placeholder API key, or separate search plugin.
 
 [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) is the single status index for ownership, external-upstream status, and validation evidence. Before publishing or upgrading, follow the deployment lock and compatibility matrix rather than mixing versions from README strings.
 

@@ -17,69 +17,152 @@
       "upstreamUrl": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs"
     },
     {
-      "id": "web-search-replay-id",
-      "description": "Verify replay item IDs and session request IDs are preserved by the installed provider.",
-      "component": "dsh-web-search-provider",
+      "id": "core-pi-ai-oauth-json-record-normalization",
+      "description": "Verify llm-pi-ai rebuilds provider-owned OAuth grants as detached strict JSON before credential persistence.",
+      "component": "dsh-local-core",
       "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
+        "node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js"
       ],
       "verifyMarkers": [
-        "const replayItemId =",
-        "\"x-client-request-id\": String(request.sessionId)"
+        "class GrantPayloadError extends TypeError",
+        "function normalizeGrantPayload",
+        "function cloneJsonValue",
+        "payload: normalizeGrantPayload(credential)"
       ],
-      "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+      "upstreamStatus": "temporary",
+      "upstreamUrl": "https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5"
     },
     {
-      "id": "web-search-sandbox-sanitization",
-      "description": "Verify ungrounded sandbox escalation arguments are removed while grounded retries are retained.",
-      "component": "dsh-web-search-provider",
+      "id": "core-pi-ai-per-model-api-routes",
+      "description": "Verify llm-pi-ai validates model-level protocols and resolves them before route and catalog defaults.",
+      "component": "dsh-local-core",
       "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
+        "node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js"
       ],
       "verifyMarkers": [
-        "function sanitizeSandboxEscalationArguments",
-        "delete args.sandbox_permissions;"
+        "api: z.union(supportedProtocols())",
+        "function assertSupportedModelApis",
+        "const api = entry.api ?? request.api ?? base?.api ?? routeApi;"
       ],
-      "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+      "upstreamStatus": "temporary",
+      "upstreamUrl": "https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5"
     },
     {
-      "id": "web-search-image-bypass",
-      "description": "Verify image-bearing requests bypass the text-only inline search wire.",
-      "component": "dsh-web-search-provider",
-      "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
-      ],
+      "id": "github-copilot-client-module-loader-handoff",
+      "description": "Verify the built client entry hands its exports to the rc.2 Desktop ModuleLoader.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\client.js"],
       "verifyMarkers": [
-        "function contentHasImages(request)",
-        "if (contentHasImages(request)) return false;"
+        "window.__ModuleLoader__.load({",
+        "id: \"dsh-github-copilot\"",
+        "factory: (require) => {",
+        "return module.exports;"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/23"
     },
     {
-      "id": "web-search-copilot-model-discovery",
-      "description": "Verify live Copilot model discovery records vision support in the pi-ai catalog.",
-      "component": "dsh-web-search-provider",
-      "files": [
-        "lib\\index.js",
-        "dist\\index.js",
-        "index.js"
-      ],
+      "id": "github-copilot-strict-remote-result-codecs",
+      "description": "Verify client Remote calls strictly validate the plugin-owned authorization view.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\remote.js"],
       "verifyMarkers": [
-        "function copilotModelsFromListing(body)",
-        "supports.vision === true",
-        "synchronized %d Copilot models"
+        "import { z } from \"zod\";",
+        "dsh-github-copilot#GitHubCopilotAuthorizationView",
+        "const GitHubCopilotAuthorizationViewSchema = z.object({",
+        "mode: \"strict\"",
+        "schema: GitHubCopilotAuthorizationViewSchema"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/hiyms/dsh-web-search-provider"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/26"
+    },
+    {
+      "id": "github-copilot-authorization-bootstrap",
+      "description": "Verify rc.2 bootstraps the authorization service while alpha.4 reuses its existing service.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "ctx.get(\"authorization\", false)",
+        "ctx.plugin(AuthorizationService)",
+        "ctx.inject(integrationInject"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/21"
+    },
+    {
+      "id": "github-copilot-shared-credential",
+      "description": "Verify the plugin uses DSH's built-in llm-pi-ai Copilot grant and refresh path.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "llm-pi-ai/github-copilot",
+        "models.getAuth(catalogModel)"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
+    },
+    {
+      "id": "github-copilot-per-model-api-route-materialization",
+      "description": "Verify account models retain their installed per-model protocol and selection prefers it over a route fallback.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "[model.id, model.api]",
+        "const effectiveApi = selectedApi ?? routeApi;"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/31"
+    },
+    {
+      "id": "github-copilot-existing-grant-route-self-healing",
+      "description": "Verify an existing valid Copilot grant repairs absent, empty, incomplete, or stale routes while retaining complete mixed-protocol model entries.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "ensureGitHubCopilotProviderProfile(ctx)",
+        "function sameProviderProfile(current, expected)",
+        "normalizeGitHubCopilotOAuthCredential(record.payload)"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/33"
+    },
+    {
+      "id": "github-copilot-strict-json-oauth-grant-normalization",
+      "description": "Verify Copilot OAuth grants are rebuilt as a validated provider-owned plain JSON shape.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "normalizeGitHubCopilotOAuthCredential",
+        "Number.isFinite(expires)"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/33"
+    },
+    {
+      "id": "github-copilot-direct-hosted-search",
+      "description": "Verify direct Copilot API metadata, bounded probe retry, and hosted-search bridge.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "Openai-Intent",
+        "const RESPONSES_PROBE_ROUNDS = 2;",
+        "github-copilot-hosted",
+        "api.individual.githubcopilot.com"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
+    },
+    {
+      "id": "github-copilot-models-ui",
+      "description": "Verify alpha.4 provider-card and rc.2 Settings fallback authorization UI.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\client.js"],
+      "verifyMarkers": [
+        "settings.models.provider-card",
+        "GitHubCopilotSettingsSection"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
     },
     {
       "id": "desktop-no-open-recovery",

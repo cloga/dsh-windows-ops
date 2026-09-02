@@ -49,6 +49,136 @@ Describe 'DSH replay patching' {
         $inventory[0].version | Should -Be '1.2.3'
     }
 
+    It 'locks exact rc.2 client ModuleLoader handoff replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'github-copilot-client-module-loader-handoff')
+
+        $patch.Count | Should -Be 1
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'window.__ModuleLoader__.load({',
+            'id: "dsh-github-copilot"',
+            'factory: (require) => {',
+            'return module.exports;'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/23'
+    }
+
+    It 'locks Core pi-ai OAuth JSON record normalization replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'core-pi-ai-oauth-json-record-normalization')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @(
+            'node_modules\@deepseek-ai\dsh-llm-pi-ai\lib\index.js'
+        )
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'class GrantPayloadError extends TypeError',
+            'function normalizeGrantPayload',
+            'function cloneJsonValue',
+            'payload: normalizeGrantPayload(credential)'
+        )
+        $patch[0].upstreamUrl |
+            Should -Be 'https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5'
+    }
+
+    It 'locks Core pi-ai per-model API route replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'core-pi-ai-per-model-api-routes')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @(
+            'node_modules\@deepseek-ai\dsh-llm-pi-ai\lib\index.js'
+        )
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'api: z.union(supportedProtocols())',
+            'function assertSupportedModelApis',
+            'const api = entry.api ?? request.api ?? base?.api ?? routeApi;'
+        )
+        $patch[0].upstreamUrl |
+            Should -Be 'https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5'
+    }
+
+    It 'locks strict remote result codec replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'github-copilot-strict-remote-result-codecs')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\remote.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'import { z } from "zod";',
+            'dsh-github-copilot#GitHubCopilotAuthorizationView',
+            'const GitHubCopilotAuthorizationViewSchema = z.object({',
+            'mode: "strict"',
+            'schema: GitHubCopilotAuthorizationViewSchema'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/26'
+    }
+
+    It 'locks exact rc.2 authorization bootstrap replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'github-copilot-authorization-bootstrap')
+
+        $patch.Count | Should -Be 1
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'ctx.get("authorization", false)',
+            'ctx.plugin(AuthorizationService)',
+            'ctx.inject(integrationInject'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/21'
+    }
+
+    It 'locks strict JSON OAuth grant normalization replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'github-copilot-strict-json-oauth-grant-normalization')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\index.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'normalizeGitHubCopilotOAuthCredential',
+            'Number.isFinite(expires)'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/33'
+    }
+
+    It 'locks per-model API route materialization replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'github-copilot-per-model-api-route-materialization')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\index.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            '[model.id, model.api]',
+            'const effectiveApi = selectedApi ?? routeApi;'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/31'
+    }
+
+    It 'locks existing-grant route self-healing replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'github-copilot-existing-grant-route-self-healing')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\index.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'ensureGitHubCopilotProviderProfile(ctx)',
+            'function sameProviderProfile(current, expected)',
+            'normalizeGitHubCopilotOAuthCredential(record.payload)'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/33'
+    }
+
     It 'accepts components without optional root and version properties under StrictMode' {
         $minimalConfig = [pscustomobject]@{
             dshHome = (Join-Path $TestDrive '.dsh')

@@ -1,0 +1,6 @@
+{
+  "name": "deepseek-harness-pkg",
+  "version": "0.1.2-alpha.4",
+  "private": true,
+  "description": "Source-built pre-release of DeepSeek Harness"
+}

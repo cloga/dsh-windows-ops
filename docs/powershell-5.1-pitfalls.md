@@ -49,3 +49,54 @@ PowerShell 5.1（右键"使用 PowerShell 运行"）对 UTF-8 无 BOM 的 `.ps1`
 ```
 
 **笔记本电池供电时任务被跳过**（状态 Queued 但不执行）。用 `/Create /XML` 重建时显式设 false。
+
+## 7. DSH 安装 Agent 的用户级缓解规则
+
+DSH 支持从 `$DSH_HOME/AGENTS.md` 加载用户级指令；默认路径是
+`~/.dsh/AGENTS.md`。如果安装环境中的 Agent 反复错误请求 PowerShell
+sandbox escalation，可在该文件中合并以下可复用的英文片段：
+
+```markdown
+## PowerShell sandbox escalation
+
+- For an initial `pwsh` call, omit `sandbox_permissions` and `justification` entirely.
+- If approval prompts are disabled, never include either field.
+- If the current sandbox mode is `danger-full-access`, never request sandbox escalation.
+- Add both fields only when retrying the exact same command once after a real sandbox denial, approval is available, and the requested mode is strictly wider than the current mode.
+- Omit the keys themselves; do not send them as `null`, empty strings, or the current sandbox mode.
+```
+
+安装器应把这段规则**合并**到已有用户指令中，而不是覆盖整个文件；未经用户明确同意，不得静默创建或修改用户的 `AGENTS.md`。
+
+## 8. DSH 子进程继承了不完整的 Git 临时配置
+
+Git 用成组环境变量传递一次性配置：`GIT_CONFIG_COUNT=N` 必须同时存在从
+`GIT_CONFIG_KEY_0` / `GIT_CONFIG_VALUE_0` 到 `N-1` 的完整键值对。如果 DSH
+启动的 PowerShell 只继承了 `COUNT` 和 `VALUE_*`，任何 `git` 命令都会在读取
+仓库前失败：
+
+```text
+error: missing config key GIT_CONFIG_KEY_0
+fatal: unable to parse command-line config
+```
+
+先只检查变量名；不要输出值，因为合法的临时 Git 配置可能携带认证 header：
+
+```powershell
+Get-ChildItem Env:GIT_CONFIG_* | Select-Object -ExpandProperty Name
+```
+
+确认键值组确实不完整后，仅在当前 PowerShell 进程清除两种临时配置传递方式，
+再重试原 Git 命令：
+
+```powershell
+Remove-Item Env:GIT_CONFIG_COUNT,Env:GIT_CONFIG_PARAMETERS -ErrorAction SilentlyContinue
+Remove-Item Env:GIT_CONFIG_KEY_*,Env:GIT_CONFIG_VALUE_* -ErrorAction SilentlyContinue
+
+git status
+```
+
+这不会修改用户或系统环境，也不会改写 Git 配置文件；下一个 PowerShell 进程仍会
+重新继承启动方提供的环境，所以自动化脚本应在每个 Git 入口执行同一项有界检查。
+如果 `KEY_*` / `VALUE_*` 组完整，则不要清除它们：那些值可能是调用方有意设置的
+代理、TLS 或认证边界。

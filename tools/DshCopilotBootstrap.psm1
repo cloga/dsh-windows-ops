@@ -11,85 +11,221 @@ function ConvertTo-DshSingleQuotedYaml {
     return "'" + $Value.Replace("'", "''") + "'"
 }
 
-function Get-DshExplicitVisionCapability {
-    param([Parameter(Mandatory)]$Model)
-
-    $modalities = @()
-    foreach ($name in @('input', 'inputModalities', 'modalities')) {
-        $property = $Model.PSObject.Properties[$name]
-        if ($property) { $modalities += @($property.Value) }
+function Get-DshYamlBlockRange {
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][AllowEmptyString()][string[]]$Lines,
+        [Parameter(Mandatory)][int]$Start,
+        [Parameter(Mandatory)][int]$Indent
+    )
+    $end = $Lines.Count
+    for ($i = $Start + 1; $i -lt $Lines.Count; $i++) {
+        if ($Lines[$i] -match '^\s*(?:#.*)?$') { continue }
+        if ($Lines[$i] -notmatch '^(\s*)') { continue }
+        if ($matches[1].Length -le $Indent) { $end = $i; break }
     }
-    if (@($modalities | Where-Object { [string]$_ -match '^(?i:image|vision)$' }).Count -gt 0) {
-        return [pscustomobject]@{ capable = $true; evidence = 'catalog-modalities' }
-    }
+    return [pscustomobject]@{ start = $Start; end = $end }
+}
 
-    foreach ($containerName in @('capabilities', 'supports')) {
-        $containerProperty = $Model.PSObject.Properties[$containerName]
-        if (-not $containerProperty -or $null -eq $containerProperty.Value) { continue }
-        $container = $containerProperty.Value
-        foreach ($name in @('vision', 'image', 'images')) {
-            $property = $container.PSObject.Properties[$name]
-            if ($property -and $property.Value -eq $true) {
-                return [pscustomobject]@{ capable = $true; evidence = "catalog-$containerName-$name" }
+function Test-DshCopilotCredentialRecord {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$DshHome,
+        [string]$RecordKey = 'llm-pi-ai/github-copilot'
+    )
+    $path = Join-Path $DshHome '.credentials.yaml'
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        return [pscustomobject]@{
+            record = $RecordKey
+            configured = $false
+            kind = $null
+            status = 'sign-in-required'
+            path = $path
+        }
+    }
+    $lines = @(Get-Content -LiteralPath $path -Encoding UTF8)
+    if (@($lines | Where-Object { $_ -match '^version\s*:\s*1\s*$' }).Count -ne 1) {
+        throw 'The credential store is not a version 1 document.'
+    }
+    $recordsStart = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^records\s*:\s*$') { $recordsStart = $i; break }
+    }
+    if ($recordsStart -lt 0) {
+        return [pscustomobject]@{
+            record = $RecordKey
+            configured = $false
+            kind = $null
+            status = 'sign-in-required'
+            path = $path
+        }
+    }
+    $recordsRange = Get-DshYamlBlockRange -Lines $lines -Start $recordsStart -Indent 0
+    $recordStart = -1
+    $escaped = [regex]::Escape($RecordKey)
+    for ($i = $recordsStart + 1; $i -lt $recordsRange.end; $i++) {
+        if ($lines[$i] -match ("^\s{2}['""]?" + $escaped + "['""]?\s*:\s*$")) {
+            $recordStart = $i
+            break
+        }
+    }
+    if ($recordStart -lt 0) {
+        return [pscustomobject]@{
+            record = $RecordKey
+            configured = $false
+            kind = $null
+            status = 'sign-in-required'
+            path = $path
+        }
+    }
+    $recordRange = Get-DshYamlBlockRange -Lines $lines -Start $recordStart -Indent 2
+    $kind = $null
+    for ($i = $recordStart + 1; $i -lt $recordRange.end; $i++) {
+        if ($lines[$i] -match '^\s{4}kind\s*:\s*[''"]?([^''"#\s]+)[''"]?\s*$') {
+            $kind = [string]$matches[1]
+            break
+        }
+    }
+    if ($kind -and $kind -ne 'grant') {
+        throw "Credential record '$RecordKey' has unsupported kind '$kind'."
+    }
+    return [pscustomobject]@{
+        record = $RecordKey
+        configured = [bool]($kind -eq 'grant')
+        kind = $kind
+        status = if ($kind -eq 'grant') { 'signed-in' } else { 'sign-in-required' }
+        path = $path
+    }
+}
+
+function Get-DshCopilotRouteState {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$SettingsPath)
+    $missingRoute = {
+        param([string]$Status = 'route-missing')
+        [pscustomobject]@{
+            exists = $false
+            referenceFree = $false
+            modelsComplete = $false
+            mixedProtocolApis = $false
+            availableModels = @()
+            modelRoutes = @()
+            apis = @()
+            status = $Status
+            path = $SettingsPath
+        }
+    }
+    if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) {
+        return & $missingRoute
+    }
+    $lines = @(Get-Content -LiteralPath $SettingsPath -Encoding UTF8)
+    $llmStart = [array]::IndexOf($lines, 'llm-pi-ai:')
+    if ($llmStart -lt 0) {
+        return & $missingRoute
+    }
+    $llmRange = Get-DshYamlBlockRange -Lines $lines -Start $llmStart -Indent 0
+    $providersStart = -1
+    for ($i = $llmStart + 1; $i -lt $llmRange.end; $i++) {
+        if ($lines[$i] -match '^\s{2}providers\s*:\s*$') { $providersStart = $i; break }
+    }
+    if ($providersStart -lt 0) {
+        return & $missingRoute
+    }
+    $providersRange = Get-DshYamlBlockRange -Lines $lines -Start $providersStart -Indent 2
+    $routeStart = -1
+    for ($i = $providersStart + 1; $i -lt $providersRange.end; $i++) {
+        if ($lines[$i] -match '^\s{4}[''"]?github-copilot[''"]?\s*:\s*(?:\{\s*\}|\{\s*)?$') {
+            $routeStart = $i
+            break
+        }
+    }
+    if ($routeStart -lt 0) {
+        return & $missingRoute
+    }
+    $routeRange = Get-DshYamlBlockRange -Lines $lines -Start $routeStart -Indent 4
+    $routeLines = @($lines[$routeStart..($routeRange.end - 1)])
+    $forbiddenKeys = @('baseURL', 'apiKeyEnv')
+    $routeText = $routeLines -join "`n"
+    $foundForbidden = @($forbiddenKeys | Where-Object {
+        $key = [regex]::Escape($_)
+        $routeText -match ('(?m)(?:^\s*|[{,]\s*)[''"]?' + $key + '[''"]?\s*:')
+    })
+    $modelRoutes = [Collections.Generic.List[object]]::new()
+    $modelsStart = -1
+    for ($i = $routeStart + 1; $i -lt $routeRange.end; $i++) {
+        if ($lines[$i] -match '^\s{6}models\s*:\s*$') { $modelsStart = $i; break }
+    }
+    if ($modelsStart -ge 0) {
+        $modelsRange = Get-DshYamlBlockRange -Lines $lines -Start $modelsStart -Indent 6
+        $current = $null
+        for ($i = $modelsStart + 1; $i -lt $modelsRange.end; $i++) {
+            if ($lines[$i] -match '^\s{8}-\s+(id|api)\s*:\s*[''"]?([^''"#]+?)[''"]?\s*$') {
+                if ($current) { $modelRoutes.Add([pscustomobject]$current) }
+                $current = [ordered]@{ id = $null; api = $null }
+                $current[$matches[1]] = $matches[2].Trim()
+            } elseif ($current -and $lines[$i] -match '^\s{10}(id|api)\s*:\s*[''"]?([^''"#]+?)[''"]?\s*$') {
+                $current[$matches[1]] = $matches[2].Trim()
             }
         }
-        $supportsProperty = $container.PSObject.Properties['supports']
-        if ($supportsProperty -and $supportsProperty.Value) {
-            foreach ($name in @('vision', 'image', 'images')) {
-                $property = $supportsProperty.Value.PSObject.Properties[$name]
-                if ($property -and $property.Value -eq $true) {
-                    return [pscustomobject]@{ capable = $true; evidence = "catalog-$containerName-supports-$name" }
+        if ($current) { $modelRoutes.Add([pscustomobject]$current) }
+    }
+    $flowModels = [regex]::Match(
+        $routeText,
+        '(?s)(?:^|[\s,{])[''"]?models[''"]?\s*:\s*\[(?<models>.*?)\]'
+    )
+    if ($flowModels.Success) {
+        foreach ($modelMatch in [regex]::Matches($flowModels.Groups['models'].Value, '\{(?<model>[^{}]*)\}')) {
+            $model = [ordered]@{ id = $null; api = $null }
+            $fieldCounts = @{ id = 0; api = 0 }
+            foreach ($fieldMatch in [regex]::Matches(
+                $modelMatch.Groups['model'].Value,
+                '(?:^|,)\s*[''"]?(?<key>id|api)[''"]?\s*:\s*(?<value>[^,}]+)'
+            )) {
+                $key = [string]$fieldMatch.Groups['key'].Value
+                $value = [string]$fieldMatch.Groups['value'].Value.Trim()
+                if (($value.StartsWith("'") -and $value.EndsWith("'")) -or
+                    ($value.StartsWith('"') -and $value.EndsWith('"'))) {
+                    $value = $value.Substring(1, $value.Length - 2)
                 }
+                $fieldCounts[$key]++
+                $model[$key] = $value.Trim()
             }
+            if ($fieldCounts.id -ne 1 -or $fieldCounts.api -ne 1) {
+                $model.id = $null
+                $model.api = $null
+            }
+            $modelRoutes.Add([pscustomobject]$model)
         }
     }
-    return [pscustomobject]@{ capable = $false; evidence = 'no-explicit-catalog-evidence' }
-}
-
-function Get-DshCatalogModel {
-    param(
-        [Parameter(Mandatory)]$Catalog,
-        [Parameter(Mandatory)][string]$Model
+    $models = @($modelRoutes | ForEach-Object { $_.id } | Select-Object -Unique)
+    $apis = @($modelRoutes | ForEach-Object { $_.api } | Where-Object { $_ } | Select-Object -Unique)
+    $modelsComplete = [bool]($modelRoutes.Count -gt 0 -and
+        @($modelRoutes | Where-Object { -not $_.id -or -not $_.api }).Count -eq 0)
+    $mixedProtocolApis = [bool](
+        $apis -contains 'openai-responses' -and
+        $apis -contains 'openai-completions'
     )
-
-    $items = @()
-    if ($Catalog.PSObject.Properties['data']) { $items = @($Catalog.data) }
-    elseif ($Catalog.PSObject.Properties['models']) { $items = @($Catalog.models) }
-    elseif ($Catalog -is [Collections.IEnumerable] -and $Catalog -isnot [string]) { $items = @($Catalog) }
-
-    $match = @($items | Where-Object {
-        ($_.PSObject.Properties['id'] -and [string]$_.id -eq $Model) -or
-        ($_.PSObject.Properties['name'] -and [string]$_.name -eq $Model)
-    } | Select-Object -First 1)
-    if ($match.Count -eq 0) { throw "Selected model '$Model' is absent from the copilot2api catalog." }
-    $vision = Get-DshExplicitVisionCapability -Model $match[0]
-    return [pscustomobject]@{
-        id = $Model
-        raw = $match[0]
-        visionCapable = [bool]$vision.capable
-        visionEvidence = [string]$vision.evidence
+    $status = if ($foundForbidden.Count -gt 0) {
+        'legacy-reference-route'
+    } elseif ($modelRoutes.Count -eq 0) {
+        'route-has-no-models'
+    } elseif (-not $modelsComplete) {
+        'route-model-api-missing'
+    } elseif (-not $mixedProtocolApis) {
+        'route-mixed-protocol-apis-missing'
+    } else {
+        'available'
     }
-}
-
-function Get-DshCopilotCatalog {
-    param(
-        [Parameter(Mandatory)][string]$BaseUrl,
-        [Parameter(Mandatory)][string]$Model,
-        [int]$TimeoutSeconds = 10
-    )
-
-    $uri = $BaseUrl.TrimEnd('/') + '/models'
-    try {
-        $response = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Get -TimeoutSec $TimeoutSeconds
-        $catalog = $response.Content | ConvertFrom-Json
-    } catch {
-        throw "copilot2api model catalog is unreachable or invalid at '$uri'."
-    }
-    $selected = Get-DshCatalogModel -Catalog $catalog -Model $Model
     return [pscustomobject]@{
-        uri = $uri
-        statusCode = [int]$response.StatusCode
-        selectedModel = $selected
+        exists = $true
+        referenceFree = [bool]($foundForbidden.Count -eq 0)
+        modelsComplete = $modelsComplete
+        mixedProtocolApis = $mixedProtocolApis
+        forbiddenKeys = @($foundForbidden)
+        availableModels = $models
+        modelRoutes = @($modelRoutes)
+        apis = $apis
+        status = $status
+        path = $SettingsPath
     }
 }
 
@@ -360,6 +496,7 @@ function Resolve-DshCliInfo {
         entryPath = $entryPath
         version = $packageVersion
         repository = $ExpectedRepository
+        repositoryUrl = $repositoryUrl
         commitSha = $commitSha.ToLowerInvariant()
         receiptPath = [IO.Path]::GetFullPath($receiptPath)
         releaseManifestSha256 = $releaseManifestSha256.ToLowerInvariant()
@@ -371,58 +508,86 @@ function Resolve-DshCliInfo {
 function Test-DshActiveDesktopCore {
     param(
         [Parameter(Mandatory)]$CliInfo,
-        [string]$DesktopRoot,
-        [object[]]$Processes
+        [Parameter(Mandatory)]$DeploymentLock,
+        [Parameter(Mandatory)]$DesktopRuntimeState
     )
-
-    if ($null -eq $Processes) {
-        $Processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
-    }
-    $desktop = @($Processes | Where-Object {
-        [string]$_.Name -match '^(?:DeepSeek Harness|deepseek-harness-desktop)(?:\.exe)?$'
+    $selectors = @($DeploymentLock.components.desktop.runtimeSelectors)
+    $controlled = @($selectors | Where-Object {
+        [string]$_.id -ceq 'controlled-fork' -and
+        [string]$_.source -ceq 'controlled-core-receipt'
     })
-    if ($desktop.Count -eq 0) { throw 'No active DSH Desktop process was found.' }
-
-    $descendants = [Collections.Generic.HashSet[int]]::new()
-    foreach ($item in $desktop) { [void]$descendants.Add([int]$item.ProcessId) }
-    do {
-        $added = $false
-        foreach ($item in $Processes) {
-            if ($descendants.Contains([int]$item.ParentProcessId) -and $descendants.Add([int]$item.ProcessId)) {
-                $added = $true
-            }
-        }
-    } while ($added)
-
-    $entryPath = ([string]$CliInfo.entryPath).Replace('/', '\')
-    if (-not $entryPath) { throw 'The receipted dsh entry point is missing.' }
-    $entryPattern = '(?i)(?:^|[\s"''])' + [regex]::Escape($entryPath) + '(?:$|[\s"''])'
-    $active = @($Processes | Where-Object {
-        $descendants.Contains([int]$_.ProcessId) -and
-        [string]$_.Name -match '^node(?:\.exe)?$' -and
-        $_.CommandLine -and
-        ([string]$_.CommandLine).Replace('/', '\') -match $entryPattern
+    $official = @($selectors | Where-Object {
+        [string]$_.id -ceq 'desktop-official' -and
+        [string]$_.source -ceq 'desktop-managed-download'
     })
-    if ($active.Count -eq 0) { throw 'Desktop is not running the selected local dsh package.' }
-    if ($DesktopRoot) {
-        $desktopPrefix = [IO.Path]::GetFullPath($DesktopRoot).TrimEnd('\') + '\'
-        if ($CliInfo.packageRoot.StartsWith($desktopPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-            throw 'The selected dsh package is inside the Desktop packaged-core directory.'
-        }
+    if ($controlled.Count -ne 1 -or $official.Count -ne 1) {
+        throw 'The deployment lock does not define the exact supported Desktop runtime selectors.'
     }
-    return [pscustomobject]@{ healthy = $true; processIds = @($active | Select-Object -ExpandProperty ProcessId) }
+    if ([string]$CliInfo.version -cne [string]$controlled[0].package.version) {
+        throw 'The receipted controlled CLI version does not match the deployment lock.'
+    }
+    if (-not [bool]$DesktopRuntimeState.valid) {
+        throw "Desktop runtime selector is not accepted: '$($DesktopRuntimeState.status)'."
+    }
+
+    $selector = [string]$DesktopRuntimeState.selector
+    if ($selector -ceq 'controlled-fork') {
+        if ([string]$DesktopRuntimeState.source -cne [string]$controlled[0].source -or
+            [string]$DesktopRuntimeState.version -cne [string]$controlled[0].package.version -or
+            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.entryPath) -ine
+                [IO.Path]::GetFullPath([string]$CliInfo.entryPath)) {
+            throw 'Desktop controlled-fork runtime does not match the receipted controlled CLI.'
+        }
+    } elseif ($selector -ceq 'desktop-official') {
+        $officialRoot = [IO.Path]::GetFullPath(
+            [Environment]::ExpandEnvironmentVariables([string]$official[0].root)
+        )
+        $expectedPackageRoot = [IO.Path]::GetFullPath(
+            (Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh')
+        )
+        $expectedEntry = [IO.Path]::GetFullPath(
+            (Join-Path $officialRoot ([string]$official[0].package.entrypoint))
+        )
+        if ([string]$DesktopRuntimeState.source -cne [string]$official[0].source -or
+            [string]$DesktopRuntimeState.version -cne [string]$official[0].package.version -or
+            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.packageRoot) -ine $expectedPackageRoot -or
+            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.entryPath) -ine $expectedEntry) {
+            throw 'Desktop official runtime does not match the exact managed path and locked version.'
+        }
+    } else {
+        throw "Unsupported Desktop runtime selector '$selector'."
+    }
+
+    return [pscustomobject]@{
+        healthy = $true
+        selector = $selector
+        source = [string]$DesktopRuntimeState.source
+        version = [string]$DesktopRuntimeState.version
+        packageRoot = [string]$DesktopRuntimeState.packageRoot
+        entryPath = [string]$DesktopRuntimeState.entryPath
+        processIds = @($DesktopRuntimeState.processIds)
+    }
 }
 
 function Test-DshRendererCompatibility {
     param(
         [Parameter(Mandatory)][string]$PackageRoot,
-        [Parameter(Mandatory)][string]$DshHome
+        [Parameter(Mandatory)][string]$DshHome,
+        [bool]$RequireFlatFallback = $true
     )
 
-    $renderer = Join-Path $PackageRoot 'node_modules\@deepseek-ai\dsh-client-ui-renderer\lib\client.js'
-    if (-not (Test-Path -LiteralPath $renderer -PathType Leaf)) {
-        throw "Active-core renderer was not found at '$renderer'."
+    $packageNodeModules = Split-Path -Parent (Split-Path -Parent $PackageRoot)
+    $rendererCandidates = @(
+        (Join-Path $PackageRoot 'node_modules\@deepseek-ai\dsh-client-ui-renderer\lib\client.js'),
+        (Join-Path $packageNodeModules '@deepseek-ai\dsh-client-ui-renderer\lib\client.js')
+    )
+    $renderer = @($rendererCandidates | Where-Object {
+        Test-Path -LiteralPath $_ -PathType Leaf
+    } | Select-Object -First 1)
+    if ($renderer.Count -eq 0) {
+        throw "Active-core renderer was not found through nested or hoisted Node resolution."
     }
+    $renderer = [string]$renderer[0]
     $source = Get-Content -LiteralPath $renderer -Raw -Encoding UTF8
     if (-not $source.Contains('exports.SlotOutlet = SlotOutlet;')) {
         if (-not $source.Contains('return module.exports;')) {
@@ -431,6 +596,9 @@ function Test-DshRendererCompatibility {
         throw 'Renderer SlotOutlet export is absent. Apply the Desktop exact-marker patch before bootstrap.'
     }
     $flatRenderer = Join-Path $DshHome 'profiles\node_modules\@deepseek-ai\dsh-client-ui-renderer\lib\client.js'
+    if (-not $RequireFlatFallback) {
+        return [pscustomobject]@{ healthy = $true; renderer = $renderer; flatRenderer = $null }
+    }
     if (-not (Test-Path -LiteralPath $flatRenderer -PathType Leaf)) {
         throw 'The DSH profiles flat module fallback does not expose the active renderer.'
     }
@@ -439,33 +607,6 @@ function Test-DshRendererCompatibility {
         throw 'The DSH profiles flat module fallback exposes a renderer without SlotOutlet.'
     }
     return [pscustomobject]@{ healthy = $true; renderer = $renderer; flatRenderer = $flatRenderer }
-}
-
-function Test-DshCredentialReference {
-    param(
-        [Parameter(Mandatory)][string]$DshHome,
-        [string]$Reference = 'COPILOT_API_KEY'
-    )
-    if ([Environment]::GetEnvironmentVariable($Reference)) { return 'environment' }
-    $path = Join-Path $DshHome '.credentials.yaml'
-    if (Test-Path -LiteralPath $path -PathType Leaf) {
-        $lines = @(Get-Content -LiteralPath $path -Encoding UTF8)
-        if (@($lines | Where-Object { $_ -match '^\s*version\s*:\s*1\s*$' }).Count -ne 1) {
-            throw 'The credential store is not a version 1 document.'
-        }
-        $inRefs = $false
-        foreach ($line in $lines) {
-            if ($line -match '^refs\s*:\s*$') { $inRefs = $true; continue }
-            if ($line -match '^\S') { $inRefs = $false }
-            if ($inRefs -and $line -match ("^\s{2}$([regex]::Escape($Reference))\s*:\s*(.+?)\s*$")) {
-                $value = $matches[1].Trim()
-                if ($value -and $value -notmatch '^#' -and $value -notin @("''", '""')) {
-                    return 'credential-store'
-                }
-            }
-        }
-    }
-    throw "Credential reference '$Reference' is unresolved."
 }
 
 function Set-DshManagedTextBlock {
@@ -523,34 +664,171 @@ function Set-DshManagedTextBlock {
     return [pscustomobject]@{ path = $Path; changed = $changed; status = if (-not $changed) { 'unchanged' } elseif ($DryRun) { 'would-change' } else { 'changed' } }
 }
 
-function Set-DshCopilotSettings {
+function Remove-DshLegacyCopilotSettings {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][string]$BaseUrl,
-        [Parameter(Mandatory)][string]$Model,
-        [Parameter(Mandatory)][bool]$VisionCapable,
         [switch]$DryRun
     )
-    $input = if ($VisionCapable) { '          input: [text, image]' } else { '          input: [text]' }
-    $block = @"
-$script:SettingsBegin
-llm-pi-ai:
-  providers:
-    github-copilot-gateway:
-      displayName: GitHub Copilot via copilot2api
-      apiKeyEnv: COPILOT_API_KEY
-      api: openai-responses
-      baseURL: $(ConvertTo-DshSingleQuotedYaml $BaseUrl)
-      models:
-        - id: $(ConvertTo-DshSingleQuotedYaml $Model)
-$input
-agent-default-model:
-  provider: github-copilot-gateway
-  model: $(ConvertTo-DshSingleQuotedYaml $Model)
-$script:SettingsEnd
-"@
-    return Set-DshManagedTextBlock -Path $Path -Begin $script:SettingsBegin -End $script:SettingsEnd `
-        -Block $block -ConflictPatterns @('(?m)^llm-pi-ai\s*:', '(?m)^agent-default-model\s*:') -DryRun:$DryRun
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return [pscustomobject]@{ path = $Path; changed = $false; status = 'unchanged'; removedRoutes = @() }
+    }
+    $current = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    $next = $current
+    $managedBegin = $next.IndexOf($script:SettingsBegin, [StringComparison]::Ordinal)
+    $managedEnd = $next.IndexOf($script:SettingsEnd, [StringComparison]::Ordinal)
+    if (($managedBegin -ge 0) -xor ($managedEnd -ge 0)) {
+        throw "Legacy managed settings markers are incomplete in '$Path'."
+    }
+    if ($managedBegin -ge 0) {
+        if ([regex]::Matches($next, [regex]::Escape($script:SettingsBegin)).Count -ne 1 -or
+            [regex]::Matches($next, [regex]::Escape($script:SettingsEnd)).Count -ne 1 -or
+            $managedEnd -lt $managedBegin) {
+            throw "Legacy managed settings markers are ambiguous in '$Path'."
+        }
+        $end = $managedEnd + $script:SettingsEnd.Length
+        while ($end -lt $next.Length -and $next[$end] -in "`r", "`n") { $end++ }
+        $next = $next.Remove($managedBegin, $end - $managedBegin)
+    }
+
+    $removedRoutes = [Collections.Generic.List[string]]::new()
+    $lines = @($next -split "`r?`n")
+    $llmStart = [array]::IndexOf($lines, 'llm-pi-ai:')
+    if ($llmStart -ge 0) {
+        $llmRange = Get-DshYamlBlockRange -Lines $lines -Start $llmStart -Indent 0
+        $providersStart = -1
+        for ($i = $llmStart + 1; $i -lt $llmRange.end; $i++) {
+            if ($lines[$i] -match '^\s{2}providers\s*:\s*$') { $providersStart = $i; break }
+        }
+        if ($providersStart -ge 0) {
+            foreach ($routeId in @('github-copilot-gateway', 'github-copilot-chat', 'github-copilot')) {
+                $providersRange = Get-DshYamlBlockRange -Lines $lines -Start $providersStart -Indent 2
+                $routeStart = -1
+                for ($i = $providersStart + 1; $i -lt $providersRange.end; $i++) {
+                    if ($lines[$i] -match ("^\s{4}['""]?" + [regex]::Escape($routeId) + "['""]?\s*:\s*$")) {
+                        $routeStart = $i
+                        break
+                    }
+                }
+                if ($routeStart -lt 0) { continue }
+                $routeRange = Get-DshYamlBlockRange -Lines $lines -Start $routeStart -Indent 4
+                $routeText = $lines[$routeStart..($routeRange.end - 1)] -join "`n"
+                $isLegacy = $routeId -eq 'github-copilot-gateway' -or
+                    $routeText -match '(?m)^\s{6}apiKeyEnv\s*:\s*[''"]?COPILOT_GITHUB_TOKEN[''"]?\s*$' -or
+                    $routeText -match 'http://127\.0\.0\.1:7777'
+                if (-not $isLegacy) { continue }
+                $before = if ($routeStart -gt 0) { @($lines[0..($routeStart - 1)]) } else { @() }
+                $after = if ($routeRange.end -lt $lines.Count) {
+                    @($lines[$routeRange.end..($lines.Count - 1)])
+                } else { @() }
+                $lines = @($before + $after)
+                $removedRoutes.Add($routeId)
+            }
+            $next = ($lines -join [Environment]::NewLine).TrimEnd() + [Environment]::NewLine
+        }
+    }
+    $changed = $next -ne $current
+    if ($changed -and -not $DryRun) {
+        $temporary = "$Path.dsh-ops-tmp"
+        try {
+            Set-Content -LiteralPath $temporary -Value $next -Encoding UTF8 -NoNewline
+            Move-Item -LiteralPath $temporary -Destination $Path -Force
+        } finally {
+            if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+        }
+    }
+    return [pscustomobject]@{
+        path = $Path
+        changed = $changed
+        status = if (-not $changed) { 'unchanged' } elseif ($DryRun) { 'would-change' } else { 'changed' }
+        removedRoutes = @($removedRoutes)
+    }
+}
+
+function Remove-DshLegacyCopilotCredentialReference {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [string]$Reference = 'COPILOT_GITHUB_TOKEN',
+        [switch]$DryRun
+    )
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return [pscustomobject]@{ path = $Path; changed = $false; status = 'unchanged' }
+    }
+    $lines = @(Get-Content -LiteralPath $Path -Encoding UTF8)
+    $matchIndexes = @()
+    $inRefs = $false
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^refs\s*:\s*$') { $inRefs = $true; continue }
+        if ($inRefs -and $lines[$i] -match '^\S') { $inRefs = $false }
+        if ($inRefs -and $lines[$i] -match ("^\s{2}['""]?" + [regex]::Escape($Reference) + "['""]?\s*:")) {
+            $matchIndexes += $i
+        }
+    }
+    if ($matchIndexes.Count -gt 1) { throw "Credential reference '$Reference' is duplicated." }
+    if ($matchIndexes.Count -eq 0) {
+        return [pscustomobject]@{ path = $Path; changed = $false; status = 'unchanged' }
+    }
+    $next = for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($i -ne $matchIndexes[0]) { $lines[$i] }
+    }
+    if (-not $DryRun) {
+        Set-Content -LiteralPath $Path -Value $next -Encoding UTF8
+    }
+    return [pscustomobject]@{
+        path = $Path
+        changed = $true
+        status = if ($DryRun) { 'would-change' } else { 'changed' }
+    }
+}
+
+function Set-DshCopilotModelSelection {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Model,
+        [switch]$DryRun
+    )
+    $route = Get-DshCopilotRouteState -SettingsPath $Path
+    if ($route.status -ne 'available') {
+        throw "A complete reference-free mixed-protocol llm-pi-ai.providers.github-copilot route is required before selecting a model."
+    }
+    if (@($route.availableModels) -notcontains $Model) {
+        throw "Model '$Model' is not in the signed-in account's available GitHub Copilot route."
+    }
+    $lines = @(Get-Content -LiteralPath $Path -Encoding UTF8)
+    $starts = @()
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^agent-default-model\s*:\s*$') { $starts += $i }
+    }
+    if ($starts.Count -gt 1) { throw "Multiple agent-default-model mappings are not supported in '$Path'." }
+    $selection = @(
+        'agent-default-model:',
+        '  provider: github-copilot',
+        "  model: $(ConvertTo-DshSingleQuotedYaml $Model)"
+    )
+    if ($starts.Count -eq 1) {
+        $range = Get-DshYamlBlockRange -Lines $lines -Start $starts[0] -Indent 0
+        $before = if ($starts[0] -gt 0) { @($lines[0..($starts[0] - 1)]) } else { @() }
+        $after = if ($range.end -lt $lines.Count) { @($lines[$range.end..($lines.Count - 1)]) } else { @() }
+        $nextLines = @($before + $selection + $after)
+    } else {
+        $nextLines = @($lines)
+        if ($nextLines.Count -gt 0 -and $nextLines[-1] -ne '') { $nextLines += '' }
+        $nextLines += $selection
+    }
+    $current = (Get-Content -LiteralPath $Path -Raw -Encoding UTF8).TrimEnd()
+    $next = ($nextLines -join [Environment]::NewLine).TrimEnd()
+    $changed = $current -ne $next
+    if ($changed -and -not $DryRun) {
+        Set-Content -LiteralPath $Path -Value ($next + [Environment]::NewLine) -Encoding UTF8 -NoNewline
+    }
+    return [pscustomobject]@{
+        path = $Path
+        model = $Model
+        changed = $changed
+        status = if (-not $changed) { 'unchanged' } elseif ($DryRun) { 'would-change' } else { 'changed' }
+    }
 }
 
 function Set-DshCopilotProfilePatch {
@@ -562,20 +840,18 @@ function Set-DshCopilotProfilePatch {
 $script:ProfileBegin
 - id: web
   config:
-    searchProvider: copilot-hosted
-- id: web-search-deepseek
-  disabled: true
-- id: web-search-provider
+    searchProvider: github-copilot-hosted
+- id: github-copilot
   config:
     enabled: true
-    providers: [github-copilot-gateway]
+    providers: [github-copilot]
     probe: true
 $script:ProfileEnd
 "@
     return Set-DshManagedTextBlock -Path $Path -Begin $script:ProfileBegin -End $script:ProfileEnd `
         -Block $block -ConflictPatterns @(
             '(?m)^\s*-\s+id:\s+web\s*$',
-            '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
+            '(?m)^\s*-\s+id:\s+github-copilot\s*$',
             '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
         ) -DryRun:$DryRun
 }
@@ -583,38 +859,24 @@ $script:ProfileEnd
 function Test-DshCopilotSettings {
     param(
         [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][string]$BaseUrl,
-        [Parameter(Mandatory)][string]$Model
+        [string]$Model
     )
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'DSH settings.yaml was not found.' }
-    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
-    if ([regex]::Matches($text, [regex]::Escape($script:SettingsBegin)).Count -ne 1 -or
-        [regex]::Matches($text, [regex]::Escape($script:SettingsEnd)).Count -ne 1) {
-        throw 'DSH settings contain missing or duplicate managed markers.'
+    $route = Get-DshCopilotRouteState -SettingsPath $Path
+    if (-not $route.exists) { throw 'DSH GitHub Copilot route is absent; sign in through the Desktop UI.' }
+    if (-not $route.referenceFree) { throw 'DSH GitHub Copilot route contains a legacy endpoint or credential reference.' }
+    if (-not $route.modelsComplete) { throw 'DSH GitHub Copilot route has no complete per-model {id, api} entries.' }
+    if (-not $route.mixedProtocolApis) { throw 'DSH GitHub Copilot route does not retain the required mixed protocol APIs.' }
+    if ($Model -and @($route.availableModels) -notcontains $Model) {
+        throw "Selected model '$Model' is not account-available."
     }
-    $start = $text.IndexOf($script:SettingsBegin, [StringComparison]::Ordinal)
-    $finish = $text.IndexOf($script:SettingsEnd, [StringComparison]::Ordinal)
-    if ($finish -lt $start) { throw 'DSH settings managed markers are reversed.' }
-    $managed = $text.Substring($start, $finish + $script:SettingsEnd.Length - $start)
-    $outside = $text.Substring(0, $start) + $text.Substring($finish + $script:SettingsEnd.Length)
-    if ($outside -match '(?m)^llm-pi-ai\s*:' -or $outside -match '(?m)^agent-default-model\s*:') {
-        throw 'DSH settings contain unmanaged conflicting provider configuration.'
+    return [pscustomobject]@{
+        healthy = $true
+        path = $Path
+        provider = 'github-copilot'
+        model = $Model
+        availableModels = @($route.availableModels)
+        referenceFree = $true
     }
-    foreach ($marker in @(
-        $script:SettingsBegin,
-        'github-copilot-gateway:',
-        'apiKeyEnv: COPILOT_API_KEY',
-        'api: openai-responses',
-        "baseURL: $(ConvertTo-DshSingleQuotedYaml $BaseUrl)",
-        "id: $(ConvertTo-DshSingleQuotedYaml $Model)",
-        'input: [text, image]',
-        'provider: github-copilot-gateway',
-        "model: $(ConvertTo-DshSingleQuotedYaml $Model)",
-        $script:SettingsEnd
-    )) {
-        if (-not $managed.Contains($marker)) { throw 'DSH settings do not match the managed Copilot route.' }
-    }
-    return [pscustomobject]@{ healthy = $true; path = $Path; provider = 'github-copilot-gateway'; model = $Model }
 }
 
 function New-DshCopilotBackup {
@@ -740,30 +1002,31 @@ function Restore-DshCopilotBackup {
 function Test-DshCopilotProfile {
     param(
         [Parameter(Mandatory)][string]$DshHome,
-        [Parameter(Mandatory)][string]$Profile
+        [Parameter(Mandatory)][string]$Profile,
+        [Parameter(Mandatory)][string]$ExpectedPluginVersion
     )
     $profileRoot = Join-Path $DshHome (Join-Path 'profiles' $Profile)
     $manifestPath = Join-Path $profileRoot 'package.json'
     $patchPath = Join-Path $profileRoot 'cordis.patch.yml'
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Profile '$Profile' is not initialized." }
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $dependency = $manifest.dependencies.PSObject.Properties['dsh-web-search-provider']
-    if (-not $dependency) { throw "Profile '$Profile' does not install dsh-web-search-provider." }
-    if (@($manifest.dsh.profile.bundles) -notcontains 'dsh-web-search-provider') {
-        throw "Profile '$Profile' does not activate the dsh-web-search-provider bundle."
+    $dependency = $manifest.dependencies.PSObject.Properties['dsh-github-copilot']
+    if (-not $dependency) { throw "Profile '$Profile' does not install dsh-github-copilot." }
+    if (@($manifest.dsh.profile.bundles) -notcontains 'dsh-github-copilot') {
+        throw "Profile '$Profile' does not activate the dsh-github-copilot bundle."
     }
-    $pluginManifest = Join-Path $profileRoot 'node_modules\dsh-web-search-provider\package.json'
+    $pluginManifest = Join-Path $profileRoot 'node_modules\dsh-github-copilot\package.json'
     if (-not (Test-Path -LiteralPath $pluginManifest -PathType Leaf)) {
-        throw "Profile '$Profile' cannot resolve dsh-web-search-provider."
+        throw "Profile '$Profile' cannot resolve dsh-github-copilot."
     }
-    $pluginPatchPath = Join-Path $profileRoot 'node_modules\dsh-web-search-provider\cordis.patch.yml'
+    $pluginPatchPath = Join-Path $profileRoot 'node_modules\dsh-github-copilot\cordis.patch.yml'
     if (-not (Test-Path -LiteralPath $pluginPatchPath -PathType Leaf)) {
         throw "Profile '$Profile' plugin bundle patch is missing."
     }
     $pluginPatch = Get-Content -LiteralPath $pluginPatchPath -Raw -Encoding UTF8
-    if (-not $pluginPatch.Contains('id: web-search-provider') -or
-        -not $pluginPatch.Contains('name: dsh-web-search-provider')) {
-        throw "Profile '$Profile' plugin bundle does not insert web-search-provider."
+    if (-not $pluginPatch.Contains('id: github-copilot') -or
+        -not $pluginPatch.Contains('name: dsh-github-copilot')) {
+        throw "Profile '$Profile' plugin bundle does not insert github-copilot."
     }
     $patch = Get-Content -LiteralPath $patchPath -Raw -Encoding UTF8
     if ([regex]::Matches($patch, [regex]::Escape($script:ProfileBegin)).Count -ne 1 -or
@@ -777,7 +1040,7 @@ function Test-DshCopilotProfile {
     $outside = $patch.Substring(0, $start) + $patch.Substring($finish + $script:ProfileEnd.Length)
     foreach ($pattern in @(
         '(?m)^\s*-\s+id:\s+web\s*$',
-        '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$',
+        '(?m)^\s*-\s+id:\s+github-copilot\s*$',
         '(?m)^\s*-\s+id:\s+web-search-provider\s*$'
     )) {
         if ($outside -match $pattern) { throw "Profile '$Profile' contains unmanaged conflicting search configuration." }
@@ -785,52 +1048,32 @@ function Test-DshCopilotProfile {
     foreach ($marker in @(
         $script:ProfileBegin,
         '- id: web',
-        'searchProvider: copilot-hosted',
-        '- id: web-search-deepseek',
-        'disabled: true',
-        '- id: web-search-provider',
+        'searchProvider: github-copilot-hosted',
+        '- id: github-copilot',
         'enabled: true',
-        'providers: [github-copilot-gateway]',
+        'providers: [github-copilot]',
         $script:ProfileEnd
     )) {
         if (-not $managed.Contains($marker)) { throw "Profile '$Profile' is missing managed search configuration." }
     }
-    return [pscustomobject]@{ profile = $Profile; healthy = $true; pluginVersion = [string](Get-Content $pluginManifest -Raw | ConvertFrom-Json).version }
+    $pluginVersion = [string](Get-Content $pluginManifest -Raw | ConvertFrom-Json).version
+    if ($pluginVersion -cne $ExpectedPluginVersion) {
+        throw "Profile '$Profile' resolves dsh-github-copilot@$pluginVersion instead of locked $ExpectedPluginVersion."
+    }
+    return [pscustomobject]@{ profile = $Profile; healthy = $true; pluginVersion = $pluginVersion }
 }
 
 function Invoke-DshVisionProbe {
     param(
-        [Parameter(Mandatory)][string]$BaseUrl,
-        [Parameter(Mandatory)][string]$Model,
-        [ValidateSet('Contract', 'Live')][string]$Mode = 'Contract',
-        [int]$TimeoutSeconds = 30
+        [Parameter(Mandatory)][string]$SettingsPath,
+        [Parameter(Mandatory)][string]$Model
     )
-    if ($Mode -eq 'Contract') {
-        return [pscustomobject]@{ mode = 'contract'; healthy = $true; evidence = 'explicit catalog metadata plus openai-responses input contract' }
+    $route = Test-DshCopilotSettings -Path $SettingsPath -Model $Model
+    return [pscustomobject]@{
+        mode = 'account-route-contract'
+        healthy = [bool]$route.healthy
+        evidence = 'model is present in the account-available built-in pi-ai route'
     }
-
-    $key = [Environment]::GetEnvironmentVariable('COPILOT_API_KEY')
-    if (-not $key) { throw 'Live vision probe requires COPILOT_API_KEY in the process environment.' }
-    $png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n0kAAAAASUVORK5CYII='
-    $body = @{
-        model = $Model
-        input = @(@{ role = 'user'; content = @(
-            @{ type = 'input_text'; text = 'Reply with the single word pixel.' },
-            @{ type = 'input_image'; image_url = $png }
-        ) })
-        max_output_tokens = 8
-    } | ConvertTo-Json -Depth 8 -Compress
-    $headers = @{ Authorization = "Bearer $key" }
-    try {
-        $response = Invoke-WebRequest -UseBasicParsing -Uri ($BaseUrl.TrimEnd('/') + '/responses') `
-            -Method Post -Headers $headers -ContentType 'application/json' -Body $body -TimeoutSec $TimeoutSeconds
-    } catch {
-        throw 'The deterministic image-capable request failed.'
-    }
-    if ([int]$response.StatusCode -lt 200 -or [int]$response.StatusCode -ge 300) {
-        throw 'The deterministic image-capable request returned a non-success status.'
-    }
-    return [pscustomobject]@{ mode = 'live'; healthy = $true; statusCode = [int]$response.StatusCode }
 }
 
 function Test-DshSandboxRegression {
@@ -856,10 +1099,14 @@ function Test-DshSandboxRegression {
         return [pscustomobject]@{
             status = 'passed'
             required = [bool]($Mode -eq 'Require')
+            capability = [string]$result.capability
             sameMode = [string]$result.sameMode
             narrowerMode = [string]$result.narrowerMode
             widerMode = [string]$result.widerMode
             effectiveMode = [string]$result.effectiveMode
+            sameAndNarrowerApprovalCalls = [int]$result.sameAndNarrowerApprovalCalls
+            widerApprovalCalls = [int]$result.widerApprovalCalls
+            tools = @($result.tools)
         }
     }
     if ($Mode -eq 'Require') {
@@ -874,15 +1121,16 @@ function Test-DshSandboxRegression {
 }
 
 Export-ModuleMember -Function @(
-    'Get-DshExplicitVisionCapability',
-    'Get-DshCatalogModel',
-    'Get-DshCopilotCatalog',
+    'ConvertTo-DshRepositorySlug',
     'Resolve-DshCliInfo',
     'Test-DshActiveDesktopCore',
     'Test-DshRendererCompatibility',
-    'Test-DshCredentialReference',
+    'Test-DshCopilotCredentialRecord',
+    'Get-DshCopilotRouteState',
     'Set-DshManagedTextBlock',
-    'Set-DshCopilotSettings',
+    'Remove-DshLegacyCopilotSettings',
+    'Remove-DshLegacyCopilotCredentialReference',
+    'Set-DshCopilotModelSelection',
     'Set-DshCopilotProfilePatch',
     'Test-DshCopilotSettings',
     'New-DshCopilotBackup',

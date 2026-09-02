@@ -2597,30 +2597,31 @@ function Get-WindowsCopilotCoreConflictState {
     $shims = @($Lock.components.core.activation.conflictShims | ForEach-Object {
         $name = [string]$_
         $path = Join-Path $globalPrefix $name
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return }
-        $sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
-        $expectedSha256 = [string](Get-LockProperty `
-            -InputObject $Lock.components.core.activation.conflictShimSha256 -Name $name)
-        $canonicalShim = [bool]($sha256 -ceq $expectedSha256)
-        $officialGlobal = [bool](
-            $packageName -ceq '@deepseek-ai/dsh' -and
-            $packageVersion -and
-            $normalizedPackageEntrypoint -ceq 'lib/bin.js' -and
-            $packageEntrypointSha256 -and
-            -not $hasManagedReceipt -and
-            $canonicalShim
-        )
-        [pscustomobject]@{
-            name = $name
-            path = [IO.Path]::GetFullPath($path)
-            sha256 = $sha256
-            expectedSha256 = $expectedSha256
-            kind = if ($officialGlobal) { 'official-unreceipted-global' } else { 'unmanaged-global' }
-            canonicalShim = $canonicalShim
-            quarantinable = $officialGlobal
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            $sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            $expectedSha256 = [string](Get-LockProperty `
+                -InputObject $Lock.components.core.activation.conflictShimSha256 -Name $name)
+            $canonicalShim = [bool]($sha256 -ceq $expectedSha256)
+            $officialGlobal = [bool](
+                $packageName -ceq '@deepseek-ai/dsh' -and
+                $packageVersion -and
+                $normalizedPackageEntrypoint -ceq 'lib/bin.js' -and
+                $packageEntrypointSha256 -and
+                -not $hasManagedReceipt -and
+                $canonicalShim
+            )
+            [pscustomobject]@{
+                name = $name
+                path = [IO.Path]::GetFullPath($path)
+                sha256 = $sha256
+                expectedSha256 = $expectedSha256
+                kind = if ($officialGlobal) { 'official-unreceipted-global' } else { 'unmanaged-global' }
+                canonicalShim = $canonicalShim
+                quarantinable = $officialGlobal
+            }
         }
     })
-    $unmanaged = @($shims | Where-Object { -not $_.quarantinable })
+    $unmanaged = @($shims | Where-Object { $null -ne $_ -and -not $_.quarantinable })
     return [pscustomobject]@{
         valid = [bool]($shims.Count -eq 0)
         status = if ($shims.Count -eq 0) {
@@ -2649,7 +2650,7 @@ function Assert-WindowsCopilotCoreConflictSafe {
     )
     $conflicts = Get-WindowsCopilotCoreConflictState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
         -SelectedCliPath $SelectedCliPath
-    $unmanaged = @($conflicts.shims | Where-Object { -not $_.quarantinable })
+    $unmanaged = @($conflicts.shims | Where-Object { $null -ne $_ -and -not $_.quarantinable })
     if ($unmanaged.Count -gt 0) {
         throw "Refusing to remove unmanaged global dsh shims: $($unmanaged.path -join ', ')."
     }

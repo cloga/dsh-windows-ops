@@ -362,6 +362,90 @@ export function apply(ctx) {
             Should -Throw '*per-model API route fixes*'
     }
 
+    It 'returns no Core conflicts when every npm-global shim is missing' {
+        $caseRoot = Join-Path $TestDrive 'all-global-shims-missing'
+        $core = New-ForkCoreFixture -Prefix (Join-Path $caseRoot 'fork-prefix')
+        $globalRoot = Join-Path $caseRoot 'global\node_modules'
+        New-Item -ItemType Directory -Path $globalRoot -Force | Out-Null
+
+        $conflicts = Get-WindowsCopilotCoreConflictState -Lock $lock -NpmGlobalRoot $globalRoot `
+            -SelectedCliPath $core.cliPath
+
+        $conflicts.valid | Should -Be $true
+        $conflicts.status | Should -Be 'none'
+        @($conflicts.shims).Count | Should -Be 0
+    }
+
+    It 'returns only existing Core conflicts when npm-global shims are partially missing' {
+        $caseRoot = Join-Path $TestDrive 'partial-global-shims-missing'
+        $core = New-ForkCoreFixture -Prefix (Join-Path $caseRoot 'fork-prefix')
+        $globalRoot = Join-Path $caseRoot 'global\node_modules'
+        $globalPrefix = Split-Path -Parent $globalRoot
+        $globalPackage = Join-Path $globalRoot '@deepseek-ai\dsh'
+        New-Item -ItemType Directory -Path (Join-Path $globalPackage 'lib') -Force | Out-Null
+        [ordered]@{
+            name = '@deepseek-ai/dsh'
+            version = '0.1.1-rc.2'
+            bin = [ordered]@{ dsh = 'lib/bin.js' }
+        } | ConvertTo-Json -Compress |
+            Set-Content -LiteralPath (Join-Path $globalPackage 'package.json') -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $globalPackage 'lib\bin.js') `
+            -Value 'official global entrypoint' -Encoding UTF8
+        $shimPath = Join-Path $globalPrefix 'dsh.cmd'
+        Set-Content -LiteralPath $shimPath -Value 'official shim' -Encoding UTF8
+        $activationLock = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $activationLock.components.core.activation.conflictShimSha256.'dsh.cmd' =
+            (Get-FileHash -LiteralPath $shimPath -Algorithm SHA256).Hash.ToLowerInvariant()
+
+        $conflicts = Get-WindowsCopilotCoreConflictState -Lock $activationLock `
+            -NpmGlobalRoot $globalRoot -SelectedCliPath $core.cliPath
+
+        $conflicts.valid | Should -Be $false
+        $conflicts.status | Should -Be 'official-global-dsh-conflict'
+        @($conflicts.shims).Count | Should -Be 1
+        $conflicts.shims[0].name | Should -Be 'dsh.cmd'
+        $conflicts.shims[0].quarantinable | Should -Be $true
+    }
+
+    It 're-enters an active Core activation when shims are missing and DSH_CLI_PATH persists' {
+        $caseRoot = Join-Path $TestDrive 'active-core-reentry'
+        $core = New-ForkCoreFixture -Prefix (Join-Path $caseRoot 'fork-prefix')
+        $globalRoot = Join-Path $caseRoot 'global\node_modules'
+        $backupRoot = Join-Path $caseRoot 'backups'
+        $operationId = '20260901T115959000Z'
+        $nextOperationRoot = Join-Path $backupRoot '20260901T120000000Z'
+        New-Item -ItemType Directory -Path $globalRoot, $backupRoot -Force | Out-Null
+        [ordered]@{
+            schemaVersion = 1
+            deploymentId = [string]$lock.deploymentId
+            operationId = $operationId
+            status = 'active'
+        } | ConvertTo-Json | Set-Content `
+            -LiteralPath (Join-Path $backupRoot 'core-activation-current.json') -Encoding UTF8
+        Mock Get-WindowsCopilotUserEnvironment -ModuleName WindowsCopilotDeployment {
+            $core.cliPath
+        }
+        Mock Set-WindowsCopilotUserEnvironment -ModuleName WindowsCopilotDeployment {
+            throw 'must not mutate persisted DSH_CLI_PATH'
+        }
+        $previousProcessValue = $env:DSH_CLI_PATH
+        try {
+            $result = Enable-WindowsCopilotForkCore -Lock $lock -NpmGlobalRoot $globalRoot `
+                -CoreInstallPrefix $core.prefix -BackupRoot $backupRoot `
+                -OperationRoot $nextOperationRoot
+        } finally {
+            $env:DSH_CLI_PATH = $previousProcessValue
+        }
+
+        $result.status | Should -Be 'already-enabled'
+        $result.changed | Should -Be $false
+        $result.operationId | Should -Be $operationId
+        $result.selectedCliPath | Should -Be $core.cliPath
+        Test-Path -LiteralPath $nextOperationRoot | Should -Be $false
+        Should -Invoke Set-WindowsCopilotUserEnvironment -ModuleName WindowsCopilotDeployment `
+            -Times 0 -Exactly
+    }
+
     It 'checks applies verifies and rolls back fork Core activation with official global conflict backup' {
         $caseRoot = Join-Path $TestDrive 'fork-core-activation'
         $core = New-ForkCoreFixture -Prefix (Join-Path $caseRoot 'fork-prefix')

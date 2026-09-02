@@ -100,25 +100,27 @@ function Test-DshCopilotCredentialRecord {
 function Get-DshCopilotRouteState {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$SettingsPath)
-    if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) {
-        return [pscustomobject]@{
+    $missingRoute = {
+        param([string]$Status = 'route-missing')
+        [pscustomobject]@{
             exists = $false
             referenceFree = $false
+            modelsComplete = $false
+            mixedProtocolApis = $false
             availableModels = @()
-            status = 'route-missing'
+            modelRoutes = @()
+            apis = @()
+            status = $Status
             path = $SettingsPath
         }
+    }
+    if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) {
+        return & $missingRoute
     }
     $lines = @(Get-Content -LiteralPath $SettingsPath -Encoding UTF8)
     $llmStart = [array]::IndexOf($lines, 'llm-pi-ai:')
     if ($llmStart -lt 0) {
-        return [pscustomobject]@{
-            exists = $false
-            referenceFree = $false
-            availableModels = @()
-            status = 'route-missing'
-            path = $SettingsPath
-        }
+        return & $missingRoute
     }
     $llmRange = Get-DshYamlBlockRange -Lines $lines -Start $llmStart -Indent 0
     $providersStart = -1
@@ -126,30 +128,18 @@ function Get-DshCopilotRouteState {
         if ($lines[$i] -match '^\s{2}providers\s*:\s*$') { $providersStart = $i; break }
     }
     if ($providersStart -lt 0) {
-        return [pscustomobject]@{
-            exists = $false
-            referenceFree = $false
-            availableModels = @()
-            status = 'route-missing'
-            path = $SettingsPath
-        }
+        return & $missingRoute
     }
     $providersRange = Get-DshYamlBlockRange -Lines $lines -Start $providersStart -Indent 2
     $routeStart = -1
     for ($i = $providersStart + 1; $i -lt $providersRange.end; $i++) {
-        if ($lines[$i] -match '^\s{4}[''"]?github-copilot[''"]?\s*:\s*$') {
+        if ($lines[$i] -match '^\s{4}[''"]?github-copilot[''"]?\s*:\s*(?:\{\s*\})?\s*$') {
             $routeStart = $i
             break
         }
     }
     if ($routeStart -lt 0) {
-        return [pscustomobject]@{
-            exists = $false
-            referenceFree = $false
-            availableModels = @()
-            status = 'route-missing'
-            path = $SettingsPath
-        }
+        return & $missingRoute
     }
     $routeRange = Get-DshYamlBlockRange -Lines $lines -Start $routeStart -Indent 4
     $routeLines = @($lines[$routeStart..($routeRange.end - 1)])
@@ -158,25 +148,54 @@ function Get-DshCopilotRouteState {
         $key = [regex]::Escape($_)
         @($routeLines | Where-Object { $_ -match ("^\s{6}" + $key + '\s*:') }).Count -gt 0
     })
-    $models = @()
+    $modelRoutes = [Collections.Generic.List[object]]::new()
     $modelsStart = -1
     for ($i = $routeStart + 1; $i -lt $routeRange.end; $i++) {
         if ($lines[$i] -match '^\s{6}models\s*:\s*$') { $modelsStart = $i; break }
     }
     if ($modelsStart -ge 0) {
         $modelsRange = Get-DshYamlBlockRange -Lines $lines -Start $modelsStart -Indent 6
+        $current = $null
         for ($i = $modelsStart + 1; $i -lt $modelsRange.end; $i++) {
-            if ($lines[$i] -match '^\s{8}-\s+id\s*:\s*[''"]?([^''"#]+?)[''"]?\s*$') {
-                $models += $matches[1].Trim()
+            if ($lines[$i] -match '^\s{8}-\s+(id|api)\s*:\s*[''"]?([^''"#]+?)[''"]?\s*$') {
+                if ($current) { $modelRoutes.Add([pscustomobject]$current) }
+                $current = [ordered]@{ id = $null; api = $null }
+                $current[$matches[1]] = $matches[2].Trim()
+            } elseif ($current -and $lines[$i] -match '^\s{10}(id|api)\s*:\s*[''"]?([^''"#]+?)[''"]?\s*$') {
+                $current[$matches[1]] = $matches[2].Trim()
             }
         }
+        if ($current) { $modelRoutes.Add([pscustomobject]$current) }
+    }
+    $models = @($modelRoutes | ForEach-Object { $_.id } | Select-Object -Unique)
+    $apis = @($modelRoutes | ForEach-Object { $_.api } | Where-Object { $_ } | Select-Object -Unique)
+    $modelsComplete = [bool]($modelRoutes.Count -gt 0 -and
+        @($modelRoutes | Where-Object { -not $_.id -or -not $_.api }).Count -eq 0)
+    $mixedProtocolApis = [bool](
+        $apis -contains 'openai-responses' -and
+        $apis -contains 'openai-completions'
+    )
+    $status = if ($foundForbidden.Count -gt 0) {
+        'legacy-reference-route'
+    } elseif ($modelRoutes.Count -eq 0) {
+        'route-has-no-models'
+    } elseif (-not $modelsComplete) {
+        'route-model-api-missing'
+    } elseif (-not $mixedProtocolApis) {
+        'route-mixed-protocol-apis-missing'
+    } else {
+        'available'
     }
     return [pscustomobject]@{
         exists = $true
         referenceFree = [bool]($foundForbidden.Count -eq 0)
+        modelsComplete = $modelsComplete
+        mixedProtocolApis = $mixedProtocolApis
         forbiddenKeys = @($foundForbidden)
-        availableModels = @($models | Select-Object -Unique)
-        status = if ($foundForbidden.Count -gt 0) { 'legacy-reference-route' } elseif ($models.Count -eq 0) { 'route-has-no-models' } else { 'available' }
+        availableModels = $models
+        modelRoutes = @($modelRoutes)
+        apis = $apis
+        status = $status
         path = $SettingsPath
     }
 }
@@ -725,8 +744,8 @@ function Set-DshCopilotModelSelection {
         [switch]$DryRun
     )
     $route = Get-DshCopilotRouteState -SettingsPath $Path
-    if (-not $route.referenceFree) {
-        throw "A reference-free llm-pi-ai.providers.github-copilot route is required before selecting a model."
+    if ($route.status -ne 'available') {
+        throw "A complete reference-free mixed-protocol llm-pi-ai.providers.github-copilot route is required before selecting a model."
     }
     if (@($route.availableModels) -notcontains $Model) {
         throw "Model '$Model' is not in the signed-in account's available GitHub Copilot route."
@@ -799,6 +818,8 @@ function Test-DshCopilotSettings {
     $route = Get-DshCopilotRouteState -SettingsPath $Path
     if (-not $route.exists) { throw 'DSH GitHub Copilot route is absent; sign in through the Desktop UI.' }
     if (-not $route.referenceFree) { throw 'DSH GitHub Copilot route contains a legacy endpoint or credential reference.' }
+    if (-not $route.modelsComplete) { throw 'DSH GitHub Copilot route has no complete per-model {id, api} entries.' }
+    if (-not $route.mixedProtocolApis) { throw 'DSH GitHub Copilot route does not retain the required mixed protocol APIs.' }
     if ($Model -and @($route.availableModels) -notcontains $Model) {
         throw "Selected model '$Model' is not account-available."
     }

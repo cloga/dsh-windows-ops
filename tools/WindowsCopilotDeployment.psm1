@@ -94,6 +94,7 @@ function Test-WindowsCopilotLock {
         'components.copilotIntegration.package.bundlePatch',
         'components.copilotIntegration.package.attestedFiles',
         'components.copilotIntegration.package.artifact.name',
+        'components.copilotIntegration.package.artifact.url',
         'components.copilotIntegration.package.artifact.sha256',
         'components.copilotIntegration.package.deploymentBaseline.id',
         'components.copilotIntegration.package.deploymentBaseline.kind',
@@ -108,6 +109,10 @@ function Test-WindowsCopilotLock {
         'acceptance.providerRoute.settingsNamespace',
         'acceptance.providerRoute.provider',
         'acceptance.providerRoute.forbiddenKeys',
+        'acceptance.providerRoute.repairTrigger',
+        'acceptance.providerRoute.repairStates',
+        'acceptance.providerRoute.requiredModelFields',
+        'acceptance.providerRoute.requiredApis',
         'acceptance.composedConfig.forbiddenMarkers',
         'acceptance.composedConfig.forbiddenActiveEntries',
         'acceptance.composedConfig.managedEntry.id',
@@ -163,6 +168,12 @@ function Test-WindowsCopilotLock {
         [string]$Lock.components.copilotIntegration.package.artifact.sha256
     )) {
         if ($sha -notmatch '^[0-9a-f]{64}$') { throw "Invalid locked artifact SHA-256: $sha" }
+    }
+    $expectedProviderArtifactUrl = 'https://github.com/cloga/dsh-github-copilot/releases/download/v' +
+        [string]$Lock.components.copilotIntegration.package.version + '/' +
+        [string]$Lock.components.copilotIntegration.package.artifact.name
+    if ([string]$Lock.components.copilotIntegration.package.artifact.url -cne $expectedProviderArtifactUrl) {
+        throw 'Provider artifact URL does not match the locked release version and filename.'
     }
     $providerAttestedFiles = @($Lock.components.copilotIntegration.package.attestedFiles)
     $expectedProviderAttestedFiles = @(
@@ -251,7 +262,7 @@ function Test-WindowsCopilotLock {
         throw "Profile must physically materialize $copilotPackageName exactly once."
     }
     $legacyCopilotIntegrations = @($Lock.profile.legacyCopilotIntegrations)
-    if ($legacyCopilotIntegrations.Count -ne 8 -or
+    if ($legacyCopilotIntegrations.Count -ne 9 -or
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-web-search-provider' -and
             [string]$_.version -ceq '0.2.2'
@@ -283,6 +294,10 @@ function Test-WindowsCopilotLock {
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-github-copilot' -and
             [string]$_.version -ceq '0.3.0-cloga.6'
+        }).Count -ne 1 -or
+        @($legacyCopilotIntegrations | Where-Object {
+            [string]$_.name -ceq 'dsh-github-copilot' -and
+            [string]$_.version -ceq '0.3.0-cloga.7'
         }).Count -ne 1) {
         throw 'Profile migration must detect the reviewed legacy search providers and Copilot plugins.'
     }
@@ -356,6 +371,21 @@ function Test-WindowsCopilotLock {
         [string]$Lock.acceptance.traditionalSearch.requiredEvidenceProperty -ne 'sources') {
         throw 'Traditional Search contract must require github-copilot-hosted sources.'
     }
+    $providerRoute = $Lock.acceptance.providerRoute
+    if ([string]$providerRoute.repairTrigger -cne 'existing-valid-grant' -or
+        @($providerRoute.repairStates).Count -ne 4 -or
+        @($providerRoute.repairStates) -notcontains 'route-missing' -or
+        @($providerRoute.repairStates) -notcontains 'route-has-no-models' -or
+        @($providerRoute.repairStates) -notcontains 'route-model-api-missing' -or
+        @($providerRoute.repairStates) -notcontains 'route-mixed-protocol-apis-missing' -or
+        @($providerRoute.requiredModelFields).Count -ne 2 -or
+        @($providerRoute.requiredModelFields) -notcontains 'id' -or
+        @($providerRoute.requiredModelFields) -notcontains 'api' -or
+        @($providerRoute.requiredApis).Count -ne 2 -or
+        @($providerRoute.requiredApis) -notcontains 'openai-responses' -or
+        @($providerRoute.requiredApis) -notcontains 'openai-completions') {
+        throw 'Provider route contract must require existing-grant repair and complete mixed protocol model entries.'
+    }
     if ([string]$Lock.acceptance.reasoning.responses -ne 'nonempty-only' -or
         [string]$Lock.acceptance.reasoning.anthropic -ne 'nonempty-only') {
         throw 'Reasoning contract must suppress empty Responses and Anthropic reasoning.'
@@ -408,6 +438,7 @@ function Test-WindowsCopilotLock {
         'models-provider-card-authorization',
         'reference-free-route-mutation',
         'per-model-api-route-materialization',
+        'existing-grant-route-self-healing',
         'shared-copilot-credential-refresh',
         'strict-json-oauth-grant-normalization',
         'direct-provider-hosted-search',
@@ -417,7 +448,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly twelve required capabilities.'
+        throw 'Copilot integration baseline must lock exactly thirteen required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {
@@ -3429,7 +3460,12 @@ function Test-WindowsCopilotInstallation {
         if ($allowBuildKeys -notcontains [string]$name) { $allowBuildsValid = $false }
     }
 
-    $routesValid = [bool]($providerRoute.exists -and $providerRoute.referenceFree)
+    $routesValid = [bool](
+        $providerRoute.exists -and
+        $providerRoute.referenceFree -and
+        $providerRoute.modelsComplete -and
+        $providerRoute.mixedProtocolApis
+    )
 
     $listeners = if ($SkipRuntimeChecks) {
         @($Lock.acceptance.listeners | ForEach-Object {

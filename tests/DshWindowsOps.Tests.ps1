@@ -143,11 +143,9 @@ Describe 'DSH replay patching' {
         $patch[0].files | Should -Be @('lib\index.js')
         @($patch[0].verifyMarkers) | Should -Be @(
             'normalizeGitHubCopilotOAuthCredential',
-            'Reflect.get(credential, "type")',
-            'Number.isFinite(expires)',
-            'payload: normalizeGitHubCopilotOAuthCredential(credential)'
+            'Number.isFinite(expires)'
         )
-        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/29'
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/33'
     }
 
     It 'locks per-model API route materialization replay markers' {
@@ -163,6 +161,22 @@ Describe 'DSH replay patching' {
             'const effectiveApi = selectedApi ?? routeApi;'
         )
         $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/31'
+    }
+
+    It 'locks existing-grant route self-healing replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'github-copilot-existing-grant-route-self-healing')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\index.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'ensureGitHubCopilotProviderProfile(ctx)',
+            'function sameProviderProfile(current, expected)',
+            'normalizeGitHubCopilotOAuthCredential(record.payload)'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/33'
     }
 
     It 'accepts components without optional root and version properties under StrictMode' {

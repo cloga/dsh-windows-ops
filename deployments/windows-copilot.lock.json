@@ -122,13 +122,13 @@
     "copilotIntegration": {
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "pullRequest": 31,
-        "commit": "37261cfe969d9066842e66296ffa0e8257ef0a1e",
-        "mergeCommit": "a3d0179d8b919785148d08942c1e2622db8e0ead"
+        "pullRequest": 33,
+        "commit": "94d921dc7bad4d5035c27ed9543d638694cb7391",
+        "mergeCommit": "eae8b56715e197d5e206a7852bfaa418bbc70dc5"
       },
       "package": {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.7",
+        "version": "0.3.0-cloga.8",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
@@ -139,8 +139,9 @@
           "lib/remote.js"
         ],
         "artifact": {
-          "name": "dsh-github-copilot-0.3.0-cloga.7.tgz",
-          "sha256": "4ee1b5b4346df8b52ce2581ab578bdef175d0998d21ae4ad590ee19567fa980a"
+          "name": "dsh-github-copilot-0.3.0-cloga.8.tgz",
+          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.8.tgz",
+          "sha256": "b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32"
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
@@ -164,6 +165,7 @@
             "models-provider-card-authorization",
             "reference-free-route-mutation",
             "per-model-api-route-materialization",
+            "existing-grant-route-self-healing",
             "shared-copilot-credential-refresh",
             "strict-json-oauth-grant-normalization",
             "direct-provider-hosted-search",
@@ -174,7 +176,7 @@
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.7.tgz",
+        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.8.tgz",
         "commands": [
           ["install", "--frozen-lockfile"],
           ["test"],
@@ -276,7 +278,7 @@
       },
       {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.7",
+        "version": "0.3.0-cloga.8",
         "source": "built-artifact",
         "materialize": true
       }
@@ -325,6 +327,11 @@
         "name": "dsh-github-copilot",
         "version": "0.3.0-cloga.6",
         "artifactPattern": "dsh-github-copilot-0.3.0-cloga.6.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.7",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.7.tgz"
       }
     ]
   },
@@ -347,6 +354,10 @@
       "provider": "github-copilot",
       "referenceFree": true,
       "forbiddenKeys": ["baseURL", "apiKeyEnv"],
+      "repairTrigger": "existing-valid-grant",
+      "repairStates": ["route-missing", "route-has-no-models", "route-model-api-missing", "route-mixed-protocol-apis-missing"],
+      "requiredModelFields": ["id", "api"],
+      "requiredApis": ["openai-responses", "openai-completions"],
       "modelsSource": "account-available-installed-catalog-intersection"
     },
     "composedConfig": {

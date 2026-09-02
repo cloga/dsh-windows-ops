@@ -114,18 +114,29 @@
       "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/31"
     },
     {
+      "id": "github-copilot-existing-grant-route-self-healing",
+      "description": "Verify an existing valid Copilot grant repairs absent, empty, incomplete, or stale routes while retaining complete mixed-protocol model entries.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "ensureGitHubCopilotProviderProfile(ctx)",
+        "function sameProviderProfile(current, expected)",
+        "normalizeGitHubCopilotOAuthCredential(record.payload)"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/33"
+    },
+    {
       "id": "github-copilot-strict-json-oauth-grant-normalization",
       "description": "Verify Copilot OAuth grants are rebuilt as a validated provider-owned plain JSON shape.",
       "component": "dsh-github-copilot",
       "files": ["lib\\index.js"],
       "verifyMarkers": [
         "normalizeGitHubCopilotOAuthCredential",
-        "Reflect.get(credential, \"type\")",
-        "Number.isFinite(expires)",
-        "payload: normalizeGitHubCopilotOAuthCredential(credential)"
+        "Number.isFinite(expires)"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/29"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/33"
     },
     {
       "id": "github-copilot-direct-hosted-search",

@@ -11,4 +11,7 @@ llm-pi-ai:
     github-copilot:
       displayName: GitHub Copilot
       models:
-        - id: 'fixture-direct-model'
+        - id: 'fixture-responses-model'
+          api: openai-responses
+        - id: 'fixture-completions-model'
+          api: openai-completions

@@ -74,7 +74,7 @@ if (catalog && schema && deployment) {
     if (!recommendations.has(plugin.recommendation)) fail(`${at}.recommendation`, 'is invalid');
     if (!isObject(plugin.source) || !/^https:\/\/github\.com\//.test(plugin.source.repository ?? '')) fail(`${at}.source.repository`, 'must be a GitHub HTTPS URL');
     if (plugin.source?.commit !== undefined && !/^[0-9a-f]{7,40}$/.test(plugin.source.commit)) fail(`${at}.source.commit`, 'must be a hexadecimal commit id');
-    if (plugin.artifact !== undefined && (!isObject(plugin.artifact) || !nonempty(plugin.artifact.name) || !/^[0-9a-f]{64}$/.test(plugin.artifact.sha256 ?? ''))) fail(`${at}.artifact`, 'requires name and lowercase SHA-256');
+    if (plugin.artifact !== undefined && (!isObject(plugin.artifact) || !nonempty(plugin.artifact.name) || !/^https:\/\/github\.com\//.test(plugin.artifact.url ?? '') || !/^[0-9a-f]{64}$/.test(plugin.artifact.sha256 ?? ''))) fail(`${at}.artifact`, 'requires name, GitHub HTTPS URL, and lowercase SHA-256');
     if (!nonempty(plugin.summary)) fail(`${at}.summary`, 'is required');
 
     const validation = plugin.validation;
@@ -128,6 +128,7 @@ if (catalog && schema && deployment) {
       if (plugin.package !== locked?.package?.name) fail(`${at}.package`, 'does not match deployment lock');
       if (plugin.source.release !== locked?.package?.version) fail(`${at}.source.release`, 'does not match deployment lock version');
       if (plugin.artifact?.name !== locked?.package?.artifact?.name) fail(`${at}.artifact.name`, 'does not match deployment lock');
+      if (plugin.artifact?.url !== locked?.package?.artifact?.url) fail(`${at}.artifact.url`, 'does not match deployment lock');
       if (plugin.artifact?.sha256 !== locked?.package?.artifact?.sha256) fail(`${at}.artifact.sha256`, 'does not match deployment lock');
     }
   }

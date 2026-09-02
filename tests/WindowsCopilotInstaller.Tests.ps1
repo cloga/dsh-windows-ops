@@ -560,6 +560,51 @@ basedir=$(dirname "$0")
         ($step.packages -contains '<built-copilot-integration-tarball>') | Should -Be $true
     }
 
+    It 'forwards Core installer options through pinned pnpm without a positional separator' {
+        $caseRoot = Join-Path $TestDrive 'pnpm-script-arguments'
+        $capturePath = Join-Path $caseRoot 'arguments.json'
+        New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
+        [ordered]@{
+            private = $true
+            scripts = [ordered]@{
+                'capture-install-args' = 'node capture-install-args.cjs'
+            }
+        } | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'package.json') -Encoding UTF8
+        @'
+const fs = require('node:fs')
+fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice(2)))
+'@ | Set-Content -LiteralPath (Join-Path $caseRoot 'capture-install-args.cjs') -Encoding UTF8
+        $previousCapturePath = $env:ARG_CAPTURE_PATH
+        try {
+            $env:ARG_CAPTURE_PATH = $capturePath
+            $module = Get-Module WindowsCopilotDeployment
+            & $module {
+                param($WorkingDirectory)
+                Invoke-LockedCommand -FilePath 'npx' -Arguments @(
+                    '--yes',
+                    'pnpm@11.7.0',
+                    'run',
+                    'capture-install-args',
+                    '--from', 'release-one',
+                    '--from', 'release-two',
+                    '--from', 'release-three',
+                    '--prefix', 'install-prefix',
+                    '--expect-commit', 'a772dbbde82780bff2b9394427e9f0a24cafa1d5',
+                    '--expect-version', '0.1.1-rc.2'
+                ) -WorkingDirectory $WorkingDirectory
+            } $caseRoot
+        } finally {
+            $env:ARG_CAPTURE_PATH = $previousCapturePath
+        }
+        Get-Content -LiteralPath $capturePath -Raw -Encoding UTF8 |
+            Should -Be (
+                '["--from","release-one","--from","release-two","--from","release-three",' +
+                '"--prefix","install-prefix","--expect-commit",' +
+                '"a772dbbde82780bff2b9394427e9f0a24cafa1d5","--expect-version","0.1.1-rc.2"]'
+            )
+    }
+
     It 'blocks a new Apply before mutation when an activation is pending' {
         $caseRoot = Join-Path $TestDrive 'pending-apply'
         $backupRoot = Join-Path $caseRoot 'backups'
@@ -616,7 +661,14 @@ basedir=$(dirname "$0")
                 files = $receiptPackage.files
             })
         }
+        $script:coreInstallCommand = $null
         Mock Invoke-LockedCommand -ModuleName WindowsCopilotDeployment {
+            param($FilePath, $Arguments, $WorkingDirectory)
+            $script:coreInstallCommand = [pscustomobject]@{
+                filePath = $FilePath
+                arguments = @($Arguments)
+                workingDirectory = $WorkingDirectory
+            }
             $packageRoot = Join-Path $script:receiptPrefix 'node_modules\@deepseek-ai\dsh'
             $binRoot = Join-Path $script:receiptPrefix 'node_modules\.bin'
             New-Item -ItemType Directory -Path $packageRoot, $binRoot -Force | Out-Null
@@ -646,6 +698,22 @@ basedir=$(dirname "$0")
         }
         $core = Install-WindowsCopilotCoreRelease -Lock $lock -SourceRoot $sourceRoot `
             -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -CoreRelease $coreRelease
+        $script:coreInstallCommand.filePath | Should -Be 'npx'
+        $script:coreInstallCommand.workingDirectory | Should -Be ([IO.Path]::GetFullPath($sourceRoot))
+        $script:coreInstallCommand.arguments | Should -Be @(
+            '--yes',
+            'pnpm@11.7.0',
+            'run',
+            'release:install-local',
+            '--from', [IO.Path]::GetFullPath($releaseRoot),
+            '--from', [IO.Path]::GetFullPath($vendorReleaseRoot),
+            '--from', [IO.Path]::GetFullPath($landlockReleaseRoot),
+            '--prefix', [IO.Path]::GetFullPath($receiptPrefix),
+            '--expect-commit', [string]$lock.components.core.source.commit,
+            '--expect-version', [string]$lock.components.core.package.version
+        )
+        @($script:coreInstallCommand.arguments | Where-Object { $_ -ceq '--' }).Count | Should -Be 0
+        Should -Invoke Invoke-LockedCommand -ModuleName WindowsCopilotDeployment -Times 1 -Exactly
         $core.commitSha | Should -Be $lock.components.core.source.commit
         Test-Path -LiteralPath $core.receiptPath | Should -Be $true
         $core.installedFileCount | Should -Be 3

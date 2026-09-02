@@ -206,10 +206,13 @@ export function apply(ctx) {
         @($lock.profile.legacyPhysicalPlugins).Count | Should -Be 3
         (@($lock.profile.legacyPhysicalPlugins | Where-Object name -eq 'dsh-tauri'))[0].version |
             Should -Be '0.2.0'
-        $lock.components.core.source.commit | Should -Be 'ef6b355136af7e9d7f4ed603a5422137c89d44e0'
-        $lock.components.core.source.maintenanceBranch | Should -Be 'cloga-local-install-file-attestation'
+        $lock.components.core.source.commit | Should -Be 'ec7aa6518db656de9bbcdfbf7900eb21f2c75c9f'
+        $lock.components.core.source.maintenanceBranch | Should -Be 'cloga-pi-ai-oauth-json-records'
         $lock.components.core.package.version | Should -Be '0.1.1-rc.2'
-        @($lock.components.core.capabilities) | Should -Be @('sandbox-same-and-narrower-no-op')
+        @($lock.components.core.capabilities) | Should -Be @(
+            'sandbox-same-and-narrower-no-op',
+            'pi-ai-oauth-json-record-normalization'
+        )
         $lock.components.core.install.script | Should -Be 'release:install-local'
         @($lock.components.core.install.attestedFiles).Count | Should -Be 3
         $lock.components.core.activation.environmentVariable | Should -Be 'DSH_CLI_PATH'
@@ -256,6 +259,18 @@ export function apply(ctx) {
         $lock.acceptance.credential.record | Should -Be 'llm-pi-ai/github-copilot'
         $lock.acceptance.sandbox.gate | Should -Be 'Require'
         $lock.acceptance.sandbox.capability | Should -Be 'sandbox-same-and-narrower-no-op'
+    }
+
+    It 'rejects incomplete or extended Core capability evidence' {
+        $missingCapability = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $missingCapability.components.core.capabilities = @('sandbox-same-and-narrower-no-op')
+        { Test-WindowsCopilotLock -Lock $missingCapability } |
+            Should -Throw '*sandbox and pi-ai OAuth JSON normalization fixes*'
+
+        $unexpectedCapability = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $unexpectedCapability.components.core.capabilities += 'unreviewed-core-capability'
+        { Test-WindowsCopilotLock -Lock $unexpectedCapability } |
+            Should -Throw '*sandbox and pi-ai OAuth JSON normalization fixes*'
     }
 
     It 'checks applies verifies and rolls back fork Core activation with official global conflict backup' {

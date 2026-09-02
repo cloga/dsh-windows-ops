@@ -57,8 +57,8 @@
       "source": {
         "repository": "https://github.com/cloga/deepseek-harness",
         "pullRequest": 8,
-        "maintenanceBranch": "cloga-local-install-file-attestation",
-        "commit": "ef6b355136af7e9d7f4ed603a5422137c89d44e0"
+        "maintenanceBranch": "cloga-pi-ai-oauth-json-records",
+        "commit": "ec7aa6518db656de9bbcdfbf7900eb21f2c75c9f"
       },
       "package": {
         "name": "@deepseek-ai/dsh",
@@ -66,7 +66,8 @@
         "packageManager": "pnpm@11.7.0"
       },
       "capabilities": [
-        "sandbox-same-and-narrower-no-op"
+        "sandbox-same-and-narrower-no-op",
+        "pi-ai-oauth-json-record-normalization"
       ],
       "build": {
         "artifactDirectories": [

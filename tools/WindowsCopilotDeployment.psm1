@@ -363,9 +363,17 @@ function Test-WindowsCopilotLock {
         throw 'Sandbox acceptance contract must require no-op same/narrower and one wider approval.'
     }
     $coreCapabilities = @($Lock.components.core.capabilities)
-    if ($coreCapabilities.Count -ne 1 -or
-        [string]$coreCapabilities[0] -cne [string]$Lock.acceptance.sandbox.capability) {
-        throw 'Core capability evidence must lock the sandbox same/narrower no-op fix exactly once.'
+    $expectedCoreCapabilities = @(
+        [string]$Lock.acceptance.sandbox.capability,
+        'pi-ai-oauth-json-record-normalization'
+    )
+    if ($coreCapabilities.Count -ne $expectedCoreCapabilities.Count) {
+        throw 'Core capability evidence must lock exactly the sandbox and pi-ai OAuth JSON normalization fixes.'
+    }
+    for ($index = 0; $index -lt $expectedCoreCapabilities.Count; $index++) {
+        if ([string]$coreCapabilities[$index] -cne [string]$expectedCoreCapabilities[$index]) {
+            throw 'Core capability evidence must lock exactly the sandbox and pi-ai OAuth JSON normalization fixes.'
+        }
     }
     $activation = $Lock.components.core.activation
     if ([string]$activation.environmentVariable -cne 'DSH_CLI_PATH' -or

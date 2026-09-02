@@ -49,7 +49,7 @@ The `.6` baseline checks:
 | Authorization service | rc.2 bootstrap before plugin activation and alpha.4 existing-service reuse |
 | Direct hosted search | Copilot request metadata, two-round bounded probe, `github-copilot-hosted`, and direct Copilot endpoint boundary |
 | Client UI | alpha.4 Models provider-card and rc.2 Settings fallback |
-| Core | renderer `SlotOutlet` compatibility and sandbox regression |
+| Core | renderer `SlotOutlet` compatibility, sandbox regression, and built `llm-pi-ai` strict OAuth JSON normalization markers |
 | Desktop | no-open recovery marker where still required |
 
 The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.6`, source commit

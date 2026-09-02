@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 function fail(message) {
   process.stdout.write(JSON.stringify({ status: 'failed', reason: message }) + '\n')
@@ -11,17 +11,25 @@ const packageRoot = process.argv[2] ? resolve(process.argv[2]) : ''
 if (!packageRoot) {
   fail('missing-package-root')
 } else {
-  const sandboxEntry = join(packageRoot, 'node_modules', '@deepseek-ai', 'dsh-sandbox', 'lib', 'index.js')
+  const packageEntry = (name) => {
+    const relative = [...name.split('/'), 'lib', 'index.js']
+    const candidates = [
+      join(packageRoot, 'node_modules', ...relative),
+      join(dirname(dirname(packageRoot)), ...relative),
+    ]
+    return candidates.find(candidate => existsSync(candidate)) ?? candidates[0]
+  }
+  const sandboxEntry = packageEntry('@deepseek-ai/dsh-sandbox')
   const toolEntries = [
     {
       name: 'bash',
       command: 'true',
-      path: join(packageRoot, 'node_modules', '@deepseek-ai', 'dsh-tool-bash', 'lib', 'index.js'),
+      path: packageEntry('@deepseek-ai/dsh-tool-bash'),
     },
     {
       name: 'pwsh',
       command: '$null',
-      path: join(packageRoot, 'node_modules', '@deepseek-ai', 'dsh-tool-pwsh', 'lib', 'index.js'),
+      path: packageEntry('@deepseek-ai/dsh-tool-pwsh'),
     },
   ]
   if (!existsSync(sandboxEntry) || toolEntries.some(tool => !existsSync(tool.path))) {

@@ -527,6 +527,15 @@ powershell.exe -File tools\enable-copilot-search-vision.ps1 `
   -Model '<model-id-returned-by-copilot2api>'
 ```
 
+When the package is not available from the configured registry, pass the
+reviewed locked tarball explicitly:
+
+```powershell
+powershell.exe -File tools\enable-copilot-search-vision.ps1 `
+  -Model '<model-id-returned-by-copilot2api>' `
+  -CopilotIntegrationPackage 'C:\Path\To\dsh-github-copilot-0.3.0-cloga.1.tgz'
+```
+
 The command is idempotent and fail-closed. Before changing files, it requires:
 
 - `DSH_CLI_PATH` (or the resolved `dsh`) to identify either the

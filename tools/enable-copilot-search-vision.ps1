@@ -4,6 +4,7 @@ param(
     [string]$Action = 'Apply',
     [string]$Model,
     [string]$BaseUrl = 'http://127.0.0.1:7777/v1',
+    [string]$CopilotIntegrationPackage = 'dsh-github-copilot',
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }),
     [string]$DshCliPath,
     [string]$DesktopRoot = $env:DSH_DESKTOP_ROOT,
@@ -23,6 +24,10 @@ Import-Module (Join-Path $PSScriptRoot 'DshCopilotBootstrap.psm1') -Force
 
 $DshHome = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DshHome))
 $StateRoot = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($StateRoot))
+$CopilotIntegrationPackage = [Environment]::ExpandEnvironmentVariables($CopilotIntegrationPackage)
+if (Test-Path -LiteralPath $CopilotIntegrationPackage -PathType Leaf) {
+    $CopilotIntegrationPackage = [IO.Path]::GetFullPath($CopilotIntegrationPackage)
+}
 
 if ($Action -eq 'Rollback') {
     Restore-DshCopilotBackup -StateRoot $StateRoot -OperationId $OperationId -DryRun:$DryRun |
@@ -86,7 +91,7 @@ if ($Action -eq 'Apply') {
                             }
                         }
                     }
-                    & $cli.cliPath plugin --profile $profile add dsh-github-copilot | Out-Null
+                    & $cli.cliPath plugin --profile $profile add $CopilotIntegrationPackage | Out-Null
                     if ($LASTEXITCODE -ne 0) { throw "dsh plugin installation failed for profile '$profile'." }
                 }
             } finally {

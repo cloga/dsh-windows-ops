@@ -349,6 +349,24 @@ Describe 'DSH Copilot bootstrap' {
         (Get-DshCatalogModel -Catalog $catalog -Model 'actual-image').visionCapable | Should -Be $true
     }
 
+    It 'resolves a reference from a version 1 credential store with versioned records' {
+        $credentialHome = Join-Path $root 'credential-home'
+        New-Item -ItemType Directory -Path $credentialHome -Force | Out-Null
+        @'
+version: 1
+refs:
+  COPILOT_GITHUB_TOKEN: github/copilot
+records:
+  github/copilot:
+    kind: api-key
+    payload:
+      version: 1
+      secret: redacted-test-value
+'@ | Set-Content -LiteralPath (Join-Path $credentialHome '.credentials.yaml') -Encoding UTF8
+
+        Test-DshCredentialReference -DshHome $credentialHome | Should -Be 'credential-store'
+    }
+
     It 'accepts only an active Desktop descendant using the local package' {
         $cli = [pscustomobject]@{
             cliPath = 'C:\npm\dsh.cmd'
@@ -381,6 +399,23 @@ Describe 'DSH Copilot bootstrap' {
             $threw = $true
         }
         $threw | Should -Be $true
+    }
+
+    It 'accepts a hoisted renderer beside the active Core package' {
+        $package = Join-Path $root 'prefix\node_modules\@deepseek-ai\dsh'
+        $renderer = Join-Path $root 'prefix\node_modules\@deepseek-ai\dsh-client-ui-renderer\lib'
+        $flat = Join-Path $root 'home\profiles\node_modules\@deepseek-ai\dsh-client-ui-renderer\lib'
+        New-Item -ItemType Directory -Path $package -Force | Out-Null
+        New-Item -ItemType Directory -Path $renderer -Force | Out-Null
+        New-Item -ItemType Directory -Path $flat -Force | Out-Null
+        $source = "function SlotOutlet() {}`nexports.SlotOutlet = SlotOutlet;`nreturn module.exports;"
+        Set-Content -LiteralPath (Join-Path $renderer 'client.js') -Value $source -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $flat 'client.js') -Value $source -Encoding UTF8
+
+        $result = Test-DshRendererCompatibility -PackageRoot $package -DshHome (Join-Path $root 'home')
+
+        $result.healthy | Should -Be $true
+        $result.renderer | Should -Be (Join-Path $renderer 'client.js')
     }
 
     It 'backs up and restores every tracked profile file' {
@@ -467,10 +502,12 @@ export function apply(ctx) {
     }
 
     It 'passes same narrower and wider sandbox behavior without lowering policy' {
-        $package = Join-Path $root 'package'
-        $sandbox = Join-Path $package 'node_modules\@deepseek-ai\dsh-sandbox\lib'
-        $bash = Join-Path $package 'node_modules\@deepseek-ai\dsh-tool-bash\lib'
-        $pwsh = Join-Path $package 'node_modules\@deepseek-ai\dsh-tool-pwsh\lib'
+        $nodeModules = Join-Path $root 'prefix\node_modules'
+        $package = Join-Path $nodeModules '@deepseek-ai\dsh'
+        $sandbox = Join-Path $nodeModules '@deepseek-ai\dsh-sandbox\lib'
+        $bash = Join-Path $nodeModules '@deepseek-ai\dsh-tool-bash\lib'
+        $pwsh = Join-Path $nodeModules '@deepseek-ai\dsh-tool-pwsh\lib'
+        New-Item -ItemType Directory -Path $package -Force | Out-Null
         New-Item -ItemType Directory -Path $sandbox, $bash, $pwsh -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $sandbox 'index.js') -Encoding UTF8 -Value @'
 export async function approveEscalation(request, approval) {

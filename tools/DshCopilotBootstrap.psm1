@@ -426,10 +426,18 @@ function Test-DshRendererCompatibility {
         [Parameter(Mandatory)][string]$DshHome
     )
 
-    $renderer = Join-Path $PackageRoot 'node_modules\@deepseek-ai\dsh-client-ui-renderer\lib\client.js'
-    if (-not (Test-Path -LiteralPath $renderer -PathType Leaf)) {
-        throw "Active-core renderer was not found at '$renderer'."
+    $packageNodeModules = Split-Path -Parent (Split-Path -Parent $PackageRoot)
+    $rendererCandidates = @(
+        (Join-Path $PackageRoot 'node_modules\@deepseek-ai\dsh-client-ui-renderer\lib\client.js'),
+        (Join-Path $packageNodeModules '@deepseek-ai\dsh-client-ui-renderer\lib\client.js')
+    )
+    $renderer = @($rendererCandidates | Where-Object {
+        Test-Path -LiteralPath $_ -PathType Leaf
+    } | Select-Object -First 1)
+    if ($renderer.Count -eq 0) {
+        throw "Active-core renderer was not found through nested or hoisted Node resolution."
     }
+    $renderer = [string]$renderer[0]
     $source = Get-Content -LiteralPath $renderer -Raw -Encoding UTF8
     if (-not $source.Contains('exports.SlotOutlet = SlotOutlet;')) {
         if (-not $source.Contains('return module.exports;')) {
@@ -457,7 +465,7 @@ function Test-DshCredentialReference {
     $path = Join-Path $DshHome '.credentials.yaml'
     if (Test-Path -LiteralPath $path -PathType Leaf) {
         $lines = @(Get-Content -LiteralPath $path -Encoding UTF8)
-        if (@($lines | Where-Object { $_ -match '^\s*version\s*:\s*1\s*$' }).Count -ne 1) {
+        if (@($lines | Where-Object { $_ -match '^version\s*:\s*1\s*$' }).Count -ne 1) {
             throw 'The credential store is not a version 1 document.'
         }
         $inRefs = $false

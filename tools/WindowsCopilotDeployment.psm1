@@ -251,7 +251,7 @@ function Test-WindowsCopilotLock {
         throw "Profile must physically materialize $copilotPackageName exactly once."
     }
     $legacyCopilotIntegrations = @($Lock.profile.legacyCopilotIntegrations)
-    if ($legacyCopilotIntegrations.Count -ne 7 -or
+    if ($legacyCopilotIntegrations.Count -ne 8 -or
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-web-search-provider' -and
             [string]$_.version -ceq '0.2.2'
@@ -279,6 +279,10 @@ function Test-WindowsCopilotLock {
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-github-copilot' -and
             [string]$_.version -ceq '0.3.0-cloga.5'
+        }).Count -ne 1 -or
+        @($legacyCopilotIntegrations | Where-Object {
+            [string]$_.name -ceq 'dsh-github-copilot' -and
+            [string]$_.version -ceq '0.3.0-cloga.6'
         }).Count -ne 1) {
         throw 'Profile migration must detect the reviewed legacy search providers and Copilot plugins.'
     }
@@ -365,14 +369,15 @@ function Test-WindowsCopilotLock {
     $coreCapabilities = @($Lock.components.core.capabilities)
     $expectedCoreCapabilities = @(
         [string]$Lock.acceptance.sandbox.capability,
-        'pi-ai-oauth-json-record-normalization'
+        'pi-ai-oauth-json-record-normalization',
+        'pi-ai-per-model-api-routes'
     )
     if ($coreCapabilities.Count -ne $expectedCoreCapabilities.Count) {
-        throw 'Core capability evidence must lock exactly the sandbox and pi-ai OAuth JSON normalization fixes.'
+        throw 'Core capability evidence must lock exactly the sandbox, pi-ai OAuth JSON normalization, and per-model API route fixes.'
     }
     for ($index = 0; $index -lt $expectedCoreCapabilities.Count; $index++) {
         if ([string]$coreCapabilities[$index] -cne [string]$expectedCoreCapabilities[$index]) {
-            throw 'Core capability evidence must lock exactly the sandbox and pi-ai OAuth JSON normalization fixes.'
+            throw 'Core capability evidence must lock exactly the sandbox, pi-ai OAuth JSON normalization, and per-model API route fixes.'
         }
     }
     $activation = $Lock.components.core.activation
@@ -402,6 +407,7 @@ function Test-WindowsCopilotLock {
         'authorization-service-bootstrap',
         'models-provider-card-authorization',
         'reference-free-route-mutation',
+        'per-model-api-route-materialization',
         'shared-copilot-credential-refresh',
         'strict-json-oauth-grant-normalization',
         'direct-provider-hosted-search',
@@ -411,7 +417,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly eleven required capabilities.'
+        throw 'Copilot integration baseline must lock exactly twelve required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {

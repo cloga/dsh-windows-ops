@@ -30,7 +30,22 @@
         "payload: normalizeGrantPayload(credential)"
       ],
       "upstreamStatus": "temporary",
-      "upstreamUrl": "https://github.com/cloga/deepseek-harness/commit/ec7aa6518db656de9bbcdfbf7900eb21f2c75c9f"
+      "upstreamUrl": "https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5"
+    },
+    {
+      "id": "core-pi-ai-per-model-api-routes",
+      "description": "Verify llm-pi-ai validates model-level protocols and resolves them before route and catalog defaults.",
+      "component": "dsh-local-core",
+      "files": [
+        "node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js"
+      ],
+      "verifyMarkers": [
+        "api: z.union(supportedProtocols())",
+        "function assertSupportedModelApis",
+        "const api = entry.api ?? request.api ?? base?.api ?? routeApi;"
+      ],
+      "upstreamStatus": "temporary",
+      "upstreamUrl": "https://github.com/cloga/deepseek-harness/commit/a772dbbde82780bff2b9394427e9f0a24cafa1d5"
     },
     {
       "id": "github-copilot-client-module-loader-handoff",
@@ -85,6 +100,18 @@
       ],
       "upstreamStatus": "upstreamed",
       "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
+    },
+    {
+      "id": "github-copilot-per-model-api-route-materialization",
+      "description": "Verify account models retain their installed per-model protocol and selection prefers it over a route fallback.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "[model.id, model.api]",
+        "const effectiveApi = selectedApi ?? routeApi;"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/31"
     },
     {
       "id": "github-copilot-strict-json-oauth-grant-normalization",

@@ -55,24 +55,6 @@
       ]
     },
     {
-      "name": "copilot2api",
-      "rootEnv": "COPILOT2API_ROOT",
-      "rootCandidates": [
-        "%LOCALAPPDATA%\\Programs\\copilot2api"
-      ],
-      "versionProbes": [
-        {
-          "path": "package.json",
-          "property": "version"
-        }
-      ],
-      "fileVersionProbes": [
-        {
-          "path": "copilot2api.exe"
-        }
-      ]
-    },
-    {
       "name": "pi-ai",
       "rootEnv": "PI_AI_ROOT",
       "rootCandidates": [
@@ -92,13 +74,6 @@
       "name": "dsh-desktop",
       "processPattern": "DeepSeek Harness|bin\\.js.*\\bweb\\b",
       "ports": []
-    },
-    {
-      "name": "copilot2api",
-      "processPattern": "copilot2api",
-      "ports": [
-        7777
-      ]
     }
   ],
   "configFiles": [
@@ -106,12 +81,5 @@
     "${DSH_HOME}\\profiles\\web\\cordis.patch.yml",
     "${DSH_HOME}\\profiles\\headless\\cordis.patch.yml"
   ],
-  "modelEndpoints": [
-    {
-      "name": "copilot2api",
-      "baseUrl": "http://127.0.0.1:7777",
-      "baseUrlEnv": "COPILOT2API_BASE_URL",
-      "path": "/v1/models"
-    }
-  ]
+  "modelEndpoints": []
 }

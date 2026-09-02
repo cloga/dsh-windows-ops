@@ -110,45 +110,51 @@ Describe 'DSH Copilot bootstrap' {
     }
     }
 
-    It 'does not write managed settings during dry-run' {
-        $path = Join-Path $root 'settings.yaml'
-        Set-Content -LiteralPath $path -Value "# existing`n" -Encoding UTF8
-        $before = Get-Content -LiteralPath $path -Raw
-        $result = Set-DshCopilotSettings -Path $path -BaseUrl 'http://127.0.0.1:7777/v1' `
-            -Model 'fixture-model' -VisionCapable $true -DryRun
-        $result.status | Should -Be 'would-change'
-        Get-Content -LiteralPath $path -Raw | Should -Be $before
+    It 'removes only reviewed legacy route state and never writes provider transport settings' {
+        $settings = Join-Path $root 'settings.yaml'
+        @'
+locale:
+  language: en-US
+llm-pi-ai:
+  providers:
+    fixture:
+      models:
+        - id: fixture
+    github-copilot:
+      apiKeyEnv: COPILOT_GITHUB_TOKEN
+      api: openai-responses
+      baseURL: http://127.0.0.1:7777/v1
+      models:
+        - id: legacy
+    github-copilot-chat:
+      apiKeyEnv: COPILOT_GITHUB_TOKEN
+      baseURL: http://127.0.0.1:7777/v1
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+        $result = Remove-DshLegacyCopilotSettings -Path $settings
+        $text = Get-Content -LiteralPath $settings -Raw
+        $result.removedRoutes | Should -Contain 'github-copilot'
+        $result.removedRoutes | Should -Contain 'github-copilot-chat'
+        $text | Should -Match 'fixture:'
+        $text | Should -Not -Match 'COPILOT_GITHUB_TOKEN|127\.0\.0\.1:7777|github-copilot-chat'
     }
 
-    It 'is idempotent for settings and profile patches' {
+    It 'previews legacy settings cleanup without mutation' {
         $settings = Join-Path $root 'settings.yaml'
+        @'
+# dsh-windows-ops: copilot settings begin
+legacy
+# dsh-windows-ops: copilot settings end
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+        $before = Get-Content -LiteralPath $settings -Raw
+        (Remove-DshLegacyCopilotSettings -Path $settings -DryRun).status | Should -Be 'would-change'
+        Get-Content -LiteralPath $settings -Raw | Should -Be $before
+    }
+
+    It 'is idempotent for direct plugin profile patches' {
         $patch = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $patch -Value "[]`n" -Encoding UTF8
-        (Set-DshCopilotSettings -Path $settings -BaseUrl 'http://127.0.0.1:7777/v1' `
-            -Model 'fixture-model' -VisionCapable $true).status | Should -Be 'changed'
-        (Set-DshCopilotSettings -Path $settings -BaseUrl 'http://127.0.0.1:7777/v1' `
-            -Model 'fixture-model' -VisionCapable $true).status | Should -Be 'unchanged'
         (Set-DshCopilotProfilePatch -Path $patch).status | Should -Be 'changed'
         (Set-DshCopilotProfilePatch -Path $patch).status | Should -Be 'unchanged'
-    }
-
-    It 'refuses duplicate managed blocks' {
-        $path = Join-Path $root 'settings.yaml'
-        $block = @'
-# dsh-windows-ops: copilot settings begin
-# dsh-windows-ops: copilot settings end
-# dsh-windows-ops: copilot settings begin
-# dsh-windows-ops: copilot settings end
-'@
-        Set-Content -LiteralPath $path -Value $block -Encoding UTF8
-        $threw = $false
-        try {
-            Set-DshCopilotSettings -Path $path -BaseUrl 'http://127.0.0.1:7777/v1' `
-                -Model 'fixture-model' -VisionCapable $true | Out-Null
-        } catch {
-            $threw = $true
-        }
-        $threw | Should -Be $true
     }
 
     It 'refuses unmanaged conflicts outside an existing managed block' {
@@ -174,6 +180,25 @@ Describe 'DSH Copilot bootstrap' {
         $text | Should -Not -Match '(?m)^\s*-\s+id:\s+web-search-deepseek\s*$'
         $text | Should -Not -Match '(?m)^\s*-\s+id:\s+tool-web\s*$'
         $text | Should -Match 'providers: \[github-copilot\]'
+    }
+
+    It 'selects only a model already present in the reference-free account route' {
+        $settings = Join-Path $root 'settings.yaml'
+        @'
+llm-pi-ai:
+  providers:
+    github-copilot:
+      displayName: GitHub Copilot
+      models:
+        - id: account-model
+'@ | Set-Content -LiteralPath $settings -Encoding UTF8
+        (Get-DshCopilotRouteState -SettingsPath $settings).referenceFree | Should -Be $true
+        (Set-DshCopilotModelSelection -Path $settings -Model account-model).status | Should -Be 'changed'
+        { Set-DshCopilotModelSelection -Path $settings -Model unavailable-model } |
+            Should -Throw '*not in the signed-in account*'
+        $text = Get-Content -LiteralPath $settings -Raw
+        $text | Should -Not -Match 'baseURL|apiKeyEnv'
+        $text | Should -Match 'provider: github-copilot'
     }
 
     It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {
@@ -340,31 +365,31 @@ Describe 'DSH Copilot bootstrap' {
         }
     }
 
-    It 'requires explicit catalog metadata for vision' {
-        $catalog = [pscustomobject]@{ data = @(
-            [pscustomobject]@{ id = 'vision-by-name-only' },
-            [pscustomobject]@{ id = 'actual-image'; input = @('text', 'image') }
-        ) }
-        (Get-DshCatalogModel -Catalog $catalog -Model 'vision-by-name-only').visionCapable | Should -Be $false
-        (Get-DshCatalogModel -Catalog $catalog -Model 'actual-image').visionCapable | Should -Be $true
-    }
-
-    It 'resolves a reference from a version 1 credential store with versioned records' {
+    It 'reports only safe metadata for the built-in Copilot grant' {
         $credentialHome = Join-Path $root 'credential-home'
         New-Item -ItemType Directory -Path $credentialHome -Force | Out-Null
         @'
 version: 1
-refs:
-  COPILOT_GITHUB_TOKEN: github/copilot
 records:
-  github/copilot:
-    kind: api-key
+  llm-pi-ai/github-copilot:
+    kind: grant
     payload:
-      version: 1
-      secret: redacted-test-value
+      availableModelIds:
+        - fixture-model
 '@ | Set-Content -LiteralPath (Join-Path $credentialHome '.credentials.yaml') -Encoding UTF8
 
-        Test-DshCredentialReference -DshHome $credentialHome | Should -Be 'credential-store'
+        $result = Test-DshCopilotCredentialRecord -DshHome $credentialHome
+        $result.configured | Should -Be $true
+        $result.kind | Should -Be 'grant'
+        $result.PSObject.Properties.Name | Should -Not -Contain 'payload'
+        ($result | ConvertTo-Json) | Should -Not -Match 'fixture-model'
+    }
+
+    It 'returns sign-in-required when the Copilot grant is absent' {
+        $credentialHome = Join-Path $root 'missing-credential'
+        New-Item -ItemType Directory -Path $credentialHome -Force | Out-Null
+        (Test-DshCopilotCredentialRecord -DshHome $credentialHome).status |
+            Should -Be 'sign-in-required'
     }
 
     It 'accepts only an active Desktop descendant using the local package' {

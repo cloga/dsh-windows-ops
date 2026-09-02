@@ -1,9 +1,9 @@
 # GitHub Copilot CLI as a DSH ACP subagent
 
 > Historical optional integration: this design is separate from the recommended
-> `dsh-github-copilot` main-agent model and hosted-search path. The unified
-> plugin explicitly has `acpSubagents: false`; do not add these ACP rows as part
-> of the locked Windows Copilot baseline.
+> `dsh-github-copilot` main-agent model and hosted-search path. The standalone
+> plugin uses built-in `llm-pi-ai` and contributes no ACP rows; do not add this
+> optional design to the locked Windows Copilot baseline.
 
 This practice adds GitHub Copilot CLI as an optional, out-of-process coding
 agent while preserving DSH's native `spawn` and `fork` delegation paths.

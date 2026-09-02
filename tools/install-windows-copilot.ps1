@@ -109,20 +109,9 @@ if ($Action -eq 'Check') {
                 -Sha256 ([string]$lock.components.desktop.artifact.sha256) `
                 -ExpectedName ([string]$lock.components.desktop.artifact.name)
         } else { [pscustomobject]@{ status = 'not-supplied'; requiredForApply = $true } }
-        gatewayArtifact = if ($GatewayArtifactPath) {
-            Test-LockedArtifact -Path $GatewayArtifactPath `
-                -Sha256 ([string]$lock.components.gateway.artifact.sha256) `
-                -ExpectedName ([string]$lock.components.gateway.artifact.name)
-        } else { [pscustomobject]@{ status = 'not-supplied'; requiredForApply = $true } }
-        modelCatalog = if ($ModelCatalogPath) {
-            $catalog = Get-Content -LiteralPath $ModelCatalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            $routes = Get-WindowsCopilotRouteModels -Lock $lock -Catalog $catalog
-            [pscustomobject]@{
-                status = 'valid'
-                responses = @($routes[[string]$lock.profile.routes[0].id]).Count
-                completions = @($routes[[string]$lock.profile.routes[1].id]).Count
-            }
-        } else { [pscustomobject]@{ status = 'not-supplied'; liveUrl = [string]$lock.acceptance.modelCatalog.url } }
+        legacyGateway = $installation.migration.legacyGateway
+        credential = $installation.profile.credential
+        providerRoute = $installation.profile.providerRoute
         composedConfig = if ($ComposedConfigPath) {
             $installation.runtime.composedConfig
         } else { [pscustomobject]@{ status = 'not-supplied'; command = @($lock.acceptance.composedConfig.command) } }
@@ -140,8 +129,6 @@ foreach ($required in @{
     HarnessSourceRoot = $HarnessSourceRoot
     CopilotIntegrationSourceRoot = $CopilotIntegrationSourceRoot
     DesktopArtifactPath = $DesktopArtifactPath
-    GatewayArtifactPath = $GatewayArtifactPath
-    ModelCatalogPath = $ModelCatalogPath
     CoreInstallPrefix = $CoreInstallPrefix
 }.GetEnumerator()) {
     if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
@@ -149,12 +136,12 @@ foreach ($required in @{
     }
 }
 
-$catalog = Get-Content -LiteralPath $ModelCatalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
 Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlobalRoot `
     -HarnessSourceRoot $HarnessSourceRoot -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
     -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
-    -GatewayInstallRoot $GatewayInstallRoot -CoreInstallPrefix $CoreInstallPrefix `
-    -BackupRoot $BackupRoot -Catalog $catalog `
+    -GatewayInstallRoot $GatewayInstallRoot -GatewayExecutablePath $GatewayExecutablePath `
+    -CoreInstallPrefix $CoreInstallPrefix `
+    -BackupRoot $BackupRoot `
     -DesktopExecutablePath $DesktopExecutablePath -RestartDesktop:$RestartDesktop `
     -TimeoutSeconds $TimeoutSeconds |
     ConvertTo-Json -Depth 20

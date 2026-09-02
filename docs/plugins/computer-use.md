@@ -131,6 +131,35 @@ A successful build without this browser pass is not sufficient UI validation.
 Record the exact DSH and Playwright MCP versions with any failure because both
 are prerelease-sensitive integration surfaces.
 
+### Preset-independent fallback for every coding session
+
+A coding session that did not start on the Playwright MCP preset cannot switch
+its own preset, and delegated subagents inherit the parent's composed preset.
+That must not prevent self-verification. Install the reviewed Python binding pin
+once at user scope; it uses the installed Edge channel and does not require a
+separate Chromium download:
+
+```powershell
+python -m pip install --user playwright==1.62.0
+python tools\dsh-web-smoke.py --expect-text "New Session"
+```
+
+`dsh-web-smoke.py` launches an isolated headless Edge context, opens
+`DSH_WEB_URL` or `http://127.0.0.1:3080`, waits for the rendered page, asserts a
+successful non-empty document and requested text, and writes both a screenshot
+and a JSON report under `.dsh-windows-ops/browser-verification/`. Console
+errors, failed requests, and HTTP failures are always recorded; callers can
+make each category fatal with the matching `--fail-on-*` option. The tool never
+starts or replaces the DSH server.
+
+The smoke tool proves reachability and captures broad regressions; it does not
+prove the feature being changed. After reconnaissance, the agent must write and
+run a narrow temporary Python Playwright script that performs the changed
+interaction and asserts its expected state. Prefer MCP when it is already in
+the session because its accessibility snapshots are efficient for exploratory
+work; use the Python path as the universal fallback from any PowerShell-capable
+coding session.
+
 ## Capturing reusable local practice
 
 When local DSH work reveals a reusable installation, compatibility, debugging,

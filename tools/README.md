@@ -17,12 +17,14 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Check community-plugin host imports | `node tools\dsh-compat-check.mjs <profile> --probe=<package>` | Executes plugin top-level code | `--json` emits L2 evidence; not a functional test |
 | Validate plugin catalog metadata | `node tools\validate-plugin-catalog.mjs` | None | Rejects invalid evidence and false baseline claims |
 | Detect duplicate sessions | `powershell.exe -File tools\check-session-duplicates.ps1` | None | Report only |
+| Smoke-test the existing DSH Web GUI from any coding session | `python tools\dsh-web-smoke.py --expect-text "New Session"` | Browser read/isolated profile only | Screenshot plus JSON summary with document, Console, request, and HTTP evidence |
 | Move a session safely | `node tools\dsh-move-session.mjs ...` | Session data | Backup and post-write verification |
 
 ## Tool families
 
 - **Deployment:** `install-windows-copilot.ps1`, `WindowsCopilotDeployment.psm1`, `enable-copilot-search-vision.ps1`
 - **Diagnostics and replay:** `dsh-replay.ps1`, `DshWindowsOps.psm1`, `dsh-replay.patches.json`, `dsh-sandbox-regression-probe.mjs`
+- **Browser verification:** `dsh-web-smoke.py` (pinned Python Playwright with installed Edge; task-specific flows require an additional temporary Playwright script)
 - **Diagnostics and targeted repair:** `dsh-doctor.mjs`, `preflight-check.mjs`
 - **Plugin governance:** `dsh-compat-check.mjs`, `validate-plugin-catalog.mjs`
 - **Sessions/workspaces:** `check-session-duplicates.ps1`, `dsh-move-session.mjs`, `dsh-workspace-fix.mjs`
@@ -65,6 +67,7 @@ Even with `--probe`, this is only the catalog's **L2** boundary. It does not pro
 
 - Plugin catalog: `node tools\validate-plugin-catalog.mjs`
 - JavaScript syntax: `node --check <script>`
+- Browser smoke tool: `python -m py_compile tools\dsh-web-smoke.py`; with the existing GUI running, `python tools\dsh-web-smoke.py --expect-text "New Session" --fail-on-console-error --fail-on-request-failure --fail-on-http-error`
 - Windows fixtures: Pester 5.7.1+ against `tests/`
 - Locked installer: `tests/WindowsCopilotInstaller.Tests.ps1`
 - Replay/operations: `tests/DshWindowsOps.Tests.ps1`

@@ -1087,7 +1087,9 @@ function Install-WindowsCopilotCoreRelease {
         [Parameter(Mandatory)][string]$SourceRoot,
         [Parameter(Mandatory)][string]$NpmGlobalRoot,
         [Parameter(Mandatory)][string]$CoreInstallPrefix,
-        [Parameter(Mandatory)]$CoreRelease
+        [Parameter(Mandatory)]$CoreRelease,
+        [ValidateRange(1, 2147483)]
+        [int]$CoreInstallTimeoutSeconds = 900
     )
     $globalRoot = Resolve-DeploymentPath $NpmGlobalRoot
     if ((Split-Path -Leaf $globalRoot) -ine 'node_modules') {
@@ -1103,6 +1105,11 @@ function Install-WindowsCopilotCoreRelease {
         throw 'Core release installation requires DSH, vendor, and landlock artifact directories.'
     }
     $version = ([string]$Lock.components.core.package.packageManager).Split('@')[-1]
+    $timeoutMillisecondsValue = [long]$CoreInstallTimeoutSeconds * 1000
+    if ($timeoutMillisecondsValue -gt [int]::MaxValue) {
+        throw "CoreInstallTimeoutSeconds exceeds the Core install timeout limit: '$CoreInstallTimeoutSeconds'."
+    }
+    $timeoutMilliseconds = [int]$timeoutMillisecondsValue
     $arguments = @(
         '--yes',
         "pnpm@$version",
@@ -1115,7 +1122,9 @@ function Install-WindowsCopilotCoreRelease {
         '--expect-commit',
         [string]$Lock.components.core.source.commit,
         '--expect-version',
-        [string]$Lock.components.core.package.version
+        [string]$Lock.components.core.package.version,
+        '--install-timeout-ms',
+        [string]$timeoutMilliseconds
     )
     Invoke-LockedCommand -FilePath 'npx' -Arguments $arguments -WorkingDirectory $SourceRoot
 
@@ -3817,7 +3826,9 @@ function Invoke-WindowsCopilotApplyLocked {
         $Catalog,
         [string]$DesktopExecutablePath,
         [switch]$RestartDesktop,
-        [int]$TimeoutSeconds = 90
+        [int]$TimeoutSeconds = 90,
+        [ValidateRange(1, 2147483)]
+        [int]$CoreInstallTimeoutSeconds = 900
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
     Assert-WindowsCopilotNoPendingActivation -Lock $Lock -BackupRoot $BackupRoot
@@ -3846,7 +3857,8 @@ function Invoke-WindowsCopilotApplyLocked {
         -Commands @($Lock.components.core.build.commands) -WorkingDirectory $HarnessSourceRoot
     $coreRelease = Get-CoreReleaseArtifacts -Lock $Lock -Root $HarnessSourceRoot
     $coreInstall = Install-WindowsCopilotCoreRelease -Lock $Lock -SourceRoot $HarnessSourceRoot `
-        -NpmGlobalRoot $NpmGlobalRoot -CoreInstallPrefix $CoreInstallPrefix -CoreRelease $coreRelease
+        -NpmGlobalRoot $NpmGlobalRoot -CoreInstallPrefix $CoreInstallPrefix -CoreRelease $coreRelease `
+        -CoreInstallTimeoutSeconds $CoreInstallTimeoutSeconds
     $installedCore = Get-WindowsCopilotCoreReceiptState -Lock $Lock -NpmGlobalRoot $NpmGlobalRoot `
         -CoreInstallPrefix $CoreInstallPrefix
     if (-not $installedCore.valid) {
@@ -3950,7 +3962,9 @@ function Invoke-WindowsCopilotApply {
         $Catalog,
         [string]$DesktopExecutablePath,
         [switch]$RestartDesktop,
-        [int]$TimeoutSeconds = 90
+        [int]$TimeoutSeconds = 90,
+        [ValidateRange(1, 2147483)]
+        [int]$CoreInstallTimeoutSeconds = 900
     )
     $mutex = Enter-WindowsCopilotActivationLock -BackupRoot $BackupRoot
     try {

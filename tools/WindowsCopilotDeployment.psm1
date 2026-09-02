@@ -1108,7 +1108,6 @@ function Install-WindowsCopilotCoreRelease {
         "pnpm@$version",
         'run',
         [string]$Lock.components.core.install.script,
-        '--',
         '--from', [string]$releaseDirectories[0],
         '--from', [string]$releaseDirectories[1],
         '--from', [string]$releaseDirectories[2],

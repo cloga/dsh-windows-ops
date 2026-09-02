@@ -9,8 +9,8 @@ is the machine-readable deployment contract.
 |---|---|
 | Desktop | official `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437` |
 | Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `ef6b355136af7e9d7f4ed603a5422137c89d44e0` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.2`, source commit `8af7edb70c07e9da4b451e1ae07d73e99040340e`, PR #19 |
-| Plugin artifact | `dsh-github-copilot-0.3.0-cloga.2.tgz`, SHA-256 `deb35365b42dfc353ab094a3da7c1e3560708e97ab0c85a82f571b5c2cd38236` |
+| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.3`, source commit `d6da9f4a0b64cdf18ab3e25581d84b55b8421076`, merge commit `da3ee5657a54874eefe35e4133a3d55663c2de36`, PR #21 |
+| Plugin artifact | `dsh-github-copilot-0.3.0-cloga.3.tgz`, SHA-256 `d7e9c262e2a53cef7f46a7d37b93f9d11bef7ea398fac143c9f588deb5011f1c` |
 | Desktop internal plugins | the five official `0.4.9` links |
 
 Do not independently upgrade one component. Update the lock, fixtures, tests,
@@ -32,19 +32,22 @@ not embed or launch a gateway. The active baseline has no local gateway URL,
 port 7777 listener, placeholder API key, pasted GitHub token, or separate
 search-provider package.
 
-The seven required plugin capabilities are copied exactly from its exported
+The eight required plugin capabilities are copied exactly from its exported
 `deployment-baseline.json`:
 
-1. `models-provider-card-authorization`
-2. `reference-free-route-mutation`
-3. `shared-copilot-credential-refresh`
-4. `direct-provider-hosted-search`
-5. `traditional-search-bridge`
-6. `dsh-supported-baselines-fail-loud-guard`
-7. `dsh-rc2-models-settings-fallback`
+1. `authorization-service-bootstrap`
+2. `models-provider-card-authorization`
+3. `reference-free-route-mutation`
+4. `shared-copilot-credential-refresh`
+5. `direct-provider-hosted-search`
+6. `traditional-search-bridge`
+7. `dsh-supported-baselines-fail-loud-guard`
+8. `dsh-rc2-models-settings-fallback`
 
-The plugin supports Desktop/Core `0.1.1-rc.2` and DSH `0.1.2-alpha.3`. ACP
-subagents remain a separate optional integration; see
+The plugin has a runtime dependency on `@deepseek-ai/dsh-authorization` across
+the supported `0.1.1-rc.2` and `0.1.2-alpha.3` ranges. It bootstraps that
+service before integration activation on rc.2 and reuses the existing alpha.3
+service without duplicate registration. ACP subagents remain separate; see
 [`copilot-acp-subagent.md`](copilot-acp-subagent.md).
 
 ## Check first
@@ -66,7 +69,7 @@ A missing `llm-pi-ai/github-copilot` grant is reported as
 ## Apply the locked Desktop, Core, and plugin
 
 Use exact source checkouts and the locked Desktop artifact. The plugin checkout
-must be at source commit `8af7edb70c07e9da4b451e1ae07d73e99040340e`.
+must be at source commit `d6da9f4a0b64cdf18ab3e25581d84b55b8421076`.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -98,7 +101,7 @@ The historical script name remains as a compatibility wrapper:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\enable-copilot-search-vision.ps1 `
-  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.2.tgz
+  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.3.tgz
 ```
 
 The package argument may also be a registry spec. The wrapper installs the
@@ -140,14 +143,15 @@ not active components or acceptance criteria.
    the exact reviewed binary.
 4. Run locked `-Apply` with the Core/plugin source checkouts and Desktop
    artifact shown above. Do not pass a gateway artifact or model catalog.
-5. Run the compatibility bootstrap with the locked `.2` tarball. It removes
-   the old `.1`/search-plugin dependency, backed-up local route blocks, and the
-   legacy credential reference; it never deletes the new DSH grant.
+5. Run the compatibility bootstrap with the locked `.3` tarball. It removes
+   the old `.1`, `.2`, or search-plugin dependency, backed-up local route
+   blocks, and the legacy credential reference; it never deletes the new DSH
+   grant.
 6. When the result is `sign-in-required`, complete sign-in from the correct
    Desktop UI for the installed DSH version.
 7. Optionally run wrapper `-Action Verify -Model <id>` to select an
    account-available model. Never paste a token into settings.
-8. Run the default installer check again. Success requires the `.2` plugin,
+8. Run the default installer check again. Success requires the `.3` plugin,
    credential grant metadata, reference-free route, direct search composition,
    official internal-plugin links, receipted Core, and only the Desktop
    loopback listener contract.

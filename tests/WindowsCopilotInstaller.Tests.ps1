@@ -957,6 +957,97 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         }
     }
 
+    It 'accepts only exact locked provider artifact dependencies as desired state' {
+        $caseRoot = Join-Path $TestDrive 'desired-provider-dependencies'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        $expectedArtifact = Join-Path $dshHome (
+            Join-Path 'artifacts' (
+                Join-Path ([string]$lock.components.copilotIntegration.source.commit) `
+                    ([string]$lock.components.copilotIntegration.package.artifact.name)
+            )
+        )
+        $module = Get-Module WindowsCopilotDeployment
+        $accepted = @(
+            [string]$lock.components.copilotIntegration.package.artifact.url
+            "file:../../artifacts/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
+            ([Uri]::new([IO.Path]::GetFullPath($expectedArtifact))).AbsoluteUri
+        )
+        foreach ($dependency in $accepted) {
+            $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $profile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
+                -NotePropertyValue $dependency -Force
+            $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+            {
+                & $module {
+                    param($Lock, $DshHome, $DesktopExecutablePath)
+                    Get-WindowsCopilotProfileMigrationPlan -Lock $Lock -DshHome $DshHome `
+                        -DesktopExecutablePath $DesktopExecutablePath
+                } $lock $dshHome $desktopPath
+            } | Should -Not -Throw
+        }
+
+        $rejected = @(
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.7/dsh-github-copilot-0.3.0-cloga.8.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.9.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/not-dsh-github-copilot-0.3.0-cloga.8.tgz'
+            "file:../../artifacts/wrong-commit/$($lock.components.copilotIntegration.package.artifact.name)"
+            "file:../../arbitrary/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
+            "https://example.test/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
+        )
+        foreach ($dependency in $rejected) {
+            $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $profile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
+                -NotePropertyValue $dependency -Force
+            $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+            {
+                & $module {
+                    param($Lock, $DshHome, $DesktopExecutablePath)
+                    Get-WindowsCopilotProfileMigrationPlan -Lock $Lock -DshHome $DshHome `
+                        -DesktopExecutablePath $DesktopExecutablePath
+                } $lock $dshHome $desktopPath
+            } | Should -Throw "*Profile dependency 'dsh-github-copilot' is not a reviewed legacy Copilot integration.*"
+        }
+    }
+
+    It 'resumes Apply after the provider dependency was updated before materialization' {
+        $caseRoot = Join-Path $TestDrive 'provider-reentry'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $profileRoot = Join-Path $dshHome 'profiles\web'
+        $packagePath = Join-Path $profileRoot 'package.json'
+        $globalRoot = Join-Path $caseRoot 'global'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-Item -ItemType Directory -Path $profileRoot, $globalRoot -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
+        Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
+        $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $profile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
+            -NotePropertyValue ([string]$lock.components.copilotIntegration.package.artifact.url)
+        $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+        $artifact = Join-Path $caseRoot ([string]$lock.components.copilotIntegration.package.artifact.name)
+        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+
+        Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+            -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
+            -DesktopExecutablePath $desktopPath -SkipPackageInstall | Out-Null
+
+        $updated = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $updated.dependencies.'dsh-github-copilot' |
+            Should -Be "file:../../artifacts/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
+        $materialized = Join-Path $profileRoot 'node_modules\dsh-github-copilot'
+        Test-Path -LiteralPath (Join-Path $materialized 'package.json') -PathType Leaf | Should -Be $true
+        [bool]((Get-Item -LiteralPath $materialized).Attributes -band [IO.FileAttributes]::ReparsePoint) |
+            Should -Be $false
+    }
+
     It 'fails closed when the retired gateway catalog helper is called' {
         { Get-WindowsCopilotRouteModels -Lock $lock -Catalog $catalog } |
             Should -Throw '*direct baseline uses the account-available built-in pi-ai route*'

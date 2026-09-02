@@ -1431,6 +1431,46 @@ function Get-WindowsCopilotInternalPluginStates {
     }
 }
 
+function Test-WindowsCopilotDesiredArtifactDependency {
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$Dependency,
+        [Parameter(Mandatory)][string]$DshHome,
+        [Parameter(Mandatory)][string]$ProfileRoot
+    )
+    if ($Dependency -ceq [string]$Lock.components.copilotIntegration.package.artifact.url) {
+        return $true
+    }
+    if (-not $Dependency.StartsWith('file:', [StringComparison]::Ordinal)) {
+        return $false
+    }
+
+    $rawTarget = $Dependency.Substring('file:'.Length)
+    if ([string]::IsNullOrWhiteSpace($rawTarget)) {
+        return $false
+    }
+    try {
+        $uri = $null
+        $target = if ([Uri]::TryCreate($Dependency, [UriKind]::Absolute, [ref]$uri) -and $uri.IsFile) {
+            $uri.LocalPath
+        } elseif ([IO.Path]::IsPathRooted($rawTarget)) {
+            $rawTarget
+        } else {
+            Join-Path $ProfileRoot $rawTarget
+        }
+        $resolvedTarget = Resolve-DeploymentPath $target
+        $expectedTarget = Resolve-DeploymentPath (Join-Path $DshHome (
+            Join-Path 'artifacts' (
+                Join-Path ([string]$Lock.components.copilotIntegration.source.commit) `
+                    ([string]$Lock.components.copilotIntegration.package.artifact.name)
+            )
+        ))
+        return $resolvedTarget -ieq $expectedTarget
+    } catch {
+        return $false
+    }
+}
+
 function Get-WindowsCopilotProfileMigrationPlan {
         param(
             [Parameter(Mandatory)]$Lock,
@@ -1540,10 +1580,8 @@ function Get-WindowsCopilotProfileMigrationPlan {
             $target = Join-Path $profileRoot (Join-Path 'node_modules' ([string]$legacyName))
             if ([string]$legacyName -ceq [string]$Lock.components.copilotIntegration.package.name -and
                 $dependencyProperty -and
-                [string]$dependencyProperty.Value -match (
-                    [regex]::Escape([string]$Lock.components.copilotIntegration.source.commit) + '[/\\]' +
-                    [regex]::Escape([string]$Lock.components.copilotIntegration.package.artifact.name) + '$'
-                )) {
+                (Test-WindowsCopilotDesiredArtifactDependency -Lock $Lock `
+                    -Dependency ([string]$dependencyProperty.Value) -DshHome $home -ProfileRoot $profileRoot)) {
                 continue
             }
             if ($dependencyProperty -and $dependenciesToRemove -notcontains [string]$legacyName) {

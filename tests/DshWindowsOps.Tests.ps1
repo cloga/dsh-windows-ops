@@ -95,6 +95,23 @@ Describe 'DSH replay patching' {
         $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/21'
     }
 
+    It 'locks strict JSON OAuth grant normalization replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches |
+            Where-Object id -eq 'github-copilot-strict-json-oauth-grant-normalization')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\index.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'normalizeGitHubCopilotOAuthCredential',
+            'Reflect.get(credential, "type")',
+            'Number.isFinite(expires)',
+            'payload: normalizeGitHubCopilotOAuthCredential(credential)'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/29'
+    }
+
     It 'accepts components without optional root and version properties under StrictMode' {
         $minimalConfig = [pscustomobject]@{
             dshHome = (Join-Path $TestDrive '.dsh')

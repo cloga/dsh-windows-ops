@@ -243,6 +243,16 @@ export function apply(ctx) {
         $lock.components.copilotIntegration.package.bundlePatch | Should -Be './cordis.patch.yml'
         @($lock.components.copilotIntegration.package.attestedFiles) |
             Should -Be @('lib/index.js', 'lib/client.js', 'lib/remote.js')
+        @($lock.components.copilotIntegration.build.commands | ForEach-Object { @($_) -join ' ' }) |
+            Should -Be @(
+                'install --frozen-lockfile',
+                'run typecheck',
+                'run verify:baseline',
+                'exec tsc -p tsconfig.json',
+                'exec tsdown',
+                'test',
+                'pack --pack-destination .\dist'
+            )
         $lock.components.copilotIntegration.package.deploymentBaseline.kind | Should -Be 'standalone-dsh-plugin'
         @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 13
         @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities) |
@@ -287,6 +297,57 @@ export function apply(ctx) {
         )
         $lock.acceptance.sandbox.gate | Should -Be 'Require'
         $lock.acceptance.sandbox.capability | Should -Be 'sandbox-same-and-narrower-no-op'
+    }
+
+    It 'builds client artifacts before artifact-dependent tests from a clean plugin source' {
+        $sourceRoot = Join-Path $TestDrive 'clean-provider-source'
+        New-Item -ItemType Directory -Path $sourceRoot -Force | Out-Null
+        Test-Path -LiteralPath (Join-Path $sourceRoot 'lib') | Should -Be $false
+        Test-Path -LiteralPath (Join-Path $sourceRoot 'dist') | Should -Be $false
+        $commandLog = [Collections.Generic.List[string]]::new()
+
+        InModuleScope WindowsCopilotDeployment -Parameters @{
+            Commands = @($lock.components.copilotIntegration.build.commands)
+            CommandLog = $commandLog
+            SourceRoot = $sourceRoot
+        } {
+            param($Commands, $CommandLog, $SourceRoot)
+            Mock Invoke-LockedCommand {
+                param($FilePath, $Arguments, $WorkingDirectory)
+                $command = @($Arguments | Select-Object -Skip 2)
+                $CommandLog.Add(($command -join ' '))
+                if ($command[0] -eq 'exec' -and $command[1] -eq 'tsdown') {
+                    $libRoot = Join-Path $WorkingDirectory 'lib'
+                    New-Item -ItemType Directory -Path $libRoot -Force | Out-Null
+                    Set-Content -LiteralPath (Join-Path $libRoot 'client.js') `
+                        -Value 'export default {}' -Encoding UTF8
+                } elseif ($command[0] -eq 'test') {
+                    if (-not (Test-Path -LiteralPath (Join-Path $WorkingDirectory 'lib\client.js') -PathType Leaf)) {
+                        throw 'Client bundle is missing before tests.'
+                    }
+                } elseif ($command[0] -eq 'pack') {
+                    $distRoot = Join-Path $WorkingDirectory 'dist'
+                    New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
+                    Set-Content -LiteralPath (Join-Path $distRoot 'provider.tgz') `
+                        -Value 'packed' -Encoding UTF8
+                }
+            }
+
+            Invoke-PinnedPnpmCommands -PackageManager 'pnpm@11.7.0' `
+                -Commands $Commands -WorkingDirectory $SourceRoot
+        }
+
+        @($commandLog) | Should -Be @(
+            'install --frozen-lockfile',
+            'run typecheck',
+            'run verify:baseline',
+            'exec tsc -p tsconfig.json',
+            'exec tsdown',
+            'test',
+            'pack --pack-destination .\dist'
+        )
+        Test-Path -LiteralPath (Join-Path $sourceRoot 'lib\client.js') | Should -Be $true
+        Test-Path -LiteralPath (Join-Path $sourceRoot 'dist\provider.tgz') | Should -Be $true
     }
 
     It 'rejects incomplete or extended Core capability evidence' {

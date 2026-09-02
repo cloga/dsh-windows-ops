@@ -179,11 +179,11 @@
         "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.8.tgz",
         "commands": [
           ["install", "--frozen-lockfile"],
-          ["test"],
           ["run", "typecheck"],
           ["run", "verify:baseline"],
           ["exec", "tsc", "-p", "tsconfig.json"],
           ["exec", "tsdown"],
+          ["test"],
           ["pack", "--pack-destination", ".\\dist"]
         ]
       }

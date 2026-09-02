@@ -31,6 +31,21 @@
       "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/23"
     },
     {
+      "id": "github-copilot-strict-remote-result-codecs",
+      "description": "Verify client Remote calls strictly validate the plugin-owned authorization view.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\remote.js"],
+      "verifyMarkers": [
+        "import { z } from \"zod\";",
+        "dsh-github-copilot#GitHubCopilotAuthorizationView",
+        "const GitHubCopilotAuthorizationViewSchema = z.object({",
+        "mode: \"strict\"",
+        "schema: GitHubCopilotAuthorizationViewSchema"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/26"
+    },
+    {
       "id": "github-copilot-authorization-bootstrap",
       "description": "Verify rc.2 bootstraps the authorization service while alpha.3 reuses its existing service.",
       "component": "dsh-github-copilot",

@@ -64,6 +64,23 @@ Describe 'DSH replay patching' {
         $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/23'
     }
 
+    It 'locks strict remote result codec replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'github-copilot-strict-remote-result-codecs')
+
+        $patch.Count | Should -Be 1
+        $patch[0].files | Should -Be @('lib\remote.js')
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'import { z } from "zod";',
+            'dsh-github-copilot#GitHubCopilotAuthorizationView',
+            'const GitHubCopilotAuthorizationViewSchema = z.object({',
+            'mode: "strict"',
+            'schema: GitHubCopilotAuthorizationViewSchema'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/26'
+    }
+
     It 'locks exact rc.2 authorization bootstrap replay markers' {
         $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
         $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json

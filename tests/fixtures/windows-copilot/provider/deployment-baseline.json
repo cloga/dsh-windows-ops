@@ -8,7 +8,7 @@
   },
   "package": {
     "name": "dsh-github-copilot",
-    "version": "0.3.0-cloga.4"
+    "version": "0.3.0-cloga.5"
   },
   "supportedBaselines": {
     "platforms": ["windows", "linux"],
@@ -20,11 +20,13 @@
     },
     "piAi": "^0.84.2",
     "runtimeDependencies": {
-      "@deepseek-ai/dsh-authorization": "^0.1.1-rc.2 || ^0.1.2-alpha.3"
+      "@deepseek-ai/dsh-authorization": "^0.1.1-rc.2 || ^0.1.2-alpha.3",
+      "zod": "^4.4.3"
     }
   },
   "capabilities": [
     { "id": "client-module-loader-handoff", "required": true },
+    { "id": "strict-remote-result-codecs", "required": true },
     { "id": "authorization-service-bootstrap", "required": true },
     { "id": "models-provider-card-authorization", "required": true },
     { "id": "reference-free-route-mutation", "required": true },

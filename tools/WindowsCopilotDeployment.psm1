@@ -167,13 +167,14 @@ function Test-WindowsCopilotLock {
     $providerAttestedFiles = @($Lock.components.copilotIntegration.package.attestedFiles)
     $expectedProviderAttestedFiles = @(
         [string]$Lock.components.copilotIntegration.package.main,
-        'lib/client.js'
+        'lib/client.js',
+        'lib/remote.js'
     )
     if ($providerAttestedFiles.Count -ne $expectedProviderAttestedFiles.Count -or
         @($expectedProviderAttestedFiles | Where-Object {
             $providerAttestedFiles -notcontains $_
         }).Count -gt 0) {
-        throw 'Provider installed-file contract must attest the exact server and client entrypoints.'
+        throw 'Provider installed-file contract must attest the exact server, client, and remote entrypoints.'
     }
     if (@($Lock.components.desktop.install.arguments).Count -eq 0 -or
         @($Lock.components.desktop.install.acceptedExitCodes).Count -eq 0) {
@@ -250,7 +251,7 @@ function Test-WindowsCopilotLock {
         throw "Profile must physically materialize $copilotPackageName exactly once."
     }
     $legacyCopilotIntegrations = @($Lock.profile.legacyCopilotIntegrations)
-    if ($legacyCopilotIntegrations.Count -ne 5 -or
+    if ($legacyCopilotIntegrations.Count -ne 6 -or
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-web-search-provider' -and
             [string]$_.version -ceq '0.2.2'
@@ -270,6 +271,10 @@ function Test-WindowsCopilotLock {
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-github-copilot' -and
             [string]$_.version -ceq '0.3.0-cloga.3'
+        }).Count -ne 1 -or
+        @($legacyCopilotIntegrations | Where-Object {
+            [string]$_.name -ceq 'dsh-github-copilot' -and
+            [string]$_.version -ceq '0.3.0-cloga.4'
         }).Count -ne 1) {
         throw 'Profile migration must detect the reviewed legacy search providers and Copilot plugins.'
     }
@@ -381,6 +386,7 @@ function Test-WindowsCopilotLock {
     $baseline = $Lock.components.copilotIntegration.package.deploymentBaseline
     $expectedCapabilities = @(
         'client-module-loader-handoff',
+        'strict-remote-result-codecs',
         'authorization-service-bootstrap',
         'models-provider-card-authorization',
         'reference-free-route-mutation',
@@ -392,7 +398,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly nine required capabilities.'
+        throw 'Copilot integration baseline must lock exactly ten required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {
@@ -411,7 +417,8 @@ function Test-WindowsCopilotLock {
         [string]$baseline.dshPeerRange -ne '^0.1.1-rc.2 || ^0.1.2-alpha.3' -or
         [string]$baseline.piAi -ne '^0.84.2' -or
         [string]$baseline.runtimeDependencies.'@deepseek-ai/dsh-authorization' -ne
-            '^0.1.1-rc.2 || ^0.1.2-alpha.3') {
+            '^0.1.1-rc.2 || ^0.1.2-alpha.3' -or
+        [string]$baseline.runtimeDependencies.zod -ne '^4.4.3') {
         throw 'Provider deployment baseline metadata does not match the reviewed contract.'
     }
     $legacyGateway = $Lock.migration.legacyGateway
@@ -611,12 +618,17 @@ function Assert-ProviderBaselineData {
     }
     $contract = $expected.deploymentBaseline
     $authorizationPackage = '@deepseek-ai/dsh-authorization'
+    $zodPackage = 'zod'
     $expectedAuthorizationRange = [string](Get-LockProperty `
         -InputObject $contract.runtimeDependencies -Name $authorizationPackage)
     $baselineAuthorizationRange = [string](Get-LockProperty `
         -InputObject $Baseline.supportedBaselines.runtimeDependencies -Name $authorizationPackage)
     $packageAuthorizationRange = [string](Get-LockProperty `
         -InputObject $Package.dependencies -Name $authorizationPackage)
+    $expectedZodRange = [string](Get-LockProperty -InputObject $contract.runtimeDependencies -Name $zodPackage)
+    $baselineZodRange = [string](Get-LockProperty `
+        -InputObject $Baseline.supportedBaselines.runtimeDependencies -Name $zodPackage)
+    $packageZodRange = [string](Get-LockProperty -InputObject $Package.dependencies -Name $zodPackage)
     if ([int]$Baseline.schemaVersion -ne [int]$contract.schemaVersion -or
         [string]$Baseline.baseline.id -ne [string]$contract.id -or
         [string]$Baseline.baseline.kind -ne [string]$contract.kind -or
@@ -633,7 +645,9 @@ function Assert-ProviderBaselineData {
         [string]$Baseline.supportedBaselines.dsh.peerRange -ne [string]$contract.dshPeerRange -or
         [string]$Baseline.supportedBaselines.piAi -ne [string]$contract.piAi -or
         $baselineAuthorizationRange -ne $expectedAuthorizationRange -or
-        $packageAuthorizationRange -ne $expectedAuthorizationRange) {
+        $packageAuthorizationRange -ne $expectedAuthorizationRange -or
+        $baselineZodRange -ne $expectedZodRange -or
+        $packageZodRange -ne $expectedZodRange) {
         throw 'Provider deployment-baseline metadata does not match the deployment lock.'
     }
     $actualCapabilities = @($Baseline.capabilities | Where-Object { $_.required -eq $true } | ForEach-Object {

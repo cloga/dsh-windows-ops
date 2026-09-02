@@ -314,6 +314,16 @@ export function apply(ctx) {
         )
         $lock.acceptance.sandbox.gate | Should -Be 'Require'
         $lock.acceptance.sandbox.capability | Should -Be 'sandbox-same-and-narrower-no-op'
+        $lock.acceptance.runtimeSchema.source.integrationCommit |
+            Should -Be '56fdc3fd3ed14c9de2430ec517d02a98038e1197'
+        $lock.acceptance.runtimeSchema.source.pullRequestHead |
+            Should -Be 'aa625de7be0e25b869b8a85d4a5301e84541c51c'
+        $lock.acceptance.runtimeSchema.package.version | Should -Be '0.1.2-alpha.1'
+        @($lock.acceptance.runtimeSchema.requiredBuiltSymbols).Count | Should -Be 2
+        $lock.acceptance.runtimeSchema.behavior.maximumEvidenceAgeMinutes | Should -Be 15
+        $lock.acceptance.runtimeSchema.behavior.sandboxMode | Should -Be 'danger-full-access'
+        $lock.acceptance.runtimeSchema.behavior.approval | Should -Be 'disabled'
+        @($lock.acceptance.runtimeSchema.behavior.staleErrorPatterns).Count | Should -Be 3
     }
 
     It 'builds client artifacts before artifact-dependent tests from a clean plugin source' {

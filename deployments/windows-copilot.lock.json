@@ -469,6 +469,44 @@
       "capability": "sandbox-same-and-narrower-no-op",
       "sameAndNarrower": "no-op",
       "widerApprovalCount": 1
+    },
+    "runtimeSchema": {
+      "source": {
+        "repository": "github.com/cloga/deepseek-harness",
+        "pullRequest": 10,
+        "integrationCommit": "56fdc3fd3ed14c9de2430ec517d02a98038e1197",
+        "pullRequestHead": "aa625de7be0e25b869b8a85d4a5301e84541c51c"
+      },
+      "package": {
+        "name": "@deepseek-ai/dsh",
+        "version": "0.1.2-alpha.1"
+      },
+      "requiredBuiltSymbols": [
+        {
+          "path": "node_modules\\@deepseek-ai\\dsh-tools\\lib\\index.js",
+          "symbol": "projectModelSchema(agent)"
+        },
+        {
+          "path": "node_modules\\@deepseek-ai\\dsh-tool-pwsh\\lib\\index.js",
+          "symbol": "modelSchema: (agent)"
+        }
+      ],
+      "behavior": {
+        "sandboxMode": "danger-full-access",
+        "approval": "disabled",
+        "maximumEvidenceAgeMinutes": 15,
+        "forbiddenRequiredFields": [
+          "sandbox_permissions",
+          "justification"
+        ],
+        "successMarker": "PWSH_SCHEMA_OK",
+        "staleErrorPatterns": [
+          "equal escalation",
+          "sandbox_permissions.*required",
+          "justification.*required"
+        ]
+      },
+      "releaseStatus": "development-link-only-until-receipt-release"
     }
   },
   "backup": {

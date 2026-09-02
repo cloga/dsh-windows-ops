@@ -249,3 +249,21 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 The check command may report drift or `sign-in-required` on an un-migrated
 machine. That is expected fail-closed behavior, not a success-shaped fallback.
+
+## Standalone active runtime-schema diagnostic
+
+`tools\test-dsh-runtime-schema.ps1` is a development-only probe for the reviewed
+`0.1.2-alpha.1` / PR #10 schema fix. It follows the first command returned by
+`Get-Command dsh -All`, validates the exact package and compiled symbols, and
+issues a short-lived challenge that requires a newly started DSH process and
+session before behavior evidence can be accepted.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\test-dsh-runtime-schema.ps1
+```
+
+The probe detects stale Pwsh schemas and returns `STALE_RUNTIME_SCHEMA` instead
+of a success-shaped result. Its positive session fields remain user-supplied,
+so it cannot attest or gate the current locked controlled `0.1.1-rc.2` or
+Desktop-managed `0.1.2-alpha.4` deployment health.

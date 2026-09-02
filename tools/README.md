@@ -39,7 +39,7 @@ the old `-ProviderSourceRoot` spelling remains an alias.
 The direct baseline is one DSH plugin reusing built-in `llm-pi-ai`, not an
 embedded gateway. The wrapper never writes provider routes, endpoints, API-key
 references, or model lists. Use **Settings → GitHub Copilot** on rc.2 or the
-**Models** provider card on alpha.3 for the interactive device flow.
+**Models** provider card on alpha.4 for the interactive device flow.
 
 ## Plugin validation boundary
 

@@ -9,8 +9,8 @@ is the machine-readable deployment contract.
 |---|---|
 | Desktop | official `0.9.2`, commit `c7c5a247961b1ca2d7389026ad7194ac108e5437` |
 | Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `ef6b355136af7e9d7f4ed603a5422137c89d44e0` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.5`, source commit `5d8d696aabd309602b3b70fd40dbf9b1435f0041`, merge commit `83d61c92b101e77e11baabed2ac2e3c85b92a3a9`, PR #26 |
-| Plugin artifact | `dsh-github-copilot-0.3.0-cloga.5.tgz`, SHA-256 `f6ddc1c3ba90c3534ad91b0a31ffe0a1bb15b2898155e0e8164ffd95993c825f` |
+| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.6`, source commit `dd562f8a715a76ae2bc28a344f1da6ec72977b0a`, merge commit `1cb719c969217133c3b07212c9e98e2765773c15`, PR #29 |
+| Plugin artifact | `dsh-github-copilot-0.3.0-cloga.6.tgz`, SHA-256 `bf7dc4935e5780a94fd21873837c1618ace29da0b53d6ff1b3b55b2b7881921d` |
 | Desktop internal plugins | the five official `0.4.9` links |
 
 Do not independently upgrade one component. Update the lock, fixtures, tests,
@@ -31,11 +31,14 @@ The plugin adds the authorization UI and direct provider-hosted search. Its
 built client entry hands the plugin id, injected `require`, and materialized
 exports to Desktop's `window.__ModuleLoader__.load` contract. Client Remote
 calls use strict Zod result codecs so malformed authorization views fail closed.
+Before storage or reuse, the Host rebuilds Copilot OAuth grants from validated
+provider-owned fields as a fresh plain JSON object; unrelated extension fields
+are discarded and malformed owned fields fail without exposing their values.
 It does not embed or launch a gateway. The active baseline has no local gateway
 URL, port 7777 listener, placeholder API key, pasted GitHub token, or separate
 search-provider package.
 
-The ten required plugin capabilities are copied exactly from its exported
+The eleven required plugin capabilities are copied exactly from its exported
 `deployment-baseline.json`:
 
 1. `client-module-loader-handoff`
@@ -44,15 +47,16 @@ The ten required plugin capabilities are copied exactly from its exported
 4. `models-provider-card-authorization`
 5. `reference-free-route-mutation`
 6. `shared-copilot-credential-refresh`
-7. `direct-provider-hosted-search`
-8. `traditional-search-bridge`
-9. `dsh-supported-baselines-fail-loud-guard`
-10. `dsh-rc2-models-settings-fallback`
+7. `strict-json-oauth-grant-normalization`
+8. `direct-provider-hosted-search`
+9. `traditional-search-bridge`
+10. `dsh-supported-baselines-fail-loud-guard`
+11. `dsh-rc2-models-settings-fallback`
 
 The plugin has runtime dependencies on `@deepseek-ai/dsh-authorization` across
-the supported `0.1.1-rc.2` and `0.1.2-alpha.3` ranges and on `zod@^4.4.3` for
+the supported `0.1.1-rc.2` and `0.1.2-alpha.4` ranges and on `zod@^4.4.3` for
 strict client Remote result validation. It bootstraps the authorization service
-before integration activation on rc.2 and reuses the existing alpha.3 service
+before integration activation on rc.2 and reuses the existing alpha.4 service
 without duplicate registration. ACP subagents remain separate; see
 [`copilot-acp-subagent.md`](copilot-acp-subagent.md).
 
@@ -75,7 +79,7 @@ A missing `llm-pi-ai/github-copilot` grant is reported as
 ## Apply the locked Desktop, Core, and plugin
 
 Use exact source checkouts and the locked Desktop artifact. The plugin checkout
-must be at source commit `5d8d696aabd309602b3b70fd40dbf9b1435f0041`.
+must be at source commit `dd562f8a715a76ae2bc28a344f1da6ec72977b0a`.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -107,7 +111,7 @@ The historical script name remains as a compatibility wrapper:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\enable-copilot-search-vision.ps1 `
-  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.5.tgz
+  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.6.tgz
 ```
 
 The package argument may also be a registry spec. The wrapper installs the
@@ -119,7 +123,7 @@ routes, model lists, base URLs, or API-key references.
 The shell does not automate the interactive device flow:
 
 - on `0.1.1-rc.2`, open **Settings → GitHub Copilot**;
-- on `0.1.2-alpha.3`, open **Models**, then the **GitHub Copilot** provider
+- on `0.1.2-alpha.4`, open **Models**, then the **GitHub Copilot** provider
   card.
 
 Complete the displayed GitHub device flow. DSH writes the shared grant and an

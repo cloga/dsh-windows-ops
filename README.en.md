@@ -14,7 +14,7 @@ This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, reco
 |---|---|
 | DeepSeek Harness Desktop | 0.9.2 |
 | `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
-| `dsh-github-copilot` | 0.3.0-cloga.5 |
+| `dsh-github-copilot` | 0.3.0-cloga.6 |
 | Desktop internal plugins | five official 0.4.9 components |
 
 A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline.
@@ -88,7 +88,7 @@ This repository does not redistribute Desktop, Core, or the Copilot plugin. It p
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Current lock uses official 0.9.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, and sandbox policy | Deployment pin `ef6b3551` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | One DSH plugin with the rc.2 Desktop client ModuleLoader handoff and strict Remote result codecs, using built-in `@deepseek-ai/dsh-llm-pi-ai` for OAuth, account models, token refresh, direct Copilot transport, and hosted search; it bootstraps rc.2 authorization and reuses alpha.3 authorization; no ACP | Deployment pin `5d8d696a` / `0.3.0-cloga.5` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | One DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict Remote result codecs, and strict JSON OAuth grant normalization, using built-in `@deepseek-ai/dsh-llm-pi-ai` for OAuth, account models, token refresh, direct Copilot transport, and hosted search; it bootstraps rc.2 authorization and reuses alpha.4 authorization; no ACP | Deployment pin `dd562f8a` / `0.3.0-cloga.6` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 
 The historical ACP subagent practice remains in

@@ -251,7 +251,7 @@ function Test-WindowsCopilotLock {
         throw "Profile must physically materialize $copilotPackageName exactly once."
     }
     $legacyCopilotIntegrations = @($Lock.profile.legacyCopilotIntegrations)
-    if ($legacyCopilotIntegrations.Count -ne 6 -or
+    if ($legacyCopilotIntegrations.Count -ne 7 -or
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-web-search-provider' -and
             [string]$_.version -ceq '0.2.2'
@@ -275,6 +275,10 @@ function Test-WindowsCopilotLock {
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-github-copilot' -and
             [string]$_.version -ceq '0.3.0-cloga.4'
+        }).Count -ne 1 -or
+        @($legacyCopilotIntegrations | Where-Object {
+            [string]$_.name -ceq 'dsh-github-copilot' -and
+            [string]$_.version -ceq '0.3.0-cloga.5'
         }).Count -ne 1) {
         throw 'Profile migration must detect the reviewed legacy search providers and Copilot plugins.'
     }
@@ -391,6 +395,7 @@ function Test-WindowsCopilotLock {
         'models-provider-card-authorization',
         'reference-free-route-mutation',
         'shared-copilot-credential-refresh',
+        'strict-json-oauth-grant-normalization',
         'direct-provider-hosted-search',
         'traditional-search-bridge',
         'dsh-supported-baselines-fail-loud-guard',
@@ -398,7 +403,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly ten required capabilities.'
+        throw 'Copilot integration baseline must lock exactly eleven required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {
@@ -412,12 +417,12 @@ function Test-WindowsCopilotLock {
         @($baseline.platforms) -notcontains 'windows' -or
         @($baseline.platforms) -notcontains 'linux' -or
         [string]$baseline.node -ne '>=22.0.0' -or
-        [string]$baseline.dshRelease -ne '0.1.2-alpha.3' -or
+        [string]$baseline.dshRelease -ne '0.1.2-alpha.4' -or
         [string]$baseline.dshDevelopmentRelease -ne '0.1.1-rc.2' -or
-        [string]$baseline.dshPeerRange -ne '^0.1.1-rc.2 || ^0.1.2-alpha.3' -or
+        [string]$baseline.dshPeerRange -ne '^0.1.1-rc.2 || ^0.1.2-alpha.4' -or
         [string]$baseline.piAi -ne '^0.84.2' -or
         [string]$baseline.runtimeDependencies.'@deepseek-ai/dsh-authorization' -ne
-            '^0.1.1-rc.2 || ^0.1.2-alpha.3' -or
+            '^0.1.1-rc.2 || ^0.1.2-alpha.4' -or
         [string]$baseline.runtimeDependencies.zod -ne '^4.4.3') {
         throw 'Provider deployment baseline metadata does not match the reviewed contract.'
     }

@@ -47,7 +47,7 @@
     },
     {
       "id": "github-copilot-authorization-bootstrap",
-      "description": "Verify rc.2 bootstraps the authorization service while alpha.3 reuses its existing service.",
+      "description": "Verify rc.2 bootstraps the authorization service while alpha.4 reuses its existing service.",
       "component": "dsh-github-copilot",
       "files": ["lib\\index.js"],
       "verifyMarkers": [
@@ -71,6 +71,20 @@
       "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
     },
     {
+      "id": "github-copilot-strict-json-oauth-grant-normalization",
+      "description": "Verify Copilot OAuth grants are rebuilt as a validated provider-owned plain JSON shape.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "normalizeGitHubCopilotOAuthCredential",
+        "Reflect.get(credential, \"type\")",
+        "Number.isFinite(expires)",
+        "payload: normalizeGitHubCopilotOAuthCredential(credential)"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/29"
+    },
+    {
       "id": "github-copilot-direct-hosted-search",
       "description": "Verify direct Copilot API metadata, bounded probe retry, and hosted-search bridge.",
       "component": "dsh-github-copilot",
@@ -86,7 +100,7 @@
     },
     {
       "id": "github-copilot-models-ui",
-      "description": "Verify alpha.3 provider-card and rc.2 Settings fallback authorization UI.",
+      "description": "Verify alpha.4 provider-card and rc.2 Settings fallback authorization UI.",
       "component": "dsh-github-copilot",
       "files": ["lib\\client.js"],
       "verifyMarkers": [

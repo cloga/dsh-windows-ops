@@ -49,6 +49,21 @@ Describe 'DSH replay patching' {
         $inventory[0].version | Should -Be '1.2.3'
     }
 
+    It 'locks exact rc.2 client ModuleLoader handoff replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'github-copilot-client-module-loader-handoff')
+
+        $patch.Count | Should -Be 1
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'window.__ModuleLoader__.load({',
+            'id: "dsh-github-copilot"',
+            'factory: (require) => {',
+            'return module.exports;'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/23'
+    }
+
     It 'locks exact rc.2 authorization bootstrap replay markers' {
         $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
         $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json

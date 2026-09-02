@@ -165,9 +165,15 @@ function Test-WindowsCopilotLock {
         if ($sha -notmatch '^[0-9a-f]{64}$') { throw "Invalid locked artifact SHA-256: $sha" }
     }
     $providerAttestedFiles = @($Lock.components.copilotIntegration.package.attestedFiles)
-    if ($providerAttestedFiles.Count -ne 1 -or
-        [string]$providerAttestedFiles[0] -cne [string]$Lock.components.copilotIntegration.package.main) {
-        throw 'Provider installed-file contract must attest the exact package main entrypoint.'
+    $expectedProviderAttestedFiles = @(
+        [string]$Lock.components.copilotIntegration.package.main,
+        'lib/client.js'
+    )
+    if ($providerAttestedFiles.Count -ne $expectedProviderAttestedFiles.Count -or
+        @($expectedProviderAttestedFiles | Where-Object {
+            $providerAttestedFiles -notcontains $_
+        }).Count -gt 0) {
+        throw 'Provider installed-file contract must attest the exact server and client entrypoints.'
     }
     if (@($Lock.components.desktop.install.arguments).Count -eq 0 -or
         @($Lock.components.desktop.install.acceptedExitCodes).Count -eq 0) {
@@ -244,7 +250,7 @@ function Test-WindowsCopilotLock {
         throw "Profile must physically materialize $copilotPackageName exactly once."
     }
     $legacyCopilotIntegrations = @($Lock.profile.legacyCopilotIntegrations)
-    if ($legacyCopilotIntegrations.Count -ne 4 -or
+    if ($legacyCopilotIntegrations.Count -ne 5 -or
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-web-search-provider' -and
             [string]$_.version -ceq '0.2.2'
@@ -260,6 +266,10 @@ function Test-WindowsCopilotLock {
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-github-copilot' -and
             [string]$_.version -ceq '0.3.0-cloga.2'
+        }).Count -ne 1 -or
+        @($legacyCopilotIntegrations | Where-Object {
+            [string]$_.name -ceq 'dsh-github-copilot' -and
+            [string]$_.version -ceq '0.3.0-cloga.3'
         }).Count -ne 1) {
         throw 'Profile migration must detect the reviewed legacy search providers and Copilot plugins.'
     }
@@ -370,6 +380,7 @@ function Test-WindowsCopilotLock {
 
     $baseline = $Lock.components.copilotIntegration.package.deploymentBaseline
     $expectedCapabilities = @(
+        'client-module-loader-handoff',
         'authorization-service-bootstrap',
         'models-provider-card-authorization',
         'reference-free-route-mutation',
@@ -381,7 +392,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly eight required capabilities.'
+        throw 'Copilot integration baseline must lock exactly nine required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {

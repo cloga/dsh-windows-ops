@@ -25,6 +25,35 @@
         "arguments": ["/S"],
         "acceptedExitCodes": [0]
       },
+      "runtimeSelectors": [
+        {
+          "id": "controlled-fork",
+          "source": "controlled-core-receipt",
+          "package": {
+            "name": "@deepseek-ai/dsh",
+            "version": "0.1.1-rc.2"
+          }
+        },
+        {
+          "id": "desktop-official",
+          "source": "desktop-managed-download",
+          "desktopVersion": "0.10.2",
+          "root": "%APPDATA%\\io.github.hairyf.deepseek-harness-desktop\\dependencies\\dsh",
+          "rootPackage": {
+            "name": "deepseek-harness-pkg",
+            "version": "0.1.2-alpha.4",
+            "manifest": "package.json"
+          },
+          "package": {
+            "name": "@deepseek-ai/dsh",
+            "version": "0.1.2-alpha.4",
+            "manifest": "node_modules\\@deepseek-ai\\dsh\\package.json",
+            "entrypoint": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js",
+            "fileCount": 9,
+            "treeSha256": "d8c143c3c05826fbb64439e28324d2f6e92a1f312d5fde217c88cd90312f98aa"
+          }
+        }
+      ],
       "internalPlugins": [
         {
           "name": "dsh-tauri",

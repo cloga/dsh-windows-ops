@@ -13,7 +13,8 @@ This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, reco
 | Component | Locked version |
 |---|---|
 | DeepSeek Harness Desktop | 0.10.2 |
-| `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
+| Controlled `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
+| Desktop-selected `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 or Desktop-managed official 0.1.2-alpha.4 |
 | `dsh-github-copilot` | 0.3.0-cloga.8 |
 | Desktop internal plugins | five official 0.6.7 components under `resources\node_modules` |
 

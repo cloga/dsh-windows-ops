@@ -32,6 +32,19 @@
       ]
     },
     {
+      "name": "dsh-desktop-runtime",
+      "rootEnv": "DSH_DESKTOP_RUNTIME_ROOT",
+      "rootCandidates": [
+        "%APPDATA%\\io.github.hairyf.deepseek-harness-desktop\\dependencies\\dsh"
+      ],
+      "versionProbes": [
+        {
+          "path": "node_modules\\@deepseek-ai\\dsh\\package.json",
+          "property": "version"
+        }
+      ]
+    },
+    {
       "name": "dsh-github-copilot",
       "rootEnv": "DSH_GITHUB_COPILOT_ROOT",
       "rootCandidates": [

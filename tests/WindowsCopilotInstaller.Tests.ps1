@@ -38,6 +38,23 @@ public static class $typeName { public static void Main() {} }
                 $sha.Dispose()
             }
         }
+        function Get-TestDirectoryTreeState {
+            param([Parameter(Mandatory)][string]$Path)
+            $root = [IO.Path]::GetFullPath($Path).TrimEnd('\') + '\'
+            $entries = @(Get-ChildItem -LiteralPath $root -Recurse -File | ForEach-Object {
+                [pscustomobject]@{
+                    relativePath = $_.FullName.Substring($root.Length).Replace('\', '/')
+                    sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                }
+            } | Sort-Object relativePath)
+            $text = ($entries | ForEach-Object {
+                [string]$_.relativePath + "`t" + [string]$_.sha256
+            }) -join "`n"
+            [pscustomobject]@{
+                fileCount = $entries.Count
+                treeSha256 = Get-TestSha256Text -Text $text
+            }
+        }
         function New-DesktopInternalPluginFixture {
             param(
                 [Parameter(Mandatory)][string]$ProfileRoot,
@@ -523,6 +540,14 @@ basedir=$(dirname "$0")
         $verify.sandbox.sameAndNarrowerApprovalCalls | Should -Be 0
         $desktopPath = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
         New-VersionedDesktopFixture -Path $desktopPath -Version '0.10.2'
+        Mock Test-LoopbackListener -ModuleName WindowsCopilotDeployment {
+            [pscustomobject]@{
+                port = 3080
+                bindingVerified = $true
+                loopbackOnly = $true
+                owningProcessIds = @(21)
+            }
+        }
         $runtimeVerify = Test-WindowsCopilotForkCore -Lock $activationLock -NpmGlobalRoot $globalRoot `
             -CoreInstallPrefix $core.prefix -DesktopProcesses @(
                 [pscustomobject]@{
@@ -541,7 +566,7 @@ basedir=$(dirname "$0")
                 }
             )
         $runtimeVerify.valid | Should -Be $true
-        $runtimeVerify.activeCore.status | Should -Be 'fork-core-command-line-active'
+        $runtimeVerify.activeCore.status | Should -Be 'controlled-fork-active-owns-3080'
 
         $secondOperation = Join-Path $backupRoot '20260901T120001000Z'
         $currentReceiptPath = Join-Path $backupRoot 'core-activation-current.json'
@@ -684,6 +709,181 @@ basedir=$(dirname "$0")
         $result = Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
             -CliInfo ([pscustomobject]@{}) -Processes $processes -DryRun
         $result.processIds | Should -Be @(10)
+    }
+
+    It 'accepts only the fork or exact Desktop-managed official runtime selector' {
+        $caseRoot = Join-Path $TestDrive 'desktop-runtime-selectors'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-VersionedDesktopFixture -Path $desktopPath -Version '0.10.2'
+        $fork = New-ForkCoreFixture -Prefix (Join-Path $caseRoot 'fork')
+        $forkInfo = [pscustomobject]@{
+            valid = $true
+            version = [string]$lock.components.core.package.version
+            packageRoot = $fork.packageRoot
+            entryPath = Join-Path $fork.packageRoot 'lib\bin.js'
+        }
+        $baseProcesses = @(
+            [pscustomobject]@{
+                ProcessId = 10
+                ParentProcessId = 0
+                Name = 'deepseek-harness-desktop.exe'
+                ExecutablePath = $desktopPath
+                CommandLine = "`"$desktopPath`""
+            }
+        )
+        $forkState = Get-WindowsCopilotDesktopRuntimeState -Lock $lock `
+            -DesktopExecutablePath $desktopPath -ForkCliInfo $forkInfo -Processes @(
+                $baseProcesses[0],
+                [pscustomobject]@{
+                    ProcessId = 11
+                    ParentProcessId = 10
+                    Name = 'node.exe'
+                    ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                    CommandLine = "node `"$($forkInfo.entryPath)`" --profile web"
+                }
+            ) -ListenerStates @([pscustomobject]@{
+                port = 3080
+                bindingVerified = $true
+                loopbackOnly = $true
+                owningProcessIds = @(11)
+            })
+        $forkState.valid | Should -Be $true
+        $forkState.selector | Should -Be 'controlled-fork'
+        $forkState.version | Should -Be '0.1.1-rc.2'
+        $forkState.status | Should -Be 'controlled-fork-active-owns-3080'
+
+        $decoy = Get-WindowsCopilotDesktopRuntimeState -Lock $lock `
+            -DesktopExecutablePath $desktopPath -ForkCliInfo $forkInfo -Processes @(
+                $baseProcesses[0],
+                [pscustomobject]@{
+                    ProcessId = 15
+                    ParentProcessId = 10
+                    Name = 'node.exe'
+                    ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                    CommandLine = "node `"C:\arbitrary\malicious.js`" --decoy `"$($forkInfo.entryPath)`""
+                }
+            ) -ListenerStates @([pscustomobject]@{
+                port = 3080
+                bindingVerified = $true
+                loopbackOnly = $true
+                owningProcessIds = @(15)
+            })
+        $decoy.valid | Should -Be $false
+        $decoy.status | Should -Be 'unsupported-runtime-selector'
+
+        $previousAppData = $env:APPDATA
+        try {
+            $env:APPDATA = Join-Path $caseRoot 'appdata'
+            $officialRoot = Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\dependencies\dsh'
+            $officialPackage = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh'
+            New-Item -ItemType Directory -Path (Join-Path $officialPackage 'lib') -Force | Out-Null
+            Copy-Item -LiteralPath (Join-Path $fixtureRoot 'desktop-runtime\root-package.json') `
+                -Destination (Join-Path $officialRoot 'package.json')
+            Copy-Item -LiteralPath (Join-Path $fixtureRoot 'desktop-runtime\package.json') `
+                -Destination (Join-Path $officialPackage 'package.json')
+            Set-Content -LiteralPath (Join-Path $officialPackage 'lib\bin.js') `
+                -Value 'process.exit(0)' -Encoding UTF8
+            $selectorLock = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+            $tree = Get-TestDirectoryTreeState -Path $officialPackage
+            $selectorLock.components.desktop.runtimeSelectors[1].package.fileCount = $tree.fileCount
+            $selectorLock.components.desktop.runtimeSelectors[1].package.treeSha256 = $tree.treeSha256
+            $officialEntry = Join-Path $officialPackage 'lib\bin.js'
+            $officialState = Get-WindowsCopilotDesktopRuntimeState -Lock $selectorLock `
+                -DesktopExecutablePath $desktopPath -ForkCliInfo $forkInfo -Processes @(
+                    $baseProcesses[0],
+                    [pscustomobject]@{
+                        ProcessId = 12
+                        ParentProcessId = 10
+                        Name = 'node.exe'
+                        ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                        CommandLine = "node `"$officialEntry`" --profile web"
+                    }
+                ) -ListenerStates @([pscustomobject]@{
+                    port = 3080
+                    bindingVerified = $true
+                    loopbackOnly = $true
+                    owningProcessIds = @(12)
+                })
+            $officialState.valid | Should -Be $true
+            $officialState.selector | Should -Be 'desktop-official'
+            $officialState.source | Should -Be 'desktop-managed-download'
+            $officialState.version | Should -Be '0.1.2-alpha.4'
+
+            Add-Content -LiteralPath $officialEntry -Value 'tampered' -Encoding UTF8
+            $tampered = Get-WindowsCopilotDesktopRuntimeState -Lock $selectorLock `
+                -DesktopExecutablePath $desktopPath -ForkCliInfo $forkInfo -Processes @(
+                    $baseProcesses[0],
+                    [pscustomobject]@{
+                        ProcessId = 12
+                        ParentProcessId = 10
+                        Name = 'node.exe'
+                        ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                        CommandLine = "node `"$officialEntry`" --profile web"
+                    }
+                ) -ListenerStates @([pscustomobject]@{
+                    port = 3080
+                    bindingVerified = $true
+                    loopbackOnly = $true
+                    owningProcessIds = @(12)
+                })
+            $tampered.valid | Should -Be $false
+            $tampered.status | Should -Be 'desktop-official-runtime-invalid'
+            Set-Content -LiteralPath $officialEntry -Value 'process.exit(0)' -Encoding UTF8
+
+            $metadata = Get-Content -LiteralPath (Join-Path $officialPackage 'package.json') -Raw |
+                ConvertFrom-Json
+            $metadata.version = '0.1.2-alpha.5'
+            $metadata | ConvertTo-Json -Depth 4 |
+                Set-Content -LiteralPath (Join-Path $officialPackage 'package.json') -Encoding UTF8
+            $unknown = Get-WindowsCopilotDesktopRuntimeState -Lock $selectorLock `
+                -DesktopExecutablePath $desktopPath -ForkCliInfo $forkInfo -Processes @(
+                    $baseProcesses[0],
+                    [pscustomobject]@{
+                        ProcessId = 13
+                        ParentProcessId = 10
+                        Name = 'node.exe'
+                        ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                        CommandLine = "node `"$officialEntry`" --profile web"
+                    }
+                ) -ListenerStates @([pscustomobject]@{
+                    port = 3080
+                    bindingVerified = $true
+                    loopbackOnly = $true
+                    owningProcessIds = @(13)
+                })
+            $unknown.valid | Should -Be $false
+            $unknown.status | Should -Be 'desktop-official-runtime-invalid'
+            $unknown.officialMetadataStatus | Should -Be 'package-identity-mismatch'
+
+            $arbitraryEntry = Join-Path $caseRoot 'desktop\resources\packaged-core\lib\bin.js'
+            New-Item -ItemType Directory -Path (Split-Path -Parent $arbitraryEntry) -Force | Out-Null
+            Set-Content -LiteralPath $arbitraryEntry -Value 'process.exit(0)' -Encoding UTF8
+            $arbitrary = Get-WindowsCopilotDesktopRuntimeState -Lock $selectorLock `
+                -DesktopExecutablePath $desktopPath -ForkCliInfo $forkInfo -Processes @(
+                    $baseProcesses[0],
+                    [pscustomobject]@{
+                        ProcessId = 14
+                        ParentProcessId = 10
+                        Name = 'node.exe'
+                        ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                        CommandLine = "node `"$arbitraryEntry`" --profile web"
+                    }
+                ) -ListenerStates @([pscustomobject]@{
+                    port = 3080
+                    bindingVerified = $true
+                    loopbackOnly = $true
+                    owningProcessIds = @(14)
+                })
+            $arbitrary.valid | Should -Be $false
+            $arbitrary.status | Should -Be 'unsupported-runtime-selector'
+        } finally {
+            $env:APPDATA = $previousAppData
+        }
+
+        $absent = Get-WindowsCopilotDesktopRuntimeState -Lock $lock `
+            -DesktopExecutablePath $desktopPath -ForkCliInfo $forkInfo -Processes @()
+        $absent.valid | Should -Be $false
+        $absent.status | Should -Be 'desktop-not-running'
     }
 
     It 'installs Core through the receipt producer before the remaining global transaction' {
@@ -954,13 +1154,54 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         }
         $state.deployment.core.status | Should -Be 'verified'
         $state.runtime.activeCore.reason | Should -BeNullOrEmpty
-        $state.runtime.activeCore.status | Should -Be 'receipted-core-owns-3080'
+        $state.runtime.activeCore.status | Should -Be 'controlled-fork-active-owns-3080'
+        $state.runtime.activeCore.selector | Should -Be 'controlled-fork'
         $state.runtime.activeCore.listenerOwnerProcessIds | Should -Be @(101)
         $healthyProvider = @($state.profile.plugins | Where-Object name -eq 'dsh-github-copilot')[0]
         $healthyProvider.payloadReason | Should -BeNullOrEmpty
         $healthyProvider.payloadStatus | Should -Be 'verified'
         $state.complete | Should -Be $true -Because ($state | ConvertTo-Json -Depth 12 -Compress)
         $state.health | Should -Be 'healthy'
+
+        $previousAppData = $env:APPDATA
+        try {
+            $env:APPDATA = Join-Path $caseRoot 'desktop-appdata'
+            $officialRoot = Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\dependencies\dsh'
+            $officialPackage = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh'
+            New-Item -ItemType Directory -Path (Join-Path $officialPackage 'lib') -Force | Out-Null
+            Copy-Item -LiteralPath (Join-Path $fixtureRoot 'desktop-runtime\root-package.json') `
+                -Destination (Join-Path $officialRoot 'package.json')
+            Copy-Item -LiteralPath (Join-Path $fixtureRoot 'desktop-runtime\package.json') `
+                -Destination (Join-Path $officialPackage 'package.json')
+            Set-Content -LiteralPath (Join-Path $officialPackage 'lib\bin.js') `
+                -Value 'process.exit(0)' -Encoding UTF8
+            $tree = Get-TestDirectoryTreeState -Path $officialPackage
+            $healthyLock.components.desktop.runtimeSelectors[1].package.fileCount = $tree.fileCount
+            $healthyLock.components.desktop.runtimeSelectors[1].package.treeSha256 = $tree.treeSha256
+            $officialProcesses = @(
+                $activeProcesses[0],
+                [pscustomobject]@{
+                    ProcessId = 101
+                    ParentProcessId = 100
+                    Name = 'node.exe'
+                    ExecutablePath = 'C:\Program Files\nodejs\node.exe'
+                    CommandLine = 'node "' + (Join-Path $officialPackage 'lib\bin.js') + '"'
+                }
+            )
+            $officialState = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
+                -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.10.2' `
+                -DesktopExecutablePath $desktopPath `
+                -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
+                -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
+                -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
+                -DesktopProcesses $officialProcesses
+            $officialState.complete | Should -Be $true -Because ($officialState | ConvertTo-Json -Depth 12 -Compress)
+            $officialState.runtime.activeCore.status | Should -Be 'desktop-official-active-owns-3080'
+            $officialState.runtime.activeCore.selector | Should -Be 'desktop-official'
+            $officialState.runtime.activeCore.version | Should -Be '0.1.2-alpha.4'
+        } finally {
+            $env:APPDATA = $previousAppData
+        }
 
         $unrelatedProcesses = @(
             $activeProcesses[0],
@@ -980,8 +1221,8 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
             -DesktopProcesses $unrelatedProcesses
         $falseActive.complete | Should -Be $false
-        $falseActive.runtime.activeCore.status | Should -Be 'receipted-core-not-active'
-        @($falseActive.drift.reasons) | Should -Contain 'core-receipted-package-not-active-under-desktop'
+        $falseActive.runtime.activeCore.status | Should -Be 'unsupported-runtime-selector'
+        @($falseActive.drift.reasons) | Should -Contain 'desktop-runtime-unsupported-or-inactive'
 
         Mock Test-LoopbackListener -ModuleName WindowsCopilotDeployment {
             param($HostName, $Port)
@@ -1002,8 +1243,8 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
             -DesktopProcesses $activeProcesses
         $wrongOwner.complete | Should -Be $false
-        $wrongOwner.runtime.activeCore.status | Should -Be 'receipted-core-listener-owner-mismatch'
-        @($wrongOwner.drift.reasons) | Should -Contain 'core-receipted-process-does-not-own-3080'
+        $wrongOwner.runtime.activeCore.status | Should -Be 'controlled-fork-listener-owner-mismatch'
+        @($wrongOwner.drift.reasons) | Should -Contain 'desktop-runtime-process-does-not-own-3080'
 
         Add-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-github-copilot\lib\index.js') `
             -Value 'tampered' -Encoding ASCII

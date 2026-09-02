@@ -13,7 +13,8 @@
 | 组件 | 锁定版本 |
 |---|---|
 | DeepSeek Harness Desktop | 0.10.2 |
-| `@deepseek-ai/dsh` Core | 0.1.1-rc.2 |
+| 受控 `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
+| Desktop 选择的 `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 或 Desktop 管理的官方 0.1.2-alpha.4 |
 | `dsh-github-copilot` | 0.3.0-cloga.8 |
 | Desktop internal plugins | 官方 5 个 0.6.7 组件，位于 `resources\node_modules` |
 

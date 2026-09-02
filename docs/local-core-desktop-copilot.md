@@ -8,7 +8,8 @@ is the machine-readable deployment contract.
 | Component | Locked identity |
 |---|---|
 | Desktop | official `0.10.2`, commit `2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63` |
-| Core | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `a772dbbde82780bff2b9394427e9f0a24cafa1d5`, maintenance branch `cloga-pi-ai-model-api` |
+| Controlled CLI | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `a772dbbde82780bff2b9394427e9f0a24cafa1d5`, maintenance branch `cloga-pi-ai-model-api` |
+| Desktop runtime | either the controlled fork above or Desktop 0.10.2's managed `@deepseek-ai/dsh@0.1.2-alpha.4` under `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh` |
 | Copilot plugin | `dsh-github-copilot@0.3.0-cloga.8`, source commit `94d921dc7bad4d5035c27ed9543d638694cb7391`, merge commit `eae8b56715e197d5e206a7852bfaa418bbc70dc5`, PR #33 |
 | Plugin artifact | [`dsh-github-copilot-0.3.0-cloga.8.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.8.tgz), SHA-256 `b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32` |
 | Desktop artifact | [`Deepseek.Harness.Desktop_0.10.2_x64-setup.exe`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe), SHA-256 `54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa` |
@@ -87,11 +88,15 @@ The installer is read-only unless `-Apply` is explicit:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1
 ```
 
-Check mode validates the lock, Desktop, the Core receipt and installed-file
-attestation, official Desktop plugin links, the direct plugin payload, composed
-configuration, credential-record metadata, the reference-free Copilot route,
-complete per-model `{id, api}` entries with mixed protocol coverage, and Desktop
-listener ownership. It never treats a legacy gateway as success.
+Check mode validates the lock, Desktop, the controlled Core receipt and
+installed-file attestation, official Desktop plugin links, the direct plugin
+payload, composed configuration, credential-record metadata, the reference-free
+Copilot route, complete per-model `{id, api}` entries with mixed protocol
+coverage, and Desktop listener ownership. The running Desktop backend must select
+either the exact receipted fork entrypoint or Desktop 0.10.2's exact managed
+official `0.1.2-alpha.4` entrypoint. The latter is accepted only at the locked
+AppData dependency root with matching package name/version; an absent runtime,
+unknown version, unrelated bundled Core, or legacy gateway fails closed.
 
 A missing `llm-pi-ai/github-copilot` grant is reported as
 `sign-in-required`. Credential payloads are never included in output.
@@ -113,11 +118,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -BackupRoot C:\dsh-ops-backups
 ```
 
-Apply builds and installs the receipted local Core, verifies commit
+Apply builds and installs the receipted controlled CLI, verifies commit
 `a772dbbd` and the three installed executable hashes, builds and attests the
 Copilot plugin, installs the reviewed loader packages, preserves the five
 official Desktop internal-plugin junctions, physically materializes only the
-Copilot plugin, and activates the local Core through `DSH_CLI_PATH`.
+Copilot plugin, and activates the local CLI through `DSH_CLI_PATH`. Desktop
+0.10.2 may nevertheless use its own managed official `0.1.2-alpha.4` runtime;
+restart acceptance attests that selector from the Desktop process tree and its
+locked on-disk package metadata rather than requiring Desktop to honor
+`DSH_CLI_PATH`.
 For a clean plugin checkout, the locked build follows the plugin's verified
 order: install dependencies, typecheck, verify deployment metadata, compile
 with `tsc`, bundle with `tsdown`, run artifact-dependent tests, then pack.
@@ -193,8 +202,8 @@ not active components or acceptance criteria.
    account-available model. Never paste a token into settings.
 8. Run the default installer check again. Success requires the `.8` plugin,
    credential grant metadata, reference-free route, direct search composition,
-   official internal-plugin links, receipted Core, and only the Desktop
-   loopback listener contract.
+   official internal-plugin links, receipted controlled CLI, an exact supported
+   Desktop runtime selector, and only the Desktop loopback listener contract.
 9. Perform a user-initiated model and hosted-search smoke in Desktop. No local
    endpoint probe is part of the direct contract.
 

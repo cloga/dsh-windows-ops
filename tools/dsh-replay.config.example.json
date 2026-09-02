@@ -6,25 +6,15 @@
       "name": "dsh-desktop",
       "rootEnv": "DSH_DESKTOP_ROOT",
       "rootCandidates": [
-        "%LOCALAPPDATA%\\Programs\\DeepSeek Harness",
-        "%ProgramFiles%\\DeepSeek Harness"
+        "%LOCALAPPDATA%\\Deepseek Harness Desktop"
       ],
       "executables": [
-        "DeepSeek Harness.exe"
+        "deepseek-harness-desktop.exe"
       ],
-      "versionProbes": [
-        {
-          "path": "resources\\app.asar.unpacked\\package.json",
-          "property": "version"
-        },
-        {
-          "path": "resources\\runtime\\package.json",
-          "property": "version"
-        }
-      ],
+      "versionProbes": [],
       "fileVersionProbes": [
         {
-          "path": "DeepSeek Harness.exe"
+          "path": "deepseek-harness-desktop.exe"
         }
       ]
     },

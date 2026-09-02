@@ -41,10 +41,11 @@ public static class $typeName { public static void Main() {} }
         function New-DesktopInternalPluginFixture {
             param(
                 [Parameter(Mandatory)][string]$ProfileRoot,
-                [Parameter(Mandatory)][string]$DesktopExecutablePath
+                [Parameter(Mandatory)][string]$DesktopExecutablePath,
+                [string]$Version = [string]$script:lock.components.desktop.version
             )
             $desktopRoot = Split-Path -Parent $DesktopExecutablePath
-            New-VersionedDesktopFixture -Path $DesktopExecutablePath -Version '0.9.2'
+            New-VersionedDesktopFixture -Path $DesktopExecutablePath -Version $Version
             $nodeModules = Join-Path $ProfileRoot 'node_modules'
             New-Item -ItemType Directory -Path $nodeModules -Force | Out-Null
             foreach ($plugin in @($script:lock.components.desktop.internalPlugins)) {
@@ -198,11 +199,17 @@ export function apply(ctx) {
     It 'pins every verified source and artifact identity' {
         $lock.deploymentId | Should -Be 'windows-copilot-2026-09-02'
         $lock.verifiedDate | Should -Be '2026-09-02'
-        $lock.components.desktop.version | Should -Be '0.9.2'
-        $lock.components.desktop.source.commit | Should -Be 'c7c5a247961b1ca2d7389026ad7194ac108e5437'
-        $lock.components.desktop.artifact.sha256 | Should -Be 'f7055155ffdaf1671761d5ba85030009cf3207d4c9c46649c211c2217bb1c1c7'
+        $lock.components.desktop.version | Should -Be '0.10.2'
+        $lock.components.desktop.source.commit | Should -Be '2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63'
+        $lock.components.desktop.artifact.name | Should -Be 'Deepseek.Harness.Desktop_0.10.2_x64-setup.exe'
+        $lock.components.desktop.artifact.url |
+            Should -Be 'https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe'
+        $lock.components.desktop.artifact.sha256 | Should -Be '54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa'
         @($lock.components.desktop.internalPlugins).Count | Should -Be 5
-        @($lock.components.desktop.internalPlugins | Where-Object version -ne '0.4.9').Count | Should -Be 0
+        @($lock.components.desktop.internalPlugins | Where-Object version -ne '0.6.7').Count | Should -Be 0
+        @($lock.components.desktop.internalPlugins | Where-Object {
+            $_.relativePath -cne "resources\node_modules\$($_.name)"
+        }).Count | Should -Be 0
         @($lock.profile.legacyPhysicalPlugins).Count | Should -Be 3
         (@($lock.profile.legacyPhysicalPlugins | Where-Object name -eq 'dsh-tauri'))[0].version |
             Should -Be '0.2.0'
@@ -370,7 +377,7 @@ basedir=$(dirname "$0")
         $verify.activation.core.installedFileCount | Should -Be 3
         $verify.sandbox.sameAndNarrowerApprovalCalls | Should -Be 0
         $desktopPath = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
-        New-VersionedDesktopFixture -Path $desktopPath -Version '0.9.2'
+        New-VersionedDesktopFixture -Path $desktopPath -Version '0.10.2'
         $runtimeVerify = Test-WindowsCopilotForkCore -Lock $activationLock -NpmGlobalRoot $globalRoot `
             -CoreInstallPrefix $core.prefix -DesktopProcesses @(
                 [pscustomobject]@{
@@ -512,7 +519,7 @@ basedir=$(dirname "$0")
     It 'targets only the exact Desktop executable during a restart dry run' {
         $caseRoot = Join-Path $TestDrive 'desktop-restart'
         $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
-        New-VersionedDesktopFixture -Path $desktopPath -Version '0.9.2'
+        New-VersionedDesktopFixture -Path $desktopPath -Version '0.10.2'
         $processes = @(
             [pscustomobject]@{
                 ProcessId = 10
@@ -718,7 +725,7 @@ basedir=$(dirname "$0")
         try {
             $env:DSH_CLI_PATH = Join-Path $caseRoot 'wrong-global\dsh.cmd'
             $state = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
-                -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.9.2' `
+                -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.10.2' `
                 -DesktopExecutablePath $desktopPath `
                 -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
                 -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
@@ -748,7 +755,7 @@ basedir=$(dirname "$0")
             }
         )
         $falseActive = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
-            -NpmGlobalRoot $globalRoot -DshCliPath $core.cliPath -DesktopVersion '0.9.2' `
+            -NpmGlobalRoot $globalRoot -DshCliPath $core.cliPath -DesktopVersion '0.10.2' `
             -DesktopExecutablePath $desktopPath `
             -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
@@ -770,7 +777,7 @@ basedir=$(dirname "$0")
             }
         }
         $wrongOwner = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
-            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.9.2' `
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.10.2' `
             -DesktopExecutablePath $desktopPath `
             -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
@@ -783,7 +790,7 @@ basedir=$(dirname "$0")
         Add-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-github-copilot\lib\index.js') `
             -Value 'tampered' -Encoding ASCII
         $providerTamper = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
-            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.9.2' `
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.10.2' `
             -DesktopExecutablePath $desktopPath `
             -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
@@ -798,7 +805,7 @@ basedir=$(dirname "$0")
         $receipt | ConvertTo-Json -Depth 8 |
             Set-Content -LiteralPath $core.receiptPath -Encoding UTF8
         $unattested = Test-WindowsCopilotInstallation -Lock $healthyLock -DshHome $dshHome `
-            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.9.2' `
+            -NpmGlobalRoot $globalRoot -CoreInstallPrefix $receiptPrefix -DesktopVersion '0.10.2' `
             -DesktopExecutablePath $desktopPath `
             -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
@@ -943,7 +950,7 @@ basedir=$(dirname "$0")
             -NpmGlobalRoot $globalRoot -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
-            -DshCliPath (Join-Path $TestDrive 'missing-dsh.cmd') -DesktopVersion '0.9.2' `
+            -DshCliPath (Join-Path $TestDrive 'missing-dsh.cmd') -DesktopVersion '0.10.2' `
             -DesktopExecutablePath $desktopPath `
             -SkipRuntimeChecks
         $state.profile.dependencyValid | Should -Be $true
@@ -965,7 +972,7 @@ basedir=$(dirname "$0")
             -NpmGlobalRoot $globalRoot -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
             -SearchSmokeResponsePath (Join-Path $fixtureRoot 'search-response.json') `
-            -DshCliPath (Join-Path $TestDrive 'missing-dsh.cmd') -DesktopVersion '0.9.2' `
+            -DshCliPath (Join-Path $TestDrive 'missing-dsh.cmd') -DesktopVersion '0.10.2' `
             -DesktopExecutablePath $desktopPath `
             -SkipRuntimeChecks
         $missingBundle.profile.bundleValid | Should -Be $false
@@ -1002,7 +1009,7 @@ basedir=$(dirname "$0")
             [bool]((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) |
                 Should -Be $true
             (Get-Content -LiteralPath (Join-Path $target 'package.json') -Raw | ConvertFrom-Json).version |
-                Should -Be '0.4.9'
+                Should -Be '0.6.7'
             Test-Path -LiteralPath (Join-Path $result.backupRoot `
                 (Join-Path 'plugins' (Join-Path ([string]$legacy.name) 'legacy-sentinel.txt'))) |
                 Should -Be $true
@@ -1120,7 +1127,7 @@ basedir=$(dirname "$0")
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         $officialTarget = Join-Path (Split-Path -Parent $desktopPath) `
-            'resources\internal-plugins\dsh-tauri'
+            'resources\node_modules\dsh-tauri'
         Remove-Item -LiteralPath $officialTarget -Recurse -Force
 
         {
@@ -1150,7 +1157,7 @@ basedir=$(dirname "$0")
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         $wrongTarget = Join-Path $caseRoot 'unofficial\dsh-tauri'
         New-Item -ItemType Directory -Path $wrongTarget -Force | Out-Null
-        '{"name":"dsh-tauri","version":"0.4.9"}' |
+        '{"name":"dsh-tauri","version":"0.6.7"}' |
             Set-Content -LiteralPath (Join-Path $wrongTarget 'package.json') -Encoding UTF8
         $link = Join-Path $profileRoot 'node_modules\dsh-tauri'
         [IO.Directory]::Delete($link, $false)
@@ -1321,7 +1328,8 @@ basedir=$(dirname "$0")
         $desktopCli = Join-Path $corePrefix 'dsh.cmd'
         New-Item -ItemType Directory -Path $profileRoot, $globalRoot, (Split-Path $canonicalCli -Parent) -Force | Out-Null
         $canonicalDesktop = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
-        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $canonicalDesktop
+        New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $canonicalDesktop `
+            -Version '0.9.2'
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
@@ -1359,7 +1367,7 @@ basedir=$(dirname "$0")
         $state.health | Should -Be 'drifted'
         $state.drift.incidentId | Should -Be 'windows-copilot-drift-2026-08-28'
         $state.drift.mixedState | Should -Be $true
-        $state.deployment.desktop.status | Should -Be 'locked'
+        $state.deployment.desktop.status | Should -Be 'version-mismatch'
         $state.deployment.PSObject.Properties.Name | Should -Not -Contain 'gateway'
         $state.deployment.core.status | Should -Be 'receipt-missing'
         $legacy = @($state.profile.legacyCopilotIntegrations | Where-Object {
@@ -1371,7 +1379,7 @@ basedir=$(dirname "$0")
         $state.runtime.composedConfig.managedConfigValid | Should -Be $false
         @($state.runtime.composedConfig.forbiddenActiveEntries) | Should -Contain 'web-search-provider'
         $state.drift.remediation.status | Should -Be 'locked-repair-required'
-        $state.drift.remediation.automaticApplyAllowed | Should -Be $true
+        $state.drift.remediation.automaticApplyAllowed | Should -Be $false
         @($state.drift.remediation.steps.action) | Should -Contain 'bootstrap-direct-copilot'
         (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash | Should -Be $profileBefore
         Test-Path -LiteralPath (Join-Path $corePrefix 'dsh-local-install.json') | Should -Be $false
@@ -1488,7 +1496,7 @@ basedir=$(dirname "$0")
     It 'refuses apply before mutation when the installed Desktop is newer than the lock' {
         $catalog = Get-Content -LiteralPath (Join-Path $fixtureRoot 'model-catalog.json') -Raw | ConvertFrom-Json
         $canonicalDesktop = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
-        New-VersionedDesktopFixture -Path $canonicalDesktop -Version '0.10.0'
+        New-VersionedDesktopFixture -Path $canonicalDesktop -Version '0.10.3'
         {
             Invoke-WindowsCopilotApply -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
                 -NpmGlobalRoot (Join-Path $TestDrive 'global\node_modules') `
@@ -1534,9 +1542,9 @@ basedir=$(dirname "$0")
             $arguments.DesktopArtifactPath,
             $arguments.DesktopExecutablePath,
             (Split-Path -Parent $arguments.DesktopExecutablePath),
-            (Join-Path (Split-Path -Parent $arguments.DesktopExecutablePath) 'resources\internal-plugins'),
+            (Join-Path (Split-Path -Parent $arguments.DesktopExecutablePath) 'resources\node_modules'),
             (Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop'),
-            (Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\resources\internal-plugins')
+            (Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\resources\node_modules')
         )
         foreach ($candidate in $overlaps) {
             {
@@ -1638,7 +1646,7 @@ basedir=$(dirname "$0")
         $base = Join-Path $TestDrive 'desktop-plugin-alias'
         $corePrefix = Join-Path $base 'core'
         $desktopRoot = Join-Path $base 'desktop'
-        $pluginRoot = Join-Path $desktopRoot 'resources\internal-plugins'
+        $pluginRoot = Join-Path $desktopRoot 'resources\node_modules'
         New-Item -ItemType Directory -Path $corePrefix, $pluginRoot -Force | Out-Null
         New-Item -ItemType Junction -Path (Join-Path $pluginRoot 'dsh-tauri') `
             -Target $corePrefix -ErrorAction Stop | Out-Null
@@ -1705,7 +1713,7 @@ basedir=$(dirname "$0")
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
-        $officialTauri = Join-Path (Split-Path -Parent $desktopPath) 'resources\internal-plugins\dsh-tauri'
+        $officialTauri = Join-Path (Split-Path -Parent $desktopPath) 'resources\node_modules\dsh-tauri'
         Set-Content -LiteralPath (Join-Path $officialTauri 'sentinel.txt') -Value 'keep' -Encoding UTF8
         $nodeModules = Join-Path $profileRoot 'node_modules'
         $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.8.tgz'

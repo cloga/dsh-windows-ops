@@ -221,10 +221,10 @@ function Test-WindowsCopilotLock {
     }
     foreach ($name in $internalPluginNames) {
         $matches = @($internalPlugins | Where-Object {
-            [string]$_.name -ceq $name -and [string]$_.version -ceq '0.4.9' -and
-            [string]$_.relativePath -ceq "resources\internal-plugins\$name"
+            [string]$_.name -ceq $name -and [string]$_.version -ceq '0.6.7' -and
+            [string]$_.relativePath -ceq "resources\node_modules\$name"
         })
-        if ($matches.Count -ne 1) { throw "Desktop internal-plugin contract omits '$name@0.4.9'." }
+        if ($matches.Count -ne 1) { throw "Desktop internal-plugin contract omits '$name@0.6.7'." }
     }
 
     $copilotPackageName = [string]$Lock.components.copilotIntegration.package.name
@@ -232,7 +232,7 @@ function Test-WindowsCopilotLock {
     $plugins = @($Lock.profile.plugins)
     foreach ($name in $internalPluginNames) {
         $matches = @($plugins | Where-Object {
-            [string]$_.name -ceq $name -and [string]$_.version -ceq '0.4.9' -and
+            [string]$_.name -ceq $name -and [string]$_.version -ceq '0.6.7' -and
             [string]$_.source -ceq 'desktop-internal' -and $_.materialize -eq $false -and
             $_.preserve -eq $true
         })
@@ -607,7 +607,7 @@ function Assert-CoreInstallPrefixIsolation {
         $protected.Add([pscustomobject]@{ name = "$label root"; path = $desktopRoot })
         $protected.Add([pscustomobject]@{
             name = "$label internal plugins"
-            path = Join-Path $desktopRoot 'resources\internal-plugins'
+            path = Join-Path $desktopRoot 'resources\node_modules'
         })
         foreach ($plugin in @($Lock.components.desktop.internalPlugins)) {
             $protected.Add([pscustomobject]@{
@@ -3681,7 +3681,6 @@ function Test-WindowsCopilotInstallation {
     } | Select-Object -First 1)
     $incidentDetected = [bool](
         $desktop.version -eq '0.9.2' -and
-        $desktop.valid -and
         $legacy022.Count -eq 1 -and
         [string]$legacy022[0].installedVersion -eq '0.2.2' -and
         $coreReceipt.status -eq 'receipt-missing' -and
@@ -3716,7 +3715,8 @@ function Test-WindowsCopilotInstallation {
         drift = [pscustomobject]@{
             detected = $driftDetected
             incidentId = if ($incidentDetected) { 'windows-copilot-drift-2026-08-28' } else { $null }
-            mixedState = [bool]($desktop.valid -and (-not $provider.versionValid -or -not $coreReceipt.valid))
+            mixedState = [bool](($desktop.valid -or $incidentDetected) -and
+                (-not $provider.versionValid -or -not $coreReceipt.valid))
             reasons = @($driftReasons)
             remediation = $remediation
         }

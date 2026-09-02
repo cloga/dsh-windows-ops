@@ -109,6 +109,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
   -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.10.2_x64-setup.exe `
   -CoreInstallPrefix C:\.tools\dsh-cloga `
+  -CoreInstallTimeoutSeconds 900 `
   -BackupRoot C:\dsh-ops-backups
 ```
 
@@ -117,6 +118,9 @@ Apply builds and installs the receipted local Core, verifies commit
 Copilot plugin, installs the reviewed loader packages, preserves the five
 official Desktop internal-plugin junctions, physically materializes only the
 Copilot plugin, and activates the local Core through `DSH_CLI_PATH`.
+`-CoreInstallTimeoutSeconds` bounds Core's internal package installation and
+defaults to 900 seconds; it is separate from the 90-second Desktop/runtime
+`-TimeoutSeconds` control.
 
 It does not install, start, stop, or verify a gateway. `-GatewayArtifactPath`
 is a retired compatibility parameter and is never an apply requirement.

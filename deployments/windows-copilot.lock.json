@@ -120,13 +120,13 @@
     "copilotIntegration": {
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "pullRequest": 19,
-        "commit": "8af7edb70c07e9da4b451e1ae07d73e99040340e",
-        "mergeCommit": "ebb06007c407a9707f083f5c63e9d0b41e6a1aa9"
+        "pullRequest": 21,
+        "commit": "d6da9f4a0b64cdf18ab3e25581d84b55b8421076",
+        "mergeCommit": "da3ee5657a54874eefe35e4133a3d55663c2de36"
       },
       "package": {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.2",
+        "version": "0.3.0-cloga.3",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
@@ -135,8 +135,8 @@
           "lib/index.js"
         ],
         "artifact": {
-          "name": "dsh-github-copilot-0.3.0-cloga.2.tgz",
-          "sha256": "deb35365b42dfc353ab094a3da7c1e3560708e97ab0c85a82f571b5c2cd38236"
+          "name": "dsh-github-copilot-0.3.0-cloga.3.tgz",
+          "sha256": "d7e9c262e2a53cef7f46a7d37b93f9d11bef7ea398fac143c9f588deb5011f1c"
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
@@ -149,7 +149,11 @@
           "dshDevelopmentRelease": "0.1.1-rc.2",
           "dshPeerRange": "^0.1.1-rc.2 || ^0.1.2-alpha.3",
           "piAi": "^0.84.2",
+          "runtimeDependencies": {
+            "@deepseek-ai/dsh-authorization": "^0.1.1-rc.2 || ^0.1.2-alpha.3"
+          },
           "requiredCapabilities": [
+            "authorization-service-bootstrap",
             "models-provider-card-authorization",
             "reference-free-route-mutation",
             "shared-copilot-credential-refresh",
@@ -161,7 +165,7 @@
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.2.tgz",
+        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.3.tgz",
         "commands": [
           ["install", "--frozen-lockfile"],
           ["test"],
@@ -263,7 +267,7 @@
       },
       {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.2",
+        "version": "0.3.0-cloga.3",
         "source": "built-artifact",
         "materialize": true
       }
@@ -287,6 +291,11 @@
         "name": "dsh-github-copilot",
         "version": "0.3.0-cloga.1",
         "artifactPattern": "dsh-github-copilot-0.3.0-cloga.1.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.2",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.2.tgz"
       }
     ]
   },

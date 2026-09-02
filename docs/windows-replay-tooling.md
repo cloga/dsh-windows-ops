@@ -43,14 +43,15 @@ The `.2` baseline checks:
 | Component | Evidence |
 |---|---|
 | `dsh-github-copilot` host | shared `llm-pi-ai/github-copilot` credential record and `models.getAuth()` refresh |
+| Authorization service | rc.2 bootstrap before plugin activation and alpha.3 existing-service reuse |
 | Direct hosted search | Copilot request metadata, two-round bounded probe, `github-copilot-hosted`, and direct Copilot endpoint boundary |
 | Client UI | alpha.3 Models provider-card and rc.2 Settings fallback |
 | Core | renderer `SlotOutlet` compatibility and sandbox regression |
 | Desktop | no-open recovery marker where still required |
 
-The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.2`, source commit
-`8af7edb70c07e9da4b451e1ae07d73e99040340e`, artifact SHA-256
-`deb35365b42dfc353ab094a3da7c1e3560708e97ab0c85a82f571b5c2cd38236`.
+The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.3`, source commit
+`d6da9f4a0b64cdf18ab3e25581d84b55b8421076`, artifact SHA-256
+`d7e9c262e2a53cef7f46a7d37b93f9d11bef7ea398fac143c9f588deb5011f1c`.
 
 Replay checks package/source markers only. Credential acceptance is performed
 by the deployment/bootstrap modules and reports record key, kind, and status

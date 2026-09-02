@@ -244,7 +244,7 @@ function Test-WindowsCopilotLock {
         throw "Profile must physically materialize $copilotPackageName exactly once."
     }
     $legacyCopilotIntegrations = @($Lock.profile.legacyCopilotIntegrations)
-    if ($legacyCopilotIntegrations.Count -ne 3 -or
+    if ($legacyCopilotIntegrations.Count -ne 4 -or
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-web-search-provider' -and
             [string]$_.version -ceq '0.2.2'
@@ -256,8 +256,12 @@ function Test-WindowsCopilotLock {
         @($legacyCopilotIntegrations | Where-Object {
             [string]$_.name -ceq 'dsh-github-copilot' -and
             [string]$_.version -ceq '0.3.0-cloga.1'
+        }).Count -ne 1 -or
+        @($legacyCopilotIntegrations | Where-Object {
+            [string]$_.name -ceq 'dsh-github-copilot' -and
+            [string]$_.version -ceq '0.3.0-cloga.2'
         }).Count -ne 1) {
-        throw 'Profile migration must detect the reviewed legacy search providers and gateway-backed Copilot plugin.'
+        throw 'Profile migration must detect the reviewed legacy search providers and Copilot plugins.'
     }
     $requiredBundles = @($Lock.profile.requiredBundles)
     foreach ($name in @('@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app') + $requiredPlugins) {
@@ -366,6 +370,7 @@ function Test-WindowsCopilotLock {
 
     $baseline = $Lock.components.copilotIntegration.package.deploymentBaseline
     $expectedCapabilities = @(
+        'authorization-service-bootstrap',
         'models-provider-card-authorization',
         'reference-free-route-mutation',
         'shared-copilot-credential-refresh',
@@ -376,7 +381,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly seven required capabilities.'
+        throw 'Copilot integration baseline must lock exactly eight required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {
@@ -393,7 +398,9 @@ function Test-WindowsCopilotLock {
         [string]$baseline.dshRelease -ne '0.1.2-alpha.3' -or
         [string]$baseline.dshDevelopmentRelease -ne '0.1.1-rc.2' -or
         [string]$baseline.dshPeerRange -ne '^0.1.1-rc.2 || ^0.1.2-alpha.3' -or
-        [string]$baseline.piAi -ne '^0.84.2') {
+        [string]$baseline.piAi -ne '^0.84.2' -or
+        [string]$baseline.runtimeDependencies.'@deepseek-ai/dsh-authorization' -ne
+            '^0.1.1-rc.2 || ^0.1.2-alpha.3') {
         throw 'Provider deployment baseline metadata does not match the reviewed contract.'
     }
     $legacyGateway = $Lock.migration.legacyGateway
@@ -592,6 +599,13 @@ function Assert-ProviderBaselineData {
         throw 'Provider package metadata does not match the deployment lock.'
     }
     $contract = $expected.deploymentBaseline
+    $authorizationPackage = '@deepseek-ai/dsh-authorization'
+    $expectedAuthorizationRange = [string](Get-LockProperty `
+        -InputObject $contract.runtimeDependencies -Name $authorizationPackage)
+    $baselineAuthorizationRange = [string](Get-LockProperty `
+        -InputObject $Baseline.supportedBaselines.runtimeDependencies -Name $authorizationPackage)
+    $packageAuthorizationRange = [string](Get-LockProperty `
+        -InputObject $Package.dependencies -Name $authorizationPackage)
     if ([int]$Baseline.schemaVersion -ne [int]$contract.schemaVersion -or
         [string]$Baseline.baseline.id -ne [string]$contract.id -or
         [string]$Baseline.baseline.kind -ne [string]$contract.kind -or
@@ -606,7 +620,9 @@ function Assert-ProviderBaselineData {
         [string]$Baseline.supportedBaselines.dsh.release -ne [string]$contract.dshRelease -or
         [string]$Baseline.supportedBaselines.dsh.developmentRelease -ne [string]$contract.dshDevelopmentRelease -or
         [string]$Baseline.supportedBaselines.dsh.peerRange -ne [string]$contract.dshPeerRange -or
-        [string]$Baseline.supportedBaselines.piAi -ne [string]$contract.piAi) {
+        [string]$Baseline.supportedBaselines.piAi -ne [string]$contract.piAi -or
+        $baselineAuthorizationRange -ne $expectedAuthorizationRange -or
+        $packageAuthorizationRange -ne $expectedAuthorizationRange) {
         throw 'Provider deployment-baseline metadata does not match the deployment lock.'
     }
     $actualCapabilities = @($Baseline.capabilities | Where-Object { $_.required -eq $true } | ForEach-Object {

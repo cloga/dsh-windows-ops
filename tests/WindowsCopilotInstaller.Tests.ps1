@@ -220,17 +220,21 @@ export function apply(ctx) {
         $lock.components.PSObject.Properties.Name | Should -Not -Contain 'gateway'
         $lock.migration.legacyGateway.active | Should -Be $false
         $lock.migration.legacyGateway.successCriteria | Should -Be $false
-        $lock.components.copilotIntegration.source.commit | Should -Be '8af7edb70c07e9da4b451e1ae07d73e99040340e'
-        $lock.components.copilotIntegration.source.mergeCommit | Should -Be 'ebb06007c407a9707f083f5c63e9d0b41e6a1aa9'
-        $lock.components.copilotIntegration.package.version | Should -Be '0.3.0-cloga.2'
+        $lock.components.copilotIntegration.source.pullRequest | Should -Be 21
+        $lock.components.copilotIntegration.source.commit | Should -Be 'd6da9f4a0b64cdf18ab3e25581d84b55b8421076'
+        $lock.components.copilotIntegration.source.mergeCommit | Should -Be 'da3ee5657a54874eefe35e4133a3d55663c2de36'
+        $lock.components.copilotIntegration.package.version | Should -Be '0.3.0-cloga.3'
         $lock.components.copilotIntegration.package.packageManager | Should -Be 'pnpm@11.7.0'
-        $lock.components.copilotIntegration.package.artifact.sha256 | Should -Be 'deb35365b42dfc353ab094a3da7c1e3560708e97ab0c85a82f571b5c2cd38236'
+        $lock.components.copilotIntegration.package.artifact.sha256 | Should -Be 'd7e9c262e2a53cef7f46a7d37b93f9d11bef7ea398fac143c9f588deb5011f1c'
         $lock.components.copilotIntegration.package.bundlePatch | Should -Be './cordis.patch.yml'
         $lock.components.copilotIntegration.package.deploymentBaseline.kind | Should -Be 'standalone-dsh-plugin'
-        @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 7
+        @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities).Count | Should -Be 8
+        $lock.components.copilotIntegration.package.deploymentBaseline.runtimeDependencies.'@deepseek-ai/dsh-authorization' |
+            Should -Be '^0.1.1-rc.2 || ^0.1.2-alpha.3'
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.2.2'
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.2.3-cloga.3'
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.1'
+        @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.2'
         @($lock.acceptance.composedConfig.forbiddenActiveEntries) | Should -Be @('web-search-provider')
         $lock.acceptance.composedConfig.managedEntry.provider | Should -Be 'github-copilot'
         $lock.acceptance.composedConfig.managedEntry.searchProvider | Should -Be 'github-copilot-hosted'
@@ -599,7 +603,7 @@ basedir=$(dirname "$0")
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
-        $providerArtifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+        $providerArtifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         $providerStage = Join-Path $caseRoot 'provider-stage'
         New-Item -ItemType Directory -Path $providerStage -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-github-copilot') `
@@ -816,7 +820,7 @@ basedir=$(dirname "$0")
         $legacyProfile.dependencies | Add-Member -NotePropertyName 'dsh-web-search-provider' `
             -NotePropertyValue '0.2.3-cloga.3'
         $legacyProfile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
-            -NotePropertyValue 'file:../../artifacts/78745478c7323f9cb1aff46b2c2f39eaa619fa29/dsh-github-copilot-0.3.0-cloga.1.tgz'
+            -NotePropertyValue 'file:../../artifacts/8af7edb70c07e9da4b451e1ae07d73e99040340e/dsh-github-copilot-0.3.0-cloga.2.tgz'
         $legacyProfile.dsh.profile.bundles += 'dsh-web-search-provider'
         $legacyProfile.dsh.profile.bundles += 'dsh-github-copilot'
         $legacyProfile | ConvertTo-Json -Depth 12 |
@@ -827,12 +831,12 @@ basedir=$(dirname "$0")
             -Destination (Join-Path $profileRoot 'node_modules\dsh-github-copilot') -Recurse
         $legacyCopilotManifestPath = Join-Path $profileRoot 'node_modules\dsh-github-copilot\package.json'
         $legacyCopilotManifest = Get-Content -LiteralPath $legacyCopilotManifestPath -Raw | ConvertFrom-Json
-        $legacyCopilotManifest.version = '0.3.0-cloga.1'
+        $legacyCopilotManifest.version = '0.3.0-cloga.2'
         $legacyCopilotManifest | ConvertTo-Json -Depth 8 |
             Set-Content -LiteralPath $legacyCopilotManifestPath -Encoding UTF8
         Set-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-github-copilot\legacy-sentinel.txt') `
-            -Value 'gateway-backed-.1' -Encoding UTF8
-        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+            -Value 'pre-bootstrap-.2' -Encoding UTF8
+        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         $first = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
@@ -928,7 +932,7 @@ basedir=$(dirname "$0")
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         $result = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
@@ -965,7 +969,7 @@ basedir=$(dirname "$0")
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
         $packageBefore = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
         Mock Invoke-PinnedPnpmCommands -ModuleName WindowsCopilotDeployment { throw 'fixture pnpm failure' }
 
@@ -1038,7 +1042,7 @@ basedir=$(dirname "$0")
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-ui')
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-worktree')
         $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         {
@@ -1095,7 +1099,7 @@ basedir=$(dirname "$0")
         $link = Join-Path $profileRoot 'node_modules\dsh-tauri'
         [IO.Directory]::Delete($link, $false)
         New-Item -ItemType Junction -Path $link -Target $wrongTarget | Out-Null
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         {
@@ -1267,7 +1271,7 @@ basedir=$(dirname "$0")
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
         Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
@@ -1336,7 +1340,7 @@ basedir=$(dirname "$0")
         $result.valid | Should -Be $true
         $result.sourceVerified | Should -Be $true
         $result.artifactVerified | Should -Be $false
-        @($result.capabilities).Count | Should -Be 7
+        @($result.capabilities).Count | Should -Be 8
     }
 
     It 'accepts packed provider metadata after pnpm strips packageManager' {
@@ -1368,6 +1372,19 @@ basedir=$(dirname "$0")
             $threw = $true
         }
         $threw | Should -Be $true
+    }
+
+    It 'rejects a provider source missing the authorization runtime dependency' {
+        $providerRoot = Join-Path $TestDrive 'provider-runtime-contract'
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider') -Destination $providerRoot -Recurse
+        $packagePath = Join-Path $providerRoot 'package.json'
+        $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $package.dependencies.PSObject.Properties.Remove('@deepseek-ai/dsh-authorization')
+        $package | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+
+        {
+            Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot | Out-Null
+        } | Should -Throw '*deployment-baseline metadata does not match*'
     }
 
     It 'rejects a tampered release artifact' {
@@ -1618,7 +1635,7 @@ basedir=$(dirname "$0")
         $officialTauri = Join-Path (Split-Path -Parent $desktopPath) 'resources\internal-plugins\dsh-tauri'
         Set-Content -LiteralPath (Join-Path $officialTauri 'sentinel.txt') -Value 'keep' -Encoding UTF8
         $nodeModules = Join-Path $profileRoot 'node_modules'
-        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.2.tgz'
+        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.3.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `

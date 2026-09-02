@@ -49,6 +49,20 @@ Describe 'DSH replay patching' {
         $inventory[0].version | Should -Be '1.2.3'
     }
 
+    It 'locks exact rc.2 authorization bootstrap replay markers' {
+        $manifestPath = Join-Path $PSScriptRoot '..\tools\dsh-replay.patches.json'
+        $repositoryManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $patch = @($repositoryManifest.patches | Where-Object id -eq 'github-copilot-authorization-bootstrap')
+
+        $patch.Count | Should -Be 1
+        @($patch[0].verifyMarkers) | Should -Be @(
+            'ctx.get("authorization", false)',
+            'ctx.plugin(AuthorizationService)',
+            'ctx.inject(integrationInject'
+        )
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/pull/21'
+    }
+
     It 'accepts components without optional root and version properties under StrictMode' {
         $minimalConfig = [pscustomobject]@{
             dshHome = (Join-Path $TestDrive '.dsh')

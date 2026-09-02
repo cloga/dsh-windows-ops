@@ -17,6 +17,19 @@
       "upstreamUrl": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/blob/main/src-tauri/src/service/workflow/renderer_patch.rs"
     },
     {
+      "id": "github-copilot-authorization-bootstrap",
+      "description": "Verify rc.2 bootstraps the authorization service while alpha.3 reuses its existing service.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "ctx.get(\"authorization\", false)",
+        "ctx.plugin(AuthorizationService)",
+        "ctx.inject(integrationInject"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/21"
+    },
+    {
       "id": "github-copilot-shared-credential",
       "description": "Verify the plugin uses DSH's built-in llm-pi-ai Copilot grant and refresh path.",
       "component": "dsh-github-copilot",

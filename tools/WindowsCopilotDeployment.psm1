@@ -1462,8 +1462,23 @@ function Get-WindowsCopilotProfileMigrationPlan {
                 $legacy -and $dependencyProperty -and
                 [string]$dependencyProperty.Value -ceq [string]$legacy.version
             )
-            if ($dependencyProperty -and -not $dependencyIsLegacy) {
-                throw "Profile dependency '$($state.name)' is not a reviewed legacy dependency."
+            $dependencyIsOfficialLink = $false
+            if ($dependencyProperty) {
+                $dependency = [string]$dependencyProperty.Value
+                if ($dependency.StartsWith('link:', [StringComparison]::Ordinal)) {
+                    $rawTarget = $dependency.Substring('link:'.Length)
+                    if (-not [string]::IsNullOrWhiteSpace($rawTarget)) {
+                        $dependencyTarget = if ([IO.Path]::IsPathRooted($rawTarget)) {
+                            Resolve-DeploymentPath $rawTarget
+                        } else {
+                            Resolve-DeploymentPath (Join-Path $profileRoot $rawTarget)
+                        }
+                        $dependencyIsOfficialLink = $dependencyTarget -ieq [string]$state.expectedTarget
+                    }
+                }
+            }
+            if ($dependencyProperty -and -not $dependencyIsLegacy -and -not $dependencyIsOfficialLink) {
+                throw "Profile dependency '$($state.name)' is neither an exact official Desktop link nor a reviewed legacy dependency."
             }
             if ($dependencyIsLegacy) {
                 $dependenciesToRemove.Add([string]$state.name)

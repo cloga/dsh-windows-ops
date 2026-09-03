@@ -17,18 +17,20 @@
   through a pull request to the resolved default branch; never push directly to
   `master` or `main`.
 
-## DSH PowerShell sandbox escalation for installation agents
+## Mandatory DSH PowerShell payload preflight
 
-- On an installation agent's initial `pwsh` call, omit `sandbox_permissions`
-  and `justification` entirely.
-- If approval prompts are disabled, never include either field.
-- If the current sandbox mode is `danger-full-access`, never request sandbox
-  escalation.
-- Use both fields only once, when retrying the exact same command after a real
-  sandbox denial, approval is available, and the target mode is strictly wider
-  than the current mode.
-- Omit the keys themselves; do not send them as `null`, empty strings, or the
-  current sandbox mode.
+Before an installation agent emits every `pwsh` tool call:
+
+1. Read the current runtime sandbox mode and approval status.
+2. For an initial call, omit `sandbox_permissions` and `justification` entirely.
+3. If approval prompts are disabled, the payload MUST NOT contain either key.
+4. If the current sandbox mode is `danger-full-access`, the payload MUST NOT
+   contain either key.
+5. Add both keys only when retrying the exact same command once after a real
+   sandbox denial, approval is available, and the target mode is strictly wider
+   than the current mode.
+6. Omit the keys themselves; never send them as `null`, empty strings, or the
+   current sandbox mode.
 
 ## DSH Desktop integration baseline
 

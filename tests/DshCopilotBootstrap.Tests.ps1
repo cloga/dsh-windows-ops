@@ -538,7 +538,7 @@ records:
                             source = 'desktop-managed-download'
                             root = '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh'
                             package = [pscustomobject]@{
-                                version = '0.1.2-alpha.4'
+                                version = '0.1.2-alpha.5'
                                 entrypoint = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
                             }
                         }
@@ -565,7 +565,7 @@ records:
             valid = $true
             selector = 'desktop-official'
             source = 'desktop-managed-download'
-            version = '0.1.2-alpha.4'
+            version = '0.1.2-alpha.5'
             packageRoot = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh'
             entryPath = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh\lib\bin.js'
             processIds = @(12)
@@ -573,7 +573,7 @@ records:
         (Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
             -DesktopRuntimeState $official).selector | Should -Be 'desktop-official'
 
-        $official.version = '0.1.2-alpha.5'
+        $official.version = '0.1.2-alpha.6'
         { Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
             -DesktopRuntimeState $official } | Should -Throw '*exact managed path and locked version*'
     }

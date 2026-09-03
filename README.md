@@ -14,8 +14,8 @@
 |---|---|
 | DeepSeek Harness Desktop | 0.10.2 |
 | 受控 `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
-| Desktop 选择的 `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 或 Desktop 管理的官方 0.1.2-alpha.4 |
-| `dsh-github-copilot` | 0.3.0-cloga.8 |
+| Desktop 选择的 `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 或 Desktop 管理的官方 0.1.2-alpha.5 |
+| `dsh-github-copilot` | 0.3.0-cloga.10 |
 | Desktop internal plugins | 官方 5 个 0.6.7 组件，位于 `resources\node_modules` |
 
 README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。
@@ -89,7 +89,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 当前 lock 使用官方 0.10.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装、sandbox 策略、严格 pi-ai OAuth JSON 记录规范化和逐模型 API 路由 | 部署精确 pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 一个包含 rc.2 Desktop 客户端 ModuleLoader handoff、严格 Remote 结果 codec、严格 JSON OAuth grant 规范化、已有 grant 路由自愈和账户过滤逐模型 API 物化的 DSH 插件，复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 OAuth、刷新、Copilot 直连和 hosted search；修复后的路由保持无引用并包含完整的混合协议 `{id, api}`；不包含 ACP | 部署精确 pin `94d921dc` / `0.3.0-cloga.8` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 一个包含 rc.2 Desktop 客户端 ModuleLoader handoff、严格 Remote 结果 codec、严格 JSON OAuth grant 规范化、已有 grant 路由自愈、账户过滤逐模型 API 物化，以及通过普通 JSON-schema 调用保留可选 sandbox 参数的 DSH 插件，复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 OAuth、刷新、Copilot 直连和 hosted search；修复后的路由保持无引用并包含完整的混合协议 `{id, api}`；不包含 ACP | 部署精确 pin `5417abdb` / `0.3.0-cloga.10` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 
 历史 ACP 子代理实践仍保留在

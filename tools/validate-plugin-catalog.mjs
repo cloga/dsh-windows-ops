@@ -39,6 +39,55 @@ function nonempty(value) {
   return typeof value === 'string' && value.length > 0;
 }
 
+function schemaTypesMatch(value, declared) {
+  const types = Array.isArray(declared) ? declared : [declared];
+  return types.some((type) => {
+    if (type === 'null') return value === null;
+    if (type === 'array') return Array.isArray(value);
+    if (type === 'object') return isObject(value);
+    if (type === 'integer') return Number.isInteger(value);
+    if (type === 'number') return typeof value === 'number' && Number.isFinite(value);
+    return typeof value === type;
+  });
+}
+
+function resolveSchemaRef(document, reference) {
+  if (!reference.startsWith('#/')) throw new Error(`unsupported schema reference ${reference}`);
+  return reference.slice(2).split('/').reduce((value, segment) => value?.[segment.replaceAll('~1', '/').replaceAll('~0', '~')], document);
+}
+
+function validateSchemaValue(value, rule, location, document) {
+  if (rule.$ref !== undefined) {
+    const resolved = resolveSchemaRef(document, rule.$ref);
+    if (!resolved) { fail(location, `unresolved schema reference ${rule.$ref}`); return; }
+    validateSchemaValue(value, resolved, location, document);
+    return;
+  }
+  if (rule.const !== undefined && value !== rule.const) fail(location, `must equal ${JSON.stringify(rule.const)}`);
+  if (rule.enum !== undefined && !rule.enum.some(entry => Object.is(entry, value))) fail(location, 'is not an allowed value');
+  if (rule.type !== undefined && !schemaTypesMatch(value, rule.type)) { fail(location, `must match type ${JSON.stringify(rule.type)}`); return; }
+  if (typeof value === 'string') {
+    if (rule.minLength !== undefined && value.length < rule.minLength) fail(location, `must have length >= ${rule.minLength}`);
+    if (rule.pattern !== undefined && !(new RegExp(rule.pattern)).test(value)) fail(location, `does not match ${rule.pattern}`);
+  }
+  if (typeof value === 'number' && rule.minimum !== undefined && value < rule.minimum) fail(location, `must be >= ${rule.minimum}`);
+  if (Array.isArray(value)) {
+    if (rule.minItems !== undefined && value.length < rule.minItems) fail(location, `must contain at least ${rule.minItems} items`);
+    if (rule.uniqueItems === true && new Set(value.map(entry => JSON.stringify(entry))).size !== value.length) fail(location, 'must contain unique items');
+    if (rule.items !== undefined) value.forEach((entry, index) => validateSchemaValue(entry, rule.items, `${location}[${index}]`, document));
+  }
+  if (isObject(value)) {
+    for (const required of rule.required ?? []) if (!Object.hasOwn(value, required)) fail(`${location}.${required}`, 'is required by schema');
+    const properties = rule.properties ?? {};
+    if (rule.additionalProperties === false) {
+      for (const key of Object.keys(value)) if (!Object.hasOwn(properties, key)) fail(`${location}.${key}`, 'is not allowed by schema');
+    }
+    for (const [key, childRule] of Object.entries(properties)) {
+      if (Object.hasOwn(value, key)) validateSchemaValue(value[key], childRule, `${location}.${key}`, document);
+    }
+  }
+}
+
 const catalog = readJson(catalogPath);
 const schema = readJson(schemaPath);
 const deployment = readJson(lockPath);
@@ -50,6 +99,7 @@ if (catalog && schema && deployment) {
   const evidenceKinds = new Set(['discovery', 'source-review', 'compat-check', 'import-probe', 'composition-mount', 'functional-smoke', 'deployment-lock', 'upstream-change']);
   const levelRank = new Map(requiredLevels.map((level, index) => [level, index]));
 
+  validateSchemaValue(catalog, schema, 'catalog', schema);
   if (catalog.schemaVersion !== 1) fail('catalog', 'schemaVersion must be 1');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(catalog.updatedAt ?? '')) fail('catalog.updatedAt', 'must use YYYY-MM-DD');
   else if (catalog.updatedAt > today) fail('catalog.updatedAt', `future date ${catalog.updatedAt}`);
@@ -60,6 +110,10 @@ if (catalog && schema && deployment) {
   for (const level of requiredLevels) if (!levelIds.includes(level)) fail('catalog.validationLevels', `missing ${level}`);
 
   if (!Array.isArray(catalog.plugins)) fail('catalog.plugins', 'must be an array');
+  const baselinePlugins = (catalog.plugins ?? []).filter(plugin => plugin?.validation?.level === 'baseline');
+  if (baselinePlugins.length !== 1 || baselinePlugins[0]?.id !== 'dsh-github-copilot') {
+    fail('catalog.plugins', 'must contain exactly one locked baseline entry for dsh-github-copilot');
+  }
   const ids = new Set();
   for (const [index, plugin] of (catalog.plugins ?? []).entries()) {
     const at = `catalog.plugins[${index}]`;
@@ -74,7 +128,12 @@ if (catalog && schema && deployment) {
     if (!recommendations.has(plugin.recommendation)) fail(`${at}.recommendation`, 'is invalid');
     if (!isObject(plugin.source) || !/^https:\/\/github\.com\//.test(plugin.source.repository ?? '')) fail(`${at}.source.repository`, 'must be a GitHub HTTPS URL');
     if (plugin.source?.commit !== undefined && !/^[0-9a-f]{7,40}$/.test(plugin.source.commit)) fail(`${at}.source.commit`, 'must be a hexadecimal commit id');
+    if (plugin.source?.mergeCommit !== undefined && !/^[0-9a-f]{7,40}$/.test(plugin.source.mergeCommit)) fail(`${at}.source.mergeCommit`, 'must be a hexadecimal commit id');
+    if (plugin.source?.pullRequest !== undefined && (!Number.isInteger(plugin.source.pullRequest) || plugin.source.pullRequest < 1)) fail(`${at}.source.pullRequest`, 'must be a positive integer');
     if (plugin.artifact !== undefined && (!isObject(plugin.artifact) || !nonempty(plugin.artifact.name) || !/^https:\/\/github\.com\//.test(plugin.artifact.url ?? '') || !/^[0-9a-f]{64}$/.test(plugin.artifact.sha256 ?? ''))) fail(`${at}.artifact`, 'requires name, GitHub HTTPS URL, and lowercase SHA-256');
+    if (plugin.artifact?.releaseTag !== undefined && !/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?$/.test(plugin.artifact.releaseTag)) fail(`${at}.artifact.releaseTag`, 'must be a version tag');
+    if (plugin.artifact?.releaseImmutable !== undefined && typeof plugin.artifact.releaseImmutable !== 'boolean') fail(`${at}.artifact.releaseImmutable`, 'must be boolean');
+    if (plugin.artifact?.checksumManifestUrl !== undefined && !/^https:\/\/github\.com\//.test(plugin.artifact.checksumManifestUrl)) fail(`${at}.artifact.checksumManifestUrl`, 'must be a GitHub HTTPS URL');
     if (!nonempty(plugin.summary)) fail(`${at}.summary`, 'is required');
 
     const validation = plugin.validation;
@@ -130,6 +189,9 @@ if (catalog && schema && deployment) {
       if (plugin.artifact?.name !== locked?.package?.artifact?.name) fail(`${at}.artifact.name`, 'does not match deployment lock');
       if (plugin.artifact?.url !== locked?.package?.artifact?.url) fail(`${at}.artifact.url`, 'does not match deployment lock');
       if (plugin.artifact?.sha256 !== locked?.package?.artifact?.sha256) fail(`${at}.artifact.sha256`, 'does not match deployment lock');
+      if (plugin.artifact?.releaseTag !== locked?.package?.artifact?.releaseTag) fail(`${at}.artifact.releaseTag`, 'does not match deployment lock');
+      if (plugin.artifact?.releaseImmutable !== true || locked?.package?.artifact?.releaseImmutable !== true) fail(`${at}.artifact.releaseImmutable`, 'locked baseline release must be immutable');
+      if (plugin.artifact?.checksumManifestUrl !== locked?.package?.artifact?.checksumManifest?.url) fail(`${at}.artifact.checksumManifestUrl`, 'does not match deployment lock');
     }
   }
 }
@@ -141,9 +203,9 @@ if (errors.length > 0) {
 }
 
 console.log(`Plugin catalog valid: ${catalog.plugins.length} entries, updated ${catalog.updatedAt}.`);
-console.log(`Schema parsed: ${path.relative(root, schemaPath)}; baseline matched: ${deployment.deploymentId}.`);
+console.log(`Schema enforced: ${path.relative(root, schemaPath)}; baseline matched: ${deployment.deploymentId}.`);
 
-// This validator intentionally has no dependencies. JSON Schema documents the public
-// shape; this script enforces repository paths, cumulative evidence, dates, and lock parity.
-void schema;
+// This validator intentionally has no dependencies. Its local Draft 2020-12 subset
+// enforces every keyword used by the published schema; manual checks add repository
+// paths, cumulative evidence, dates, and deployment-lock parity.
 void deployment;

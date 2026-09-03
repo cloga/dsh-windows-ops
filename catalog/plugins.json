@@ -18,27 +18,32 @@
       "categories": ["model-provider", "search"],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.3.0-cloga.11.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/dsh-github-copilot-0.3.0-cloga.11.tgz",
-        "sha256": "9e2ec21984fe394e9a8ef09bfa282a5b7107aead8f573171040d84083526f668"
+        "name": "dsh-github-copilot-0.3.0-cloga.13.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/dsh-github-copilot-0.3.0-cloga.13.tgz",
+        "sha256": "fbe7861382d2e32be50c37696ffb806a7b2bce3817efc01cac28c6c51e45b957",
+        "releaseTag": "v0.3.0-cloga.13",
+        "releaseImmutable": true,
+        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/SHA256SUMS"
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "7db12efadf8afe69fc71fc8daae203c6049e14e7",
-        "release": "0.3.0-cloga.11"
+        "commit": "6236330414eeac021d8c8bf57b9aa08cd76a04e8",
+        "mergeCommit": "adfce229042c8fb4d5450b2ebb930ced6e514106",
+        "pullRequest": 48,
+        "release": "0.3.0-cloga.13"
       },
       "platforms": ["cross-platform"],
       "recommendation": "recommended",
       "validation": {
         "level": "baseline",
         "verifiedAt": "2026-09-03",
-        "dshVersion": "0.1.1-rc.2 / 0.1.2-alpha.5",
+        "dshVersion": "controlled 0.1.1-rc.2 / 0.1.2-alpha.5",
         "nodeVersion": "24.19.0",
         "evidence": [
           { "kind": "deployment-lock", "description": "The Windows Copilot deployment lock pins official Desktop 0.10.2, its seven Profile links, and its non-bundled panel placeholder together with the Copilot artifact, source commit, build commands, and required capabilities.", "path": "deployments/windows-copilot.lock.json" },
           { "kind": "import-probe", "description": "The maintained web and headless Profiles completed real host-entry import probes without fatal imports.", "path": "docs/local-core-desktop-copilot.md" },
           { "kind": "composition-mount", "description": "The validated Profiles loaded the expected plugin composition and registered the supported capabilities.", "path": "docs/local-core-desktop-copilot.md" },
-          { "kind": "functional-smoke", "description": "The rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai OAuth, authorization-service bootstrap, existing-grant route self-heal, account-available mixed-protocol per-model API routing, Copilot-scoped removal of unusable escalation properties while other providers retain native schemas, direct Copilot hosted search, Desktop authorization UI, and fail-closed compatibility acceptance are documented.", "path": "docs/local-core-desktop-copilot.md" }
+          { "kind": "functional-smoke", "description": "The controlled rc.2 Desktop client handoff, strict Remote codecs and OAuth JSON normalization, authorization fallback, leaf-only account model reconciliation, mixed per-model protocols, provider-scoped Tool Schema filtering, direct GitHub-hosted and Enterprise Copilot endpoints, dual-protocol inline search, Responses-only ctx.web search, default capability probing, and explicit probe bypass semantics are documented.", "path": "docs/local-core-desktop-copilot.md" }
         ]
       },
       "security": {
@@ -49,7 +54,7 @@
         "approvalGate": false,
         "notes": ["Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.", "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.", "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration."]
       },
-      "summary": "The locked standalone DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai Copilot authorization, existing-grant route self-heal, complete mixed-protocol per-model API routes, provider-scoped removal of unusable Copilot escalation properties, and direct provider-hosted search; no embedded gateway or ACP scope."
+      "summary": "The locked DSH companion for Copilot sign-in, account-aware leaf-only model reconciliation, strict Host-only grant handling, provider-scoped Tool compatibility, dual-protocol inline search, and Responses-only ctx.web search through validated GitHub-hosted or Enterprise endpoints; no second adapter, embedded gateway, or ACP scope."
     },
     {
       "id": "dsh-playwright-host",

@@ -3,32 +3,12 @@ name: Plugin catalog validation
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - '.github/workflows/plugin-catalog.yml'
-      - 'catalog/**'
-      - 'docs/plugins/**'
-      - 'tools/dsh-compat-check.mjs'
-      - 'tools/validate-plugin-catalog.mjs'
-      - 'tools/dsh-doctor.mjs'
-      - 'tools/dsh-dev-tools/**'
-      - 'tools/dsh-playwright-host/**'
-      - 'tests/host-playwright-bundle.test.mjs'
-      - 'tests/plugin-catalog.test.mjs'
-      - 'deployments/windows-copilot.lock.json'
   push:
     branches: [master]
-    paths:
-      - '.github/workflows/plugin-catalog.yml'
-      - 'catalog/**'
-      - 'docs/plugins/**'
-      - 'tools/dsh-compat-check.mjs'
-      - 'tools/validate-plugin-catalog.mjs'
-      - 'tools/dsh-doctor.mjs'
-      - 'tools/dsh-dev-tools/**'
-      - 'tools/dsh-playwright-host/**'
-      - 'tests/host-playwright-bundle.test.mjs'
-      - 'tests/plugin-catalog.test.mjs'
-      - 'deployments/windows-copilot.lock.json'
+
+concurrency:
+  group: plugin-catalog-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -36,26 +16,36 @@ permissions:
 jobs:
   validate:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Validate catalog and scripts
         shell: powershell
         run: |
-          node tools\validate-plugin-catalog.mjs
-          node --test tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs
-          node --check tools\dsh-compat-check.mjs
-          node --check tools\validate-plugin-catalog.mjs
-          node --check tools\dsh-doctor.mjs
-          node --check tools\dsh-dev-tools\index.js
-          node --check tools\preflight-check.mjs
+          function Invoke-NodeChecked {
+            param([Parameter(Mandatory)][string[]]$NodeArgs)
+            & node @NodeArgs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Invoke-NodeChecked -NodeArgs @('tools\validate-plugin-catalog.mjs')
+          Invoke-NodeChecked -NodeArgs @('tools\validate-repository-content.mjs')
+          Invoke-NodeChecked -NodeArgs @('--test', 'tests\plugin-catalog.test.mjs', 'tests\host-playwright-bundle.test.mjs', 'tests\repository-content.test.mjs')
+          Invoke-NodeChecked -NodeArgs @('--check', 'tools\dsh-compat-check.mjs')
+          Invoke-NodeChecked -NodeArgs @('--check', 'tools\validate-plugin-catalog.mjs')
+          Invoke-NodeChecked -NodeArgs @('--check', 'tools\validate-repository-content.mjs')
+          Invoke-NodeChecked -NodeArgs @('--check', 'tools\dsh-doctor.mjs')
+          Invoke-NodeChecked -NodeArgs @('--check', 'tools\dsh-dev-tools\index.js')
+          Invoke-NodeChecked -NodeArgs @('--check', 'tools\preflight-check.mjs')
 
   repository-policy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Reject retired dual-home recovery system
         shell: bash
         run: |
@@ -80,3 +70,14 @@ jobs:
             grep -q 'docs/plugins/scheduling.md' "$file"
             grep -q 'tools/README.md' "$file"
           done
+
+  repository-content:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: node tools/validate-repository-content.mjs

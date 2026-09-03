@@ -12,8 +12,9 @@ test('Host Playwright bundle pins the reviewed MCP and isolated Edge configurati
   const readme = await readFile(readmeUrl, 'utf8')
 
   assert.equal(manifest.name, 'dsh-playwright-host')
+  assert.equal(manifest.version, '0.1.2')
   assert.equal(manifest.repository.url, 'https://github.com/cloga/dsh-playwright-host.git')
-  assert.equal(manifest.repository.commit, 'e4c8decc5c2e6ae815d974049af2dc33e42743d0')
+  assert.equal(manifest.repository.commit, '2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac')
   assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml')
   for (const marker of [
     "id: mcp-playwright",
@@ -32,4 +33,6 @@ test('Host Playwright bundle pins the reviewed MCP and isolated Edge configurati
   assert.match(readme, /Host scope/)
   assert.match(readme, /concurrent Sessions can affect the same browser state/)
   assert.match(readme, /Do not restart or replace a running DSH Host/)
+  assert.match(readme, /exact interruption list/)
+  assert.match(readme, /if the set changes, ask again/)
 })

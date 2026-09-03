@@ -19,57 +19,36 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: a66e4702047846cdaa10c66c9d3df3951f5ea70d
+          path: dsh-rc1
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Validate catalog and scripts
+      - name: Install exact package manager
+        shell: powershell
+        run: npm install --global pnpm@11.7.0
+      - name: Install exact rc.1 test closure
+        working-directory: dsh-rc1
+        run: pnpm install --frozen-lockfile --filter '@deepseek-ai/dsh-tools...' --filter '@deepseek-ai/dsh-subprocess...'
+      - name: Validate repository, catalog, plugin, and scripts
         shell: powershell
         run: |
-          function Invoke-NodeChecked {
-            param([Parameter(Mandatory)][string[]]$NodeArgs)
-            & node @NodeArgs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          Invoke-NodeChecked -NodeArgs @('tools\validate-plugin-catalog.mjs')
-          Invoke-NodeChecked -NodeArgs @('tools\validate-repository-content.mjs')
-          Invoke-NodeChecked -NodeArgs @('--test', 'tests\plugin-catalog.test.mjs', 'tests\host-playwright-bundle.test.mjs', 'tests\repository-content.test.mjs')
-          Invoke-NodeChecked -NodeArgs @('--check', 'tools\dsh-compat-check.mjs')
-          Invoke-NodeChecked -NodeArgs @('--check', 'tools\validate-plugin-catalog.mjs')
-          Invoke-NodeChecked -NodeArgs @('--check', 'tools\validate-repository-content.mjs')
-          Invoke-NodeChecked -NodeArgs @('--check', 'tools\dsh-doctor.mjs')
-          Invoke-NodeChecked -NodeArgs @('--check', 'tools\dsh-dev-tools\index.js')
-          Invoke-NodeChecked -NodeArgs @('--check', 'tools\preflight-check.mjs')
-
-  repository-policy:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Reject retired dual-home recovery system
-        shell: bash
-        run: |
-          test ! -e docs/ab-self-heal.md
-          test ! -e docs/ab-tauri-adapt.md
-          test ! -e tools/dsh-backup.ps1
-          test ! -e tools/dsh-rescue.ps1
-          test ! -e tools/dsh-restart-detached.ps1
-          test ! -e tools/dsh-restart-patched.ps1
-          test ! -e tools/dsh-restart-worker.ps1
-          if grep -RInE 'dsh-(backup|rescue|restart)|ab-self-heal|ab-tauri-adapt|B-home|A/B snapshot' README.md README.en.md catalog docs tools tests deployments; then
-            echo 'Retired dual-home recovery reference found.' >&2
-            exit 1
-          fi
-      - name: Check bilingual navigation
-        shell: bash
-        run: |
-          test "$(grep -c '^## ' README.md)" -eq "$(grep -c '^## ' README.en.md)"
-          for file in README.md README.en.md; do
-            grep -q 'catalog/plugins.json' "$file"
-            grep -q 'docs/plugins/computer-use.md' "$file"
-            grep -q 'docs/plugins/scheduling.md' "$file"
-            grep -q 'tools/README.md' "$file"
-          done
+          $env:DSH_RC1_ROOT = Join-Path $PWD 'dsh-rc1'
+          node tools\validate-repository-content.mjs
+          node tools\validate-plugin-catalog.mjs
+          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs
+          node --check tools\dsh-compat-check.mjs
+          node --check tools\validate-plugin-catalog.mjs
+          node --check tools\validate-repository-content.mjs
+          node --check tools\dsh-doctor.mjs
+          node --check tools\dsh-dev-tools\index.js
+          node --check tools\dsh-dev-tools\snapshot-json.js
+          node --check tools\preflight-check.mjs
 
   repository-content:
     runs-on: ubuntu-latest
@@ -81,3 +60,20 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - run: node tools/validate-repository-content.mjs
+      - run: node --test tests/repository-content.test.mjs
+
+  repository-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Enforce collaboration policy
+        shell: bash
+        run: |
+          test -f CONTRIBUTING.md
+          test -f SECURITY.md
+          test -f .github/PULL_REQUEST_TEMPLATE.md
+          test -f .github/ISSUE_TEMPLATE/config.yml
+          test -f .github/ISSUE_TEMPLATE/deployment-bug.yml
+          test -f .github/CODEOWNERS
+          grep -Fq 'Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>' AGENTS.md

@@ -48,6 +48,16 @@ test('current catalog validates', () => {
   assert.match(output, /Plugin catalog valid/)
 })
 
+test('dsh-dev-tools records rc1 evidence and deployment-owned approval policy', () => {
+  const plugin = pluginById(read(sourceCatalog), 'dsh-dev-tools')
+  assert.equal(plugin.source.release, '0.2.0')
+  assert.equal(plugin.validation.level, 'L2')
+  assert.equal(plugin.validation.dshVersion, '0.1.2-rc.1')
+  assert.equal(plugin.security.approvalGate, null)
+  assert.ok(plugin.security.notes.some(note => /deployment policy/.test(note)))
+  assert.ok(plugin.validation.evidence.some(evidence => evidence.path === 'tests/dsh-dev-tools.test.mjs'))
+})
+
 test('requires exactly one dsh-github-copilot locked baseline entry', () => {
   for (const mutate of [
     catalog => { catalog.plugins = catalog.plugins.filter(plugin => plugin.id !== 'dsh-github-copilot') },
@@ -66,6 +76,7 @@ test('enforces the published schema against unknown properties', () => {
   assert.equal(result.status, 1)
   assert.match(result.stderr, /not allowed by schema/)
 })
+
 
 test('rejects duplicate plugin ids', () => {
   const paths = fixture(({ catalog }) => catalog.plugins.push(structuredClone(catalog.plugins[0])))
@@ -128,7 +139,7 @@ test('rejects mutable or mismatched baseline release evidence', () => {
 
 test('rejects malformed release tag suffixes', () => {
   const paths = fixture(({ catalog }) => {
-    pluginById(catalog, 'dsh-github-copilot').artifact.releaseTag = 'v0.3.0-cloga.13/extra'
+    pluginById(catalog, 'dsh-github-copilot').artifact.releaseTag = 'v0.3.0-cloga.14/extra'
   })
   const result = run(paths)
   assert.equal(result.status, 1)

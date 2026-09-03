@@ -1,8 +1,12 @@
 {
   "name": "dsh-dev-tools",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH agent-native maintenance tools for status, patches, staging builds, version checks, and targeted diagnostics without leaving the session.",
   "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
   "main": "index.js",
   "keywords": [
     "dsh-plugin",
@@ -12,6 +16,11 @@
     "patch"
   ],
   "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-subprocess": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-tools": "0.1.2-rc.1"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -19,6 +28,7 @@
   },
   "files": [
     "index.js",
+    "snapshot-json.js",
     "patches.example.json",
     "cordis.patch.yml",
     "README.md"

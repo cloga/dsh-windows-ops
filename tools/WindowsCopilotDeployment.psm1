@@ -107,9 +107,11 @@ function Test-WindowsCopilotLock {
         'components.copilotIntegration.package.artifact.sha256',
         'components.copilotIntegration.package.artifact.releaseTag',
         'components.copilotIntegration.package.artifact.releaseImmutable',
+        'components.copilotIntegration.package.artifact.size',
         'components.copilotIntegration.package.artifact.checksumManifest.name',
         'components.copilotIntegration.package.artifact.checksumManifest.url',
         'components.copilotIntegration.package.artifact.checksumManifest.sha256',
+        'components.copilotIntegration.package.artifact.checksumManifest.size',
         'components.copilotIntegration.package.deploymentBaseline.id',
         'components.copilotIntegration.package.deploymentBaseline.kind',
         'components.copilotIntegration.package.deploymentBaseline.sourceCommitPolicy',
@@ -179,6 +181,7 @@ function Test-WindowsCopilotLock {
 
     foreach ($commit in @(
         [string]$Lock.components.desktop.source.commit,
+        [string](@($Lock.components.desktop.runtimeSelectors | Where-Object id -eq 'desktop-official')[0].package.commit),
         [string]$Lock.components.core.source.commit,
         [string]$Lock.components.copilotIntegration.source.commit,
         [string]$Lock.components.copilotIntegration.source.mergeCommit,
@@ -186,6 +189,13 @@ function Test-WindowsCopilotLock {
         [string]$Lock.acceptance.runtimeSchema.source.pullRequestHead
     )) {
         if ($commit -notmatch '^[0-9a-f]{40}$') { throw "Invalid locked commit: $commit" }
+    }
+    foreach ($overlay in @($Lock.profile.optionalOverlays)) {
+        foreach ($commit in @([string]$overlay.sourceCommit, [string]$overlay.resolvedCommit)) {
+            if ($commit -notmatch '^[0-9a-f]{40}$') {
+                throw "Invalid optional-overlay commit for '$([string]$overlay.name)': $commit"
+            }
+        }
     }
     $runtimeSymbols = @($Lock.acceptance.runtimeSchema.requiredBuiltSymbols)
     $expectedRuntimeSymbols = [ordered]@{
@@ -319,6 +329,9 @@ function Test-WindowsCopilotLock {
         [string]$officialSelector[0].package.name -cne [string]$Lock.components.core.package.name -or
         [string]$officialSelector[0].package.version -cne
             [string]$Lock.components.copilotIntegration.package.deploymentBaseline.dshRelease -or
+        [string]$officialSelector[0].package.releaseTag -cne 'dsh-v0.1.2-rc.1' -or
+        [string]$officialSelector[0].package.commit -cne
+            'a66e4702047846cdaa10c66c9d3df3951f5ea70d' -or
         [string]$officialSelector[0].root -cne
             '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh' -or
         [string]$officialSelector[0].rootPackage.name -cne 'deepseek-harness-pkg' -or
@@ -345,8 +358,11 @@ function Test-WindowsCopilotLock {
         [string]$providerArtifact.url -cne $expectedProviderArtifactUrl -or
         [string]$providerArtifact.releaseTag -cne $expectedProviderReleaseTag -or
         $providerArtifact.releaseImmutable -ne $true -or
+        [int]$providerArtifact.size -le 0 -or
+        [string]$providerArtifact.sha256 -notmatch '^[0-9a-f]{64}$' -or
         [string]$providerArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
         [string]$providerArtifact.checksumManifest.url -cne $expectedChecksumUrl -or
+        [int]$providerArtifact.checksumManifest.size -le 0 -or
         [string]$providerArtifact.checksumManifest.sha256 -notmatch '^[0-9a-f]{64}$') {
         throw 'Provider artifact must match the canonical immutable Release and SHA256SUMS contract.'
     }
@@ -467,7 +483,7 @@ function Test-WindowsCopilotLock {
     $expectedLegacyIdentities = @(
         'dsh-web-search-provider@0.2.2',
         'dsh-web-search-provider@0.2.3-cloga.3'
-    ) + @(1..12 | ForEach-Object { "dsh-github-copilot@0.3.0-cloga.$_" })
+    ) + @(1..13 | ForEach-Object { "dsh-github-copilot@0.3.0-cloga.$_" })
     $actualLegacyIdentities = @($legacyCopilotIntegrations | ForEach-Object {
         "$([string]$_.name)@$([string]$_.version)"
     })
@@ -496,14 +512,18 @@ function Test-WindowsCopilotLock {
     $optionalOverlays = @($Lock.profile.optionalOverlays)
     $expectedOptionalOverlays = [ordered]@{
         'dsh-playwright-host' = [ordered]@{
-            version = '0.1.0'
-            source = 'github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0'
-            resolvedCommit = 'e4c8decc5c2e6ae815d974049af2dc33e42743d0'
+            version = '0.1.2'
+            source = 'github:cloga/dsh-playwright-host#v0.1.2'
+            sourceCommit = 'a7f63e2c3565008e1c614023afb1c3110fd62fff'
+            resolvedCommit = '2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac'
+            pullRequest = 6
         }
         'dsh-cron' = [ordered]@{
-            version = '0.3.3'
-            source = 'github:cloga/dsh-cron#v0.3.3'
-            resolvedCommit = 'f5e8df45496523c98874e6f484b886941683f7d6'
+            version = '0.4.1'
+            source = 'github:cloga/dsh-cron#v0.4.1'
+            sourceCommit = 'e0ecca9e18a66fe0acecec6dfc6cc6faaa9520b2'
+            resolvedCommit = '5f99313e110932195821d924259b2836947271f3'
+            pullRequest = 12
         }
     }
     if ($optionalOverlays.Count -ne $expectedOptionalOverlays.Count) {
@@ -515,10 +535,48 @@ function Test-WindowsCopilotLock {
             [string]$_.name -ceq $name -and
             [string]$_.version -ceq [string]$expectedOverlay.version -and
             [string]$_.source -ceq [string]$expectedOverlay.source -and
+            [string]$_.sourceCommit -ceq [string]$expectedOverlay.sourceCommit -and
             [string]$_.resolvedCommit -ceq [string]$expectedOverlay.resolvedCommit -and
+            [int]$_.pullRequest -eq [int]$expectedOverlay.pullRequest -and
             [string]$_.profile -ceq 'web' -and $_.required -eq $false
         })
         if ($matches.Count -ne 1) { throw "Optional overlay inventory omits '$name'." }
+    }
+    $playwrightOverlay = @($optionalOverlays | Where-Object { [string]$_.name -ceq 'dsh-playwright-host' })[0]
+    $playwrightArtifact = $playwrightOverlay.artifact
+    if ([string]$playwrightArtifact.name -cne 'dsh-playwright-host-0.1.2.tgz' -or
+        [string]$playwrightArtifact.url -cne
+            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/dsh-playwright-host-0.1.2.tgz' -or
+        [string]$playwrightArtifact.sha256 -cne
+            '18e4e2d29429a94f495d9507188282e6157f11c2ef75fa076b54b30c03ac0cf2' -or
+        [int]$playwrightArtifact.size -ne 3659 -or
+        [string]$playwrightArtifact.releaseTag -cne 'v0.1.2' -or
+        $playwrightArtifact.releaseImmutable -ne $true -or
+        [string]$playwrightArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
+        [string]$playwrightArtifact.checksumManifest.url -cne
+            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/SHA256SUMS' -or
+        [string]$playwrightArtifact.checksumManifest.sha256 -cne
+            '06647ede584dad3055508733f17cd720f4ebf149c2cd73d680497e7117247e84' -or
+        [int]$playwrightArtifact.checksumManifest.size -ne 96) {
+        throw 'Optional dsh-playwright-host artifact must match the immutable v0.1.2 Release and SHA256SUMS.'
+    }
+    $cronOverlay = @($optionalOverlays | Where-Object { [string]$_.name -ceq 'dsh-cron' })[0]
+    $cronArtifact = $cronOverlay.artifact
+    if ([string]$cronArtifact.name -cne 'dsh-cron-0.4.1.tgz' -or
+        [string]$cronArtifact.url -cne
+            'https://github.com/cloga/dsh-cron/releases/download/v0.4.1/dsh-cron-0.4.1.tgz' -or
+        [string]$cronArtifact.sha256 -cne
+            '9be9e7c6ea1b4bf8a6f354dd1533e8a920f4d397c09fb20e14a2b5c91a50ce5f' -or
+        [int]$cronArtifact.size -ne 34276 -or
+        [string]$cronArtifact.releaseTag -cne 'v0.4.1' -or
+        $cronArtifact.releaseImmutable -ne $true -or
+        [string]$cronArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
+        [string]$cronArtifact.checksumManifest.url -cne
+            'https://github.com/cloga/dsh-cron/releases/download/v0.4.1/SHA256SUMS' -or
+        [string]$cronArtifact.checksumManifest.sha256 -cne
+            'ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf' -or
+        [int]$cronArtifact.checksumManifest.size -ne 85) {
+        throw 'Optional dsh-cron artifact must match the immutable v0.4.1 Release and SHA256SUMS.'
     }
 
     $allowBuilds = @($Lock.profile.allowBuilds)
@@ -683,12 +741,12 @@ function Test-WindowsCopilotLock {
         @($baseline.platforms) -notcontains 'windows' -or
         @($baseline.platforms) -notcontains 'linux' -or
         [string]$baseline.node -ne '>=22.0.0' -or
-        [string]$baseline.dshRelease -ne '0.1.2-alpha.5' -or
+        [string]$baseline.dshRelease -ne '0.1.2-rc.1' -or
         [string]$baseline.dshDevelopmentRelease -ne '0.1.1-rc.2' -or
-        [string]$baseline.dshPeerRange -ne '^0.1.1-rc.2 || ^0.1.2-alpha.5' -or
+        [string]$baseline.dshPeerRange -ne '0.1.1-rc.2 || 0.1.2-rc.1' -or
         [string]$baseline.piAi -ne '^0.84.2' -or
         [string]$baseline.runtimeDependencies.'@deepseek-ai/dsh-authorization' -ne
-            '^0.1.1-rc.2 || ^0.1.2-alpha.5' -or
+            '0.1.1-rc.2 || 0.1.2-rc.1' -or
         [string]$baseline.runtimeDependencies.zod -ne '^4.4.3') {
         throw 'Provider deployment baseline metadata does not match the reviewed contract.'
     }
@@ -1696,10 +1754,11 @@ function Get-WindowsCopilotInternalPluginStates {
 function Test-WindowsCopilotDesiredArtifactDependency {
     param(
         [Parameter(Mandatory)]$Lock,
-        [Parameter(Mandatory)][string]$Dependency,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Dependency,
         [Parameter(Mandatory)][string]$DshHome,
         [Parameter(Mandatory)][string]$ProfileRoot
     )
+    if ([string]::IsNullOrWhiteSpace($Dependency)) { return $false }
     if ($Dependency -ceq [string]$Lock.components.copilotIntegration.package.artifact.url) {
         return $true
     }

@@ -1,6 +1,6 @@
 {
   "name": "dsh-playwright-host",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Host-scope Microsoft Playwright MCP bundle for DeepSeek Harness on Windows.",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/cloga/dsh-playwright-host.git",
-    "commit": "e4c8decc5c2e6ae815d974049af2dc33e42743d0"
+    "commit": "2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac"
   },
   "dsh": {
     "bundle": {

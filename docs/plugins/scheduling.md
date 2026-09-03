@@ -9,32 +9,35 @@ The reviewed overlay is:
 | Field | Reviewed value |
 |---|---|
 | Package | `dsh-cron` |
-| Version | `0.3.3` |
-| Source | `github:cloga/dsh-cron#v0.3.3` |
-| Resolved commit | `f5e8df45496523c98874e6f484b886941683f7d6` |
+| Version | `0.4.1` |
+| Source | `github:cloga/dsh-cron#v0.4.1` |
+| Resolved commit | `5f99313e110932195821d924259b2836947271f3` |
+| Release artifact | `dsh-cron-0.4.1.tgz`, SHA-256 `9be9e7c6ea1b4bf8a6f354dd1533e8a920f4d397c09fb20e14a2b5c91a50ce5f`, 34,276 bytes |
+| Checksum manifest | `SHA256SUMS`, SHA-256 `ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf`, 85 bytes |
 | Profile | `web` only |
 
-The tag-to-commit resolution above was verified from the local Git checkout with `git rev-parse 'v0.3.3^{commit}'`. Keep the tag or full commit pin; do not install an unpinned branch for an operational baseline.
+The tag-to-commit resolution above was verified from the local Git checkout with `git rev-parse 'v0.4.1^{commit}'`. The Release is immutable. Keep the tag or exact Release artifact pin; do not install an unpinned branch for an operational baseline.
 
 ## Compatibility
 
-The package peer contract supports:
+The bounded peer contract is `>=0.1.1-rc.2 <0.1.2-0 || >=0.1.2-alpha.4 <0.1.2`. The current certification target is official DSH `0.1.2-rc.1` at `a66e4702047846cdaa10c66c9d3df3951f5ea70d`; the controlled `0.1.1-rc.2` lane remains observed. Stable `0.1.2` is intentionally excluded until separately reviewed.
 
-- DSH `0.1.1-rc.2`; and
-- DSH prereleases `>=0.1.2-alpha.4 <0.1.2`, including alpha.4 and alpha.5.
+The package consumes Agent, Agent Preset, default-model, LLM, live Session, Session persistence, and Tools APIs. Optional HTTP mounting consumes WebServer and Web services. Node.js must satisfy `^22.19.0 || >=24.0.0`.
 
-The same range applies to the Agent Preset, default-model, LLM, Session persistence, and Tools seams consumed by the plugin. Stable `0.1.2` is intentionally outside the reviewed range until separately verified. Node.js follows the selected DSH runtime and must be at least version 22.
+The HTTP `sessionId` is supplied by the local Client. Loopback or `trustedHosts` plus same-origin checks provide operational Session separation, not authentication against a malicious local process; do not expose this API as a security boundary.
 
 When a task fires, its stored prompt is sent to the Session's configured external LLM. Treat task prompts as outbound model input: do not place credentials or secrets in schedules, and review the selected provider before enabling persistent automation.
 
-Use the `web` Profile. A one-shot `headless` process exits after its current work and cannot own a persistent scheduler; alpha.5 headless compositions also do not provide every service required for cold Session recovery.
+Use the `web` Profile. A one-shot `headless` process exits after its current work and cannot own a persistent scheduler; the certified rc.1 headless composition also does not provide every service required for cold Session recovery.
+
+Windows Ops currently records v0.4.1 at **L2 (source/import compatible)**. Unit, package, exact-source, ownership, and restart tests pass, but a disposable rc.1 Web composition mount and harmless scheduled-turn smoke have not yet been recorded; do not claim L3/L4 until that evidence exists.
 
 ## Installation as an overlay
 
 Install through the exact CLI selected by the Desktop deployment:
 
 ```powershell
-dsh plugin --profile web add 'github:cloga/dsh-cron#v0.3.3'
+dsh plugin --profile web add 'github:cloga/dsh-cron#v0.4.1'
 dsh --profile web --dump-config
 ```
 
@@ -42,9 +45,9 @@ The composed configuration should contain one `dsh-cron` row. The package ships 
 
 Treat installation as staged until an authorized Host restart. Before restarting:
 
-1. Check the GUI for every live or running Session.
+1. Query `session/list` and enumerate every current running Session ID.
 2. If another Session is active, leave the overlay installed but inactive.
-3. Restart only after the user explicitly accepts interruption or after all protected work has finished.
+3. Restart only after the user explicitly accepts interruption of that exact listed ID set; if the set changes, enumerate it again and obtain new approval. Missing, stale, or extra acknowledged IDs must fail closed.
 4. After restart, hard-refresh the existing DSH Web page; do not start a replacement server.
 
 ## Session-bound cold wake semantics
@@ -107,7 +110,7 @@ Static tasks declared in composition are configuration-owned and are not removed
 
 ## Windows notification caveat
 
-On Windows, `systemNotify` and `systemNotifySound` are **quiet no-ops**. Version 0.3.3 implements Host-native notifications only for:
+On Windows, `systemNotify` and `systemNotifySound` are **quiet no-ops**. Version 0.4.1 implements Host-native notifications only for:
 
 - macOS through `osascript`; and
 - Linux through `notify-send`.

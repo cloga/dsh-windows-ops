@@ -13,9 +13,12 @@ const fixtureFiles = [
   'README.md',
   'README.en.md',
   'docs/local-core-desktop-copilot.md',
+  'docs/plugins/scheduling.md',
   'docs/windows-replay-tooling.md',
   'docs/improvement-portfolio.md',
   'docs/powershell-5.1-pitfalls.md',
+  'tools/README.md',
+  'tools/dsh-replay.patches.json',
   'tools/install-windows-copilot.ps1',
   'tools/enable-copilot-search-vision.ps1',
   'tools/dsh-replay.ps1',
@@ -62,10 +65,12 @@ test('rejects source identity and immutable release drift', () => {
   const catalog = readJson(target, 'catalog/plugins.json')
   catalog.plugins[0].source.commit = '0'.repeat(40)
   catalog.plugins[0].artifact.releaseImmutable = false
+  catalog.plugins.find(plugin => plugin.id === 'dsh-playwright-host').source.pullRequest = 999
   writeJson(target, 'catalog/plugins.json', catalog)
   const result = validateRepositoryContent(target)
   assert.match(messages(result), /source commit differs/)
   assert.match(messages(result), /releaseImmutable differs/)
+  assert.match(messages(result), /dsh-playwright-host pull request differs/)
 })
 
 test('rejects invalid checksum evidence and canonical URL drift', () => {
@@ -94,11 +99,22 @@ test('rejects fixture capability and version drift', () => {
 test('rejects stale README versions and missing repository entry points', () => {
   const target = copyFixture()
   const readmePath = path.join(target, 'README.en.md')
-  fs.writeFileSync(readmePath, fs.readFileSync(readmePath, 'utf8').replaceAll('0.3.0-cloga.13', '0.3.0-cloga.12'))
+  fs.writeFileSync(readmePath, fs.readFileSync(readmePath, 'utf8')
+    .replaceAll('0.3.0-cloga.14', '0.3.0-cloga.12')
+    .replaceAll('8216a2aa', '00000000'))
   fs.rmSync(path.join(target, 'SECURITY.md'))
   const result = validateRepositoryContent(target)
   assert.match(messages(result), /README\.en\.md does not name/)
+  assert.match(messages(result), /missing the locked Copilot source commit/)
   assert.match(messages(result), /SECURITY\.md/)
+})
+
+test('rejects stale shorthand in current-lane operational prose', () => {
+  const target = copyFixture()
+  const guidePath = path.join(target, 'docs/local-core-desktop-copilot.md')
+  fs.writeFileSync(guidePath, fs.readFileSync(guidePath, 'utf8').replace('rc.1', 'alpha.5'))
+  const result = validateRepositoryContent(target)
+  assert.match(messages(result), /stale alpha\.5 current-lane prose/)
 })
 
 test.after(() => {

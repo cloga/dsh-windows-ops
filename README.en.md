@@ -36,6 +36,7 @@ A project appearing in a README, catalog, or historical incident does **not** me
 | Understand plugin validation levels | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | Evaluate Computer Use and browser automation | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
 | Operate the optional Session scheduler | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
+| Check or install the optional Copilot, Cron, and Playwright suite together | [`docs/plugins/optional-companion-suite.md`](docs/plugins/optional-companion-suite.md) |
 | Read the machine-readable plugin catalog | [`catalog/plugins.json`](catalog/plugins.json) |
 | Track improvements, ownership, PR status, and evidence | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |
 | Contribute changes or report security issues privately | [`CONTRIBUTING.md`](CONTRIBUTING.md) / [`SECURITY.md`](SECURITY.md) |
@@ -61,6 +62,7 @@ Then use an isolated `DSH_HOME` to verify Cordis activation, tool registration, 
 |---|---|---|
 | Deployment | `tools/install-windows-copilot.ps1` | Check by default; install the locked baseline only with explicit `-Apply` |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1` | Install the direct plugin, select hosted search, and report UI sign-in requirements |
+| Optional suite | `tools/install-optional-companion-suite.ps1` | Check by default; explicitly `-Apply` the independently versioned Copilot, Cron, and Playwright Bundles together without restarting the Host |
 | Replay and acceptance | `tools/dsh-replay.ps1` | Self-check, strict-marker patches, dry-run, backup, and rollback |
 | Plugin compatibility | `tools/dsh-compat-check.mjs` | Static dependency inventory and real host import probe |
 | Plugin catalog | `tools/validate-plugin-catalog.mjs` | Validate catalog constraints, evidence references, and baseline consistency |

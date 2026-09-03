@@ -36,6 +36,7 @@ README、插件目录或历史文档中出现一个项目，**不代表它属于
 | 理解插件验证等级 | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | 评估 Computer Use / 浏览器自动化 | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
 | 运维可选的 Session 定时调度 | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
+| 一次检查或安装 Copilot、Cron 与 Playwright 可选套件 | [`docs/plugins/optional-companion-suite.md`](docs/plugins/optional-companion-suite.md) |
 | 查看机器可读插件目录 | [`catalog/plugins.json`](catalog/plugins.json) |
 | 查看改进归属、PR 状态和验证证据 | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |
 | 提交变更或私密报告安全问题 | [`CONTRIBUTING.md`](CONTRIBUTING.md) / [`SECURITY.md`](SECURITY.md) |
@@ -61,6 +62,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1` | 安装直连插件、选择 hosted search，并报告 UI 登录要求 |
+| 可选套件 | `tools/install-optional-companion-suite.ps1` | 默认检查；显式 `-Apply` 一次安装独立版本的 Copilot、Cron 与 Playwright Bundle，且绝不重启 Host |
 | 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |
 | 插件兼容 | `tools/dsh-compat-check.mjs` | 静态依赖清单和真实 host import probe |
 | 插件目录 | `tools/validate-plugin-catalog.mjs` | 验证 schema 关键约束、证据引用和基线一致性 |

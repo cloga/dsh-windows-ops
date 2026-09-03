@@ -85,8 +85,11 @@ that embed a live browser panel remain candidates until they independently
 pass the repository validation ladder.
 
 For tools that must be visible under every Agent Preset, install the reviewed
-`tools/dsh-playwright-host/` Profile Bundle. It mounts the MCP client in the
-Host composition without editing a shipped preset. Pin the upstream version
+[`cloga/dsh-playwright-host`](https://github.com/cloga/dsh-playwright-host)
+Profile Bundle at commit `e4c8decc5c2e6ae815d974049af2dc33e42743d0`.
+The synchronized `tools/dsh-playwright-host/` directory is the Windows Ops
+review snapshot. The bundle mounts the MCP client in the Host composition
+without editing a shipped preset. Pin the upstream version
 and upgrade it deliberately. The bundle uses installed Microsoft Edge and an
 isolated, disposable browser profile:
 
@@ -116,8 +119,7 @@ profile, or disable origin controls merely for convenience. A normal isolated
 browser can navigate to loopback DSH URLs without an unrestricted filesystem
 or desktop grant.
 
-Stage the bundle with `dsh plugin --profile web add link:<absolute-bundle-path>`
-and inspect `dsh --profile web --dump-config`. Do not restart while other
+Stage the immutable bundle with `dsh plugin --profile web add github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0` and inspect `dsh --profile web --dump-config`. Do not restart while other
 Sessions are live. After an explicitly authorized Host restart, create a new
 Session with any Preset and confirm the `mcp__playwright__*` tools are present.
 Browser launch is lazy, so successful composition is necessary but not

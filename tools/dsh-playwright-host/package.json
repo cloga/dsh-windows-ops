@@ -5,6 +5,11 @@
   "private": true,
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cloga/dsh-playwright-host.git",
+    "commit": "e4c8decc5c2e6ae815d974049af2dc33e42743d0"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

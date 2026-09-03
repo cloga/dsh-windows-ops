@@ -12,6 +12,8 @@ test('Host Playwright bundle pins the reviewed MCP and isolated Edge configurati
   const readme = await readFile(readmeUrl, 'utf8')
 
   assert.equal(manifest.name, 'dsh-playwright-host')
+  assert.equal(manifest.repository.url, 'https://github.com/cloga/dsh-playwright-host.git')
+  assert.equal(manifest.repository.commit, 'e4c8decc5c2e6ae815d974049af2dc33e42743d0')
   assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml')
   for (const marker of [
     "id: mcp-playwright",

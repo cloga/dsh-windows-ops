@@ -21,6 +21,7 @@ param(
     [string]$Action = 'Check',
     [string]$OperationId,
     [switch]$RestartDesktop,
+    [string[]]$AcknowledgeLiveSessionIds,
     [int]$TimeoutSeconds = 90,
     [ValidateRange(1, 2147483)]
     [int]$CoreInstallTimeoutSeconds = 900,
@@ -71,7 +72,7 @@ if ($Action -eq 'Rollback') {
             throw 'Rollback completed, but the exact locked Desktop executable is unavailable for restart.'
         }
         Restart-WindowsCopilotDesktop -DesktopExecutablePath ([string]$desktop.path) `
-            -TimeoutSeconds $TimeoutSeconds
+            -TimeoutSeconds $TimeoutSeconds -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds
     } else {
         [pscustomobject]@{ status = 'not-requested' }
     }
@@ -152,5 +153,5 @@ Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlob
     -CoreInstallPrefix $CoreInstallPrefix `
     -BackupRoot $BackupRoot `
     -DesktopExecutablePath $DesktopExecutablePath -RestartDesktop:$RestartDesktop `
-    -TimeoutSeconds $TimeoutSeconds -CoreInstallTimeoutSeconds $CoreInstallTimeoutSeconds |
+    -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds -TimeoutSeconds $TimeoutSeconds -CoreInstallTimeoutSeconds $CoreInstallTimeoutSeconds |
     ConvertTo-Json -Depth 20

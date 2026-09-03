@@ -5,9 +5,10 @@
 - Use the `cloga` GitHub identity for every issue, push, pull request, review,
   and merge in this repository.
 - Load the credential into the current process only from a user-designated
-  trusted `.env`. Prefer a repository-local ignored `.env`, but a centralized
-  credential file explicitly designated by the user is allowed. Never print,
-  copy into documentation, or commit the credential.
+  trusted `.env`. Prefer one centralized file explicitly designated by the
+  user; a repository-local `.env` is allowed only when it is explicitly chosen
+  and Git confirms it is ignored. Never print, copy between repositories,
+  include in documentation, or commit the credential.
 - Before any GitHub write, run `gh api user --jq .login` and require the exact
   result `cloga`. Stop if the identity differs.
 - Every published branch must be named `cloga-<task-slug>`. Never publish an
@@ -52,10 +53,25 @@ Before an installation agent emits every `pwsh` tool call:
 - Do not use Desktop's local-core update action while testing the fork; it
   installs `@deepseek-ai/dsh@latest` and can replace the fork build.
 - Treat plugins and the core as separate compatibility layers. Preserve and
-  attest Desktop's five official internal-plugin links; never replace them with
-  guessed registry packages. The locked installer physically materializes only
-  the reviewed `dsh-github-copilot` integration after each profile package install. Run
-  its check plus the repository replay self-check and exact-marker dry run
+  attest Desktop's seven official Profile links plus its non-bundled panel
+  placeholder; never replace them with guessed registry packages. The locked
+  installer physically materializes only the reviewed `dsh-github-copilot`
+  integration. Classify `dsh-playwright-host` and `dsh-cron` as optional Web
+  overlays rather than silently making them baseline requirements. Run the
+  check-first installer, repository replay self-check, and exact-marker dry run
   before applying unrelated patches.
+
+## Restart and browser verification safety
+
+- Before stopping, killing, replacing, or restarting Desktop or its Host,
+  query the live `session/list` API and list every running Session. Never
+  restart while any Session is running unless the user directly acknowledges
+  those interruptions; pass `-AcknowledgeLiveSessionIds <exact listed IDs>` only after that approval; stale, missing, or extra IDs must block.
+- A dry run must never stop a process. An unavailable or malformed live-session
+  response fails closed while Desktop is running.
+- Verify Web changes against the existing `http://127.0.0.1:3080`. Prefer the
+  isolated Host Playwright bundle; use the pinned Python/Edge smoke fallback
+  when Host MCP is unavailable. Never start a replacement server merely to
+  validate the Desktop GUI.
 
 See [Local DSH core, Desktop, and GitHub Copilot practice](docs/local-core-desktop-copilot.md).

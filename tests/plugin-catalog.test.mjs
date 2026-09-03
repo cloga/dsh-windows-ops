@@ -13,6 +13,11 @@ const sourceLock = path.join(root, 'deployments', 'windows-copilot.lock.json')
 
 function read(file) { return JSON.parse(fs.readFileSync(file, 'utf8')) }
 function write(file, value) { fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`) }
+function pluginById(catalog, id) {
+  const plugin = catalog.plugins.find(candidate => candidate.id === id)
+  assert.ok(plugin, `missing catalog fixture ${id}`)
+  return plugin
+}
 
 function fixture(mutate) {
   const scratchRoot = path.join(root, 'tests', '.plugin-catalog-scratch')
@@ -51,7 +56,7 @@ test('rejects duplicate plugin ids', () => {
 })
 
 test('rejects future verification dates', () => {
-  const paths = fixture(({ catalog }) => { catalog.plugins[1].validation.verifiedAt = '2999-01-01' })
+  const paths = fixture(({ catalog }) => { pluginById(catalog, 'desktop-touch-mcp').validation.verifiedAt = '2999-01-01' })
   const result = run(paths)
   assert.equal(result.status, 1)
   assert.match(result.stderr, /future date/)
@@ -59,7 +64,7 @@ test('rejects future verification dates', () => {
 
 test('rejects missing repository evidence paths', () => {
   const paths = fixture(({ catalog }) => {
-    catalog.plugins[1].validation.evidence[1] = { kind: 'source-review', description: 'missing', path: 'docs/does-not-exist.md' }
+    pluginById(catalog, 'desktop-touch-mcp').validation.evidence[1] = { kind: 'source-review', description: 'missing', path: 'docs/does-not-exist.md' }
   })
   const result = run(paths)
   assert.equal(result.status, 1)
@@ -68,7 +73,7 @@ test('rejects missing repository evidence paths', () => {
 
 test('rejects optional integrations claiming baseline', () => {
   const paths = fixture(({ catalog }) => {
-    const plugin = catalog.plugins[1]
+    const plugin = pluginById(catalog, 'desktop-touch-mcp')
     plugin.validation.level = 'baseline'
     plugin.source.commit = catalog.plugins[0].source.commit
     plugin.package = catalog.plugins[0].package
@@ -99,14 +104,14 @@ test('rejects recommended entries with unknown high-impact security facts', () =
 })
 
 test('rejects path and URL ambiguity in one evidence record', () => {
-  const paths = fixture(({ catalog }) => { catalog.plugins[1].validation.evidence[0].path = 'docs/startup-60s-timeout.md' })
+  const paths = fixture(({ catalog }) => { pluginById(catalog, 'desktop-touch-mcp').validation.evidence[0].path = 'docs/startup-60s-timeout.md' })
   const result = run(paths)
   assert.equal(result.status, 1)
   assert.match(result.stderr, /exactly one of path or url/)
 })
 
 test('rejects an L2 claim without import-probe evidence', () => {
-  const paths = fixture(({ catalog }) => { catalog.plugins[1].validation.level = 'L2' })
+  const paths = fixture(({ catalog }) => { pluginById(catalog, 'desktop-touch-mcp').validation.level = 'L2' })
   const result = run(paths)
   assert.equal(result.status, 1)
   assert.match(result.stderr, /requires successful import-probe evidence/)

@@ -83,8 +83,8 @@ async function ensureRelease() {
 
 ## 验证方式
 
-1. 改配置后 `taskkill /IM "DeepSeek Harness.exe" /F`（或脱树重启脚本）
-2. 立即重开应用 → 不再出现 60s 超时弹窗
+1. 改配置后先通过 `session/list` 检查所有 running Sessions；存在运行中工作时禁止使用 `taskkill /F`。仅在用户明确接受列出的中断后，使用带 `-AcknowledgeLiveSessionIds <精确列出的 Session IDs>` 的受控 Desktop 重启路径
+2. 重开应用 → 不再出现 60s 超时弹窗
 3. `desktop.log`（`%APPDATA%\deepseek-harness-desktop\logs`）里不再有 `npm error ... AppData\Roaming\npm` 刷屏（这是 npx 失败重连循环的噪音，修复后消失）
 
 ## 附：其他可能拖慢启动的 MCP 注意事项

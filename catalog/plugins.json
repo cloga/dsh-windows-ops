@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-02",
+  "updatedAt": "2026-09-03",
   "validationLevels": [
     { "id": "L0", "name": "Discovered", "description": "The project was located, but its source and runtime behavior have not been reviewed." },
     { "id": "L1", "name": "Source reviewed", "description": "Package metadata, composition files, lifecycle scripts, permissions, and obvious risks were reviewed." },
@@ -18,27 +18,27 @@
       "categories": ["model-provider", "search"],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.3.0-cloga.10.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/dsh-github-copilot-0.3.0-cloga.10.tgz",
-        "sha256": "80e709c80588bc4ca18e8f4a109d8689bc7d49a9cb9ee16cab0a5c60f9a0bad7"
+        "name": "dsh-github-copilot-0.3.0-cloga.11.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/dsh-github-copilot-0.3.0-cloga.11.tgz",
+        "sha256": "9e2ec21984fe394e9a8ef09bfa282a5b7107aead8f573171040d84083526f668"
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "5417abdb4c799bd0b0d5ee25167897998788eabf",
-        "release": "0.3.0-cloga.10"
+        "commit": "7db12efadf8afe69fc71fc8daae203c6049e14e7",
+        "release": "0.3.0-cloga.11"
       },
       "platforms": ["cross-platform"],
       "recommendation": "recommended",
       "validation": {
         "level": "baseline",
-        "verifiedAt": "2026-09-02",
+        "verifiedAt": "2026-09-03",
         "dshVersion": "0.1.1-rc.2 / 0.1.2-alpha.5",
         "nodeVersion": "24.19.0",
         "evidence": [
-          { "kind": "deployment-lock", "description": "The Windows Copilot deployment lock pins official Desktop 0.10.2 and its five 0.6.7 resources/node_modules links together with the Copilot artifact, source commit, build commands, and required capabilities.", "path": "deployments/windows-copilot.lock.json" },
+          { "kind": "deployment-lock", "description": "The Windows Copilot deployment lock pins official Desktop 0.10.2, its seven Profile links, and its non-bundled panel placeholder together with the Copilot artifact, source commit, build commands, and required capabilities.", "path": "deployments/windows-copilot.lock.json" },
           { "kind": "import-probe", "description": "The maintained web and headless Profiles completed real host-entry import probes without fatal imports.", "path": "docs/local-core-desktop-copilot.md" },
           { "kind": "composition-mount", "description": "The validated Profiles loaded the expected plugin composition and registered the supported capabilities.", "path": "docs/local-core-desktop-copilot.md" },
-          { "kind": "functional-smoke", "description": "The rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai OAuth, authorization-service bootstrap, existing-grant route self-heal, account-available mixed-protocol per-model API routing, ordinary JSON-schema tool calling with optional escalation arguments, direct Copilot hosted search, Desktop authorization UI, and fail-closed compatibility acceptance are documented.", "path": "docs/local-core-desktop-copilot.md" }
+          { "kind": "functional-smoke", "description": "The rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai OAuth, authorization-service bootstrap, existing-grant route self-heal, account-available mixed-protocol per-model API routing, Copilot-scoped removal of unusable escalation properties while other providers retain native schemas, direct Copilot hosted search, Desktop authorization UI, and fail-closed compatibility acceptance are documented.", "path": "docs/local-core-desktop-copilot.md" }
         ]
       },
       "security": {
@@ -49,7 +49,77 @@
         "approvalGate": false,
         "notes": ["Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.", "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.", "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration."]
       },
-      "summary": "The locked standalone DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai Copilot authorization, existing-grant route self-heal, complete mixed-protocol per-model API routes, optional Copilot tool arguments through ordinary JSON-schema calling, and direct provider-hosted search; no embedded gateway or ACP scope."
+      "summary": "The locked standalone DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict remote result codecs, strict JSON OAuth grant normalization, built-in pi-ai Copilot authorization, existing-grant route self-heal, complete mixed-protocol per-model API routes, provider-scoped removal of unusable Copilot escalation properties, and direct provider-hosted search; no embedded gateway or ACP scope."
+    },
+    {
+      "id": "dsh-playwright-host",
+      "displayName": "DSH Playwright Host",
+      "package": "dsh-playwright-host",
+      "categories": ["browser-automation", "testing"],
+      "integration": "cordis",
+      "source": {
+        "repository": "https://github.com/cloga/dsh-playwright-host",
+        "commit": "e4c8decc5c2e6ae815d974049af2dc33e42743d0",
+        "release": "0.1.0"
+      },
+      "platforms": ["windows"],
+      "recommendation": "conditional",
+      "validation": {
+        "level": "L4",
+        "verifiedAt": "2026-09-03",
+        "dshVersion": "0.1.2-alpha.5",
+        "nodeVersion": "24.13.0",
+        "evidence": [
+          { "kind": "source-review", "description": "The Host-wide shared-process and isolated-browser boundaries are reviewed and documented.", "path": "docs/plugins/computer-use.md" },
+          { "kind": "import-probe", "description": "Static bundle tests verify the package and composed MCP markers before activation.", "path": "tests/host-playwright-bundle.test.mjs" },
+          { "kind": "composition-mount", "description": "The Web profile resolves one Host-scope Playwright MCP using the immutable source commit, isolated Microsoft Edge, and pinned MCP version.", "path": "tools/dsh-playwright-host/README.md" },
+          { "kind": "functional-smoke", "description": "Host MCP navigated the existing DSH GUI, captured accessibility state, and inspected browser requests after activation.", "path": "docs/plugins/computer-use.md" }
+        ]
+      },
+      "security": {
+        "controlsDesktop": false,
+        "capturesScreen": true,
+        "usesExistingBrowserProfile": false,
+        "sendsDataExternally": true,
+        "approvalGate": false,
+        "notes": ["Uses an isolated Edge profile but one Host-owned MCP process is shared across Sessions.", "Browser tools can navigate to external sites and submit user-directed data; isolation does not prevent network transmission.", "Optional Web overlay; not required by the Windows Copilot deployment lock."]
+      },
+      "summary": "Optional Host-wide Playwright MCP bundle for isolated Edge testing of the existing DSH GUI."
+    },
+    {
+      "id": "dsh-cron",
+      "displayName": "DSH Cron",
+      "package": "dsh-cron",
+      "categories": ["scheduling", "automation"],
+      "integration": "cordis",
+      "source": {
+        "repository": "https://github.com/cloga/dsh-cron",
+        "commit": "f5e8df45496523c98874e6f484b886941683f7d6",
+        "release": "0.3.3"
+      },
+      "platforms": ["cross-platform"],
+      "recommendation": "conditional",
+      "validation": {
+        "level": "L4",
+        "verifiedAt": "2026-09-03",
+        "dshVersion": "0.1.1-rc.2 / 0.1.2-alpha.5",
+        "nodeVersion": "24.13.0",
+        "evidence": [
+          { "kind": "source-review", "description": "The scheduler lifecycle, persistence, cold wake, and Windows notification limitation are reviewed.", "path": "docs/plugins/scheduling.md" },
+          { "kind": "import-probe", "description": "The installed Host entry loads and publishes cron tools in the active Web profile.", "path": "docs/plugins/scheduling.md" },
+          { "kind": "composition-mount", "description": "The Web profile mounts the immutable v0.3.3 source and publishes its cron tools.", "path": "docs/plugins/scheduling.md" },
+          { "kind": "functional-smoke", "description": "cron_list completed successfully against the active Web profile.", "path": "docs/plugins/scheduling.md" }
+        ]
+      },
+      "security": {
+        "controlsDesktop": false,
+        "capturesScreen": false,
+        "usesExistingBrowserProfile": false,
+        "sendsDataExternally": true,
+        "approvalGate": false,
+        "notes": ["Scheduled prompts are sent to the configured external LLM when tasks fire.", "Scheduled prompts resume only their owning Session and persist task/history files under DSH_HOME.", "Windows native system notifications are not implemented and configured systemNotify flags are quiet no-ops.", "Optional Web overlay; not required by the Windows Copilot deployment lock."]
+      },
+      "summary": "Optional Web-profile scheduler with Session-bound cold wake, cron tools, and persisted run history."
     },
     {
       "id": "desktop-touch-mcp",

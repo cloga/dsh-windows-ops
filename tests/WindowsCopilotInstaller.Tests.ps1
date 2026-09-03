@@ -76,6 +76,15 @@ public static class $typeName { public static void Main() {} }
                 New-Item -ItemType Junction -Path (Join-Path $nodeModules ([string]$plugin.name)) `
                     -Target $target | Out-Null
             }
+            foreach ($dependency in @($script:lock.components.desktop.shippedDependencies)) {
+                $target = Join-Path $desktopRoot ([string]$dependency.relativePath)
+                New-Item -ItemType Directory -Path $target -Force | Out-Null
+                [ordered]@{
+                    name = [string]$dependency.name
+                    version = [string]$dependency.version
+                } | ConvertTo-Json -Compress |
+                    Set-Content -LiteralPath (Join-Path $target 'package.json') -Encoding UTF8
+            }
         }
         function New-ForkCoreFixture {
             param([Parameter(Mandatory)][string]$Prefix)
@@ -214,20 +223,29 @@ export function apply(ctx) {
     }
 
     It 'pins every verified source and artifact identity' {
-        $lock.deploymentId | Should -Be 'windows-copilot-2026-09-02'
-        $lock.verifiedDate | Should -Be '2026-09-02'
+        $lock.deploymentId | Should -Be 'windows-copilot-2026-09-03'
+        $lock.verifiedDate | Should -Be '2026-09-03'
+        $lock.platform.runtimeConstraint.node | Should -Be '^22.19.0 || >=24.0.0'
+        $lock.platform.verifiedWith.pnpm | Should -Be '11.7.0'
+        $lock.platform.observedCompatible.node | Should -Be '24.13.0'
         $lock.components.desktop.version | Should -Be '0.10.2'
         $lock.components.desktop.source.commit | Should -Be '2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63'
         $lock.components.desktop.artifact.name | Should -Be 'Deepseek.Harness.Desktop_0.10.2_x64-setup.exe'
         $lock.components.desktop.artifact.url |
             Should -Be 'https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe'
         $lock.components.desktop.artifact.sha256 | Should -Be '54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa'
-        @($lock.components.desktop.internalPlugins).Count | Should -Be 5
+        @($lock.components.desktop.internalPlugins).Count | Should -Be 7
         @($lock.components.desktop.internalPlugins | Where-Object version -ne '0.6.7').Count | Should -Be 0
         @($lock.components.desktop.internalPlugins | Where-Object {
             $_.relativePath -cne "resources\node_modules\$($_.name)"
         }).Count | Should -Be 0
+        @($lock.components.desktop.internalPlugins.name) | Should -Contain 'dsh-tauri-rightclick'
+        @($lock.components.desktop.internalPlugins.name) | Should -Contain 'dsh-tauri-session'
+        @($lock.components.desktop.shippedDependencies).Count | Should -Be 1
+        $lock.components.desktop.shippedDependencies[0].name | Should -Be 'dsh-tauri-panel-placeholder'
+        $lock.components.desktop.shippedDependencies[0].profileBundle | Should -Be $false
         $officialSelector = @($lock.components.desktop.runtimeSelectors | Where-Object id -eq 'desktop-official')[0]
+        $officialSelector.rootPackage.version | Should -Be '0.1.2-alpha.4'
         $officialSelector.package.version | Should -Be '0.1.2-alpha.5'
         $officialSelector.package.fileCount | Should -Be 10
         $officialSelector.package.treeSha256 |
@@ -253,15 +271,15 @@ export function apply(ctx) {
         $lock.components.PSObject.Properties.Name | Should -Not -Contain 'gateway'
         $lock.migration.legacyGateway.active | Should -Be $false
         $lock.migration.legacyGateway.successCriteria | Should -Be $false
-        $lock.components.copilotIntegration.source.pullRequest | Should -Be 42
-        $lock.components.copilotIntegration.source.commit | Should -Be '5417abdb4c799bd0b0d5ee25167897998788eabf'
-        $lock.components.copilotIntegration.source.mergeCommit | Should -Be '938317211c034f16625e4ed36bf3c30763d9c7f6'
-        $lock.components.copilotIntegration.package.version | Should -Be '0.3.0-cloga.10'
+        $lock.components.copilotIntegration.source.pullRequest | Should -Be 45
+        $lock.components.copilotIntegration.source.commit | Should -Be '7db12efadf8afe69fc71fc8daae203c6049e14e7'
+        $lock.components.copilotIntegration.source.mergeCommit | Should -Be '06b1c307d460cd001c034b8f40e7d13ff6e68278'
+        $lock.components.copilotIntegration.package.version | Should -Be '0.3.0-cloga.11'
         $lock.components.copilotIntegration.package.packageManager | Should -Be 'pnpm@11.7.0'
         $lock.components.copilotIntegration.package.artifact.url |
-            Should -Be 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/dsh-github-copilot-0.3.0-cloga.10.tgz'
+            Should -Be 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/dsh-github-copilot-0.3.0-cloga.11.tgz'
         $lock.components.copilotIntegration.package.artifact.sha256 |
-            Should -Be '80e709c80588bc4ca18e8f4a109d8689bc7d49a9cb9ee16cab0a5c60f9a0bad7'
+            Should -Be '9e2ec21984fe394e9a8ef09bfa282a5b7107aead8f573171040d84083526f668'
         $lock.components.copilotIntegration.package.bundlePatch | Should -Be './cordis.patch.yml'
         @($lock.components.copilotIntegration.package.attestedFiles) |
             Should -Be @('lib/index.js', 'lib/client.js', 'lib/remote.js')
@@ -304,6 +322,10 @@ export function apply(ctx) {
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.7'
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.8'
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.9'
+        @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.10'
+        @($lock.profile.optionalOverlays.name) | Should -Be @('dsh-playwright-host', 'dsh-cron')
+        $lock.profile.coherence.requireManifestLockInstalledMatch | Should -Be $true
+        $lock.profile.coherence.checkModeMutates | Should -Be $false
         @($lock.acceptance.composedConfig.forbiddenActiveEntries) | Should -Be @('web-search-provider')
         $lock.acceptance.composedConfig.managedEntry.provider | Should -Be 'github-copilot'
         $lock.acceptance.composedConfig.managedEntry.searchProvider | Should -Be 'github-copilot-hosted'
@@ -328,11 +350,130 @@ export function apply(ctx) {
         $lock.acceptance.runtimeSchema.source.pullRequestHead |
             Should -Be 'aa625de7be0e25b869b8a85d4a5301e84541c51c'
         $lock.acceptance.runtimeSchema.package.version | Should -Be '0.1.2-alpha.1'
+        $lock.acceptance.runtimeSchema.scope | Should -Be 'historical-diagnostic-only'
+        $lock.acceptance.runtimeSchema.releaseStatus | Should -Be 'historical-diagnostic-only'
         @($lock.acceptance.runtimeSchema.requiredBuiltSymbols).Count | Should -Be 2
         $lock.acceptance.runtimeSchema.behavior.maximumEvidenceAgeMinutes | Should -Be 15
         $lock.acceptance.runtimeSchema.behavior.sandboxMode | Should -Be 'danger-full-access'
         $lock.acceptance.runtimeSchema.behavior.approval | Should -Be 'disabled'
         @($lock.acceptance.runtimeSchema.behavior.staleErrorPatterns).Count | Should -Be 3
+        $lock.acceptance.copilotToolSchema.provider | Should -Be 'github-copilot'
+        $lock.acceptance.copilotToolSchema.package.version | Should -Be '0.3.0-cloga.11'
+        @($lock.acceptance.copilotToolSchema.forbiddenProperties) |
+            Should -Be @('sandbox_permissions', 'justification')
+        $lock.acceptance.copilotToolSchema.preserveForOtherProviders | Should -Be $true
+        $lock.acceptance.copilotToolSchema.requiresFreshSession | Should -Be $true
+        @($lock.acceptance.copilotToolSchema.successMarkers) |
+            Should -Be @('PACKAGED_COPILOT_SCHEMA_FILTER_OK', 'FRESH_SESSION_PACKAGED_FILTER_OK')
+    }
+
+    It 'requires Copilot manifest lock and installed bytes to agree in web and headless profiles' {
+        $caseRoot = Join-Path $TestDrive 'profile-coherence'
+        New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
+        Set-Content -LiteralPath $artifact -Value 'coherence fixture' -Encoding UTF8
+        $coherenceLock = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $coherenceLock.components.copilotIntegration.package.artifact.sha256 =
+            (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
+        $dependency = 'file:' + $artifact.Replace('\', '/')
+        foreach ($profile in @('web', 'headless')) {
+            $root = Join-Path $dshHome "profiles\$profile"
+            $installed = Join-Path $root 'node_modules\dsh-github-copilot'
+            New-Item -ItemType Directory -Path $installed -Force | Out-Null
+            @{ dependencies = @{ 'dsh-github-copilot' = $dependency } } |
+                ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $root 'package.json') -Encoding UTF8
+            @"
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      dsh-github-copilot:
+        specifier: $dependency
+        version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz
+packages:
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz}
+    version: 0.3.0-cloga.11
+"@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
+            @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.11' } |
+                ConvertTo-Json | Set-Content -LiteralPath (Join-Path $installed 'package.json') -Encoding UTF8
+            @{ package = @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.11' } } |
+                ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $installed 'deployment-baseline.json') -Encoding UTF8
+        }
+
+        $coherent = Test-WindowsCopilotProfileCoherence -Lock $coherenceLock -DshHome $dshHome
+        $coherent.valid | Should -Be $true
+        @($coherent.profiles).Count | Should -Be 2
+        (Get-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Raw).
+            Replace(
+                'version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz',
+                'version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.10.tgz'
+            ) |
+            Set-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Encoding UTF8
+        $drifted = Test-WindowsCopilotProfileCoherence -Lock $coherenceLock -DshHome $dshHome
+        $drifted.valid | Should -Be $false
+        @($drifted.profiles | Where-Object profile -eq 'headless')[0].reasons |
+            Should -Contain 'lock-version-mismatch'
+    }
+
+    It 'classifies optional overlays by exact configured source and resolved commit' {
+        $root = Join-Path $TestDrive 'optional-overlays'
+        foreach ($overlay in @($lock.profile.optionalOverlays)) {
+            $installed = Join-Path $root "node_modules\$($overlay.name)"
+            New-Item -ItemType Directory -Path $installed -Force | Out-Null
+            @{ name = $overlay.name; version = $overlay.version } |
+                ConvertTo-Json | Set-Content -LiteralPath (Join-Path $installed 'package.json') -Encoding UTF8
+        }
+        $wrongCommit = '0000000000000000000000000000000000000000'
+        @"
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      dsh-playwright-host:
+        specifier: github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0
+        version: https://codeload.github.com/cloga/dsh-playwright-host/tar.gz/$wrongCommit
+      dsh-cron:
+        specifier: github:cloga/dsh-cron#v0.3.3
+        version: https://codeload.github.com/cloga/dsh-cron/tar.gz/$wrongCommit
+"@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
+        $profile = [pscustomobject]@{ dependencies = [pscustomobject]@{
+            'dsh-playwright-host' = 'github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0'
+            'dsh-cron' = 'github:cloga/dsh-cron#v0.3.3'
+        } }
+
+        $states = @(Get-WindowsCopilotOptionalOverlayStates -Lock $lock -ProfileRoot $root -Profile $profile)
+        @($states | Where-Object { -not $_.sourceValid }).Count | Should -Be 0
+        @($states | Where-Object classification -eq 'optional-unknown').Count | Should -Be 2
+        @($states | Where-Object { -not $_.resolvedCommitValid }).Count | Should -Be 2
+
+        @"
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      dsh-playwright-host:
+        specifier: github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0
+        version: https://codeload.github.com/cloga/dsh-playwright-host/tar.gz/e4c8decc5c2e6ae815d974049af2dc33e42743d0
+      dsh-cron:
+        specifier: github:cloga/dsh-cron#v0.3.3
+        version: https://codeload.github.com/cloga/dsh-cron/tar.gz/f5e8df45496523c98874e6f484b886941683f7d6
+"@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
+        $states = @(Get-WindowsCopilotOptionalOverlayStates -Lock $lock -ProfileRoot $root -Profile $profile)
+        @($states | Where-Object classification -eq 'optional-known').Count | Should -Be 2
+    }
+
+    It 'bounds and redacts shareable loader diagnostics' {
+        InModuleScope WindowsCopilotDeployment {
+            $input = "$env:USERPROFILE\private token=super-secret-value " + ('x' * 200)
+            $safe = ConvertTo-WindowsCopilotSafeDiagnostic -Value $input -Limit 80
+            $safe | Should -Match '%USERPROFILE%'
+            $safe | Should -Not -Match 'super-secret-value'
+            $safe | Should -Match '<redacted>'
+            $safe | Should -Match '<truncated>'
+            $safe.Length | Should -BeLessOrEqual 92
+        }
     }
 
     It 'builds client artifacts before artifact-dependent tests from a clean plugin source' {
@@ -726,8 +867,81 @@ basedir=$(dirname "$0")
             }
         )
         $result = Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
-            -CliInfo ([pscustomobject]@{}) -Processes $processes -DryRun
+            -CliInfo ([pscustomobject]@{}) -Processes $processes -LiveSessions @() -DryRun
         $result.processIds | Should -Be @(10)
+    }
+
+    It 'fails closed when session-list response omits an items array' {
+        $malformed = [pscustomobject]@{
+            type = 'server-response'
+            result = [pscustomobject]@{ ok = $true; value = [pscustomobject]@{} }
+        }
+        { Get-WindowsCopilotLiveSessions -Response $malformed } |
+            Should -Throw '*invalid session/list response*'
+    }
+
+    It 'fails closed when a running Session lacks a unique non-empty ID' {
+        $missingId = [pscustomobject]@{ running = $true }
+        $response = [pscustomobject]@{
+            type = 'server-response'
+            result = [pscustomobject]@{
+                ok = $true
+                value = [pscustomobject]@{ items = [object[]]@(
+                    $missingId,
+                    [pscustomobject]@{ sessionId = 'valid'; running = $true }
+                ) }
+            }
+        }
+        { Get-WindowsCopilotLiveSessions -Response $response } |
+            Should -Throw '*unique non-empty IDs*'
+        { Get-WindowsCopilotLiveSessions -Sessions @($missingId) } |
+            Should -Throw '*unique non-empty IDs*'
+        $duplicate = @(
+            [pscustomobject]@{ sessionId = 'same'; running = $true },
+            [pscustomobject]@{ sessionId = 'same'; running = $true }
+        )
+        { Get-WindowsCopilotLiveSessions -Sessions $duplicate } |
+            Should -Throw '*unique non-empty IDs*'
+    }
+
+    It 'blocks Desktop restart while Sessions are live unless interruption is acknowledged' {
+        $caseRoot = Join-Path $TestDrive 'restart-live-session-guard'
+        $desktopPath = Join-Path $caseRoot 'desktop\deepseek-harness-desktop.exe'
+        New-VersionedDesktopFixture -Path $desktopPath -Version '0.10.2'
+        $processes = @([pscustomobject]@{
+            ProcessId = 10
+            ParentProcessId = 0
+            Name = 'deepseek-harness-desktop.exe'
+            ExecutablePath = $desktopPath
+            CommandLine = "`"$desktopPath`""
+        })
+        $live = @([pscustomobject]@{
+            sessionId = 'session-live'
+            title = 'Protected work'
+            origin = 'web'
+            running = $true
+        })
+
+        {
+            Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
+                -Processes $processes -LiveSessions $live
+        } | Should -Throw '*acknowledged Session IDs do not match*'
+        $blocked = Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
+            -Processes $processes -LiveSessions $live -DryRun
+        $blocked.status | Should -Be 'would-block-live-sessions'
+        @($blocked.liveSessions).Count | Should -Be 1
+        $stale = Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
+            -Processes $processes -LiveSessions $live -DryRun `
+            -AcknowledgeLiveSessionIds @('session-old')
+        $stale.status | Should -Be 'would-block-live-sessions'
+        $approved = Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
+            -Processes $processes -LiveSessions $live -DryRun `
+            -AcknowledgeLiveSessionIds @('session-live')
+        $approved.status | Should -Be 'would-restart'
+        $preemptive = Restart-WindowsCopilotDesktop -DesktopExecutablePath $desktopPath `
+            -Processes $processes -LiveSessions @() -DryRun `
+            -AcknowledgeLiveSessionIds @('session-live')
+        $preemptive.status | Should -Be 'would-block-stale-acknowledgement'
     }
 
     It 'accepts only the fork or exact Desktop-managed official runtime selector' {
@@ -1097,12 +1311,13 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
-        $providerArtifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.10.tgz'
+        $providerArtifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
         $providerStage = Join-Path $caseRoot 'provider-stage'
         New-Item -ItemType Directory -Path $providerStage -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-github-copilot') `
             -Destination (Join-Path $providerStage 'package') -Recurse
-        & tar -czf $providerArtifact -C $providerStage package
+        $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+        & $tar -czf $providerArtifact -C $providerStage package
         if ($LASTEXITCODE -ne 0) { throw 'Could not create provider test artifact.' }
         $healthyLock = $lock | ConvertTo-Json -Depth 20 | ConvertFrom-Json
         $healthyLock.components.copilotIntegration.package.artifact.sha256 =
@@ -1110,6 +1325,31 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         Set-WindowsCopilotProfile -Lock $healthyLock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $providerArtifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
             -DesktopExecutablePath $desktopPath -SkipPackageInstall | Out-Null
+        $webManifest = Get-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Raw | ConvertFrom-Json
+        $providerDependency = [string]$webManifest.dependencies.'dsh-github-copilot'
+        foreach ($profile in @('web', 'headless')) {
+            $root = Join-Path $dshHome "profiles\$profile"
+            if ($profile -eq 'headless') {
+                New-Item -ItemType Directory -Path (Join-Path $root 'node_modules') -Force | Out-Null
+                @{ dependencies = @{ 'dsh-github-copilot' = $providerDependency } } |
+                    ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $root 'package.json') -Encoding UTF8
+                Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-github-copilot') `
+                    -Destination (Join-Path $root 'node_modules\dsh-github-copilot') -Recurse -Force
+            }
+            @"
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      dsh-github-copilot:
+        specifier: $providerDependency
+        version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz
+packages:
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz}
+    version: 0.3.0-cloga.11
+"@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
+        }
         Mock Test-LoopbackListener -ModuleName WindowsCopilotDeployment {
             param($HostName, $Port)
             [pscustomobject]@{
@@ -1322,12 +1562,12 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         }
     }
 
-    It 'preserves five official Desktop links and materializes only the provider' {
+    It 'preserves seven official Desktop links and materializes only the provider' {
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
             -NpmGlobalRoot (Join-Path $TestDrive 'global')
         $preserve = @($plan.steps | Where-Object id -eq 'preserve-desktop-internal-plugins')[0]
         $materialize = @($plan.steps | Where-Object id -eq 'materialize-copilot-plugin')[0]
-        $preserve.plugins.Count | Should -Be 5
+        $preserve.plugins.Count | Should -Be 7
         ($preserve.plugins -contains 'dsh-tauri-panel-extension') | Should -Be $true
         $materialize.plugins | Should -Be @('dsh-github-copilot')
     }
@@ -1403,9 +1643,9 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         }
 
         $rejected = @(
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.7/dsh-github-copilot-0.3.0-cloga.10.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/dsh-github-copilot-0.3.0-cloga.11.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/not-dsh-github-copilot-0.3.0-cloga.10.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.7/dsh-github-copilot-0.3.0-cloga.11.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/dsh-github-copilot-0.3.0-cloga.12.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/not-dsh-github-copilot-0.3.0-cloga.11.tgz'
             "file:../../artifacts/wrong-commit/$($lock.components.copilotIntegration.package.artifact.name)"
             "file:../../arbitrary/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
             "https://example.test/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
@@ -1566,7 +1806,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
             Set-Content -LiteralPath $legacyCopilotManifestPath -Encoding UTF8
         Set-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-github-copilot\legacy-sentinel.txt') `
             -Value 'pre-client-handoff-.3' -Encoding UTF8
-        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.10.tgz'
+        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.11.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         $first = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
@@ -1683,7 +1923,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.10.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         $module = Get-Module WindowsCopilotDeployment
@@ -1729,7 +1969,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
         $packageBefore = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.10.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
         Mock Invoke-PinnedPnpmCommands -ModuleName WindowsCopilotDeployment { throw 'fixture pnpm failure' }
 
@@ -1802,7 +2042,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-ui')
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-worktree')
         $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.10.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         {
@@ -2035,7 +2275,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.10.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
         Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
@@ -2417,7 +2657,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         $officialTauri = Join-Path (Split-Path -Parent $desktopPath) 'resources\node_modules\dsh-tauri'
         Set-Content -LiteralPath (Join-Path $officialTauri 'sentinel.txt') -Value 'keep' -Encoding UTF8
         $nodeModules = Join-Path $profileRoot 'node_modules'
-        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.10.tgz'
+        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.11.tgz'
         Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
 
         Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `

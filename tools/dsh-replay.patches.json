@@ -115,16 +115,16 @@
     },
     {
       "id": "github-copilot-optional-tool-arguments",
-      "description": "Verify the managed Copilot route disables strict tool schemas so DSH sandbox escalation arguments remain optional.",
+      "description": "Verify provider-scoped prompt assembly removes unusable escalation properties only for GitHub Copilot.",
       "component": "dsh-github-copilot",
       "files": ["lib\\index.js"],
       "verifyMarkers": [
-        "compat: { supportsStrictMode: false }",
-        "function providerModels(value)",
-        "compat.supportsStrictMode !== false"
+        "const ESCALATION_FIELDS",
+        "assembly.variables.provider !== GITHUB_COPILOT_PROVIDER_ID",
+        "installCopilotToolSchemaCompatibility(ctx)"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/42"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/45"
     },
     {
       "id": "github-copilot-existing-grant-route-self-healing",

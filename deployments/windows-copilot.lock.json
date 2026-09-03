@@ -1,12 +1,23 @@
 {
   "schemaVersion": 1,
-  "deploymentId": "windows-copilot-2026-09-02",
-  "verifiedDate": "2026-09-02",
+  "deploymentId": "windows-copilot-2026-09-03",
+  "verifiedDate": "2026-09-03",
   "platform": {
     "os": "windows",
     "architecture": "x64",
-    "node": "24.19.0",
-    "npm": "11.17.0"
+    "runtimeConstraint": {
+      "node": "^22.19.0 || >=24.0.0"
+    },
+    "verifiedWith": {
+      "node": "24.19.0",
+      "npm": "11.17.0",
+      "pnpm": "11.7.0"
+    },
+    "observedCompatible": {
+      "node": "24.13.0",
+      "npm": "11.6.2",
+      "pnpm": "11.7.0"
+    }
   },
   "components": {
     "desktop": {
@@ -41,7 +52,7 @@
           "root": "%APPDATA%\\io.github.hairyf.deepseek-harness-desktop\\dependencies\\dsh",
           "rootPackage": {
             "name": "deepseek-harness-pkg",
-            "version": "0.1.2-alpha.5",
+            "version": "0.1.2-alpha.4",
             "manifest": "package.json"
           },
           "package": {
@@ -71,6 +82,16 @@
           "relativePath": "resources\\node_modules\\dsh-tauri-panel-extension"
         },
         {
+          "name": "dsh-tauri-rightclick",
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-rightclick"
+        },
+        {
+          "name": "dsh-tauri-session",
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-session"
+        },
+        {
           "name": "dsh-tauri-ui",
           "version": "0.6.7",
           "relativePath": "resources\\node_modules\\dsh-tauri-ui"
@@ -79,6 +100,14 @@
           "name": "dsh-tauri-worktree",
           "version": "0.6.7",
           "relativePath": "resources\\node_modules\\dsh-tauri-worktree"
+        }
+      ],
+      "shippedDependencies": [
+        {
+          "name": "dsh-tauri-panel-placeholder",
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-panel-placeholder",
+          "profileBundle": false
         }
       ]
     },
@@ -151,13 +180,13 @@
     "copilotIntegration": {
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "pullRequest": 42,
-        "commit": "5417abdb4c799bd0b0d5ee25167897998788eabf",
-        "mergeCommit": "938317211c034f16625e4ed36bf3c30763d9c7f6"
+        "pullRequest": 45,
+        "commit": "7db12efadf8afe69fc71fc8daae203c6049e14e7",
+        "mergeCommit": "06b1c307d460cd001c034b8f40e7d13ff6e68278"
       },
       "package": {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.10",
+        "version": "0.3.0-cloga.11",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
@@ -168,9 +197,9 @@
           "lib/remote.js"
         ],
         "artifact": {
-          "name": "dsh-github-copilot-0.3.0-cloga.10.tgz",
-          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/dsh-github-copilot-0.3.0-cloga.10.tgz",
-          "sha256": "80e709c80588bc4ca18e8f4a109d8689bc7d49a9cb9ee16cab0a5c60f9a0bad7"
+          "name": "dsh-github-copilot-0.3.0-cloga.11.tgz",
+          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/dsh-github-copilot-0.3.0-cloga.11.tgz",
+          "sha256": "9e2ec21984fe394e9a8ef09bfa282a5b7107aead8f573171040d84083526f668"
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
@@ -206,7 +235,7 @@
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.10.tgz",
+        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.11.tgz",
         "commands": [
           ["install", "--frozen-lockfile"],
           ["run", "typecheck"],
@@ -246,6 +275,11 @@
     "workspaceManifest": "pnpm-workspace.yaml",
     "lockManifest": "pnpm-lock.yaml",
     "settingsManifest": "settings.yaml",
+    "coherence": {
+      "copilotProfiles": ["web", "headless"],
+      "requireManifestLockInstalledMatch": true,
+      "checkModeMutates": false
+    },
     "legacyPhysicalPlugins": [
       {
         "name": "dsh-tauri",
@@ -266,6 +300,8 @@
       "dsh-tauri",
       "dsh-tauri-panel",
       "dsh-tauri-panel-extension",
+      "dsh-tauri-rightclick",
+      "dsh-tauri-session",
       "dsh-tauri-ui",
       "dsh-tauri-worktree",
       "dsh-github-copilot"
@@ -293,6 +329,20 @@
         "preserve": true
       },
       {
+        "name": "dsh-tauri-rightclick",
+        "version": "0.6.7",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
+      },
+      {
+        "name": "dsh-tauri-session",
+        "version": "0.6.7",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
+      },
+      {
         "name": "dsh-tauri-ui",
         "version": "0.6.7",
         "source": "desktop-internal",
@@ -308,9 +358,27 @@
       },
       {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.10",
+        "version": "0.3.0-cloga.11",
         "source": "built-artifact",
         "materialize": true
+      }
+    ],
+    "optionalOverlays": [
+      {
+        "name": "dsh-playwright-host",
+        "version": "0.1.0",
+        "profile": "web",
+        "source": "github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0",
+        "resolvedCommit": "e4c8decc5c2e6ae815d974049af2dc33e42743d0",
+        "required": false
+      },
+      {
+        "name": "dsh-cron",
+        "version": "0.3.3",
+        "profile": "web",
+        "source": "github:cloga/dsh-cron#v0.3.3",
+        "resolvedCommit": "f5e8df45496523c98874e6f484b886941683f7d6",
+        "required": false
       }
     ],
     "allowBuilds": [
@@ -372,6 +440,11 @@
         "name": "dsh-github-copilot",
         "version": "0.3.0-cloga.9",
         "artifactPattern": "dsh-github-copilot-0.3.0-cloga.9.tgz"
+      },
+      {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.10",
+        "artifactPattern": "dsh-github-copilot-0.3.0-cloga.10.tgz"
       }
     ]
   },
@@ -401,8 +474,9 @@
       "modelsSource": "account-available-installed-catalog-intersection"
     },
     "composedConfig": {
+      "execution": "active-runtime-entry",
       "command": [
-        "dsh",
+        "<active-runtime-entry>",
         "--profile",
         "web",
         "--dump-config"
@@ -482,6 +556,7 @@
       "widerApprovalCount": 1
     },
     "runtimeSchema": {
+      "scope": "historical-diagnostic-only",
       "source": {
         "repository": "github.com/cloga/deepseek-harness",
         "pullRequest": 10,
@@ -517,7 +592,29 @@
           "justification.*required"
         ]
       },
-      "releaseStatus": "development-link-only-until-receipt-release"
+      "releaseStatus": "historical-diagnostic-only"
+    },
+    "copilotToolSchema": {
+      "provider": "github-copilot",
+      "package": {
+        "name": "dsh-github-copilot",
+        "version": "0.3.0-cloga.11"
+      },
+      "source": {
+        "pullRequest": 45,
+        "commit": "7db12efadf8afe69fc71fc8daae203c6049e14e7",
+        "mergeCommit": "06b1c307d460cd001c034b8f40e7d13ff6e68278"
+      },
+      "forbiddenProperties": [
+        "sandbox_permissions",
+        "justification"
+      ],
+      "preserveForOtherProviders": true,
+      "requiresFreshSession": true,
+      "successMarkers": [
+        "PACKAGED_COPILOT_SCHEMA_FILTER_OK",
+        "FRESH_SESSION_PACKAGED_FILTER_OK"
+      ]
     }
   },
   "backup": {

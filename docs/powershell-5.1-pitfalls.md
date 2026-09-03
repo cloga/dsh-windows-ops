@@ -71,6 +71,8 @@ Before emitting every `pwsh` tool call:
 
 安装器应把这段规则**合并**到已有用户指令中，而不是覆盖整个文件；未经用户明确同意，不得静默创建或修改用户的 `AGENTS.md`。
 
+`dsh-github-copilot@0.3.0-cloga.11` 还会仅在选中 `github-copilot` 时从模型可见 Tool Schema 中删除这两个字段，因为实践证明 optional 标记不足以约束该模型；其它 provider 仍保留 DSH 原生的一次性 escalation 字段。Copilot Session 如需更宽权限，应在调用前选择足够的 standing permission。
+
 ## 8. DSH 子进程继承了不完整的 Git 临时配置
 
 Git 用成组环境变量传递一次性配置：`GIT_CONFIG_COUNT=N` 必须同时存在从
@@ -103,3 +105,26 @@ git status
 重新继承启动方提供的环境，所以自动化脚本应在每个 Git 入口执行同一项有界检查。
 如果 `KEY_*` / `VALUE_*` 组完整，则不要清除它们：那些值可能是调用方有意设置的
 代理、TLS 或认证边界。
+
+## 9. 运行中的 Host 可能导致 Profile lockfile 原子替换失败
+
+`dsh plugin add` 会先更新 Profile manifest，再让 pnpm 通过临时文件原子替换
+`pnpm-lock.yaml`。运行中的 Host、文件监控器或杀毒软件可能短暂占用 lockfile，导致：
+
+```text
+EPERM: operation not permitted, rename 'pnpm-lock.yaml.<temporary>' -> 'pnpm-lock.yaml'
+```
+
+此时 `package.json` 可能已经更新，而 lock importer 和已安装包仍停留在旧版本。不要把
+`pnpm install --lockfile=false` 当作最终状态：它只能用于受控恢复。正确流程是先备份
+`package.json`、`pnpm-lock.yaml` 和 Profile patch，在经过 live-Session 检查与用户确认后
+重启 Host，再重新执行相同的 `dsh plugin --profile <name> add <exact-source>`，最后同时验证：
+
+1. manifest dependency specifier；
+2. lock importer 与 tarball/version；
+3. `node_modules` 中的 package version；
+4. exported deployment baseline version；
+5. 本地 artifact SHA-256。
+
+Windows Copilot checker 会对 `web`、`headless` 同时执行上述一致性检查，并以
+`profile-manifest-lock-installed-drift` 报告不一致；默认 Check 模式绝不静默修复。

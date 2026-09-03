@@ -117,7 +117,7 @@ record the policy separately.
 
 Keep the existing preset-owned `subagent` and `subagent_fork` rows. A dedicated
 `subagent_copilot` name is the auditable routing boundary and avoids silently
-changing existing delegation. After changing the host patch, restart the Host;
+changing existing delegation. After changing the host patch, query `session/list` and restart the Host only after the user accepts every listed running-Session interruption;
 new and existing preset types then inherit the global tool on their next session.
 
 ## Validation
@@ -158,7 +158,7 @@ new and existing preset types then inherit the global tool on their next session
    stopReason=end_turn
    ```
 
-5. After restarting the Host, start sessions with more than one available preset
+5. After a restart guarded by the live-Session preflight, start sessions with more than one available preset
    and confirm `subagent_copilot` is present in each tool catalog. In a full
    coding preset, also confirm native `subagent` and `subagent_fork` remain
    present. Run a read-only task through `subagent_copilot`.
@@ -178,11 +178,11 @@ new and existing preset types then inherit the global tool on their next session
 
 ## Rollback
 
-1. Stop the DSH host.
+1. Query `session/list`. Stop the DSH Host only when no Session is running, or after the user explicitly accepts every listed interruption.
 2. Remove both `subagent-copilot-acp` and `tool-subagent-copilot` from the
    profile patch.
 3. Remove the ACP dependency from the profile only if no other row consumes it.
-4. Restart Desktop and verify native `subagent` and `subagent_fork` still work.
+4. Restart Desktop through the same guarded path and verify native `subagent` and `subagent_fork` still work.
 
 Never delete Copilot CLI credentials as part of a DSH rollback unless the user
 explicitly requests account sign-out.

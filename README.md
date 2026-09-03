@@ -8,15 +8,16 @@
 
 ## 当前正式基线
 
-机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-09-02**：
+机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-09-03**：
 
 | 组件 | 锁定版本 |
 |---|---|
 | DeepSeek Harness Desktop | 0.10.2 |
 | 受控 `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
-| Desktop 选择的 `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 或 Desktop 管理的官方 0.1.2-alpha.5 |
-| `dsh-github-copilot` | 0.3.0-cloga.10 |
-| Desktop internal plugins | 官方 5 个 0.6.7 组件，位于 `resources\node_modules` |
+| Desktop 选择的 `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2，或 Desktop 管理的 0.1.2-alpha.4 wrapper + 内层 DSH 0.1.2-alpha.5 |
+| `dsh-github-copilot` | 0.3.0-cloga.11 |
+| Desktop internal plugins | 官方 7 个 Profile 链接及 1 个不直接挂载的 0.6.7 panel placeholder，位于 `resources\node_modules` |
+| 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.0`、`dsh-cron@0.3.3` |
 
 README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。
 
@@ -30,6 +31,7 @@ README、插件目录或历史文档中出现一个项目，**不代表它属于
 | 选择或评估社区插件 | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
 | 理解插件验证等级 | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | 评估 Computer Use / 浏览器自动化 | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
+| 运维可选的 Session 定时调度 | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
 | 查看机器可读插件目录 | [`catalog/plugins.json`](catalog/plugins.json) |
 | 查看改进归属、PR 状态和验证证据 | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |
 
@@ -66,18 +68,19 @@ node tools\validate-plugin-catalog.mjs
 ## 文档地图
 
 - **部署与集成**：`local-core-desktop-copilot.md`、`vision-dual-channel.md`
-- **插件治理**：`docs/plugins/`、`catalog/`
+- **插件治理与可选 overlays**：`docs/plugins/`（包括 `computer-use.md`、`scheduling.md`）及 `catalog/`
 - **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
 - **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`
 - **维护状态**：`improvement-portfolio.md`、`windows-replay-tooling.md`
 
 ## 安全铁律
 
-- 凭据只从 `.env`、环境变量或 DSH credential service 注入，绝不写入 patch、文档、fixture 或提交。
+- 凭据只从用户明确指定的可信来源加载到当前进程或 DSH credential service；优先使用一个集中式 `.env`，绝不打印、跨仓库复制或提交其值。
 - 社区 MCP 默认 read-only；明确需要副作用后再启用写操作。
 - Computer Use、真实浏览器控制和视觉插件可能接触屏幕、Cookie、聊天、密码和本机应用；推荐状态必须与功能验证等级分开。
 - 所有 runtime/配置改动先备份，补丁必须幂等并提供回滚。
-- 保留并校验 Desktop 的 5 个官方 internal-plugin 链接，不用猜测的 registry 包替换。
+- 重启 Desktop/Host 前必须查询 live Sessions；存在 running Session 时必须先取得用户对中断列表的明确确认。
+- 保留并校验 Desktop 的 7 个官方 Profile 链接及不直接挂载的 panel placeholder，不用猜测的 registry 包替换。
 
 详见 [`docs/security-notes.md`](docs/security-notes.md)。
 
@@ -87,9 +90,9 @@ node tools\validate-plugin-catalog.mjs
 
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
-| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和五个 internal plugins | 当前 lock 使用官方 0.10.2 |
+| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和 7 个 Profile plugins 及 1 个 shipped placeholder | 当前 lock 使用官方 0.10.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装、sandbox 策略、严格 pi-ai OAuth JSON 记录规范化和逐模型 API 路由 | 部署精确 pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 一个包含 rc.2 Desktop 客户端 ModuleLoader handoff、严格 Remote 结果 codec、严格 JSON OAuth grant 规范化、已有 grant 路由自愈、账户过滤逐模型 API 物化，以及通过普通 JSON-schema 调用保留可选 sandbox 参数的 DSH 插件，复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 OAuth、刷新、Copilot 直连和 hosted search；修复后的路由保持无引用并包含完整的混合协议 `{id, api}`；不包含 ACP | 部署精确 pin `5417abdb` / `0.3.0-cloga.10` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 一个包含 rc.2 Desktop 客户端 ModuleLoader handoff、严格 Remote 结果 codec、严格 JSON OAuth grant 规范化、已有 grant 路由自愈、账户过滤逐模型 API 物化，并仅从 Copilot Tool Schema 删除不可用的 sandbox escalation 字段、同时保留其它 provider 原生 schema 的 DSH 插件，复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 OAuth、刷新、Copilot 直连和 hosted search；修复后的路由保持无引用并包含完整的混合协议 `{id, api}`；不包含 ACP | 部署精确 pin `7db12efa` / `0.3.0-cloga.11` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 
 历史 ACP 子代理实践仍保留在

@@ -1,0 +1,17 @@
+{
+  "name": "dsh-playwright-host",
+  "version": "0.1.0",
+  "description": "Host-scope Microsoft Playwright MCP bundle for DeepSeek Harness on Windows.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "cordis.patch.yml",
+    "README.md"
+  ]
+}

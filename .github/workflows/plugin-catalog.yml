@@ -11,6 +11,8 @@ on:
       - 'tools/validate-plugin-catalog.mjs'
       - 'tools/dsh-doctor.mjs'
       - 'tools/dsh-dev-tools/**'
+      - 'tools/dsh-playwright-host/**'
+      - 'tests/host-playwright-bundle.test.mjs'
       - 'tests/plugin-catalog.test.mjs'
       - 'deployments/windows-copilot.lock.json'
   push:
@@ -23,6 +25,8 @@ on:
       - 'tools/validate-plugin-catalog.mjs'
       - 'tools/dsh-doctor.mjs'
       - 'tools/dsh-dev-tools/**'
+      - 'tools/dsh-playwright-host/**'
+      - 'tests/host-playwright-bundle.test.mjs'
       - 'tests/plugin-catalog.test.mjs'
       - 'deployments/windows-copilot.lock.json'
 
@@ -41,7 +45,7 @@ jobs:
         shell: powershell
         run: |
           node tools\validate-plugin-catalog.mjs
-          node --test tests\plugin-catalog.test.mjs
+          node --test tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs
           node --check tools\dsh-compat-check.mjs
           node --check tools\validate-plugin-catalog.mjs
           node --check tools\dsh-doctor.mjs

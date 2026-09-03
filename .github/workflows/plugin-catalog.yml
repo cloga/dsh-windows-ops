@@ -62,7 +62,6 @@ jobs:
           test -f SECURITY.md
           test -f .github/PULL_REQUEST_TEMPLATE.md
           test -f .github/ISSUE_TEMPLATE/config.yml
-          test -f .github/ISSUE_TEMPLATE/bug.yml
-          test -f .github/ISSUE_TEMPLATE/feature.yml
+          test -f .github/ISSUE_TEMPLATE/deployment-bug.yml
           test -f .github/CODEOWNERS
           grep -Fq 'Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>' AGENTS.md

@@ -84,10 +84,11 @@ screenshots, Console inspection, and network inspection. Community wrappers
 that embed a live browser panel remain candidates until they independently
 pass the repository validation ladder.
 
-Mount the MCP client in a **user-authored Agent Preset**, not in the Host
-composition and never by editing a shipped preset. Pin the upstream version and
-upgrade it deliberately. This Windows example uses installed Microsoft Edge
-and an isolated, disposable browser profile:
+For tools that must be visible under every Agent Preset, install the reviewed
+`tools/dsh-playwright-host/` Profile Bundle. It mounts the MCP client in the
+Host composition without editing a shipped preset. Pin the upstream version
+and upgrade it deliberately. The bundle uses installed Microsoft Edge and an
+isolated, disposable browser profile:
 
 ```yaml
 - id: mcp-playwright
@@ -115,10 +116,12 @@ profile, or disable origin controls merely for convenience. A normal isolated
 browser can navigate to loopback DSH URLs without an unrestricted filesystem
 or desktop grant.
 
-After editing the preset, mount-validate it with the live Agent Preset roster,
-then start a **new session** on that preset so its MCP tools enter the tool
-catalog. Browser launch is lazy, so a successful preset mount is necessary but
-not sufficient evidence. For a DSH Web change, verify the already-running GUI
+Stage the bundle with `dsh plugin --profile web add link:<absolute-bundle-path>`
+and inspect `dsh --profile web --dump-config`. Do not restart while other
+Sessions are live. After an explicitly authorized Host restart, create a new
+Session with any Preset and confirm the `mcp__playwright__*` tools are present.
+Browser launch is lazy, so successful composition is necessary but not
+sufficient evidence. For a DSH Web change, verify the already-running GUI
 (normally `http://127.0.0.1:3080`) rather than starting a replacement server:
 
 1. navigate to the existing GUI and capture an accessibility snapshot;
@@ -131,11 +134,16 @@ A successful build without this browser pass is not sufficient UI validation.
 Record the exact DSH and Playwright MCP versions with any failure because both
 are prerelease-sensitive integration surfaces.
 
+The current Host bundle owns one MCP stdio process. `--isolated` protects the
+user's everyday Edge profile but does not isolate DSH Sessions from one another;
+concurrent Sessions can change the same pages, tabs, snapshot references,
+Cookies, and close state. Use it from one Session at a time until a future Host
+provider keys BrowserContexts or MCP processes by Agent Session id.
+
 ### Preset-independent fallback for every coding session
 
-A coding session that did not start on the Playwright MCP preset cannot switch
-its own preset, and delegated subagents inherit the parent's composed preset.
-That must not prevent self-verification. Install the reviewed Python binding pin
+If the Host bundle is staged but not activated, unavailable, or already in use
+by another Session, that must not prevent self-verification. Install the reviewed Python binding pin
 once at user scope; it uses the installed Edge channel and does not require a
 separate Chromium download:
 

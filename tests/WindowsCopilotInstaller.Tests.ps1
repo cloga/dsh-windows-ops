@@ -1404,7 +1404,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
 
         $rejected = @(
             'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.7/dsh-github-copilot-0.3.0-cloga.10.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/dsh-github-copilot-0.3.0-cloga.9.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/dsh-github-copilot-0.3.0-cloga.11.tgz'
             'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/not-dsh-github-copilot-0.3.0-cloga.10.tgz'
             "file:../../artifacts/wrong-commit/$($lock.components.copilotIntegration.package.artifact.name)"
             "file:../../arbitrary/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"

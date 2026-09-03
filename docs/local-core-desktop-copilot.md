@@ -9,9 +9,9 @@ is the machine-readable deployment contract.
 |---|---|
 | Desktop | official `0.10.2`, commit `2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63` |
 | Controlled CLI | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `a772dbbde82780bff2b9394427e9f0a24cafa1d5`, maintenance branch `cloga-pi-ai-model-api` |
-| Desktop runtime | either the controlled fork above or Desktop 0.10.2's managed wrapper `deepseek-harness-pkg@0.1.2-alpha.4` containing inner `@deepseek-ai/dsh@0.1.2-alpha.5` under `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh`; the inner package contains 10 files with tree SHA-256 `89fda474f818bdab5b4f07305c231868bb615b051d45f411ec6f364e21384b22` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.13`, source commit `6236330414eeac021d8c8bf57b9aa08cd76a04e8`, merge commit `adfce229042c8fb4d5450b2ebb930ced6e514106`, PR #48 |
-| Plugin artifact | Immutable Release [`dsh-github-copilot-0.3.0-cloga.13.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/dsh-github-copilot-0.3.0-cloga.13.tgz), SHA-256 `fbe7861382d2e32be50c37696ffb806a7b2bce3817efc01cac28c6c51e45b957`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/SHA256SUMS) |
+| Desktop runtime | either the controlled fork above or Desktop 0.10.2's managed wrapper `deepseek-harness-pkg@0.1.2-alpha.4` containing inner `@deepseek-ai/dsh@0.1.2-rc.1` under `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh`; the inner package contains 10 files with tree SHA-256 `4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea` |
+| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.14`, source commit `8216a2aa7a3638cfd614651f29ef585d824af3a6`, merge commit `30288e525219a57da4c1ef72164998e120e25ec0`, PR #50 |
+| Plugin artifact | Immutable Release [`dsh-github-copilot-0.3.0-cloga.14.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/dsh-github-copilot-0.3.0-cloga.14.tgz), SHA-256 `c7e05eeefc0edf28324d01ee55e85bb4297d8c26ce982d51009a7019ac49aa96`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/SHA256SUMS) |
 | Desktop artifact | [`Deepseek.Harness.Desktop_0.10.2_x64-setup.exe`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe), SHA-256 `54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa` |
 | Desktop internal plugins | the seven official Profile `0.6.7` links plus the non-bundled panel placeholder into `resources\node_modules` |
 
@@ -94,9 +94,9 @@ The fourteen required plugin capabilities are copied exactly from its exported
 14. `dsh-rc2-models-settings-fallback`
 
 The plugin has runtime dependencies on `@deepseek-ai/dsh-authorization` across
-the supported `0.1.1-rc.2` and `0.1.2-alpha.5` ranges and on `zod@^4.4.3` for
+the supported `0.1.1-rc.2` and `0.1.2-rc.1` ranges and on `zod@^4.4.3` for
 strict client Remote result validation. It bootstraps the authorization service
-before integration activation on rc.2 and reuses the existing alpha.5 service
+before integration activation on rc.2 and reuses the existing rc.1 service
 without duplicate registration. ACP subagents remain separate; see
 [`copilot-acp-subagent.md`](copilot-acp-subagent.md).
 
@@ -115,7 +115,7 @@ applying them, supply both paths in the same default check mode:
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\install-windows-copilot.ps1 `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
-  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz
+  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.14.tgz
 ```
 
 Check mode validates the lock, Desktop, the controlled Core receipt and
@@ -124,8 +124,8 @@ payload, composed configuration, credential-record metadata, the reference-free
 Copilot route, complete per-model `{id, api}` entries with mixed protocol
 coverage, and Desktop listener ownership. The running Desktop backend must select
 either the exact receipted fork entrypoint or Desktop 0.10.2's exact managed
-official `0.1.2-alpha.5` entrypoint. The latter is accepted only at the locked
-AppData dependency root with the exact alpha.4 wrapper, alpha.5 inner package, file count, and tree hash; an absent runtime,
+official `0.1.2-rc.1` entrypoint. The latter is accepted only at the locked
+AppData dependency root with the exact alpha.4 wrapper, rc.1 inner package, file count, and tree hash; an absent runtime,
 unknown version, unrelated bundled Core, or legacy gateway fails closed.
 
 For both `web` and `headless`, check mode compares the Copilot dependency in
@@ -140,7 +140,7 @@ A missing `llm-pi-ai/github-copilot` grant is reported as
 
 Use the exact source checkouts, locked Desktop installer, and immutable Copilot
 Release tarball. The plugin checkout must be at source commit
-`6236330414eeac021d8c8bf57b9aa08cd76a04e8`; it supplies independently reviewed
+`8216a2aa7a3638cfd614651f29ef585d824af3a6`; it supplies independently reviewed
 source metadata, while the installed bytes come from the release artifact whose
 name and SHA-256 are locked above.
 
@@ -150,7 +150,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -Apply `
   -HarnessSourceRoot C:\src\deepseek-harness `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
-  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz `
+  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.14.tgz `
   -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.10.2_x64-setup.exe `
   -CoreInstallPrefix C:\.tools\dsh-cloga `
   -CoreInstallTimeoutSeconds 900 `
@@ -166,7 +166,7 @@ physically materializes only the Copilot plugin, and activates the local CLI
 through `DSH_CLI_PATH`. It never substitutes a locally repacked plugin archive
 for the locked Release bytes.
 
-Desktop 0.10.2 may nevertheless use its own managed official `0.1.2-alpha.5`
+Desktop 0.10.2 may nevertheless use its own managed official `0.1.2-rc.1`
 runtime; restart acceptance attests that selector from the Desktop process tree
 and locked on-disk package metadata rather than requiring Desktop to honor
 `DSH_CLI_PATH`.
@@ -193,7 +193,7 @@ The historical script name remains as a compatibility wrapper:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\enable-copilot-search-vision.ps1 `
-  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz
+  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.14.tgz
 ```
 
 The package argument may be the exact locked GitHub Release URL or a local copy
@@ -207,13 +207,13 @@ The wrapper reads `deployments\windows-copilot.lock.json` by default and
 requires the exact locked Desktop executable. It always uses the receipted
 controlled CLI for plugin commands, while the active Desktop backend may use
 either the controlled selector or the exact lock-attested Desktop-managed
-`0.1.2-alpha.5` selector. Override `-DeploymentLockPath` or
+`0.1.2-rc.1` selector. Override `-DeploymentLockPath` or
 `-DesktopExecutablePath` only for an equivalent reviewed deployment.
 
 The shell does not automate the interactive device flow:
 
 - on `0.1.1-rc.2`, open **Settings → GitHub Copilot**;
-- on `0.1.2-alpha.5`, open **Models**, then the **GitHub Copilot** provider
+- on `0.1.2-rc.1`, open **Models**, then the **GitHub Copilot** provider
   card.
 
 Complete the displayed GitHub device flow. DSH writes the shared grant and an
@@ -232,10 +232,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 ## Optional Web-profile overlays
 
-The current reviewed machine overlay may include `dsh-playwright-host@0.1.0`
-from immutable commit `e4c8decc5c2e6ae815d974049af2dc33e42743d0` and
-`dsh-cron@0.3.3` from tag `v0.3.3` (commit
-`f5e8df45496523c98874e6f484b886941683f7d6`). They are reported as known
+The current reviewed machine overlay may include `dsh-playwright-host@0.1.2`
+from immutable commit `2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac` and
+`dsh-cron@0.4.1` from tag `v0.4.1` (commit
+`5f99313e110932195821d924259b2836947271f3`). They are reported as known
 optional additions and are not required by the Windows Copilot baseline. See
 [`computer-use.md`](plugins/computer-use.md) and
 [`scheduling.md`](plugins/scheduling.md). Unknown additions remain visible and
@@ -343,8 +343,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 The probe detects stale Pwsh schemas and returns `STALE_RUNTIME_SCHEMA` instead
 of a success-shaped result. Its positive session fields remain user-supplied,
 so it cannot attest or gate the current locked controlled `0.1.1-rc.2` or
-Desktop-managed `0.1.2-alpha.5` deployment health.
-The current alpha.5 acceptance path is separate: the locked `.13` Copilot
+Desktop-managed `0.1.2-rc.1` deployment health.
+The current rc.1 acceptance path is separate: the locked `.14` Copilot
 package removes `sandbox_permissions` and `justification` only from
 `github-copilot` assemblies, preserves other providers, requires a Host restart,
 and records both packaged current-Session and fresh-Session success markers in

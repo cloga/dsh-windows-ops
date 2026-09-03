@@ -44,7 +44,7 @@ reasons. Real `Apply` remains exact-marker based and backs up changed files.
 
 ## Direct Copilot markers
 
-The `.13` baseline checks:
+The `.14` baseline checks:
 
 | Component | Evidence |
 |---|---|
@@ -55,15 +55,15 @@ The `.13` baseline checks:
 | Per-model API routes | account models materialize their installed protocol and model selection prefers it over a route fallback |
 | Copilot tool-schema filter | prompt assembly removes `sandbox_permissions` and `justification` only when the selected provider is `github-copilot`; non-Copilot schemas remain unchanged, and packaged current/fresh Session probes must pass after restart |
 | `dsh-github-copilot` host | shared `llm-pi-ai/github-copilot` credential record and `Models.getAuth()` refresh |
-| Authorization service | rc.2 bootstrap before plugin activation and alpha.5 existing-service reuse |
+| Authorization service | rc.2 bootstrap before plugin activation and rc.1 existing-service reuse |
 | Direct hosted search | Responses/Anthropic inline search, Responses-only `ctx.web`, default bounded proof with explicit `probe: false` bypass, and validated GitHub-hosted/Enterprise endpoints |
-| Client UI | alpha.5 Models provider-card and rc.2 Settings fallback |
+| Client UI | rc.1 Models provider-card and rc.2 Settings fallback |
 | Core | renderer `SlotOutlet` compatibility, sandbox regression, and built `llm-pi-ai` strict OAuth JSON normalization plus model-level protocol markers |
 | Desktop | official 0.10.2 `deepseek-harness-desktop.exe` inventory and no-open recovery marker where still required |
 
-The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.13`, source commit
-`6236330414eeac021d8c8bf57b9aa08cd76a04e8`, immutable Release artifact SHA-256
-`fbe7861382d2e32be50c37696ffb806a7b2bce3817efc01cac28c6c51e45b957`.
+The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.14`, source commit
+`8216a2aa7a3638cfd614651f29ef585d824af3a6`, immutable Release artifact SHA-256
+`c7e05eeefc0edf28324d01ee55e85bb4297d8c26ce982d51009a7019ac49aa96`.
 
 Replay checks package/source markers only. Credential acceptance is performed
 by the deployment/bootstrap modules and reports record key, kind, and status

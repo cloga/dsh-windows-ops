@@ -71,7 +71,7 @@ Before emitting every `pwsh` tool call:
 
 安装器应把这段规则**合并**到已有用户指令中，而不是覆盖整个文件；未经用户明确同意，不得静默创建或修改用户的 `AGENTS.md`。
 
-`dsh-github-copilot@0.3.0-cloga.13` 还会仅在选中 `github-copilot` 时，从组装出的每个 Tool Schema 顶层删除这两个字段，以避免已观察到的无效 Copilot payload；其它 provider 保持 DSH 原生 schema。Copilot Session 如需更宽权限，应在调用前选择足够的 standing permission。
+`dsh-github-copilot@0.3.0-cloga.14` 还会仅在选中 `github-copilot` 时，从组装出的每个 Tool Schema 顶层删除这两个字段，以避免已观察到的无效 Copilot payload；其它 provider 保持 DSH 原生 schema。Copilot Session 如需更宽权限，应在调用前选择足够的 standing permission。
 
 ## 8. DSH 子进程继承了不完整的 Git 临时配置
 

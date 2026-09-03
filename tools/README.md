@@ -8,7 +8,7 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 |---|---|---:|---|
 | Check the locked Desktop/Core/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply`; compares web/headless manifest, lockfile, installed baseline, and artifact hash |
 | Apply and activate the exact locked fork Core | Same command with Core/plugin source roots, `-CopilotIntegrationArtifactPath <locked-release.tgz>`, Desktop artifact, and `-Apply`; add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after the user accepts every listed interruption | High | Receipt-backed controlled CLI, hash-verified immutable Copilot Release bytes, persisted `DSH_CLI_PATH`, quarantined conflicting npm shims, rollback receipt, and an exact supported Desktop runtime selector |
-| Verify the locked rc.2 controlled CLI and Desktop runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop selecting either that fork or the exact alpha.4 wrapper containing the locked alpha.5 inner CLI |
+| Verify the locked rc.2 controlled CLI and Desktop runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop selecting either that fork or the exact alpha.4 wrapper containing the locked rc.1 inner CLI |
 | Roll back Core selection | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback` (add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after explicit interruption approval) | Environment and shim restore | Restores the previous user `DSH_CLI_PATH` and exact backed-up npm global shims |
 | Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Defaults to the canonical locked Release URL, hash-checks any local tarball, rejects registry/arbitrary specs, upgrades both profiles through the receipted CLI, and returns `sign-in-required` until UI authorization completes |
 | Check versions and direct-provider/Core replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Includes built `llm-pi-ai` OAuth JSON normalization and per-model API route evidence; no local gateway endpoint |
@@ -18,8 +18,8 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Validate repository/lock/doc parity | `node tools\validate-repository-content.mjs` | None | Rejects source, Release, version, fixture, capability, and README drift |
 | Validate plugin catalog metadata | `node tools\validate-plugin-catalog.mjs` | None | Rejects invalid evidence, mutable baseline Releases, and false baseline claims |
 | Detect duplicate sessions | `powershell.exe -File tools\check-session-duplicates.ps1` | None | Report only |
-| Install Playwright MCP tools for every Agent Preset | `dsh plugin --profile web add github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0` | Web Profile composition; activation requires authorized Host restart | `--dump-config`, bundle tests, then post-restart tool discovery and browser smoke; remove with `dsh plugin --profile web remove dsh-playwright-host` |
-| Install the optional scheduler overlay | `dsh plugin --profile web add github:cloga/dsh-cron#v0.3.3` | Web Profile composition; activation requires restart safety check | Verify `cron_list`, create/remove a disposable task if authorized, and back up task/history files; see `docs/plugins/scheduling.md` |
+| Install Playwright MCP tools for every Agent Preset | `dsh plugin --profile web add github:cloga/dsh-playwright-host#v0.1.2` | Web Profile composition; activation requires authorized Host restart | `--dump-config`, bundle tests, then post-restart tool discovery and browser smoke; remove with `dsh plugin --profile web remove dsh-playwright-host` |
+| Install the optional scheduler overlay | `dsh plugin --profile web add github:cloga/dsh-cron#v0.4.1` | Web Profile composition; activation requires restart safety check | Verify `cron_list`, create/remove a disposable task if authorized, and back up task/history files; see `docs/plugins/scheduling.md` |
 | Smoke-test the existing DSH Web GUI from any coding session | `python tools\dsh-web-smoke.py --expect-text "New Session"` | Browser read/isolated profile only | Screenshot plus JSON summary with document, Console, request, and HTTP evidence |
 | Move a session safely | `node tools\dsh-move-session.mjs ...` | Session data | Backup and post-write verification |
 
@@ -44,7 +44,7 @@ the old `-ProviderSourceRoot` spelling remains an alias.
 The direct baseline is one DSH plugin reusing built-in `llm-pi-ai`, not an
 embedded gateway. The wrapper never writes provider routes, endpoints, API-key
 references, or model lists. Use **Settings → GitHub Copilot** on rc.2 or the
-**Models** provider card on alpha.5 for the interactive device flow.
+**Models** provider card on rc.1 for the interactive device flow.
 
 ## Plugin validation boundary
 

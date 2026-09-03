@@ -2,48 +2,100 @@
   "schemaVersion": 1,
   "updatedAt": "2026-09-03",
   "validationLevels": [
-    { "id": "L0", "name": "Discovered", "description": "The project was located, but its source and runtime behavior have not been reviewed." },
-    { "id": "L1", "name": "Source reviewed", "description": "Package metadata, composition files, lifecycle scripts, permissions, and obvious risks were reviewed." },
-    { "id": "L2", "name": "Import compatible", "description": "Static dependency analysis and a real host-entry import probe passed in the named environment." },
-    { "id": "L3", "name": "Composition mounted", "description": "An isolated DSH profile started with all expected Cordis rows active and tools registered." },
-    { "id": "L4", "name": "Functional smoke", "description": "At least one representative end-to-end capability completed successfully in a controlled target." },
-    { "id": "L5", "name": "Deployment validated", "description": "Exact source or artifact identity, acceptance checks, security notes, and rollback steps are recorded." },
-    { "id": "baseline", "name": "Locked baseline", "description": "The exact component is part of a maintained deployment lock and its complete acceptance contract." }
+    {
+      "id": "L0",
+      "name": "Discovered",
+      "description": "The project was located, but its source and runtime behavior have not been reviewed."
+    },
+    {
+      "id": "L1",
+      "name": "Source reviewed",
+      "description": "Package metadata, composition files, lifecycle scripts, permissions, and obvious risks were reviewed."
+    },
+    {
+      "id": "L2",
+      "name": "Import compatible",
+      "description": "Static dependency analysis and a real host-entry import probe passed in the named environment."
+    },
+    {
+      "id": "L3",
+      "name": "Composition mounted",
+      "description": "An isolated DSH profile started with all expected Cordis rows active and tools registered."
+    },
+    {
+      "id": "L4",
+      "name": "Functional smoke",
+      "description": "At least one representative end-to-end capability completed successfully in a controlled target."
+    },
+    {
+      "id": "L5",
+      "name": "Deployment validated",
+      "description": "Exact source or artifact identity, acceptance checks, security notes, and rollback steps are recorded."
+    },
+    {
+      "id": "baseline",
+      "name": "Locked baseline",
+      "description": "The exact component is part of a maintained deployment lock and its complete acceptance contract."
+    }
   ],
   "plugins": [
     {
       "id": "dsh-github-copilot",
       "displayName": "DSH GitHub Copilot",
       "package": "dsh-github-copilot",
-      "categories": ["model-provider", "search"],
+      "categories": [
+        "model-provider",
+        "search"
+      ],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.3.0-cloga.13.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/dsh-github-copilot-0.3.0-cloga.13.tgz",
-        "sha256": "fbe7861382d2e32be50c37696ffb806a7b2bce3817efc01cac28c6c51e45b957",
-        "releaseTag": "v0.3.0-cloga.13",
+        "name": "dsh-github-copilot-0.3.0-cloga.14.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/dsh-github-copilot-0.3.0-cloga.14.tgz",
+        "sha256": "c7e05eeefc0edf28324d01ee55e85bb4297d8c26ce982d51009a7019ac49aa96",
+        "releaseTag": "v0.3.0-cloga.14",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/SHA256SUMS"
+        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/SHA256SUMS",
+        "size": 147204,
+        "checksumManifestSha256": "92f7adeb59cc6cd6c5e5aec2edc9adc1d13d3f8ca0e846d53369f6051a9d7c82",
+        "checksumManifestSize": 104
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "6236330414eeac021d8c8bf57b9aa08cd76a04e8",
-        "mergeCommit": "adfce229042c8fb4d5450b2ebb930ced6e514106",
-        "pullRequest": 48,
-        "release": "0.3.0-cloga.13"
+        "commit": "8216a2aa7a3638cfd614651f29ef585d824af3a6",
+        "mergeCommit": "30288e525219a57da4c1ef72164998e120e25ec0",
+        "pullRequest": 50,
+        "release": "0.3.0-cloga.14"
       },
-      "platforms": ["cross-platform"],
+      "platforms": [
+        "cross-platform"
+      ],
       "recommendation": "recommended",
       "validation": {
         "level": "baseline",
         "verifiedAt": "2026-09-03",
-        "dshVersion": "controlled 0.1.1-rc.2 / 0.1.2-alpha.5",
+        "dshVersion": "controlled 0.1.1-rc.2 / 0.1.2-rc.1",
         "nodeVersion": "24.19.0",
         "evidence": [
-          { "kind": "deployment-lock", "description": "The Windows Copilot deployment lock pins official Desktop 0.10.2, its seven Profile links, and its non-bundled panel placeholder together with the Copilot artifact, source commit, build commands, and required capabilities.", "path": "deployments/windows-copilot.lock.json" },
-          { "kind": "import-probe", "description": "The maintained web and headless Profiles completed real host-entry import probes without fatal imports.", "path": "docs/local-core-desktop-copilot.md" },
-          { "kind": "composition-mount", "description": "The validated Profiles loaded the expected plugin composition and registered the supported capabilities.", "path": "docs/local-core-desktop-copilot.md" },
-          { "kind": "functional-smoke", "description": "The controlled rc.2 Desktop client handoff, strict Remote codecs and OAuth JSON normalization, authorization fallback, leaf-only account model reconciliation, mixed per-model protocols, provider-scoped Tool Schema filtering, direct GitHub-hosted and Enterprise Copilot endpoints, dual-protocol inline search, Responses-only ctx.web search, default capability probing, and explicit probe bypass semantics are documented.", "path": "docs/local-core-desktop-copilot.md" }
+          {
+            "kind": "deployment-lock",
+            "description": "The Windows Copilot deployment lock pins official Desktop 0.10.2, its seven Profile links, and its non-bundled panel placeholder together with the Copilot artifact, source commit, build commands, and required capabilities.",
+            "path": "deployments/windows-copilot.lock.json"
+          },
+          {
+            "kind": "import-probe",
+            "description": "The maintained web and headless Profiles completed real host-entry import probes without fatal imports.",
+            "path": "docs/local-core-desktop-copilot.md"
+          },
+          {
+            "kind": "composition-mount",
+            "description": "The validated Profiles loaded the expected plugin composition and registered the supported capabilities.",
+            "path": "docs/local-core-desktop-copilot.md"
+          },
+          {
+            "kind": "functional-smoke",
+            "description": "The controlled rc.2 Desktop handoff, strict Remote codecs and OAuth JSON normalization, authorization fallback, leaf-only account model reconciliation, mixed per-model protocols, Copilot-scoped removal of unusable escalation fields, direct GitHub-hosted and Enterprise Copilot endpoints, dual-protocol inline search, Responses-only ctx.web search, default capability probing, and explicit probe bypass semantics are documented.",
+            "path": "docs/local-core-desktop-copilot.md"
+          }
         ]
       },
       "security": {
@@ -52,7 +104,11 @@
         "usesExistingBrowserProfile": false,
         "sendsDataExternally": true,
         "approvalGate": false,
-        "notes": ["Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.", "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.", "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration."]
+        "notes": [
+          "Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.",
+          "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.",
+          "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration."
+        ]
       },
       "summary": "The locked DSH companion for Copilot sign-in, account-aware leaf-only model reconciliation, strict Host-only grant handling, provider-scoped Tool compatibility, dual-protocol inline search, and Responses-only ctx.web search through validated GitHub-hosted or Enterprise endpoints; no second adapter, embedded gateway, or ACP scope."
     },
@@ -60,25 +116,48 @@
       "id": "dsh-playwright-host",
       "displayName": "DSH Playwright Host",
       "package": "dsh-playwright-host",
-      "categories": ["browser-automation", "testing"],
+      "categories": [
+        "browser-automation",
+        "testing"
+      ],
       "integration": "cordis",
       "source": {
         "repository": "https://github.com/cloga/dsh-playwright-host",
-        "commit": "e4c8decc5c2e6ae815d974049af2dc33e42743d0",
-        "release": "0.1.0"
+        "commit": "a7f63e2c3565008e1c614023afb1c3110fd62fff",
+        "release": "0.1.2",
+        "mergeCommit": "2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac",
+        "pullRequest": 6
       },
-      "platforms": ["windows"],
+      "platforms": [
+        "windows"
+      ],
       "recommendation": "conditional",
       "validation": {
         "level": "L4",
         "verifiedAt": "2026-09-03",
-        "dshVersion": "0.1.2-alpha.5",
+        "dshVersion": "0.1.2-rc.1",
         "nodeVersion": "24.13.0",
         "evidence": [
-          { "kind": "source-review", "description": "The Host-wide shared-process and isolated-browser boundaries are reviewed and documented.", "path": "docs/plugins/computer-use.md" },
-          { "kind": "import-probe", "description": "Static bundle tests verify the package and composed MCP markers before activation.", "path": "tests/host-playwright-bundle.test.mjs" },
-          { "kind": "composition-mount", "description": "The Web profile resolves one Host-scope Playwright MCP using the immutable source commit, isolated Microsoft Edge, and pinned MCP version.", "path": "tools/dsh-playwright-host/README.md" },
-          { "kind": "functional-smoke", "description": "Host MCP navigated the existing DSH GUI, captured accessibility state, and inspected browser requests after activation.", "path": "docs/plugins/computer-use.md" }
+          {
+            "kind": "source-review",
+            "description": "The Host-wide shared-process and isolated-browser boundaries are reviewed and documented.",
+            "path": "docs/plugins/computer-use.md"
+          },
+          {
+            "kind": "import-probe",
+            "description": "Static bundle tests and the exact a66e470 rc.1 source-seam test verify Git commit identity, packaged Release bytes, and composed MCP lifecycle markers before activation.",
+            "path": "tests/host-playwright-bundle.test.mjs"
+          },
+          {
+            "kind": "composition-mount",
+            "description": "The Web profile resolves immutable v0.1.2, release artifact SHA-256, resolved commit 2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac, isolated Microsoft Edge, and the pinned MCP version.",
+            "path": "tools/dsh-playwright-host/README.md"
+          },
+          {
+            "kind": "functional-smoke",
+            "description": "Host MCP navigated the existing DSH GUI, captured accessibility state, and inspected browser requests after activation.",
+            "path": "docs/plugins/computer-use.md"
+          }
         ]
       },
       "security": {
@@ -87,33 +166,61 @@
         "usesExistingBrowserProfile": false,
         "sendsDataExternally": true,
         "approvalGate": false,
-        "notes": ["Uses an isolated Edge profile but one Host-owned MCP process is shared across Sessions.", "Browser tools can navigate to external sites and submit user-directed data; isolation does not prevent network transmission.", "Optional Web overlay; not required by the Windows Copilot deployment lock."]
+        "notes": [
+          "Uses an isolated Edge profile but one Host-owned MCP process is shared across Sessions.",
+          "Browser tools can navigate to external sites and submit user-directed data; isolation does not prevent network transmission.",
+          "Optional Web overlay; not required by the Windows Copilot deployment lock."
+        ]
       },
-      "summary": "Optional Host-wide Playwright MCP bundle for isolated Edge testing of the existing DSH GUI."
+      "summary": "Optional Host-wide Playwright MCP bundle for isolated Edge testing of the existing DSH GUI.",
+      "artifact": {
+        "name": "dsh-playwright-host-0.1.2.tgz",
+        "url": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/dsh-playwright-host-0.1.2.tgz",
+        "sha256": "18e4e2d29429a94f495d9507188282e6157f11c2ef75fa076b54b30c03ac0cf2",
+        "size": 3659,
+        "releaseTag": "v0.1.2",
+        "releaseImmutable": true,
+        "checksumManifestUrl": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/SHA256SUMS",
+        "checksumManifestSha256": "06647ede584dad3055508733f17cd720f4ebf149c2cd73d680497e7117247e84",
+        "checksumManifestSize": 96
+      }
     },
     {
       "id": "dsh-cron",
       "displayName": "DSH Cron",
       "package": "dsh-cron",
-      "categories": ["scheduling", "automation"],
+      "categories": [
+        "scheduling",
+        "automation"
+      ],
       "integration": "cordis",
       "source": {
         "repository": "https://github.com/cloga/dsh-cron",
-        "commit": "f5e8df45496523c98874e6f484b886941683f7d6",
-        "release": "0.3.3"
+        "commit": "e0ecca9e18a66fe0acecec6dfc6cc6faaa9520b2",
+        "release": "0.4.1",
+        "mergeCommit": "5f99313e110932195821d924259b2836947271f3",
+        "pullRequest": 12
       },
-      "platforms": ["cross-platform"],
+      "platforms": [
+        "cross-platform"
+      ],
       "recommendation": "conditional",
       "validation": {
-        "level": "L4",
+        "level": "L2",
         "verifiedAt": "2026-09-03",
-        "dshVersion": "0.1.1-rc.2 / 0.1.2-alpha.5",
-        "nodeVersion": "24.13.0",
+        "dshVersion": "0.1.2-rc.1",
+        "nodeVersion": "^22.19.0 || >=24.0.0",
         "evidence": [
-          { "kind": "source-review", "description": "The scheduler lifecycle, persistence, cold wake, and Windows notification limitation are reviewed.", "path": "docs/plugins/scheduling.md" },
-          { "kind": "import-probe", "description": "The installed Host entry loads and publishes cron tools in the active Web profile.", "path": "docs/plugins/scheduling.md" },
-          { "kind": "composition-mount", "description": "The Web profile mounts the immutable v0.3.3 source and publishes its cron tools.", "path": "docs/plugins/scheduling.md" },
-          { "kind": "functional-smoke", "description": "cron_list completed successfully against the active Web profile.", "path": "docs/plugins/scheduling.md" }
+          {
+            "kind": "source-review",
+            "description": "Version 0.4.1 enforces root-Session ownership, Session-scoped tools and HTTP actions, unbound-task rejection, and deterministic host-restart reconciliation.",
+            "path": "docs/plugins/scheduling.md"
+          },
+          {
+            "kind": "import-probe",
+            "description": "The exact official rc.1 source contract, package artifact, and Host entry are verified by the release and repository tests.",
+            "path": "docs/plugins/scheduling.md"
+          }
         ]
       },
       "security": {
@@ -122,19 +229,42 @@
         "usesExistingBrowserProfile": false,
         "sendsDataExternally": true,
         "approvalGate": false,
-        "notes": ["Scheduled prompts are sent to the configured external LLM when tasks fire.", "Scheduled prompts resume only their owning Session and persist task/history files under DSH_HOME.", "Windows native system notifications are not implemented and configured systemNotify flags are quiet no-ops.", "Optional Web overlay; not required by the Windows Copilot deployment lock."]
+        "notes": [
+          "Scheduled prompts are sent to the configured external LLM when tasks fire.",
+          "Version 0.4.1 restricts model and HTTP operations to the owning root Session and rejects subagent or cross-Session ownership.",
+          "HTTP sessionId is client-supplied; loopback/trusted-host and same-origin checks provide operational separation, not authentication against a malicious local process.",
+          "Nonterminal delivered/running history is closed as interrupted after Host restart; tasks and history persist under DSH_HOME.",
+          "Windows native system notifications are not implemented and configured systemNotify flags are quiet no-ops.",
+          "Optional Web overlay; not required by the Windows Copilot deployment lock."
+        ]
       },
-      "summary": "Optional Web-profile scheduler with Session-bound cold wake, cron tools, and persisted run history."
+      "summary": "Optional Web-profile scheduler with Session-bound cold wake, cron tools, and persisted run history.",
+      "artifact": {
+        "name": "dsh-cron-0.4.1.tgz",
+        "url": "https://github.com/cloga/dsh-cron/releases/download/v0.4.1/dsh-cron-0.4.1.tgz",
+        "sha256": "9be9e7c6ea1b4bf8a6f354dd1533e8a920f4d397c09fb20e14a2b5c91a50ce5f",
+        "size": 34276,
+        "releaseTag": "v0.4.1",
+        "releaseImmutable": true,
+        "checksumManifestUrl": "https://github.com/cloga/dsh-cron/releases/download/v0.4.1/SHA256SUMS",
+        "checksumManifestSha256": "ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf",
+        "checksumManifestSize": 85
+      }
     },
     {
       "id": "desktop-touch-mcp",
       "displayName": "Desktop Touch MCP",
-      "categories": ["computer-use", "desktop-automation"],
+      "categories": [
+        "computer-use",
+        "desktop-automation"
+      ],
       "integration": "mcp",
       "source": {
         "repository": "https://github.com/Harusame64/desktop-touch-mcp"
       },
-      "platforms": ["windows"],
+      "platforms": [
+        "windows"
+      ],
       "recommendation": "historical",
       "validation": {
         "level": "L1",
@@ -142,8 +272,16 @@
         "dshVersion": null,
         "nodeVersion": null,
         "evidence": [
-          { "kind": "upstream-change", "description": "Offline-first release resolution and bounded fetch behavior were merged upstream in PR #586.", "url": "https://github.com/Harusame64/desktop-touch-mcp/pull/586" },
-          { "kind": "source-review", "description": "The earlier launcher network stall and DSH startup impact are documented.", "path": "docs/startup-60s-timeout.md" }
+          {
+            "kind": "upstream-change",
+            "description": "Offline-first release resolution and bounded fetch behavior were merged upstream in PR #586.",
+            "url": "https://github.com/Harusame64/desktop-touch-mcp/pull/586"
+          },
+          {
+            "kind": "source-review",
+            "description": "The earlier launcher network stall and DSH startup impact are documented.",
+            "path": "docs/startup-60s-timeout.md"
+          }
         ]
       },
       "security": {
@@ -152,20 +290,29 @@
         "usesExistingBrowserProfile": null,
         "sendsDataExternally": null,
         "approvalGate": null,
-        "notes": ["Run MCP servers read-only until write operations are explicitly needed.", "Not installed by the locked Windows Copilot deployment."]
+        "notes": [
+          "Run MCP servers read-only until write operations are explicitly needed.",
+          "Not installed by the locked Windows Copilot deployment."
+        ]
       },
       "summary": "A historically investigated Windows desktop-control MCP; the repository records a launcher reliability fix, not current functional certification.",
-      "notes": ["Must pass current source review, import checks, isolated composition mount, and functional smoke before recommendation."]
+      "notes": [
+        "Must pass current source review, import checks, isolated composition mount, and functional smoke before recommendation."
+      ]
     },
     {
       "id": "dsh-vision-any",
       "displayName": "DSH Vision Any",
-      "categories": ["vision"],
+      "categories": [
+        "vision"
+      ],
       "integration": "cordis",
       "source": {
         "repository": "https://github.com/tianmingwan/dsh-vision-any"
       },
-      "platforms": ["cross-platform"],
+      "platforms": [
+        "cross-platform"
+      ],
       "recommendation": "experimental",
       "validation": {
         "level": "L1",
@@ -173,8 +320,16 @@
         "dshVersion": null,
         "nodeVersion": null,
         "evidence": [
-          { "kind": "source-review", "description": "Model-aware admission and neutral prompting are recorded in the optional integration PR.", "url": "https://github.com/tianmingwan/dsh-vision-any/pull/2" },
-          { "kind": "source-review", "description": "The dual-channel design and limitations are documented locally.", "path": "docs/vision-dual-channel.md" }
+          {
+            "kind": "source-review",
+            "description": "Model-aware admission and neutral prompting are recorded in the optional integration PR.",
+            "url": "https://github.com/tianmingwan/dsh-vision-any/pull/2"
+          },
+          {
+            "kind": "source-review",
+            "description": "The dual-channel design and limitations are documented locally.",
+            "path": "docs/vision-dual-channel.md"
+          }
         ]
       },
       "security": {
@@ -183,7 +338,10 @@
         "usesExistingBrowserProfile": false,
         "sendsDataExternally": true,
         "approvalGate": null,
-        "notes": ["Images may be sent to the configured vision provider.", "Not installed by the locked Windows Copilot deployment."]
+        "notes": [
+          "Images may be sent to the configured vision provider.",
+          "Not installed by the locked Windows Copilot deployment."
+        ]
       },
       "summary": "An optional vision-tool fallback design for text-only routes; it remains outside the locked baseline."
     },
@@ -191,13 +349,17 @@
       "id": "dsh-dev-tools",
       "displayName": "DSH Developer Tools",
       "package": "dsh-dev-tools",
-      "categories": ["operations"],
+      "categories": [
+        "operations"
+      ],
       "integration": "cordis",
       "source": {
         "repository": "https://github.com/cloga/dsh-windows-ops",
         "release": "0.2.0"
       },
-      "platforms": ["windows"],
+      "platforms": [
+        "windows"
+      ],
       "recommendation": "conditional",
       "validation": {
         "level": "L2",
@@ -205,9 +367,21 @@
         "dshVersion": "0.1.2-rc.1",
         "nodeVersion": "^22.19.0 || >=24.0.0",
         "evidence": [
-          { "kind": "source-review", "description": "The rc.1 subprocess, cancellation, lossless JSON, canonical-path, consequential-operation, and Fiber-owned lifecycle requirements are documented with the source.", "path": "tools/dsh-dev-tools/README.md" },
-          { "kind": "import-probe", "description": "The plugin registers five tools in a real rc.1 Cordis/ToolRuntime harness, uses the subprocess service with whole-tree quiescence, returns only lossless JSON values, and unregisters every contribution on Fiber disposal.", "path": "tests/dsh-dev-tools.test.mjs" },
-          { "kind": "compat-check", "description": "The exact official rc.1 ToolRunContext source and commit are checked before compatibility is claimed.", "path": "tests/dsh-dev-tools.test.mjs" }
+          {
+            "kind": "source-review",
+            "description": "The rc.1 subprocess, cancellation, lossless JSON, canonical-path, consequential-operation, and Fiber-owned lifecycle requirements are documented with the source.",
+            "path": "tools/dsh-dev-tools/README.md"
+          },
+          {
+            "kind": "import-probe",
+            "description": "The plugin registers five tools in a real rc.1 Cordis/ToolRuntime harness, uses the subprocess service with whole-tree quiescence, returns only lossless JSON values, and unregisters every contribution on Fiber disposal.",
+            "path": "tests/dsh-dev-tools.test.mjs"
+          },
+          {
+            "kind": "compat-check",
+            "description": "The exact official rc.1 ToolRunContext source and commit are checked before compatibility is claimed.",
+            "path": "tests/dsh-dev-tools.test.mjs"
+          }
         ]
       },
       "security": {
@@ -216,7 +390,11 @@
         "usesExistingBrowserProfile": false,
         "sendsDataExternally": true,
         "approvalGate": null,
-        "notes": ["Provides development, patching, build, upgrade, and doctor operations; use only in trusted maintenance sessions.", "Approval behavior is deployment policy rather than a guarantee of this plugin; configure standing permissions before consequential calls.", "The dsh_upgrade check operation queries the configured Git remote; other managed subprocesses act on local operator-selected paths."]
+        "notes": [
+          "Provides development, patching, build, upgrade, and doctor operations; use only in trusted maintenance sessions.",
+          "Approval behavior is deployment policy rather than a guarantee of this plugin; configure standing permissions before consequential calls.",
+          "The dsh_upgrade check operation queries the configured Git remote; other managed subprocesses act on local operator-selected paths."
+        ]
       },
       "summary": "Repository-local agent tools for DSH development and maintenance, suitable for trusted operator sessions."
     }

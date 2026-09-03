@@ -472,7 +472,7 @@ importers:
             $safe | Should -Not -Match 'super-secret-value'
             $safe | Should -Match '<redacted>'
             $safe | Should -Match '<truncated>'
-            $safe.Length | Should -BeLessOrEqual 92
+            $safe.Length | Should -BeLessOrEqual 80
         }
     }
 

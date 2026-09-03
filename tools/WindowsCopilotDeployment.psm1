@@ -2984,7 +2984,11 @@ function ConvertTo-WindowsCopilotSafeDiagnostic {
     }
     $text = [regex]::Replace($text, '(?i)\b(authorization|token|api[_-]?key|secret)\s*[:=]\s*[^\s,;]+', '$1=<redacted>')
     $text = [regex]::Replace($text, '(?i)\b(bearer\s+|gh[pousr]_|github_pat_)[A-Za-z0-9._-]+', '<redacted>')
-    if ($text.Length -gt $Limit) { return $text.Substring(0, $Limit) + '…<truncated>' }
+    if ($text.Length -gt $Limit) {
+        $suffix = '…<truncated>'
+        if ($Limit -le $suffix.Length) { return $suffix.Substring(0, $Limit) }
+        return $text.Substring(0, $Limit - $suffix.Length) + $suffix
+    }
     return $text
 }
 

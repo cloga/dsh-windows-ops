@@ -17,7 +17,7 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Check community-plugin host imports | `node tools\dsh-compat-check.mjs <profile> --probe=<package>` | Executes plugin top-level code | `--json` emits L2 evidence; not a functional test |
 | Validate plugin catalog metadata | `node tools\validate-plugin-catalog.mjs` | None | Rejects invalid evidence and false baseline claims |
 | Detect duplicate sessions | `powershell.exe -File tools\check-session-duplicates.ps1` | None | Report only |
-| Install Playwright MCP tools for every Agent Preset | Materialize `tools\dsh-playwright-host` under `$DSH_HOME\bundles`, then `dsh plugin --profile web add ("link:" + $bundle)` | Web Profile composition; activation requires authorized Host restart | `--dump-config`, bundle tests, then post-restart tool discovery and browser smoke; remove with `dsh plugin --profile web remove dsh-playwright-host` |
+| Install Playwright MCP tools for every Agent Preset | `dsh plugin --profile web add github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0` | Web Profile composition; activation requires authorized Host restart | `--dump-config`, bundle tests, then post-restart tool discovery and browser smoke; remove with `dsh plugin --profile web remove dsh-playwright-host` |
 | Smoke-test the existing DSH Web GUI from any coding session | `python tools\dsh-web-smoke.py --expect-text "New Session"` | Browser read/isolated profile only | Screenshot plus JSON summary with document, Console, request, and HTTP evidence |
 | Move a session safely | `node tools\dsh-move-session.mjs ...` | Session data | Backup and post-write verification |
 

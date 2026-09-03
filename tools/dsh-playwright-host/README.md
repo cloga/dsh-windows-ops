@@ -4,17 +4,13 @@ Optional Windows Profile Bundle that mounts DSH's built-in `@deepseek-ai/dsh-mcp
 
 ## Install without activation
 
-Use the exact CLI selected by the Desktop deployment and the profile actually serving the GUI. Materialize the reviewed bundle under `DSH_HOME` first; the current Windows CLI wrapper does not preserve a `link:` source path containing spaces reliably:
+The canonical source is [`cloga/dsh-playwright-host`](https://github.com/cloga/dsh-playwright-host). Use the exact CLI selected by the Desktop deployment and install the reviewed immutable commit:
 
 ```powershell
-$source = 'C:\path\to\dsh-windows-ops\tools\dsh-playwright-host'
-$bundle = Join-Path $env:DSH_HOME 'bundles\dsh-playwright-host'
-New-Item -ItemType Directory -Path (Split-Path -Parent $bundle) -Force | Out-Null
-Copy-Item -LiteralPath $source -Destination $bundle -Recurse -Force
-dsh plugin --profile web add ("link:" + $bundle)
+dsh plugin --profile web add github:cloga/dsh-playwright-host#e4c8decc5c2e6ae815d974049af2dc33e42743d0
 ```
 
-This stages the materialized bundle in the Web Profile. Do not restart or replace a running DSH Host while other Sessions are live. A Host restart is required before the new global tools appear; perform it only after the user explicitly accepts interruption and no protected work remains.
+The vendored files in this directory are a reviewed snapshot used by Windows Ops contract tests. This command stages the standalone GitHub bundle in the Web Profile. Do not restart or replace a running DSH Host while other Sessions are live. A Host restart is required before the new global tools appear; perform it only after the user explicitly accepts interruption and no protected work remains.
 
 Inspect the composed configuration before activation:
 

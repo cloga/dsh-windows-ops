@@ -38,6 +38,22 @@ public static class $typeName { public static void Main() {} }
                 $sha.Dispose()
             }
         }
+        function New-ProviderReleaseFixture {
+            param([Parameter(Mandatory)][string]$Root)
+            $stageRoot = Join-Path $Root 'provider-release-stage'
+            $packageRoot = Join-Path $stageRoot 'package'
+            New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
+            Copy-Item -LiteralPath (Join-Path $script:fixtureRoot 'provider') `
+                -Destination $packageRoot -Recurse
+            $artifact = Join-Path $Root ([string]$script:lock.components.copilotIntegration.package.artifact.name)
+            $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+            & $tar -czf $artifact -C $stageRoot package
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create provider Release fixture.' }
+            $fixtureLock = $script:lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+            $fixtureLock.components.copilotIntegration.package.artifact.sha256 =
+                (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
+            [pscustomobject]@{ path = $artifact; lock = $fixtureLock }
+        }
         function Get-TestDirectoryTreeState {
             param([Parameter(Mandatory)][string]$Path)
             $root = [IO.Path]::GetFullPath($Path).TrimEnd('\') + '\'
@@ -271,26 +287,28 @@ export function apply(ctx) {
         $lock.components.PSObject.Properties.Name | Should -Not -Contain 'gateway'
         $lock.migration.legacyGateway.active | Should -Be $false
         $lock.migration.legacyGateway.successCriteria | Should -Be $false
-        $lock.components.copilotIntegration.source.pullRequest | Should -Be 45
-        $lock.components.copilotIntegration.source.commit | Should -Be '7db12efadf8afe69fc71fc8daae203c6049e14e7'
-        $lock.components.copilotIntegration.source.mergeCommit | Should -Be '06b1c307d460cd001c034b8f40e7d13ff6e68278'
-        $lock.components.copilotIntegration.package.version | Should -Be '0.3.0-cloga.11'
+        $lock.components.copilotIntegration.source.pullRequest | Should -Be 48
+        $lock.components.copilotIntegration.source.commit | Should -Be '6236330414eeac021d8c8bf57b9aa08cd76a04e8'
+        $lock.components.copilotIntegration.source.mergeCommit | Should -Be 'adfce229042c8fb4d5450b2ebb930ced6e514106'
+        $lock.components.copilotIntegration.package.version | Should -Be '0.3.0-cloga.13'
         $lock.components.copilotIntegration.package.packageManager | Should -Be 'pnpm@11.7.0'
         $lock.components.copilotIntegration.package.artifact.url |
-            Should -Be 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/dsh-github-copilot-0.3.0-cloga.11.tgz'
+            Should -Be 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/dsh-github-copilot-0.3.0-cloga.13.tgz'
         $lock.components.copilotIntegration.package.artifact.sha256 |
-            Should -Be '9e2ec21984fe394e9a8ef09bfa282a5b7107aead8f573171040d84083526f668'
+            Should -Be 'fbe7861382d2e32be50c37696ffb806a7b2bce3817efc01cac28c6c51e45b957'
+        $lock.components.copilotIntegration.package.artifact.releaseTag | Should -Be 'v0.3.0-cloga.13'
+        $lock.components.copilotIntegration.package.artifact.releaseImmutable | Should -Be $true
+        $lock.components.copilotIntegration.package.artifact.checksumManifest.url |
+            Should -Be 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/SHA256SUMS'
+        $lock.components.copilotIntegration.package.artifact.checksumManifest.sha256 |
+            Should -Be '79f44c790ff07acde3c4bf9b8a7f0ba5b3e867ef3a0ae3f2986545030961c2df'
         $lock.components.copilotIntegration.package.bundlePatch | Should -Be './cordis.patch.yml'
         @($lock.components.copilotIntegration.package.attestedFiles) |
             Should -Be @('lib/index.js', 'lib/client.js', 'lib/remote.js')
         @($lock.components.copilotIntegration.build.commands | ForEach-Object { @($_) -join ' ' }) |
             Should -Be @(
                 'install --frozen-lockfile',
-                'run typecheck',
-                'run verify:baseline',
-                'exec tsc -p tsconfig.json',
-                'exec tsdown',
-                'test',
+                'run verify',
                 'pack --pack-destination .\dist'
             )
         $lock.components.copilotIntegration.package.deploymentBaseline.kind | Should -Be 'standalone-dsh-plugin'
@@ -301,6 +319,8 @@ export function apply(ctx) {
             Should -Contain 'strict-remote-result-codecs'
         @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities) |
             Should -Contain 'strict-json-oauth-grant-normalization'
+        @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities) |
+            Should -Contain 'path-level-account-model-reconciliation'
         @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities) |
             Should -Contain 'copilot-optional-tool-arguments'
         @($lock.components.copilotIntegration.package.deploymentBaseline.requiredCapabilities) |
@@ -323,6 +343,8 @@ export function apply(ctx) {
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.8'
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.9'
         @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.10'
+        @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.11'
+        @($lock.profile.legacyCopilotIntegrations.version) | Should -Contain '0.3.0-cloga.12'
         @($lock.profile.optionalOverlays.name) | Should -Be @('dsh-playwright-host', 'dsh-cron')
         $lock.profile.coherence.requireManifestLockInstalledMatch | Should -Be $true
         $lock.profile.coherence.checkModeMutates | Should -Be $false
@@ -331,10 +353,16 @@ export function apply(ctx) {
         $lock.acceptance.composedConfig.managedEntry.searchProvider | Should -Be 'github-copilot-hosted'
         @($lock.acceptance.listeners.port) | Should -Be @(3080)
         $lock.acceptance.credential.record | Should -Be 'llm-pi-ai/github-copilot'
+        $lock.acceptance.providerRoute.legacyConnectionFieldsRemovedByDeployment | Should -Be $true
+        @($lock.acceptance.providerRoute.reconciliationOwnedPaths) | Should -Be @(
+            'providers.github-copilot.models',
+            'providers.github-copilot.compat.supportsStrictMode'
+        )
         $lock.acceptance.providerRoute.repairTrigger | Should -Be 'existing-valid-grant'
         @($lock.acceptance.providerRoute.repairStates) | Should -Be @(
             'route-missing',
             'route-has-no-models',
+            'route-account-models-stale',
             'route-model-api-missing',
             'route-mixed-protocol-apis-missing'
         )
@@ -358,7 +386,7 @@ export function apply(ctx) {
         $lock.acceptance.runtimeSchema.behavior.approval | Should -Be 'disabled'
         @($lock.acceptance.runtimeSchema.behavior.staleErrorPatterns).Count | Should -Be 3
         $lock.acceptance.copilotToolSchema.provider | Should -Be 'github-copilot'
-        $lock.acceptance.copilotToolSchema.package.version | Should -Be '0.3.0-cloga.11'
+        $lock.acceptance.copilotToolSchema.package.version | Should -Be '0.3.0-cloga.13'
         @($lock.acceptance.copilotToolSchema.forbiddenProperties) |
             Should -Be @('sandbox_permissions', 'justification')
         $lock.acceptance.copilotToolSchema.preserveForOtherProviders | Should -Be $true
@@ -371,7 +399,7 @@ export function apply(ctx) {
         $caseRoot = Join-Path $TestDrive 'profile-coherence'
         New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
         $dshHome = Join-Path $caseRoot '.dsh'
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.13.tgz'
         Set-Content -LiteralPath $artifact -Value 'coherence fixture' -Encoding UTF8
         $coherenceLock = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
         $coherenceLock.components.copilotIntegration.package.artifact.sha256 =
@@ -390,15 +418,15 @@ importers:
     dependencies:
       dsh-github-copilot:
         specifier: $dependency
-        version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz
+        version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.13.tgz
 packages:
-  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz:
-    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz}
-    version: 0.3.0-cloga.11
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.3.0-cloga.13.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.13.tgz}
+    version: 0.3.0-cloga.13
 "@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
-            @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.11' } |
+            @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.13' } |
                 ConvertTo-Json | Set-Content -LiteralPath (Join-Path $installed 'package.json') -Encoding UTF8
-            @{ package = @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.11' } } |
+            @{ package = @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.13' } } |
                 ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $installed 'deployment-baseline.json') -Encoding UTF8
         }
 
@@ -407,7 +435,7 @@ packages:
         @($coherent.profiles).Count | Should -Be 2
         (Get-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Raw).
             Replace(
-                'version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz',
+                'version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.13.tgz',
                 'version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.10.tgz'
             ) |
             Set-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Encoding UTF8
@@ -476,7 +504,7 @@ importers:
         }
     }
 
-    It 'builds client artifacts before artifact-dependent tests from a clean plugin source' {
+    It 'runs the complete plugin verification gate before packing a clean source' {
         $sourceRoot = Join-Path $TestDrive 'clean-provider-source'
         New-Item -ItemType Directory -Path $sourceRoot -Force | Out-Null
         Test-Path -LiteralPath (Join-Path $sourceRoot 'lib') | Should -Be $false
@@ -493,16 +521,15 @@ importers:
                 param($FilePath, $Arguments, $WorkingDirectory)
                 $command = @($Arguments | Select-Object -Skip 2)
                 $CommandLog.Add(($command -join ' '))
-                if ($command[0] -eq 'exec' -and $command[1] -eq 'tsdown') {
+                if ($command[0] -eq 'run' -and $command[1] -eq 'verify') {
                     $libRoot = Join-Path $WorkingDirectory 'lib'
                     New-Item -ItemType Directory -Path $libRoot -Force | Out-Null
                     Set-Content -LiteralPath (Join-Path $libRoot 'client.js') `
                         -Value 'export default {}' -Encoding UTF8
-                } elseif ($command[0] -eq 'test') {
-                    if (-not (Test-Path -LiteralPath (Join-Path $WorkingDirectory 'lib\client.js') -PathType Leaf)) {
-                        throw 'Client bundle is missing before tests.'
-                    }
                 } elseif ($command[0] -eq 'pack') {
+                    if (-not (Test-Path -LiteralPath (Join-Path $WorkingDirectory 'lib\client.js') -PathType Leaf)) {
+                        throw 'Client bundle is missing before pack.'
+                    }
                     $distRoot = Join-Path $WorkingDirectory 'dist'
                     New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
                     Set-Content -LiteralPath (Join-Path $distRoot 'provider.tgz') `
@@ -516,11 +543,7 @@ importers:
 
         @($commandLog) | Should -Be @(
             'install --frozen-lockfile',
-            'run typecheck',
-            'run verify:baseline',
-            'exec tsc -p tsconfig.json',
-            'exec tsdown',
-            'test',
+            'run verify',
             'pack --pack-destination .\dist'
         )
         Test-Path -LiteralPath (Join-Path $sourceRoot 'lib\client.js') | Should -Be $true
@@ -537,6 +560,28 @@ importers:
         $unexpectedCapability.components.core.capabilities += 'unreviewed-core-capability'
         { Test-WindowsCopilotLock -Lock $unexpectedCapability } |
             Should -Throw '*per-model API route fixes*'
+    }
+
+    It 'rejects incomplete or untrusted Copilot Release evidence in a deployment lock' {
+        $mutableRelease = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $mutableRelease.components.copilotIntegration.package.artifact.releaseImmutable = $false
+        { Test-WindowsCopilotLock -Lock $mutableRelease } |
+            Should -Throw '*canonical immutable Release*'
+
+        $wrongTag = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $wrongTag.components.copilotIntegration.package.artifact.releaseTag = 'v9.9.9'
+        { Test-WindowsCopilotLock -Lock $wrongTag } |
+            Should -Throw '*canonical immutable Release*'
+
+        $badManifest = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $badManifest.components.copilotIntegration.package.artifact.checksumManifest.sha256 = '0'
+        { Test-WindowsCopilotLock -Lock $badManifest } |
+            Should -Throw '*Invalid locked artifact SHA-256*'
+
+        $missingManifest = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $missingManifest.components.copilotIntegration.package.artifact.PSObject.Properties.Remove('checksumManifest')
+        { Test-WindowsCopilotLock -Lock $missingManifest } |
+            Should -Throw '*checksumManifest.name*'
     }
 
     It 'returns no Core conflicts when every npm-global shim is missing' {
@@ -1119,13 +1164,18 @@ basedir=$(dirname "$0")
         $absent.status | Should -Be 'desktop-not-running'
     }
 
-    It 'installs Core through the receipt producer before the remaining global transaction' {
+    It 'installs Core and the locked Copilot Release artifact through one global transaction' {
+        $providerArtifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.13.tgz'
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
-            -NpmGlobalRoot (Join-Path $TestDrive 'global')
+            -NpmGlobalRoot (Join-Path $TestDrive 'global') -ProviderArtifactPath $providerArtifact
+        $releaseStep = @($plan.steps | Where-Object id -eq 'verify-release-artifacts')[0]
         $coreStep = @($plan.steps | Where-Object id -eq 'install-core-with-receipt')[0]
         $probeStep = @($plan.steps | Where-Object id -eq 'verify-installed-core-capability')[0]
         $step = @($plan.steps | Where-Object id -eq 'install-global-transaction')[0]
         $stepIds = @($plan.steps | ForEach-Object { [string]$_.id })
+        $releaseStep.action | Should -Be 'sha256-and-package-metadata'
+        @($releaseStep.inputs) | Should -Contain $providerArtifact
+        @($stepIds) | Should -Not -Contain 'build-copilot-integration'
         $coreStep.action | Should -Be 'release-install-local'
         $probeStep.action | Should -Be 'receipt-bytes-and-sandbox-probe'
         [array]::IndexOf($stepIds, 'verify-installed-core-capability') |
@@ -1135,7 +1185,7 @@ basedir=$(dirname "$0")
         ($step.packages -contains '@deepseek-ai/cordis-plugin-timer@1.1.3') | Should -Be $true
         ($step.packages -contains 'node-addon-require-builtin@0.1.4') | Should -Be $true
         ($step.packages -contains '<built-core-release-family-tarballs>') | Should -Be $false
-        ($step.packages -contains '<built-copilot-integration-tarball>') | Should -Be $true
+        ($step.packages -contains '<locked-copilot-release-tarball>') | Should -Be $true
     }
 
     It 'forwards Core installer options through pinned pnpm without a positional separator' {
@@ -1202,14 +1252,53 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
                 -NpmGlobalRoot (Join-Path $caseRoot 'global\node_modules') `
                 -HarnessSourceRoot (Join-Path $caseRoot 'missing-core') `
                 -CopilotIntegrationSourceRoot (Join-Path $caseRoot 'missing-provider') `
+                -ProviderArtifactPath (Join-Path $caseRoot 'missing-provider.tgz') `
                 -DesktopArtifactPath (Join-Path $caseRoot 'missing-desktop.exe') `
-                -GatewayArtifactPath (Join-Path $caseRoot 'missing-gateway.exe') `
                 -GatewayInstallRoot (Join-Path $caseRoot 'gateway') `
                 -CoreInstallPrefix (Join-Path $caseRoot 'core') `
                 -BackupRoot $backupRoot -Catalog $catalog
         } | Should -Throw '*must be rolled back before Apply*'
         Test-Path -LiteralPath (Join-Path $caseRoot 'core') | Should -Be $false
         Test-Path -LiteralPath (Join-Path $caseRoot 'gateway') | Should -Be $false
+    }
+
+    It 'validates the Copilot artifact before any Core build or installation' {
+        $caseRoot = Join-Path $TestDrive 'provider-artifact-before-core'
+        InModuleScope WindowsCopilotDeployment -Parameters @{ TestLock = $lock; CaseRoot = $caseRoot } {
+            param($TestLock, $CaseRoot)
+            Mock Test-WindowsCopilotLock { [pscustomobject]@{ valid = $true } }
+            Mock Assert-WindowsCopilotNoPendingActivation {}
+            Mock Get-WindowsCopilotDesktopState {
+                [pscustomobject]@{ valid = $true; newerThanLock = $false; path = (Join-Path $CaseRoot 'desktop.exe') }
+            }
+            Mock Assert-CoreInstallPrefixIsolation { [pscustomobject]@{ valid = $true } }
+            Mock Get-WindowsCopilotProfileMigrationPlan { [pscustomobject]@{ valid = $true } }
+            Mock Assert-WindowsCopilotSettingsShape {}
+            Mock Assert-SourceCheckout {}
+            Mock Test-LockedArtifact { [pscustomobject]@{ valid = $true } }
+            Mock Test-CopilotIntegrationDeploymentContract {
+                param($Lock, $SourceRoot, $ArtifactPath)
+                if ($ArtifactPath) { throw 'invalid-provider-artifact-before-core' }
+                [pscustomobject]@{ valid = $true }
+            }
+            Mock Assert-WindowsCopilotCoreConflictSafe { [pscustomobject]@{ valid = $true } }
+            Mock Invoke-PinnedPnpmCommands {}
+            Mock Install-WindowsCopilotCoreRelease {}
+
+            {
+                Invoke-WindowsCopilotApplyLocked -Lock $TestLock `
+                    -DshHome (Join-Path $CaseRoot '.dsh') `
+                    -NpmGlobalRoot (Join-Path $CaseRoot 'global\node_modules') `
+                    -HarnessSourceRoot (Join-Path $CaseRoot 'core-source') `
+                    -CopilotIntegrationSourceRoot (Join-Path $CaseRoot 'provider-source') `
+                    -CopilotIntegrationArtifactPath (Join-Path $CaseRoot 'provider.tgz') `
+                    -DesktopArtifactPath (Join-Path $CaseRoot 'desktop-installer.exe') `
+                    -CoreInstallPrefix (Join-Path $CaseRoot 'core-prefix') `
+                    -BackupRoot (Join-Path $CaseRoot 'backups')
+            } | Should -Throw '*invalid-provider-artifact-before-core*'
+            Should -Invoke Invoke-PinnedPnpmCommands -Times 0 -Exactly
+            Should -Invoke Install-WindowsCopilotCoreRelease -Times 0 -Exactly
+        }
     }
 
     It 'produces a validated Core receipt and accepts the exact healthy baseline' {
@@ -1311,7 +1400,7 @@ fs.writeFileSync(process.env.ARG_CAPTURE_PATH, JSON.stringify(process.argv.slice
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $profileRoot
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
-        $providerArtifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
+        $providerArtifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.13.tgz'
         $providerStage = Join-Path $caseRoot 'provider-stage'
         New-Item -ItemType Directory -Path $providerStage -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $globalRoot 'dsh-github-copilot') `
@@ -1343,11 +1432,11 @@ importers:
     dependencies:
       dsh-github-copilot:
         specifier: $providerDependency
-        version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz
+        version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.13.tgz
 packages:
-  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz:
-    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.11.tgz}
-    version: 0.3.0-cloga.11
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.3.0-cloga.13.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.13.tgz}
+    version: 0.3.0-cloga.13
 "@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
         }
         Mock Test-LoopbackListener -ModuleName WindowsCopilotDeployment {
@@ -1643,9 +1732,9 @@ packages:
         }
 
         $rejected = @(
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.7/dsh-github-copilot-0.3.0-cloga.11.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/dsh-github-copilot-0.3.0-cloga.12.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.11/not-dsh-github-copilot-0.3.0-cloga.11.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.7/dsh-github-copilot-0.3.0-cloga.13.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/dsh-github-copilot-0.3.0-cloga.14.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.13/not-dsh-github-copilot-0.3.0-cloga.13.tgz'
             "file:../../artifacts/wrong-commit/$($lock.components.copilotIntegration.package.artifact.name)"
             "file:../../arbitrary/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
             "https://example.test/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
@@ -1743,10 +1832,10 @@ packages:
         $profile.dependencies | Add-Member -NotePropertyName 'dsh-github-copilot' `
             -NotePropertyValue ([string]$lock.components.copilotIntegration.package.artifact.url)
         $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
-        $artifact = Join-Path $caseRoot ([string]$lock.components.copilotIntegration.package.artifact.name)
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        $providerRelease = New-ProviderReleaseFixture -Root $caseRoot
+        $artifact = $providerRelease.path
 
-        Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+        Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
             -DesktopExecutablePath $desktopPath -SkipPackageInstall | Out-Null
 
@@ -1806,13 +1895,13 @@ packages:
             Set-Content -LiteralPath $legacyCopilotManifestPath -Encoding UTF8
         Set-Content -LiteralPath (Join-Path $profileRoot 'node_modules\dsh-github-copilot\legacy-sentinel.txt') `
             -Value 'pre-client-handoff-.3' -Encoding UTF8
-        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.11.tgz'
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        $providerRelease = New-ProviderReleaseFixture -Root (Join-Path $TestDrive 'idempotent-provider-release')
+        $artifact = $providerRelease.path
 
-        $first = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+        $first = Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot $backupRoot `
             -DesktopExecutablePath $desktopPath -SkipPackageInstall
-        $second = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+        $second = Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot $backupRoot `
             -DesktopExecutablePath $desktopPath -SkipPackageInstall
 
@@ -1923,8 +2012,8 @@ packages:
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        $providerRelease = New-ProviderReleaseFixture -Root $caseRoot
+        $artifact = $providerRelease.path
 
         $module = Get-Module WindowsCopilotDeployment
         $migration = & $module {
@@ -1935,7 +2024,7 @@ packages:
         @($migration.dependenciesToRemove | Sort-Object) |
             Should -Be @($lock.profile.legacyPhysicalPlugins.name | Sort-Object)
 
-        $result = Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+        $result = Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
             -DesktopExecutablePath $desktopPath -SkipPackageInstall
 
@@ -1969,12 +2058,12 @@ packages:
         New-DesktopInternalPluginFixture -ProfileRoot $profileRoot -DesktopExecutablePath $desktopPath
         Set-LegacyPhysicalPluginFixture -ProfileRoot $profileRoot -PackagePath $packagePath
         $packageBefore = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        $providerRelease = New-ProviderReleaseFixture -Root $caseRoot
+        $artifact = $providerRelease.path
         Mock Invoke-PinnedPnpmCommands -ModuleName WindowsCopilotDeployment { throw 'fixture pnpm failure' }
 
         {
-            Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+            Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
                 -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
                 -DesktopExecutablePath $desktopPath
         } | Should -Throw '*fixture pnpm failure*'
@@ -2013,8 +2102,8 @@ packages:
                 -NpmGlobalRoot (Join-Path $caseRoot 'global\node_modules') `
                 -HarnessSourceRoot (Join-Path $caseRoot 'missing-core') `
                 -ProviderSourceRoot (Join-Path $caseRoot 'missing-provider') `
+                -ProviderArtifactPath (Join-Path $caseRoot 'missing-provider.tgz') `
                 -DesktopArtifactPath (Join-Path $caseRoot 'missing-desktop.exe') `
-                -GatewayArtifactPath (Join-Path $caseRoot 'missing-gateway.exe') `
                 -GatewayInstallRoot (Join-Path $caseRoot 'gateway') `
                 -CoreInstallPrefix (Join-Path $caseRoot 'core') `
                 -BackupRoot (Join-Path $caseRoot 'backups') -Catalog $catalog `
@@ -2042,11 +2131,11 @@ packages:
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-ui')
         $profile.dependencies.PSObject.Properties.Remove('dsh-tauri-worktree')
         $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        $providerRelease = New-ProviderReleaseFixture -Root $caseRoot
+        $artifact = $providerRelease.path
 
         {
-            Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome `
+            Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome `
                 -NpmGlobalRoot (Join-Path $caseRoot 'global') -ProviderArtifactPath $artifact `
                 -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
                 -DesktopExecutablePath $desktopPath -SkipPackageInstall
@@ -2072,8 +2161,8 @@ packages:
                 -NpmGlobalRoot (Join-Path $caseRoot 'global\node_modules') `
                 -HarnessSourceRoot (Join-Path $caseRoot 'missing-core') `
                 -ProviderSourceRoot (Join-Path $caseRoot 'missing-provider') `
+                -ProviderArtifactPath (Join-Path $caseRoot 'missing-provider.tgz') `
                 -DesktopArtifactPath (Join-Path $caseRoot 'missing-desktop.exe') `
-                -GatewayArtifactPath (Join-Path $caseRoot 'missing-gateway.exe') `
                 -GatewayInstallRoot (Join-Path $caseRoot 'gateway') `
                 -CoreInstallPrefix (Join-Path $caseRoot 'core') `
                 -BackupRoot (Join-Path $caseRoot 'backups') -Catalog $catalog `
@@ -2275,9 +2364,9 @@ packages:
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
         Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.11.tgz'
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
-        Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+        $providerRelease = New-ProviderReleaseFixture -Root $caseRoot
+        $artifact = $providerRelease.path
+        Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot (Join-Path $caseRoot 'backups') `
             -DesktopExecutablePath $canonicalDesktop -SkipPackageInstall | Out-Null
 
@@ -2409,6 +2498,48 @@ packages:
         } | Should -Throw '*deployment-baseline metadata does not match*'
     }
 
+    It 'resolves only the locked Copilot Release URL or a hash-matching local artifact' {
+        $lockedUrl = [string]$lock.components.copilotIntegration.package.artifact.url
+        (Resolve-LockedCopilotPackageSpec -Lock $lock) | Should -Be $lockedUrl
+        (Resolve-LockedCopilotPackageSpec -Lock $lock -PackageSpec $lockedUrl) | Should -Be $lockedUrl
+
+        $artifactRoot = Join-Path $TestDrive 'locked-provider-spec'
+        New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
+        $artifact = Join-Path $artifactRoot ([string]$lock.components.copilotIntegration.package.artifact.name)
+        Set-Content -LiteralPath $artifact -Value 'locked provider fixture' -Encoding UTF8
+        $fixtureLock = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $fixtureLock.components.copilotIntegration.package.artifact.sha256 =
+            (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
+        (Resolve-LockedCopilotPackageSpec -Lock $fixtureLock -PackageSpec $artifact) |
+            Should -Be ([IO.Path]::GetFullPath($artifact))
+
+        { Resolve-LockedCopilotPackageSpec -Lock $lock -PackageSpec 'dsh-github-copilot' } |
+            Should -Throw '*exact locked Release URL*'
+        { Resolve-LockedCopilotPackageSpec -Lock $lock -PackageSpec 'https://example.test/provider.tgz' } |
+            Should -Throw '*exact locked Release URL*'
+        $wrongName = Join-Path $artifactRoot 'renamed.tgz'
+        Copy-Item -LiteralPath $artifact -Destination $wrongName
+        { Resolve-LockedCopilotPackageSpec -Lock $fixtureLock -PackageSpec $wrongName } |
+            Should -Throw '*artifact name mismatch*'
+        Set-Content -LiteralPath $artifact -Value 'tampered provider fixture' -Encoding UTF8
+        { Resolve-LockedCopilotPackageSpec -Lock $fixtureLock -PackageSpec $artifact } |
+            Should -Throw '*SHA-256 mismatch*'
+    }
+
+    It 'rejects an unverified provider artifact before the exported profile mutator creates backups' {
+        $caseRoot = Join-Path $TestDrive 'profile-artifact-before-backup'
+        $artifact = Join-Path $caseRoot ([string]$lock.components.copilotIntegration.package.artifact.name)
+        New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
+        Set-Content -LiteralPath $artifact -Value 'tampered provider artifact' -Encoding UTF8
+        $backupRoot = Join-Path $caseRoot 'backups'
+        {
+            Set-WindowsCopilotProfile -Lock $lock -DshHome (Join-Path $caseRoot '.dsh') `
+                -NpmGlobalRoot (Join-Path $caseRoot 'global') -ProviderArtifactPath $artifact `
+                -BackupRoot $backupRoot -SkipPackageInstall
+        } | Should -Throw '*SHA-256 mismatch*'
+        Test-Path -LiteralPath $backupRoot | Should -Be $false
+    }
+
     It 'rejects a tampered release artifact' {
         $artifact = Join-Path $TestDrive 'tampered.exe'
         Set-Content -LiteralPath $artifact -Value 'tampered' -Encoding UTF8
@@ -2443,8 +2574,8 @@ packages:
                 -NpmGlobalRoot (Join-Path $TestDrive 'global\node_modules') `
                 -HarnessSourceRoot (Join-Path $TestDrive 'missing-core-source') `
                 -ProviderSourceRoot (Join-Path $TestDrive 'missing-provider-source') `
+                -ProviderArtifactPath (Join-Path $TestDrive 'missing-provider.tgz') `
                 -DesktopArtifactPath (Join-Path $TestDrive 'missing-desktop.exe') `
-                -GatewayArtifactPath (Join-Path $TestDrive 'missing-gateway.exe') `
                 -GatewayInstallRoot (Join-Path $TestDrive 'gateway') `
                 -CoreInstallPrefix (Join-Path $TestDrive 'core-prefix') `
                 -BackupRoot (Join-Path $TestDrive 'backups') -Catalog $catalog `
@@ -2462,10 +2593,12 @@ packages:
             BackupRoot = Join-Path $base 'backups'
             HarnessSourceRoot = Join-Path $base 'source-core'
             ProviderSourceRoot = Join-Path $base 'source-provider'
+            ProviderArtifactPath = Join-Path $base 'artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz'
             NpmGlobalRoot = Join-Path $base 'global\node_modules'
             DesktopArtifactPath = Join-Path $base 'artifacts\desktop.exe'
             GatewayArtifactPath = Join-Path $base 'artifacts\gateway.exe'
             GatewayInstallRoot = Join-Path $base 'gateway-install'
+            GatewayExecutablePath = Join-Path $base 'gateway-install\copilot2api.exe'
             DesktopExecutablePath = Join-Path $base 'desktop\deepseek-harness-desktop.exe'
         }
         (Assert-CoreInstallPrefixIsolation @arguments -CoreInstallPrefix (Join-Path $base 'core-prefix')).valid |
@@ -2478,9 +2611,14 @@ packages:
             $arguments.BackupRoot,
             $arguments.HarnessSourceRoot,
             $arguments.ProviderSourceRoot,
+            $arguments.ProviderArtifactPath,
+            (Split-Path -Parent $arguments.ProviderArtifactPath),
             $arguments.NpmGlobalRoot,
             (Split-Path -Parent $arguments.NpmGlobalRoot),
             $arguments.DesktopArtifactPath,
+            $arguments.GatewayArtifactPath,
+            $arguments.GatewayInstallRoot,
+            $arguments.GatewayExecutablePath,
             $arguments.DesktopExecutablePath,
             (Split-Path -Parent $arguments.DesktopExecutablePath),
             (Join-Path (Split-Path -Parent $arguments.DesktopExecutablePath) 'resources\node_modules'),
@@ -2514,6 +2652,7 @@ packages:
             BackupRoot = Join-Path $base 'backups'
             HarnessSourceRoot = Join-Path $base 'source-core'
             ProviderSourceRoot = Join-Path $base 'source-provider'
+            ProviderArtifactPath = Join-Path $base 'artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz'
             NpmGlobalRoot = Join-Path $base 'global\node_modules'
             DesktopArtifactPath = Join-Path $base 'desktop.exe'
             GatewayArtifactPath = Join-Path $base 'gateway.exe'
@@ -2543,6 +2682,7 @@ packages:
             BackupRoot = Join-Path $base 'backups'
             HarnessSourceRoot = Join-Path $base 'source-core'
             ProviderSourceRoot = Join-Path $base 'source-provider'
+            ProviderArtifactPath = Join-Path $base 'artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz'
             NpmGlobalRoot = Join-Path $base 'global\node_modules'
             DesktopArtifactPath = Join-Path $base 'desktop.exe'
             GatewayArtifactPath = Join-Path $base 'gateway.exe'
@@ -2572,10 +2712,12 @@ packages:
             BackupRoot = Join-Path $base 'backups'
             HarnessSourceRoot = Join-Path $base 'source-core'
             ProviderSourceRoot = Join-Path $base 'source-provider'
+            ProviderArtifactPath = Join-Path $base 'artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz'
             NpmGlobalRoot = Join-Path $base 'global\node_modules'
             DesktopArtifactPath = Join-Path $base 'desktop.exe'
             GatewayArtifactPath = Join-Path $base 'gateway.exe'
             GatewayInstallRoot = Join-Path $base 'gateway-install'
+            GatewayExecutablePath = Join-Path $base 'gateway-install\copilot2api.exe'
             DesktopExecutablePath = Join-Path $alias 'deepseek-harness-desktop.exe'
         }
         {
@@ -2598,10 +2740,12 @@ packages:
             BackupRoot = Join-Path $base 'backups'
             HarnessSourceRoot = Join-Path $base 'source-core'
             ProviderSourceRoot = Join-Path $base 'source-provider'
+            ProviderArtifactPath = Join-Path $base 'artifacts\dsh-github-copilot-0.3.0-cloga.13.tgz'
             NpmGlobalRoot = Join-Path $base 'global\node_modules'
             DesktopArtifactPath = Join-Path $base 'desktop.exe'
             GatewayArtifactPath = Join-Path $base 'gateway.exe'
             GatewayInstallRoot = Join-Path $base 'gateway-install'
+            GatewayExecutablePath = Join-Path $base 'gateway-install\copilot2api.exe'
             DesktopExecutablePath = Join-Path $desktopRoot 'deepseek-harness-desktop.exe'
         }
         {
@@ -2657,10 +2801,10 @@ packages:
         $officialTauri = Join-Path (Split-Path -Parent $desktopPath) 'resources\node_modules\dsh-tauri'
         Set-Content -LiteralPath (Join-Path $officialTauri 'sentinel.txt') -Value 'keep' -Encoding UTF8
         $nodeModules = Join-Path $profileRoot 'node_modules'
-        $artifact = Join-Path $TestDrive 'dsh-github-copilot-0.3.0-cloga.11.tgz'
-        Set-Content -LiteralPath $artifact -Value 'fixture artifact' -Encoding UTF8
+        $providerRelease = New-ProviderReleaseFixture -Root (Join-Path $TestDrive 'junction-provider-release')
+        $artifact = $providerRelease.path
 
-        Set-WindowsCopilotProfile -Lock $lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
+        Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome -NpmGlobalRoot $globalRoot `
             -ProviderArtifactPath $artifact -Catalog $catalog -BackupRoot $backupRoot `
             -DesktopExecutablePath $desktopPath -SkipPackageInstall | Out-Null
 

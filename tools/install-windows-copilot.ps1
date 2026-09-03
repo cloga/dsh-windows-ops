@@ -7,6 +7,8 @@ param(
     [string]$HarnessSourceRoot,
     [Alias('ProviderSourceRoot')]
     [string]$CopilotIntegrationSourceRoot,
+    [Alias('ProviderArtifactPath')]
+    [string]$CopilotIntegrationArtifactPath,
     [string]$DesktopArtifactPath,
     [string]$GatewayArtifactPath,
     [string]$GatewayInstallRoot = $(Join-Path $env:LOCALAPPDATA 'dsh-windows-ops\bin'),
@@ -60,7 +62,8 @@ if (-not $NpmGlobalRoot) {
 
 $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome $DshHome `
     -NpmGlobalRoot $NpmGlobalRoot -HarnessSourceRoot $HarnessSourceRoot `
-    -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot -DesktopArtifactPath $DesktopArtifactPath `
+    -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
+    -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath -DesktopArtifactPath $DesktopArtifactPath `
     -GatewayArtifactPath $GatewayArtifactPath -CoreInstallPrefix $CoreInstallPrefix -BackupRoot $BackupRoot
 
 if ($Action -eq 'Rollback') {
@@ -119,6 +122,14 @@ if ($Action -eq 'Check') {
                 -Sha256 ([string]$lock.components.desktop.artifact.sha256) `
                 -ExpectedName ([string]$lock.components.desktop.artifact.name)
         } else { [pscustomobject]@{ status = 'not-supplied'; requiredForApply = $true } }
+        copilotSource = if ($CopilotIntegrationSourceRoot) {
+            Test-CopilotIntegrationDeploymentContract -Lock $lock `
+                -SourceRoot $CopilotIntegrationSourceRoot
+        } else { [pscustomobject]@{ status = 'not-supplied'; requiredForApply = $true } }
+        copilotArtifact = if ($CopilotIntegrationArtifactPath) {
+            Test-CopilotIntegrationDeploymentContract -Lock $lock `
+                -ArtifactPath $CopilotIntegrationArtifactPath
+        } else { [pscustomobject]@{ status = 'not-supplied'; requiredForApply = $true } }
         legacyGateway = $installation.migration.legacyGateway
         credential = $installation.profile.credential
         providerRoute = $installation.profile.providerRoute
@@ -138,6 +149,7 @@ if ($Action -eq 'Check') {
 foreach ($required in @{
     HarnessSourceRoot = $HarnessSourceRoot
     CopilotIntegrationSourceRoot = $CopilotIntegrationSourceRoot
+    CopilotIntegrationArtifactPath = $CopilotIntegrationArtifactPath
     DesktopArtifactPath = $DesktopArtifactPath
     CoreInstallPrefix = $CoreInstallPrefix
 }.GetEnumerator()) {
@@ -148,7 +160,7 @@ foreach ($required in @{
 
 Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlobalRoot `
     -HarnessSourceRoot $HarnessSourceRoot -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
-    -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
+    -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
     -GatewayInstallRoot $GatewayInstallRoot -GatewayExecutablePath $GatewayExecutablePath `
     -CoreInstallPrefix $CoreInstallPrefix `
     -BackupRoot $BackupRoot `

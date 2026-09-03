@@ -57,13 +57,16 @@ DSH 支持从 `$DSH_HOME/AGENTS.md` 加载用户级指令；默认路径是
 sandbox escalation，可在该文件中合并以下可复用的英文片段：
 
 ```markdown
-## PowerShell sandbox escalation
+## Mandatory PowerShell payload preflight
 
-- For an initial `pwsh` call, omit `sandbox_permissions` and `justification` entirely.
-- If approval prompts are disabled, never include either field.
-- If the current sandbox mode is `danger-full-access`, never request sandbox escalation.
-- Add both fields only when retrying the exact same command once after a real sandbox denial, approval is available, and the requested mode is strictly wider than the current mode.
-- Omit the keys themselves; do not send them as `null`, empty strings, or the current sandbox mode.
+Before emitting every `pwsh` tool call:
+
+1. Read the current runtime sandbox mode and approval status.
+2. For an initial call, omit `sandbox_permissions` and `justification` entirely.
+3. If approval prompts are disabled, the payload MUST NOT contain either key.
+4. If the current sandbox mode is `danger-full-access`, the payload MUST NOT contain either key.
+5. Add both keys only when retrying the exact same command once after a real sandbox denial, approval is available, and the requested mode is strictly wider than the current mode.
+6. Omit the keys themselves; never send them as `null`, empty strings, or the current sandbox mode.
 ```
 
 安装器应把这段规则**合并**到已有用户指令中，而不是覆盖整个文件；未经用户明确同意，不得静默创建或修改用户的 `AGENTS.md`。

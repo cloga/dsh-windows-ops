@@ -78,7 +78,7 @@
     },
     {
       "id": "github-copilot-authorization-bootstrap",
-      "description": "Verify rc.2 bootstraps the authorization service while alpha.4 reuses its existing service.",
+      "description": "Verify rc.2 bootstraps the authorization service while alpha.5 reuses its existing service.",
       "component": "dsh-github-copilot",
       "files": ["lib\\index.js"],
       "verifyMarkers": [
@@ -112,6 +112,19 @@
       ],
       "upstreamStatus": "upstreamed",
       "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/31"
+    },
+    {
+      "id": "github-copilot-optional-tool-arguments",
+      "description": "Verify the managed Copilot route disables strict tool schemas so DSH sandbox escalation arguments remain optional.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\index.js"],
+      "verifyMarkers": [
+        "compat: { supportsStrictMode: false }",
+        "function providerModels(value)",
+        "compat.supportsStrictMode !== false"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/42"
     },
     {
       "id": "github-copilot-existing-grant-route-self-healing",
@@ -154,7 +167,7 @@
     },
     {
       "id": "github-copilot-models-ui",
-      "description": "Verify alpha.4 provider-card and rc.2 Settings fallback authorization UI.",
+      "description": "Verify alpha.5 provider-card and rc.2 Settings fallback authorization UI.",
       "component": "dsh-github-copilot",
       "files": ["lib\\client.js"],
       "verifyMarkers": [

@@ -9,9 +9,9 @@ is the machine-readable deployment contract.
 |---|---|
 | Desktop | official `0.10.2`, commit `2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63` |
 | Controlled CLI | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `a772dbbde82780bff2b9394427e9f0a24cafa1d5`, maintenance branch `cloga-pi-ai-model-api` |
-| Desktop runtime | either the controlled fork above or Desktop 0.10.2's managed `@deepseek-ai/dsh@0.1.2-alpha.4` under `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.8`, source commit `94d921dc7bad4d5035c27ed9543d638694cb7391`, merge commit `eae8b56715e197d5e206a7852bfaa418bbc70dc5`, PR #33 |
-| Plugin artifact | [`dsh-github-copilot-0.3.0-cloga.8.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.8/dsh-github-copilot-0.3.0-cloga.8.tgz), SHA-256 `b37e7621628e10d2a33f4cb7e4692c4fcd1348c7d7e8eb92467f250bbaa4ae32` |
+| Desktop runtime | either the controlled fork above or Desktop 0.10.2's managed `@deepseek-ai/dsh@0.1.2-alpha.5` under `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh`; the official package contains 10 files with tree SHA-256 `89fda474f818bdab5b4f07305c231868bb615b051d45f411ec6f364e21384b22` |
+| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.10`, source commit `5417abdb4c799bd0b0d5ee25167897998788eabf`, merge commit `938317211c034f16625e4ed36bf3c30763d9c7f6`, PR #42 |
+| Plugin artifact | [`dsh-github-copilot-0.3.0-cloga.10.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.10/dsh-github-copilot-0.3.0-cloga.10.tgz), SHA-256 `80e709c80588bc4ca18e8f4a109d8689bc7d49a9cb9ee16cab0a5c60f9a0bad7` |
 | Desktop artifact | [`Deepseek.Harness.Desktop_0.10.2_x64-setup.exe`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe), SHA-256 `54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa` |
 | Desktop internal plugins | the five official `0.6.7` links into `resources\node_modules` |
 
@@ -48,7 +48,9 @@ When the shared `llm-pi-ai/github-copilot` grant is already valid, activation
 also repairs an absent, empty, or incomplete provider route instead of waiting
 for a new OAuth completion. The repaired route remains reference-free and every
 account-available model retains its installed `id` and `api`, including mixed
-Responses and Chat Completions protocols.
+Responses and Chat Completions protocols. The managed route also sets
+`compat.supportsStrictMode: false`, preserving genuine omission for DSH's
+sandbox escalation arguments while retaining ordinary JSON-schema tool calls.
 Before storage or reuse, the Host rebuilds Copilot OAuth grants from validated
 provider-owned fields as a fresh plain JSON object; unrelated extension fields
 are discarded and malformed owned fields fail without exposing their values.
@@ -56,7 +58,7 @@ It does not embed or launch a gateway. The active baseline has no local gateway
 URL, port 7777 listener, placeholder API key, pasted GitHub token, or separate
 search-provider package.
 
-The thirteen required plugin capabilities are copied exactly from its exported
+The fourteen required plugin capabilities are copied exactly from its exported
 `deployment-baseline.json`:
 
 1. `client-module-loader-handoff`
@@ -64,19 +66,20 @@ The thirteen required plugin capabilities are copied exactly from its exported
 3. `authorization-service-bootstrap`
 4. `models-provider-card-authorization`
 5. `reference-free-route-mutation`
-6. `per-model-api-route-materialization`
-7. `existing-grant-route-self-healing`
-8. `shared-copilot-credential-refresh`
-9. `strict-json-oauth-grant-normalization`
-10. `direct-provider-hosted-search`
-11. `traditional-search-bridge`
-12. `dsh-supported-baselines-fail-loud-guard`
-13. `dsh-rc2-models-settings-fallback`
+6. `copilot-optional-tool-arguments`
+7. `per-model-api-route-materialization`
+8. `existing-grant-route-self-healing`
+9. `shared-copilot-credential-refresh`
+10. `strict-json-oauth-grant-normalization`
+11. `direct-provider-hosted-search`
+12. `traditional-search-bridge`
+13. `dsh-supported-baselines-fail-loud-guard`
+14. `dsh-rc2-models-settings-fallback`
 
 The plugin has runtime dependencies on `@deepseek-ai/dsh-authorization` across
-the supported `0.1.1-rc.2` and `0.1.2-alpha.4` ranges and on `zod@^4.4.3` for
+the supported `0.1.1-rc.2` and `0.1.2-alpha.5` ranges and on `zod@^4.4.3` for
 strict client Remote result validation. It bootstraps the authorization service
-before integration activation on rc.2 and reuses the existing alpha.4 service
+before integration activation on rc.2 and reuses the existing alpha.5 service
 without duplicate registration. ACP subagents remain separate; see
 [`copilot-acp-subagent.md`](copilot-acp-subagent.md).
 
@@ -94,7 +97,7 @@ payload, composed configuration, credential-record metadata, the reference-free
 Copilot route, complete per-model `{id, api}` entries with mixed protocol
 coverage, and Desktop listener ownership. The running Desktop backend must select
 either the exact receipted fork entrypoint or Desktop 0.10.2's exact managed
-official `0.1.2-alpha.4` entrypoint. The latter is accepted only at the locked
+official `0.1.2-alpha.5` entrypoint. The latter is accepted only at the locked
 AppData dependency root with matching package name/version; an absent runtime,
 unknown version, unrelated bundled Core, or legacy gateway fails closed.
 
@@ -104,7 +107,7 @@ A missing `llm-pi-ai/github-copilot` grant is reported as
 ## Apply the locked Desktop, Core, and plugin
 
 Use exact source checkouts and the locked Desktop artifact. The plugin checkout
-must be at source commit `94d921dc7bad4d5035c27ed9543d638694cb7391`.
+must be at source commit `5417abdb4c799bd0b0d5ee25167897998788eabf`.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -123,7 +126,7 @@ Apply builds and installs the receipted controlled CLI, verifies commit
 Copilot plugin, installs the reviewed loader packages, preserves the five
 official Desktop internal-plugin junctions, physically materializes only the
 Copilot plugin, and activates the local CLI through `DSH_CLI_PATH`. Desktop
-0.10.2 may nevertheless use its own managed official `0.1.2-alpha.4` runtime;
+0.10.2 may nevertheless use its own managed official `0.1.2-alpha.5` runtime;
 restart acceptance attests that selector from the Desktop process tree and its
 locked on-disk package metadata rather than requiring Desktop to honor
 `DSH_CLI_PATH`.
@@ -147,7 +150,7 @@ The historical script name remains as a compatibility wrapper:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\enable-copilot-search-vision.ps1 `
-  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.8.tgz
+  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.10.tgz
 ```
 
 The package argument may also be a registry spec. The wrapper installs the
@@ -160,13 +163,13 @@ The wrapper reads `deployments\windows-copilot.lock.json` by default and
 requires the exact locked Desktop executable. It always uses the receipted
 controlled CLI for plugin commands, while the active Desktop backend may use
 either the controlled selector or the exact lock-attested Desktop-managed
-`0.1.2-alpha.4` selector. Override `-DeploymentLockPath` or
+`0.1.2-alpha.5` selector. Override `-DeploymentLockPath` or
 `-DesktopExecutablePath` only for an equivalent reviewed deployment.
 
 The shell does not automate the interactive device flow:
 
 - on `0.1.1-rc.2`, open **Settings → GitHub Copilot**;
-- on `0.1.2-alpha.4`, open **Models**, then the **GitHub Copilot** provider
+- on `0.1.2-alpha.5`, open **Models**, then the **GitHub Copilot** provider
   card.
 
 Complete the displayed GitHub device flow. DSH writes the shared grant and an
@@ -266,4 +269,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 The probe detects stale Pwsh schemas and returns `STALE_RUNTIME_SCHEMA` instead
 of a success-shaped result. Its positive session fields remain user-supplied,
 so it cannot attest or gate the current locked controlled `0.1.1-rc.2` or
-Desktop-managed `0.1.2-alpha.4` deployment health.
+Desktop-managed `0.1.2-alpha.5` deployment health.

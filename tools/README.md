@@ -8,7 +8,7 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 |---|---|---:|---|
 | Check the locked Desktop/Core/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply` |
 | Apply and activate the exact locked fork Core | Same command with required source/artifact arguments, `-Apply -RestartDesktop` | High | Receipt-backed controlled CLI, persisted `DSH_CLI_PATH`, quarantined conflicting official npm shims, rollback receipt, and an exact supported Desktop runtime selector |
-| Verify the locked rc.2 controlled CLI and Desktop runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop selecting either that fork or its exact locked official alpha.4 download |
+| Verify the locked rc.2 controlled CLI and Desktop runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop selecting either that fork or its exact locked official alpha.5 download |
 | Roll back Core selection | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -RestartDesktop` | Environment and shim restore | Restores the previous user `DSH_CLI_PATH` and exact backed-up npm global shims |
 | Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Uses the receipted controlled CLI for plugin commands, accepts only a lock-defined active Desktop runtime selector, upgrades both profiles to the exact locked plugin, and returns `sign-in-required` until UI authorization completes |
 | Check versions and direct-provider/Core replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Includes built `llm-pi-ai` OAuth JSON normalization and per-model API route evidence; no local gateway endpoint |
@@ -41,7 +41,7 @@ the old `-ProviderSourceRoot` spelling remains an alias.
 The direct baseline is one DSH plugin reusing built-in `llm-pi-ai`, not an
 embedded gateway. The wrapper never writes provider routes, endpoints, API-key
 references, or model lists. Use **Settings → GitHub Copilot** on rc.2 or the
-**Models** provider card on alpha.4 for the interactive device flow.
+**Models** provider card on alpha.5 for the interactive device flow.
 
 ## Plugin validation boundary
 

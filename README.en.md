@@ -8,15 +8,16 @@ This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, reco
 
 ## Current supported baseline
 
-[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-02**.
+[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-03**.
 
 | Component | Locked version |
 |---|---|
 | DeepSeek Harness Desktop | 0.10.2 |
 | Controlled `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
-| Desktop-selected `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 or Desktop-managed official 0.1.2-alpha.5 |
-| `dsh-github-copilot` | 0.3.0-cloga.10 |
-| Desktop internal plugins | five official 0.6.7 components under `resources\node_modules` |
+| Desktop-selected `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 or Desktop-managed wrapper 0.1.2-alpha.4 with inner DSH 0.1.2-alpha.5 |
+| `dsh-github-copilot` | 0.3.0-cloga.11 |
+| Desktop internal plugins | seven official Profile links plus one non-bundled 0.6.7 panel placeholder under `resources\node_modules` |
+| Optional Web overlays (not baseline requirements) | `dsh-playwright-host@0.1.0`, `dsh-cron@0.3.3` |
 
 A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline.
 
@@ -30,6 +31,7 @@ A project appearing in a README, catalog, or historical incident does **not** me
 | Choose or evaluate a community plugin | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
 | Understand plugin validation levels | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | Evaluate Computer Use and browser automation | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
+| Operate the optional Session scheduler | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
 | Read the machine-readable plugin catalog | [`catalog/plugins.json`](catalog/plugins.json) |
 | Track improvements, ownership, PR status, and evidence | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |
 
@@ -66,18 +68,19 @@ Use each script's header and linked guide for full parameters.
 ## Documentation map
 
 - **Deployment and integration:** `local-core-desktop-copilot.md`, `vision-dual-channel.md`
-- **Plugin governance:** `docs/plugins/`, `catalog/`
+- **Plugin governance and optional overlays:** `docs/plugins/`, including `computer-use.md` and `scheduling.md`, plus `catalog/`
 - **Diagnostics and migration:** `tools/README.md`, `windows-replay-tooling.md`, `session-move-workspace-groups.md`
 - **Incidents and platform issues:** `startup-60s-timeout.md`, `powershell-5.1-pitfalls.md`, `github-network.md`
 - **Maintenance status:** `improvement-portfolio.md`, `windows-replay-tooling.md`
 
 ## Security rules
 
-- Inject credentials only from `.env`, environment variables, or the DSH credential service. Never place them in patches, docs, fixtures, or commits.
+- Load credentials only from a user-designated trusted source into the current process or DSH credential service. Prefer one centralized `.env`; never print, copy between repositories, or commit values.
 - Start community MCP servers read-only; enable side effects only when explicitly required.
 - Computer Use, real-browser control, and vision plugins may expose screens, cookies, messages, passwords, and native applications. Recommendation policy must remain separate from functional validation.
 - Back up runtime/configuration changes, keep patches idempotent, and document rollback.
-- Preserve and attest Desktop's five official internal-plugin links; do not replace them with guessed registry packages.
+- Before any Desktop/Host restart, query live Sessions; require direct acknowledgement before interrupting any running Session.
+- Preserve and attest Desktop's seven official Profile links and non-bundled panel placeholder; do not replace them with guessed registry packages.
 
 See [`docs/security-notes.md`](docs/security-notes.md).
 
@@ -87,9 +90,9 @@ This repository does not redistribute Desktop, Core, or the Copilot plugin. It p
 
 | Project | Deployment responsibility | Current relationship |
 |---|---|---|
-| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and five internal plugins | Current lock uses official 0.10.2 |
+| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and seven Profile plugins plus one shipped placeholder | Current lock uses official 0.10.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, sandbox policy, strict pi-ai OAuth JSON record normalization, and per-model API routes | Deployment pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | One DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict Remote result codecs, strict JSON OAuth grant normalization, existing-grant route self-heal, account-filtered per-model API materialization, and ordinary JSON-schema tool calling that preserves optional sandbox arguments, using built-in `@deepseek-ai/dsh-llm-pi-ai` for OAuth, token refresh, direct Copilot transport, and hosted search; repaired routes remain reference-free with complete mixed-protocol `{id, api}` entries; no ACP | Deployment pin `5417abdb` / `0.3.0-cloga.10` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | One DSH plugin with the rc.2 Desktop client ModuleLoader handoff, strict Remote result codecs, strict JSON OAuth grant normalization, existing-grant route self-heal, account-filtered per-model API materialization, and Copilot-scoped removal of unusable sandbox escalation fields while other providers retain native schemas, using built-in `@deepseek-ai/dsh-llm-pi-ai` for OAuth, token refresh, direct Copilot transport, and hosted search; repaired routes remain reference-free with complete mixed-protocol `{id, api}` entries; no ACP | Deployment pin `7db12efa` / `0.3.0-cloga.11` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 
 The historical ACP subagent practice remains in

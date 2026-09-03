@@ -77,5 +77,6 @@ jobs:
           for file in README.md README.en.md; do
             grep -q 'catalog/plugins.json' "$file"
             grep -q 'docs/plugins/computer-use.md' "$file"
+            grep -q 'docs/plugins/scheduling.md' "$file"
             grep -q 'tools/README.md' "$file"
           done

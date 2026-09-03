@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Preflight', 'SelfCheck', 'Verify', 'Apply', 'Rollback', 'RecoverDesktop')]
+    [ValidateSet('Preflight', 'Inventory', 'SelfCheck', 'Verify', 'Apply', 'Rollback', 'RecoverDesktop')]
     [string]$Action = 'Preflight',
     [string]$Config,
     [string]$PatchManifest,
@@ -29,6 +29,11 @@ switch ($Action) {
             components = @(Get-DshComponentInventory -Config $resolvedConfig)
             patches = @($resolvedManifest.patches | ForEach-Object { Test-DshPatch -Patch $_ -Config $resolvedConfig })
         } | ConvertTo-Json -Depth 10
+    }
+    'Inventory' {
+        [pscustomobject]@{
+            components = @(Get-DshComponentInventory -Config $resolvedConfig)
+        } | ConvertTo-Json -Depth 8
     }
     'SelfCheck' {
         [pscustomobject]@{

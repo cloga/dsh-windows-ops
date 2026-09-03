@@ -1,0 +1,70 @@
+name: Windows deployment bug
+description: Report a reproducible lock, installer, replay, or Desktop integration problem
+title: "[Deployment]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Run the installer in default check mode first. Do not include credentials, OAuth grants, session content, private messages, cookies, or raw sensitive provider responses. Report vulnerabilities privately through the Security tab.
+  - type: input
+    id: lock-commit
+    attributes:
+      label: Windows Ops lock commit
+      placeholder: Full dsh-windows-ops commit SHA
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Desktop, DSH, and Copilot plugin versions
+      placeholder: Desktop 0.10.2; DSH ...; dsh-github-copilot ...
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Installer check mode
+        - Installer apply or rollback
+        - Replay self-check or dry-run
+        - Desktop runtime selector
+        - Copilot sign-in or model route
+        - Hosted search
+        - Plugin catalog or optional overlay
+        - Session safety or restart preflight
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: check-output
+    attributes:
+      label: Redacted check output
+      description: Include named status/reason codes; remove credentials, payloads, session content, and private paths.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I ran check mode before apply and did not restart or interrupt live Sessions for this report.
+          required: true
+        - label: I removed credentials, OAuth grants, session content, cookies, and private data.
+          required: true
+        - label: This is not a security vulnerability requiring private disclosure.
+          required: true

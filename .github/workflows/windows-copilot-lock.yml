@@ -3,44 +3,12 @@ name: Windows Copilot deployment lock
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - '.github/workflows/windows-copilot-lock.yml'
-      - 'deployments/windows-copilot.lock.json'
-      - 'tests/DshWindowsOps.Tests.ps1'
-      - 'tests/DshCopilotBootstrap.Tests.ps1'
-      - 'tests/WindowsCopilotInstaller.Tests.ps1'
-      - 'tests/DshRuntimeSchema.Tests.ps1'
-      - 'tests/fixtures/windows-copilot/**'
-      - 'tools/DshWindowsOps.psm1'
-      - 'tools/DshCopilotBootstrap.psm1'
-      - 'tools/WindowsCopilotDeployment.psm1'
-      - 'tools/DshRuntimeSchema.psm1'
-      - 'tools/test-dsh-runtime-schema.ps1'
-      - 'tools/enable-copilot-search-vision.ps1'
-      - 'tools/install-windows-copilot.ps1'
-      - 'tools/dsh-replay.config.example.json'
-      - 'tools/dsh-replay.patches.json'
-      - 'catalog/**'
   push:
     branches: [master]
-    paths:
-      - '.github/workflows/windows-copilot-lock.yml'
-      - 'deployments/windows-copilot.lock.json'
-      - 'tests/DshWindowsOps.Tests.ps1'
-      - 'tests/DshCopilotBootstrap.Tests.ps1'
-      - 'tests/WindowsCopilotInstaller.Tests.ps1'
-      - 'tests/DshRuntimeSchema.Tests.ps1'
-      - 'tests/fixtures/windows-copilot/**'
-      - 'tools/DshWindowsOps.psm1'
-      - 'tools/DshCopilotBootstrap.psm1'
-      - 'tools/WindowsCopilotDeployment.psm1'
-      - 'tools/DshRuntimeSchema.psm1'
-      - 'tools/test-dsh-runtime-schema.ps1'
-      - 'tools/enable-copilot-search-vision.ps1'
-      - 'tools/install-windows-copilot.ps1'
-      - 'tools/dsh-replay.config.example.json'
-      - 'tools/dsh-replay.patches.json'
-      - 'catalog/**'
+
+concurrency:
+  group: windows-copilot-lock-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -48,8 +16,9 @@ permissions:
 jobs:
   pester:
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Run fixture tests under Windows PowerShell 5.1
         shell: powershell
         run: |
@@ -62,6 +31,6 @@ jobs:
           }
           Import-Module $pester.Path -Force
           $result = Invoke-Pester -Path .\tests -PassThru
-          if ($result.FailedCount -gt 0) {
+          if ($result.Result -ne 'Passed' -or $result.FailedCount -gt 0) {
             exit 1
           }

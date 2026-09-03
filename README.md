@@ -1,8 +1,12 @@
 # dsh-windows-ops
 
+[![Windows deployment lock](https://github.com/cloga/dsh-windows-ops/actions/workflows/windows-copilot-lock.yml/badge.svg)](https://github.com/cloga/dsh-windows-ops/actions/workflows/windows-copilot-lock.yml)
+[![Plugin catalog](https://github.com/cloga/dsh-windows-ops/actions/workflows/plugin-catalog.yml/badge.svg)](https://github.com/cloga/dsh-windows-ops/actions/workflows/plugin-catalog.yml)
+[![License](https://img.shields.io/github/license/cloga/dsh-windows-ops)](LICENSE)
+
+[English](README.en.md) | **简体中文**
+
 > DeepSeek Harness（DSH）Windows 部署基线、运维工具箱与社区插件验证目录。
->
-> English: [README.en.md](README.en.md) / [简体中文](README.md)
 
 本仓库沉淀在真实 Windows 环境中验证过的 DSH Desktop/Core/Copilot 部署、诊断、修复和集成经验。它不分发 Desktop、Core 或第三方插件；正式支持范围由精确锁和验收契约定义。
 
@@ -15,11 +19,11 @@
 | DeepSeek Harness Desktop | 0.10.2 |
 | 受控 `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
 | Desktop 选择的 `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2，或 Desktop 管理的 0.1.2-alpha.4 wrapper + 内层 DSH 0.1.2-alpha.5 |
-| `dsh-github-copilot` | 0.3.0-cloga.11 |
+| `dsh-github-copilot` | 0.3.0-cloga.13 |
 | Desktop internal plugins | 官方 7 个 Profile 链接及 1 个不直接挂载的 0.6.7 panel placeholder，位于 `resources\node_modules` |
 | 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.0`、`dsh-cron@0.3.3` |
 
-README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。
+README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。默认分支和 deployment lock 是本仓库的发布渠道；本仓库不另行分发 Desktop/Core/plugin 二进制。Lock 更新表示经过评审的目标基线，不代表某台机器已经执行 `-Apply`；默认 check mode 会如实报告尚未应用的 drift。
 
 ## 快速入口
 
@@ -34,6 +38,7 @@ README、插件目录或历史文档中出现一个项目，**不代表它属于
 | 运维可选的 Session 定时调度 | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
 | 查看机器可读插件目录 | [`catalog/plugins.json`](catalog/plugins.json) |
 | 查看改进归属、PR 状态和验证证据 | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |
+| 提交变更或私密报告安全问题 | [`CONTRIBUTING.md`](CONTRIBUTING.md) / [`SECURITY.md`](SECURITY.md) |
 
 ## 三类“验证”不要混淆
 
@@ -92,7 +97,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和 7 个 Profile plugins 及 1 个 shipped placeholder | 当前 lock 使用官方 0.10.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装、sandbox 策略、严格 pi-ai OAuth JSON 记录规范化和逐模型 API 路由 | 部署精确 pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 一个包含 rc.2 Desktop 客户端 ModuleLoader handoff、严格 Remote 结果 codec、严格 JSON OAuth grant 规范化、已有 grant 路由自愈、账户过滤逐模型 API 物化，并仅从 Copilot Tool Schema 删除不可用的 sandbox escalation 字段、同时保留其它 provider 原生 schema 的 DSH 插件，复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 OAuth、刷新、Copilot 直连和 hosted search；修复后的路由保持无引用并包含完整的混合协议 `{id, api}`；不包含 ACP | 部署精确 pin `7db12efa` / `0.3.0-cloga.11` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | 源 commit `62363304`、merge `adfce229`、immutable Release `0.3.0-cloga.13` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 
 历史 ACP 子代理实践仍保留在

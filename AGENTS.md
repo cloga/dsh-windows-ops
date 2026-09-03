@@ -17,6 +17,8 @@
 - Create or identify a tracking issue before editing. Deliver every change
   through a pull request to the resolved default branch; never push directly to
   `master` or `main`.
+- Commits produced with the Copilot App must include the exact trailer
+  `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>`.
 
 ## Mandatory DSH PowerShell payload preflight
 
@@ -41,8 +43,14 @@ Before an installation agent emits every `pwsh` tool call:
   install or repair; use its explicit `-Apply` mode instead of translating the
   prose guide into ad hoc commands.
 - Do not omit, substitute, or independently upgrade a locked component. Update
-  the lock, its fixture tests, and the explanatory guide together after a new
-  baseline is verified.
+  the lock, plugin catalog, fixtures, tests, and bilingual/current explanatory
+  guides together after a new baseline is verified. Run
+  `node tools/validate-repository-content.mjs` and
+  `node tools/validate-plugin-catalog.mjs` before Pester.
+- The Copilot package is distributed only by immutable GitHub Release. Pin its
+  exact source and merge commits, versioned tarball URL and SHA-256, release tag,
+  immutable-release assertion, and `SHA256SUMS` identity; never substitute a
+  registry package or an unverified latest URL.
 - Keep the official DSH Desktop shell unless the task specifically changes the
   shell.
 - For `cloga/deepseek-harness` changes, build a local `@deepseek-ai/dsh`

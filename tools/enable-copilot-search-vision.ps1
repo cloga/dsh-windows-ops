@@ -3,7 +3,7 @@ param(
     [ValidateSet('Apply', 'Verify', 'Rollback')]
     [string]$Action = 'Apply',
     [string]$Model,
-    [string]$CopilotIntegrationPackage = 'dsh-github-copilot',
+    [string]$CopilotIntegrationPackage,
     [Alias('ProviderPackage')]
     [string]$PluginPackage,
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }),
@@ -33,10 +33,6 @@ if ($BaseUrl) {
 if ($PluginPackage) { $CopilotIntegrationPackage = $PluginPackage }
 $DshHome = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DshHome))
 $StateRoot = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($StateRoot))
-$CopilotIntegrationPackage = [Environment]::ExpandEnvironmentVariables($CopilotIntegrationPackage)
-if (Test-Path -LiteralPath $CopilotIntegrationPackage -PathType Leaf) {
-    $CopilotIntegrationPackage = [IO.Path]::GetFullPath($CopilotIntegrationPackage)
-}
 
 if ($Action -eq 'Rollback') {
     Restore-DshCopilotBackup -StateRoot $StateRoot -OperationId $OperationId -DryRun:$DryRun |
@@ -46,6 +42,8 @@ if ($Action -eq 'Rollback') {
 
 $cli = Resolve-DshCliInfo -DshCliPath $DshCliPath
 $lock = Read-WindowsCopilotLock -Path $DeploymentLockPath
+$CopilotIntegrationPackage = Resolve-LockedCopilotPackageSpec -Lock $lock `
+    -PackageSpec $CopilotIntegrationPackage
 $desktop = Get-WindowsCopilotDesktopState -Lock $lock -Path $DesktopExecutablePath
 if (-not $desktop.valid) {
     throw "The exact locked Desktop is unavailable: '$($desktop.status)'."

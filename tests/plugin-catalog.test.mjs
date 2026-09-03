@@ -58,6 +58,26 @@ test('dsh-dev-tools records rc1 evidence and deployment-owned approval policy', 
   assert.ok(plugin.validation.evidence.some(evidence => evidence.path === 'tests/dsh-dev-tools.test.mjs'))
 })
 
+test('requires exactly one dsh-github-copilot locked baseline entry', () => {
+  for (const mutate of [
+    catalog => { catalog.plugins = catalog.plugins.filter(plugin => plugin.id !== 'dsh-github-copilot') },
+    catalog => { pluginById(catalog, 'dsh-github-copilot').validation.level = 'L4' },
+  ]) {
+    const paths = fixture(({ catalog }) => mutate(catalog))
+    const result = run(paths)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /exactly one locked baseline entry/)
+  }
+})
+
+test('enforces the published schema against unknown properties', () => {
+  const paths = fixture(({ catalog }) => { catalog.plugins[0].unexpected = true })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /not allowed by schema/)
+})
+
+
 test('rejects duplicate plugin ids', () => {
   const paths = fixture(({ catalog }) => catalog.plugins.push(structuredClone(catalog.plugins[0])))
   const result = run(paths)
@@ -104,6 +124,26 @@ test('rejects deployment lock identity drift', () => {
   const result = run(paths)
   assert.equal(result.status, 1)
   assert.match(result.stderr, /does not match deployment lock/)
+})
+
+test('rejects mutable or mismatched baseline release evidence', () => {
+  const paths = fixture(({ catalog }) => {
+    const plugin = pluginById(catalog, 'dsh-github-copilot')
+    plugin.artifact.releaseImmutable = false
+    plugin.artifact.checksumManifestUrl = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.0.0/SHA256SUMS'
+  })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /releaseImmutable|checksumManifestUrl/)
+})
+
+test('rejects malformed release tag suffixes', () => {
+  const paths = fixture(({ catalog }) => {
+    pluginById(catalog, 'dsh-github-copilot').artifact.releaseTag = 'v0.3.0-cloga.13/extra'
+  })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /releaseTag/)
 })
 
 test('rejects recommended entries with unknown high-impact security facts', () => {

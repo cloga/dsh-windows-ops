@@ -61,7 +61,7 @@ Then use an isolated `DSH_HOME` to verify Cordis activation, tool registration, 
 | Category | Primary tool | Purpose |
 |---|---|---|
 | Deployment | `tools/install-windows-copilot.ps1` | Check by default; install the locked baseline only with explicit `-Apply` |
-| Bootstrap | `tools/enable-copilot-search-vision.ps1` | Install the direct plugin, select hosted search, and report UI sign-in requirements |
+| Bootstrap | `tools/enable-copilot-search-vision.ps1` (historical compatibility name) | Install the direct Copilot plugin, select hosted search, and report UI sign-in requirements; no vision fallback is installed |
 | Optional suite | `tools/install-optional-companion-suite.ps1` | Check by default; explicitly `-Apply` the independently versioned Copilot, Cron, and Playwright Bundles together without restarting the Host |
 | Replay and acceptance | `tools/dsh-replay.ps1` | Self-check, strict-marker patches, dry-run, backup, and rollback |
 | Plugin compatibility | `tools/dsh-compat-check.mjs` | Static dependency inventory and real host import probe |
@@ -74,7 +74,7 @@ Use each script's header and linked guide for full parameters.
 
 ## Documentation map
 
-- **Deployment and integration:** `local-core-desktop-copilot.md`, `vision-dual-channel.md`
+- **Deployment and integration:** `local-core-desktop-copilot.md`, `vision-dual-channel.md` (now the native DSH attachment and `read_image` architecture)
 - **Plugin governance and optional overlays:** `docs/plugins/`, including `computer-use.md` and `scheduling.md`, plus `catalog/`
 - **Diagnostics and migration:** `tools/README.md`, `windows-replay-tooling.md`, `session-move-workspace-groups.md`
 - **Incidents and platform issues:** `startup-60s-timeout.md`, `powershell-5.1-pitfalls.md`, `github-network.md`

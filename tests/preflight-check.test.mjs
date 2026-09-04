@@ -84,6 +84,7 @@ test('smoke attests the complete wrapper tree before executing its entrypoint', 
   }
   assert.ok(source.indexOf('runtimeTreeState(runtimeRoot)')
     < source.indexOf("spawn(node, ['--expose-internals'"))
+  assert.match(source, /Smoke backend did not terminate after SIGKILL/)
 })
 
 function output(result) {

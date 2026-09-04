@@ -411,14 +411,22 @@ if (doSmoke) {
     problems++;
   } finally {
     if (child && child.exitCode === null) {
+      const exited = new Promise(resolve => child.once('exit', resolve));
       child.kill();
       await Promise.race([
-        new Promise(resolve => child.once('exit', resolve)),
+        exited,
         new Promise(resolve => setTimeout(resolve, 5000)),
       ]);
       if (child.exitCode === null) {
+        const forcedExit = new Promise(resolve => child.once('exit', resolve));
         child.kill('SIGKILL');
-        await new Promise(resolve => child.once('exit', resolve));
+        await Promise.race([
+          forcedExit,
+          new Promise((_, reject) => setTimeout(
+            () => reject(new Error('Smoke backend did not terminate after SIGKILL.')),
+            5000
+          )),
+        ]);
       }
       log('smoke instance stopped');
     }

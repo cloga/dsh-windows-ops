@@ -1673,6 +1673,8 @@ It 'removes fork-only inputs and mutations from the installer and Apply implemen
         $apply | Should -Match 'AcknowledgeLiveSessionIds'
         $apply.IndexOf('Stop-WindowsCopilotProcessTree') |
             Should -BeLessThan $apply.IndexOf('Start-Process -FilePath $DesktopArtifactPath')
+        $apply | Should -Match '\$upgradeAcknowledgementConsumed = \$true'
+        $apply | Should -Match '\$restartAcknowledgements'
         $moduleText |
             Should -Not -Match 'components\.core|DSH_CLI_PATH|CoreInstall|ForkCore|HarnessSourceRoot'
         $moduleText | Should -Match 'profile-unknown-dependency'

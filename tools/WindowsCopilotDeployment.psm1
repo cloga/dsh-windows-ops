@@ -5014,6 +5014,7 @@ function Invoke-WindowsCopilotApplyLocked {
     $registrySnapshots = [Collections.Generic.List[object]]::new()
     $profileReceipt = $null
     $outerSnapshotsMerged = $false
+    $upgradeAcknowledgementConsumed = $false
     $globalPackageNames = @($Lock.globalInstall.packages | ForEach-Object {
         [string]$_.name
     })
@@ -5148,6 +5149,7 @@ function Invoke-WindowsCopilotApplyLocked {
                 Stop-WindowsCopilotProcessTree `
                     -RootProcessIds @($runningDesktop.ProcessId) `
                     -Processes $desktopProcesses | Out-Null
+                $upgradeAcknowledgementConsumed = $true
             }
             $desktopProcess = Start-Process -FilePath $DesktopArtifactPath `
                 -ArgumentList @($Lock.components.desktop.install.arguments) -Wait -PassThru
@@ -5194,9 +5196,14 @@ function Invoke-WindowsCopilotApplyLocked {
             -Path (Join-Path $operationRoot 'receipt.json') -Depth 12
 
         $restart = if ($RestartDesktop) {
+            $restartAcknowledgements = if ($upgradeAcknowledgementConsumed) {
+                @()
+            } else {
+                @($AcknowledgeLiveSessionIds)
+            }
             Restart-WindowsCopilotDesktop -DesktopExecutablePath ([string]$desktopState.path) `
                 -Lock $Lock -TimeoutSeconds $TimeoutSeconds `
-                -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds
+                -AcknowledgeLiveSessionIds $restartAcknowledgements
         } else {
             [pscustomobject]@{
                 status = 'not-requested'

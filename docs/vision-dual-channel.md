@@ -1,69 +1,67 @@
-# DSH 视觉双通道（官方 + vision 工具兜底）
+# DSH 原生视觉通道与本地图片读取
 
-> 目标：text-only 模型（flash/pro）也能"看图"，image-capable 模型（vision-exp）直接用官方通道，二者共存不冲突。
+> 当前 Windows 基线只使用 DSH 官方图片附件通道和 `read_image` 文件工具；不再推荐安装 `dsh-vision-any` 或同类视觉转发插件。
 
-## 背景
+## 结论
 
-DSH 官方 `dsh-llm-deepseek` 0.1.1 起有官方视觉通道（Files API 上传 → `file_id`），但**只对声明了 `inputModalities: [text, image]` 的模型**生效；text-only 模型收图只给占位文本（`[image omitted because this model accepts text only...]`），**无任何转发**。
+视觉理解由所选模型原生提供。DSH 负责校验、规范化、持久化并把图片作为原生 image block 送到模型：
 
-往 DSH 里贴图 → `apiProxy.sessions.prompt` → 官方门检查 `resolveModelInfo(当前模型).inputModalities` → text-only 直接拒绝（前端横幅「当前模型不支持图片」）。
-
-## 双通道设计
-
-| 会话模型 | 通道 | 行为 |
+| 图片来源 | 支持路径 | 是否需要 `read_image` |
 |---|---|---|
-| image-capable（`deepseek-v4-flash-vision-exp`） | **官方** | admission 放行原始图片 → 官方适配器（Files API 上传，回退 base64；640k 像素/1MiB 预算）→ 模型原生看图 |
-| text-only（`deepseek-v4-flash` / `deepseek-v4-pro`） | **兜底** | admission 拦截：图片保存到本地 `TMP_DIR`，替换为 path hint `[Image #N auto-saved to ...]` + 提示"调用 vision 工具"，模型自动调 `vision` 工具（后端=DeepSeek 官方 vision API，免额外 key） |
+| 用户在会话中粘贴或上传 | DSH attachment admission → 当前 LLM adapter → 模型原生视觉输入 | 否 |
+| Agent 需要查看工作区中的 PNG/JPEG/WebP/GIF | `read_image` → `ctx.fs` 有界读取 → attachment store → 下一次模型请求 | 是 |
 
-## 关键实现点（`dsh-vision-any` 插件 + 官方配置）
+`read_image` 不实现视觉推理，也不调用独立视觉模型。它只是把模型原先只能看到的文件路径转换成持久的图片内容块；最终仍由当前模型的原生视觉能力理解图片。
 
-### 1. 模型目录声明（必须双层）
-runtime 的 `resolveModelInfo` 需要模型清单里 vision-exp 声明 `[text, image]`：
+## 官方组件
+
+当前能力来自 DSH 第一方包：
+
+- `@deepseek-ai/dsh-attachment-local`：保存、校验、缩放或转码图片附件；
+- `@deepseek-ai/dsh-tool-fs`：注册 `read_image`，通过当前 `ctx.fs` 后端读取本地图片；
+- 当前 LLM adapter（Windows Copilot 基线使用内建 `llm-pi-ai`）：把 Harness image block 投影为提供方支持的原生图片输入。
+
+这些组件属于官方 Cordis 组合。它们是插件化的第一方 Core 能力，不是 `dsh-github-copilot`、Desktop patch 或 Windows Ops 自建的视觉实现。
+
+## 模型能力门禁
+
+只有模型目录明确声明图片输入时，DSH 才允许图片进入该路由。目录应以显式 metadata 为准，例如：
 
 ```yaml
-# ~/.dsh/cordis.patch.yml（GUI 设置页保存会整文件重写 settings.yaml，放 patch 更稳）
-- id: llm-deepseek
-  config:
-    models:
-      - id: deepseek-v4-flash
-        name: DeepSeek-V4-Flash
-        inputModalities: [ text ]
-      - id: deepseek-v4-pro
-        name: DeepSeek-V4-Pro
-        inputModalities: [ text ]
-      - id: deepseek-v4-flash-vision-exp
-        name: DeepSeek-V4-Flash-Vision-Exp
-        inputModalities: [ text, image ]
+input: [ text, image ]
 ```
 
-### 2. admission 判定铁律（踩坑 2026-08-22，已 PR #2）
-`currentModelOf` **必须镜像官方门 `selectionFor(agent).current` 的解析顺序**：
+不要根据模型名称中是否包含 `vision`、`image`、`vlm` 等字符串猜测能力。当前 Core 会解析所选 provider/model 的 `inputModalities`；`read_image` 也会在任何图片文件 I/O 前检查同一条路由。
 
-```
-selectModel GUI 选择 > 会话 requestHeader > 默认选择
-```
+如果当前模型只声明 `text`：
 
-**严禁跨源优先找 vision 名**！旧实现（上游）"任一源含 vision 就判 vision"导致：
+- 用户上传的图片不会被当作该模型可理解的视觉输入；
+- `read_image` 会拒绝执行并提示切换到 image-capable 模型；
+- Windows 基线不会把图片暗中转发给第二个视觉提供方。
 
-- GUI 切到 flash，但 `requestHeader`/`options` 残留旧 vision-exp → admission 误判 image-capable → **放行** → 官方门按真模型 flash 拒图 → 用户看到「当前模型不支持图片」，hint 和 vision 工具**轮不到出现**（2026-08-22 必现）
+这种失败是明确的能力边界，而不是需要再安装一个通用视觉插件的信号。
 
-### 3. 模型名优先于 catalog
-0.1.1 适配器 read 路径对 vision-exp 返回 `["text"]`（配置声明了 `[text, image]` 也如此）——所以 admission 判定：**模型名含 `vision|multimodal|vlm|image` 直接 image-capable**，不信 catalog；仅非 vision 名才查 catalog；catalog 查询失败保守放行。
+## 为什么退役 Vision Any fallback
 
-### 4. systemPrompt 中性化
-原插件无条件说 "The active model is text-only" → **误导 vision-exp 模型调 vision 工具**。改为：
+旧设计为 text-only 路由保存图片路径，再提示模型调用 `dsh-vision-any` 的 `vision` 工具。当前基线不再采用它，因为它会引入第二套：
 
-```
-Image handling: if the active model supports images, pasted images are delivered to it directly.
-If the active model is text-only, the image is saved to <TMP_DIR> and replaced with a hint like "[Image #N auto-saved to ...]"; then call the `vision` tool with that exact path.
-```
+- 模型能力判断；
+- 图片 admission 与临时文件生命周期；
+- 外部视觉提供方、凭据和数据流；
+- 提示词与工具调用约定。
 
-## 验证方式
+这与 DSH 已有的附件、文件系统、模型目录和原生视觉通道重复，而且容易让“当前模型是否真正支持图片”与“另一个工具能否代看图片”混为一谈。
 
-- `/model-info`（自建 `/brand-info` 同源）应返回三个模型 modalities：
-  `{"deepseek-v4-flash":["text"],"deepseek-v4-pro":["text"],"deepseek-v4-flash-vision-exp":["text","image"]}`
-- vision-exp 会话发图 → **原生进模型**（无 hint 提示）
-- flash 会话发图 → 出现 `[Image #N auto-saved ...]` + 模型调 vision 工具
+`dsh-vision-any` 仍作为历史评估记录保留在插件目录中，但推荐状态为 `historical`，不属于锁定 Windows Copilot 基线，也不应由 bootstrap 或可选套件安装。
 
-## 已回馈上游
-- `tianmingwan/dsh-vision-any` [PR #2](https://github.com/tianmingwan/dsh-vision-any/pull/2)：model-aware admission（byName + 诊断日志）+ systemPrompt 中性化
+## 验证
+
+1. 在 Models 中确认目标模型明确显示 text + image 能力。
+2. 新建该模型的 Session，直接上传一张测试图片；模型应在同一用户消息中收到原生图片，而不是路径 hint。
+3. 让 Agent 查看工作区中的测试图片；应调用内建 `read_image`，工具结果包含图片内容块。
+4. 切换到明确的 text-only 模型并调用 `read_image`；应在读取文件前得到 image-capability 拒绝。
+5. 检查 Web/headless composition 和插件清单，确认没有安装 `dsh-vision-any` 或其他视觉转发 fallback。
+
+## 历史记录
+
+早期双通道方案和 `tianmingwan/dsh-vision-any#2` 曾用于研究 text-only 路由的工具兜底。它们不再代表当前推荐架构；历史链接仅用于解释迁移背景。

@@ -14,6 +14,7 @@ export function validateRepositoryContent(root = defaultRoot) {
   const catalog = json('catalog/plugins.json')
   const locked = lock.components?.copilotIntegration
   const plugin = catalog.plugins?.find(candidate => candidate.id === 'dsh-github-copilot')
+  const legacyVision = catalog.plugins?.find(candidate => candidate.id === 'dsh-vision-any')
   const version = locked?.package?.version
   const artifact = locked?.package?.artifact
   const source = locked?.source
@@ -64,6 +65,12 @@ export function validateRepositoryContent(root = defaultRoot) {
   }
   expect(lock.profile?.legacyCopilotIntegrations?.some(entry => entry.name === 'dsh-web-search-provider'), 'legacy web-search provider inventory is missing')
   expect(lock.acceptance?.composedConfig?.forbiddenActiveEntries?.includes('web-search-provider'), 'legacy web-search provider must remain forbidden active')
+  expect(legacyVision?.recommendation === 'historical', 'dsh-vision-any must remain historical rather than an installation recommendation')
+  expect(legacyVision?.summary?.includes('superseded'), 'dsh-vision-any catalog entry must explain its native-image replacement')
+
+  const nativeVisionDoc = read('docs/vision-dual-channel.md')
+  expect(nativeVisionDoc.includes('@deepseek-ai/dsh-tool-fs'), 'native image guide is missing the official read_image owner')
+  expect(nativeVisionDoc.includes('不再推荐安装 `dsh-vision-any`'), 'native image guide does not retire the secondary vision fallback')
 
   const currentDocs = [
     'README.md',

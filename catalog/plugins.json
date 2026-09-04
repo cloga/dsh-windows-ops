@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-03",
+  "updatedAt": "2026-09-04",
   "validationLevels": [
     {
       "id": "L0",
@@ -313,21 +313,21 @@
       "platforms": [
         "cross-platform"
       ],
-      "recommendation": "experimental",
+      "recommendation": "historical",
       "validation": {
         "level": "L1",
-        "verifiedAt": "2026-08-29",
+        "verifiedAt": "2026-09-04",
         "dshVersion": null,
         "nodeVersion": null,
         "evidence": [
           {
             "kind": "source-review",
-            "description": "Model-aware admission and neutral prompting are recorded in the optional integration PR.",
+            "description": "The former text-only vision fallback design is preserved in its upstream integration PR for migration history.",
             "url": "https://github.com/tianmingwan/dsh-vision-any/pull/2"
           },
           {
             "kind": "source-review",
-            "description": "The dual-channel design and limitations are documented locally.",
+            "description": "The current native attachment and read_image architecture, capability gate, and retirement rationale are documented locally.",
             "path": "docs/vision-dual-channel.md"
           }
         ]
@@ -339,11 +339,15 @@
         "sendsDataExternally": true,
         "approvalGate": null,
         "notes": [
-          "Images may be sent to the configured vision provider.",
-          "Not installed by the locked Windows Copilot deployment."
+          "The historical fallback may send images to a separately configured vision provider.",
+          "Superseded by DSH's built-in attachment path and read_image tool for image-capable routes.",
+          "Do not install it as part of the locked Windows Copilot deployment."
         ]
       },
-      "summary": "An optional vision-tool fallback design for text-only routes; it remains outside the locked baseline."
+      "summary": "A historical text-only vision-tool fallback, retained for migration context but superseded by DSH's native image attachment and read_image path.",
+      "notes": [
+        "Not a current installation recommendation; select an image-capable model instead of adding a second vision routing layer."
+      ]
     },
     {
       "id": "dsh-dev-tools",

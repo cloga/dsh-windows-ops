@@ -201,7 +201,12 @@ whose SHA-256 matches the lock; npm is not a distribution channel. The wrapper
 installs the plugin in the `web` and `headless` profiles, configures only the
 plugin and `github-copilot-hosted` search selection, removes reviewed legacy
 route references, and reports credential metadata. It does not write provider
-routes, model lists, base URLs, or API-key references.
+routes, model lists, base URLs, or API-key references. Despite its historical
+file name, it does not install `dsh-vision-any` or another visual fallback.
+Image-capable models receive uploaded attachments through DSH's native image
+channel, and Agents use the built-in `read_image` tool to open workspace image
+files. Text-only models must be switched to an image-capable route rather than
+silently delegating the image to a second provider.
 
 The wrapper reads `deployments\windows-copilot.lock.json` by default and
 requires the exact locked Desktop executable. It always uses the receipted

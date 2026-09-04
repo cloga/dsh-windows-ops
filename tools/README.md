@@ -10,7 +10,7 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Apply and activate the exact locked fork Core | Same command with Core/plugin source roots, `-CopilotIntegrationArtifactPath <locked-release.tgz>`, Desktop artifact, and `-Apply`; add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after the user accepts every listed interruption | High | Receipt-backed controlled CLI, hash-verified immutable Copilot Release bytes, persisted `DSH_CLI_PATH`, quarantined conflicting npm shims, rollback receipt, and an exact supported Desktop runtime selector |
 | Verify the locked rc.2 controlled CLI and Desktop runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop selecting either that fork or the exact alpha.4 wrapper containing the locked rc.1 inner CLI |
 | Roll back Core selection | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback` (add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after explicit interruption approval) | Environment and shim restore | Restores the previous user `DSH_CLI_PATH` and exact backed-up npm global shims |
-| Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Defaults to the canonical locked Release URL, hash-checks any local tarball, rejects registry/arbitrary specs, upgrades both profiles through the receipted CLI, and returns `sign-in-required` until UI authorization completes |
+| Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Historical compatibility path; installs no vision fallback. It resolves the canonical locked Release, hash-checks local tarballs, upgrades both profiles, and returns `sign-in-required` until UI authorization completes |
 | Check or stage the optional companion suite | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` | None by default / Web Profile composition | Installs independently pinned Copilot, Cron, and Playwright bundles in one command, verifies the Copilot tarball SHA-256, and never restarts Host; see `docs/plugins/optional-companion-suite.md` |
 | Check versions and direct-provider/Core replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Includes built `llm-pi-ai` OAuth JSON normalization and per-model API route evidence; no local gateway endpoint |
 | Preview replay patches | `powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun` | None | Exact-marker plan only |
@@ -37,9 +37,11 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 - **Historical helpers:** scripts whose guides explicitly mark them historical, such as `patch-brand-title.mjs`
 
 Existing paths are intentionally retained so tested commands and links do not break. A future physical reorganization should leave wrappers at old paths until consumers migrate.
-`enable-copilot-search-vision.ps1` is therefore retained as a compatibility
+`enable-copilot-search-vision.ps1` is therefore retained only as a compatibility
 path even though it now configures the broader `dsh-github-copilot`
-integration. For deployment apply, prefer `-CopilotIntegrationSourceRoot`;
+integration. It does not install `dsh-vision-any` or any second vision provider;
+image-capable routes use DSH's built-in attachment path and local files use the
+built-in `read_image` tool. For deployment apply, prefer `-CopilotIntegrationSourceRoot`;
 the old `-ProviderSourceRoot` spelling remains an alias.
 
 The direct baseline is one DSH plugin reusing built-in `llm-pi-ai`, not an

@@ -19,7 +19,7 @@ This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, reco
 | DeepSeek Harness Desktop | 0.10.2 |
 | Controlled `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
 | Desktop-selected `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 or Desktop-managed wrapper 0.1.2-alpha.4 with inner DSH 0.1.2-rc.1 |
-| `dsh-github-copilot` | 0.3.0-cloga.14 |
+| `dsh-github-copilot` | 0.3.0-cloga.15 |
 | Desktop internal plugins | seven official Profile links plus one non-bundled 0.6.7 panel placeholder under `resources\node_modules` |
 | Optional Web overlays (not baseline requirements) | `dsh-playwright-host@0.1.2`, `dsh-cron@0.4.1` |
 
@@ -99,7 +99,7 @@ This repository does not redistribute Desktop, Core, or the Copilot plugin. It p
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and seven Profile plugins plus one shipped placeholder | Current lock uses official 0.10.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, sandbox policy, strict pi-ai OAuth JSON record normalization, and per-model API routes | Deployment pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | Source `8216a2aa`, merge `30288e52`, immutable Release `0.3.0-cloga.14` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI that clears one-time device-code notices after success, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | Source `4e09519f`, merge `473b8aa1`, immutable Release `0.3.0-cloga.15` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 
 The historical ACP subagent practice remains in

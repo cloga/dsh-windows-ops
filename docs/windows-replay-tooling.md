@@ -61,9 +61,9 @@ The `.14` baseline checks:
 | Core | renderer `SlotOutlet` compatibility, sandbox regression, and built `llm-pi-ai` strict OAuth JSON normalization plus model-level protocol markers |
 | Desktop | official 0.10.2 `deepseek-harness-desktop.exe` inventory and no-open recovery marker where still required |
 
-The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.14`, source commit
-`8216a2aa7a3638cfd614651f29ef585d824af3a6`, immutable Release artifact SHA-256
-`c7e05eeefc0edf28324d01ee55e85bb4297d8c26ce982d51009a7019ac49aa96`.
+The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.15`, source commit
+`4e09519f40430b021a06871bf7ed7313bb9a292f`, immutable Release artifact SHA-256
+`7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1`.
 
 Replay checks package/source markers only. Credential acceptance is performed
 by the deployment/bootstrap modules and reports record key, kind, and status

@@ -23,9 +23,9 @@ if ($Apply) {
 $components = @(
     [pscustomobject]@{
         name = 'dsh-github-copilot'
-        version = '0.3.0-cloga.14'
-        spec = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/dsh-github-copilot-0.3.0-cloga.14.tgz'
-        sha256 = 'c7e05eeefc0edf28324d01ee55e85bb4297d8c26ce982d51009a7019ac49aa96'
+        version = '0.3.0-cloga.15'
+        spec = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz'
+        sha256 = '7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1'
     },
     [pscustomobject]@{
         name = 'dsh-cron'

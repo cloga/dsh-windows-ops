@@ -19,7 +19,7 @@
 | DeepSeek Harness Desktop | 0.10.2 |
 | 受控 `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
 | Desktop 选择的 `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2，或 Desktop 管理的 0.1.2-alpha.4 wrapper + 内层 DSH 0.1.2-rc.1 |
-| `dsh-github-copilot` | 0.3.0-cloga.14 |
+| `dsh-github-copilot` | 0.3.0-cloga.15 |
 | Desktop internal plugins | 官方 7 个 Profile 链接及 1 个不直接挂载的 0.6.7 panel placeholder，位于 `resources\node_modules` |
 | 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.2`、`dsh-cron@0.4.1` |
 
@@ -99,7 +99,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期和 7 个 Profile plugins 及 1 个 shipped placeholder | 当前 lock 使用官方 0.10.2 |
 | [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | 本地 Core、模型/视觉元数据、receipt 安装、sandbox 策略、严格 pi-ai OAuth JSON 记录规范化和逐模型 API 路由 | 部署精确 pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | 源 commit `8216a2aa`、merge `30288e52`、immutable Release `0.3.0-cloga.14` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI（成功后清除一次性 device-code 提示）、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | 源 commit `4e09519f`、merge `473b8aa1`、immutable Release `0.3.0-cloga.15` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 
 历史 ACP 子代理实践仍保留在

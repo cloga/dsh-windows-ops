@@ -139,7 +139,7 @@ test('rejects mutable or mismatched baseline release evidence', () => {
 
 test('rejects malformed release tag suffixes', () => {
   const paths = fixture(({ catalog }) => {
-    pluginById(catalog, 'dsh-github-copilot').artifact.releaseTag = 'v0.3.0-cloga.14/extra'
+    pluginById(catalog, 'dsh-github-copilot').artifact.releaseTag = 'v0.3.0-cloga.15/extra'
   })
   const result = run(paths)
   assert.equal(result.status, 1)

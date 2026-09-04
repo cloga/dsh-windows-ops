@@ -47,7 +47,7 @@ The installer:
 
 The pinned set is deliberately conservative:
 
-- `dsh-github-copilot` `0.3.0-cloga.14` from its immutable GitHub Release;
+- `dsh-github-copilot` `0.3.0-cloga.15` from its immutable GitHub Release;
 - `dsh-cron` `0.3.3` at commit `f5e8df45496523c98874e6f484b886941683f7d6`;
 - `dsh-playwright-host` `0.1.1` at commit `86ca74d4fdf89d6aa6036f273eb8acab4adae34f`.
 

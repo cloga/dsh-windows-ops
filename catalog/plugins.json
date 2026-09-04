@@ -49,22 +49,22 @@
       ],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.3.0-cloga.14.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/dsh-github-copilot-0.3.0-cloga.14.tgz",
-        "sha256": "c7e05eeefc0edf28324d01ee55e85bb4297d8c26ce982d51009a7019ac49aa96",
-        "releaseTag": "v0.3.0-cloga.14",
+        "name": "dsh-github-copilot-0.3.0-cloga.15.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz",
+        "sha256": "7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1",
+        "releaseTag": "v0.3.0-cloga.15",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/SHA256SUMS",
-        "size": 147204,
-        "checksumManifestSha256": "92f7adeb59cc6cd6c5e5aec2edc9adc1d13d3f8ca0e846d53369f6051a9d7c82",
+        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/SHA256SUMS",
+        "size": 149632,
+        "checksumManifestSha256": "0788b9f490e29e21c8081b8574f890e6b7400db266351bc0878353a985aaf484",
         "checksumManifestSize": 104
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "8216a2aa7a3638cfd614651f29ef585d824af3a6",
-        "mergeCommit": "30288e525219a57da4c1ef72164998e120e25ec0",
-        "pullRequest": 50,
-        "release": "0.3.0-cloga.14"
+        "commit": "4e09519f40430b021a06871bf7ed7313bb9a292f",
+        "mergeCommit": "473b8aa174eb47a323b026c098b73bf7d716772c",
+        "pullRequest": 56,
+        "release": "0.3.0-cloga.15"
       },
       "platforms": [
         "cross-platform"

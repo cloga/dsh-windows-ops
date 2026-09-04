@@ -32,7 +32,7 @@ Describe 'Optional DSH companion suite installer' {
         New-Item -ItemType Directory -Path $profile -Force | Out-Null
         @{
             dependencies = @{
-                'dsh-github-copilot' = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/dsh-github-copilot-0.3.0-cloga.14.tgz'
+                'dsh-github-copilot' = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz'
                 'dsh-cron' = 'github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6'
                 'dsh-playwright-host' = 'github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f'
             }
@@ -54,14 +54,14 @@ importers:
   .:
     dependencies:
       dsh-github-copilot:
-        specifier: https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/dsh-github-copilot-0.3.0-cloga.14.tgz
+        specifier: https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz
       dsh-cron:
         specifier: github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6
       dsh-playwright-host:
         specifier: github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f
 "@ | Set-Content -LiteralPath (Join-Path $profile 'pnpm-lock.yaml') -Encoding UTF8
         foreach ($package in @(
-            @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.14' },
+            @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.15' },
             @{ name = 'dsh-cron'; version = '0.3.3' },
             @{ name = 'dsh-playwright-host'; version = '0.1.1' }
         )) {
@@ -89,7 +89,7 @@ importers:
       dsh-cron:
         specifier: github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f
       dsh-playwright-host:
-        specifier: https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.14/dsh-github-copilot-0.3.0-cloga.14.tgz
+        specifier: https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz
 "@ | Set-Content -LiteralPath (Join-Path $profile 'pnpm-lock.yaml') -Encoding UTF8
         $rotated = & $scriptPath -DshHome $dshHome | ConvertFrom-Json
         $rotated.complete | Should -Be $false
@@ -174,8 +174,8 @@ $global:LASTEXITCODE = 1
     It 'pins reviewed immutable component versions and never performs a restart' {
         $source = Get-Content -LiteralPath $scriptPath -Raw
 
-        $source | Should -Match 'dsh-github-copilot-0\.3\.0-cloga\.14\.tgz'
-        $source | Should -Match 'c7e05eeefc0edf28324d01ee55e85bb4297d8c26ce982d51009a7019ac49aa96'
+        $source | Should -Match 'dsh-github-copilot-0\.3\.0-cloga\.15\.tgz'
+        $source | Should -Match '7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1'
         $source | Should -Match 'github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6'
         $source | Should -Match 'github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f'
         $source | Should -Not -Match 'Restart-Process|Stop-Process|taskkill'

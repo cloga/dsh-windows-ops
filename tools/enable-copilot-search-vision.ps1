@@ -7,7 +7,6 @@ param(
     [Alias('ProviderPackage')]
     [string]$PluginPackage,
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }),
-    [string]$DshCliPath,
     [string]$DeploymentLockPath,
     [string]$DesktopExecutablePath = $(Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'),
     [string]$StateRoot = $(if ($env:DSH_OPS_STATE_ROOT) { $env:DSH_OPS_STATE_ROOT } else { Join-Path $env:LOCALAPPDATA 'dsh-windows-ops' }),
@@ -22,6 +21,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot 'DshCopilotBootstrap.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'DshRuntimeSchema.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'WindowsCopilotDeployment.psm1') -Force
 if (-not $DeploymentLockPath) {
     $DeploymentLockPath = Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'
@@ -34,33 +34,50 @@ if ($PluginPackage) { $CopilotIntegrationPackage = $PluginPackage }
 $DshHome = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DshHome))
 $StateRoot = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($StateRoot))
 
+$deploymentMutex = if (-not $DryRun -and $Action -in @('Apply', 'Rollback')) {
+    Enter-WindowsCopilotDeploymentLock -BackupRoot $StateRoot
+} else {
+    $null
+}
+try {
 if ($Action -eq 'Rollback') {
     Restore-DshCopilotBackup -StateRoot $StateRoot -OperationId $OperationId -DryRun:$DryRun |
         ConvertTo-Json -Depth 8
-    exit
+    return
 }
 
-$cli = Resolve-DshCliInfo -DshCliPath $DshCliPath
 $lock = Read-WindowsCopilotLock -Path $DeploymentLockPath
 $CopilotIntegrationPackage = Resolve-LockedCopilotPackageSpec -Lock $lock `
     -PackageSpec $CopilotIntegrationPackage
+if ($Action -eq 'Apply' -and
+    $CopilotIntegrationPackage -ceq
+        [string]$lock.components.copilotIntegration.package.artifact.url) {
+    $artifactPath = Join-Path $StateRoot (
+        'artifacts\' + [string]$lock.components.copilotIntegration.package.artifact.name
+    )
+    $CopilotIntegrationPackage = [string](
+        Save-WindowsCopilotLockedArtifact `
+            -Artifact $lock.components.copilotIntegration.package.artifact `
+            -Destination $artifactPath
+    ).path
+}
 $desktop = Get-WindowsCopilotDesktopState -Lock $lock -Path $DesktopExecutablePath
 if (-not $desktop.valid) {
     throw "The exact locked Desktop is unavailable: '$($desktop.status)'."
 }
-$runtimeCli = [pscustomobject]@{
-    valid = $true
-    version = $cli.version
-    packageRoot = $cli.packageRoot
-    entryPath = $cli.entryPath
-}
 $runtime = Get-WindowsCopilotDesktopRuntimeState -Lock $lock -DesktopExecutablePath ([string]$desktop.path) `
-    -ForkCliInfo $runtimeCli
-$core = Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock -DesktopRuntimeState $runtime
-$renderer = Test-DshRendererCompatibility -PackageRoot $core.packageRoot -DshHome $DshHome `
-    -RequireFlatFallback:($core.selector -ceq 'controlled-fork')
-$sandbox = Test-DshSandboxRegression -PackageRoot $cli.packageRoot `
+    -ErrorAction Stop
+$officialRuntime = Test-DshActiveDesktopCore -DeploymentLock $lock -DesktopRuntimeState $runtime
+$schema = Test-DshRuntimeSchemaState -Contract $lock.acceptance.runtimeSchema `
+    -RequiredPackageRoot $officialRuntime.packageRoot -RequiredProcessIds $officialRuntime.processIds
+if (-not $schema.valid) {
+    throw "The Desktop-managed official runtime schema is invalid: '$($schema.reasons -join ', ')'."
+}
+$renderer = Test-DshRendererCompatibility -PackageRoot $officialRuntime.packageRoot -DshHome $DshHome `
+    -RequireFlatFallback:$false
+$sandbox = Test-DshSandboxRegression -PackageRoot $officialRuntime.packageRoot `
     -ProbeScript (Join-Path $PSScriptRoot 'dsh-sandbox-regression-probe.mjs') -Mode $SandboxGate
+$node = Get-Command node -ErrorAction Stop | Select-Object -First 1
 
 $settingsPath = Join-Path $DshHome 'settings.yaml'
 $credentialsPath = Join-Path $DshHome '.credentials.yaml'
@@ -68,18 +85,29 @@ $profilePaths = @('web', 'headless') | ForEach-Object {
     Join-Path $DshHome (Join-Path (Join-Path 'profiles' $_) 'cordis.patch.yml')
 }
 $trackedPaths = @($settingsPath, $credentialsPath)
+$reviewedLegacyPackages = @{}
 foreach ($profile in @('web', 'headless')) {
     $root = Join-Path $DshHome (Join-Path 'profiles' $profile)
+    $manifestPath = Join-Path $root 'package.json'
+    $legacy = Test-DshReviewedLegacySearchProvider -Lock $lock -ProfileRoot $root
+    if ($legacy.present) {
+        $reviewedLegacyPackages[$profile] = [string]$legacy.packageRoot
+        $trackedPaths += [string]$legacy.packageRoot
+    }
     $trackedPaths += @(
-        (Join-Path $root 'package.json'),
+        $manifestPath,
         (Join-Path $root 'cordis.patch.yml'),
         (Join-Path $root 'pnpm-lock.yaml'),
-        (Join-Path $root 'pnpm-workspace.yaml')
+        (Join-Path $root 'pnpm-workspace.yaml'),
+        (Join-Path $root 'node_modules\dsh-github-copilot')
     )
 }
 
 $backup = $null
 $changes = @()
+$profiles = $null
+$coherence = $null
+$route = $null
 if ($Action -eq 'Apply') {
     $backup = New-DshCopilotBackup -Paths $trackedPaths -StateRoot $StateRoot -DryRun:$DryRun
     try {
@@ -88,18 +116,15 @@ if ($Action -eq 'Apply') {
             try {
                 $env:DSH_HOME = $DshHome
                 foreach ($profile in @('web', 'headless')) {
-                    $manifestPath = Join-Path $DshHome (Join-Path "profiles\$profile" 'package.json')
-                    if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
-                        $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-                        if ($manifest.PSObject.Properties['dependencies'] -and
-                            $manifest.dependencies.PSObject.Properties['dsh-web-search-provider']) {
-                            & $cli.cliPath plugin --profile $profile remove dsh-web-search-provider | Out-Null
-                            if ($LASTEXITCODE -ne 0) {
-                                throw "Legacy dsh-web-search-provider removal failed for profile '$profile'."
-                            }
+                    if ($reviewedLegacyPackages.ContainsKey($profile)) {
+                        & $node.Source $officialRuntime.entryPath plugin --profile $profile remove dsh-web-search-provider |
+                            Out-Null
+                        if ($LASTEXITCODE -ne 0) {
+                            throw "Legacy dsh-web-search-provider removal failed for profile '$profile'."
                         }
                     }
-                    & $cli.cliPath plugin --profile $profile add $CopilotIntegrationPackage | Out-Null
+                    & $node.Source $officialRuntime.entryPath plugin --profile $profile add $CopilotIntegrationPackage |
+                        Out-Null
                     if ($LASTEXITCODE -ne 0) {
                         throw "dsh-github-copilot installation failed for profile '$profile'."
                     }
@@ -117,13 +142,27 @@ if ($Action -eq 'Apply') {
         if ($credential.configured -and $Model) {
             $changes += Set-DshCopilotModelSelection -Path $settingsPath -Model $Model -DryRun:$DryRun
         }
+        $profiles = @('web', 'headless') | ForEach-Object {
+            Test-DshCopilotProfile -DshHome $DshHome -Profile $_ `
+                -ExpectedPluginVersion ([string]$lock.components.copilotIntegration.package.version)
+        }
+        $coherence = Test-WindowsCopilotProfileCoherence -Lock $lock -DshHome $DshHome
+        if (-not $DryRun -and -not $coherence.valid) {
+            throw 'Copilot profile artifact source or installed closure is not verified.'
+        }
+        $route = if ($credential.configured) {
+            Test-DshCopilotSettings -Path $settingsPath -Model $Model
+        } else {
+            Get-DshCopilotRouteState -SettingsPath $settingsPath
+        }
         if (-not $DryRun) {
             $expectedStates = @($trackedPaths | Select-Object -Unique | ForEach-Object {
-                $exists = Test-Path -LiteralPath $_ -PathType Leaf
+                $fingerprint = Get-DshCopilotPathFingerprint -Path $_
+                $exists = [string]$fingerprint.kind -cne 'absent'
                 [pscustomobject]@{
                     path = [IO.Path]::GetFullPath($_)
                     exists = $exists
-                    sha256 = if ($exists) { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash } else { $null }
+                    fingerprint = $fingerprint
                 }
             })
             Complete-DshCopilotBackup -StateRoot $StateRoot -OperationId $backup.operationId `
@@ -138,16 +177,19 @@ if ($Action -eq 'Apply') {
     }
 } else {
     $credential = Test-DshCopilotCredentialRecord -DshHome $DshHome
-}
-
-$profiles = @('web', 'headless') | ForEach-Object {
-    Test-DshCopilotProfile -DshHome $DshHome -Profile $_ `
-        -ExpectedPluginVersion ([string]$lock.components.copilotIntegration.package.version)
-}
-$route = if ($credential.configured) {
-    Test-DshCopilotSettings -Path $settingsPath -Model $Model
-} else {
-    Get-DshCopilotRouteState -SettingsPath $settingsPath
+    $profiles = @('web', 'headless') | ForEach-Object {
+        Test-DshCopilotProfile -DshHome $DshHome -Profile $_ `
+            -ExpectedPluginVersion ([string]$lock.components.copilotIntegration.package.version)
+    }
+    $coherence = Test-WindowsCopilotProfileCoherence -Lock $lock -DshHome $DshHome
+    if (-not $coherence.valid) {
+        throw 'Copilot profile artifact source or installed closure is not verified.'
+    }
+    $route = if ($credential.configured) {
+        Test-DshCopilotSettings -Path $settingsPath -Model $Model
+    } else {
+        Get-DshCopilotRouteState -SettingsPath $settingsPath
+    }
 }
 
 [pscustomobject]@{
@@ -156,24 +198,20 @@ $route = if ($credential.configured) {
     operationId = if ($backup) { $backup.operationId } else { $null }
     signIn = if ($credential.configured) {
         $null
-    } elseif ($core.version -eq '0.1.1-rc.2') {
-        'Open Settings -> GitHub Copilot and complete the device flow.'
     } else {
         'Open Models, select the GitHub Copilot provider card, and complete the device flow.'
     }
-    core = @{
-        cliPath = $cli.cliPath
-        packageRoot = $cli.packageRoot
-        version = $cli.version
-        repository = $cli.repository
-        commitSha = $cli.commitSha
-        receiptPath = $cli.receiptPath
-        releaseManifestSha256 = $cli.releaseManifestSha256
-        packageCount = $cli.packageCount
-        activeProcessIds = $core.processIds
-        desktopRuntimeSelector = $core.selector
-        desktopRuntimeSource = $core.source
-        desktopRuntimeVersion = $core.version
+    runtime = @{
+        packageRoot = $officialRuntime.packageRoot
+        entryPath = $officialRuntime.entryPath
+        version = $officialRuntime.version
+        repository = $lock.acceptance.runtimeSchema.source.repository
+        commitSha = $lock.acceptance.runtimeSchema.source.commit
+        activeProcessIds = $officialRuntime.processIds
+        desktopRuntimeSelector = $officialRuntime.selector
+        desktopRuntimeSource = $officialRuntime.source
+        desktopRuntimeVersion = $officialRuntime.version
+        schemaStatus = $schema.status
     }
     renderer = @{ healthy = $renderer.healthy }
     credential = @{
@@ -189,6 +227,12 @@ $route = if ($credential.configured) {
         selectedModel = $Model
     }
     profiles = @($profiles)
+    coherence = $coherence
     sandbox = $sandbox
     changes = @($changes)
 } | ConvertTo-Json -Depth 10
+} finally {
+    if ($deploymentMutex) {
+        Exit-WindowsCopilotDeploymentLock -Mutex $deploymentMutex
+    }
+}

@@ -1,183 +1,198 @@
-Describe 'Optional DSH companion suite installer' {
+Describe 'Optional companion suite compatibility wrapper' {
     BeforeAll {
-        $scriptPath = Join-Path $PSScriptRoot '..\tools\install-optional-companion-suite.ps1'
+        $repoRoot = Split-Path -Parent $PSScriptRoot
+        $wrapperPath = Join-Path $repoRoot 'tools\install-optional-companion-suite.ps1'
+        $mainPath = Join-Path $repoRoot 'tools\install-windows-copilot.ps1'
+        $modulePath = Join-Path $repoRoot 'tools\WindowsCopilotDeployment.psm1'
+        $lockPath = Join-Path $repoRoot 'deployments\windows-copilot.lock.json'
+        $wrapper = Get-Content -LiteralPath $wrapperPath -Raw
+        $main = Get-Content -LiteralPath $mainPath -Raw
+        $module = Get-Content -LiteralPath $modulePath -Raw
+        $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+        Import-Module $modulePath -Force
+
+        function Initialize-RemovalFixture {
+            param([Parameter(Mandatory)][string]$DshHome)
+            $profileRoot = Join-Path $DshHome ([string]$lock.profile.relativePath)
+            $nodeModules = Join-Path $profileRoot 'node_modules'
+            New-Item -ItemType Directory -Path $nodeModules -Force | Out-Null
+            $required = [string]$lock.components.copilotIntegration.package.name
+            $optional = @($lock.companionSuite.members | Where-Object {
+                -not $_.requiredByBaseDeployment
+            } | ForEach-Object { [string]$_.name })
+            $dependencies = [ordered]@{}
+            foreach ($name in @($required) + $optional) {
+                $dependencies[$name] = "file:fixture/$name.tgz"
+                $target = Join-Path $nodeModules $name
+                New-Item -ItemType Directory -Path $target -Force | Out-Null
+                $name | Set-Content -LiteralPath (Join-Path $target 'payload.txt') -Encoding UTF8
+            }
+            $officialLinks = [ordered]@{}
+            foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
+                $source = Join-Path $DshHome (Join-Path 'desktop-resources' $name)
+                $target = Join-Path $nodeModules $name
+                New-Item -ItemType Directory -Path $source -Force | Out-Null
+                $name | Set-Content -LiteralPath (Join-Path $source 'payload.txt') -Encoding UTF8
+                New-Item -ItemType Junction -Path $target -Target $source | Out-Null
+                $officialLinks[$name] = [IO.Path]::GetFullPath($source)
+            }
+            [ordered]@{
+                dependencies = $dependencies
+                dsh = @{ profile = @{ bundles = @($required) + $optional } }
+            } | ConvertTo-Json -Depth 8 |
+                Set-Content -LiteralPath (Join-Path $profileRoot 'package.json') -Encoding UTF8
+            "packages:`n  - ." |
+                Set-Content -LiteralPath (Join-Path $profileRoot 'pnpm-workspace.yaml') -Encoding UTF8
+            "lockfileVersion: '9.0'" |
+                Set-Content -LiteralPath (Join-Path $profileRoot 'pnpm-lock.yaml') -Encoding UTF8
+            return [pscustomobject]@{
+                profileRoot = $profileRoot
+                nodeModules = $nodeModules
+                required = $required
+                optional = $optional
+                officialLinks = $officialLinks
+            }
+        }
     }
 
-    It 'is check-only by default and reports all independent components' {
-        $dshHome = Join-Path $TestDrive 'empty-dsh-home'
-        $result = & $scriptPath -DshHome $dshHome | ConvertFrom-Json
+    It 'contains no independent companion identity pins' {
+        foreach ($value in @(
+            [string]$lock.components.copilotIntegration.package.version,
+            [string]$lock.components.copilotIntegration.package.artifact.sha256
+        ) + @($lock.profile.optionalOverlays | ForEach-Object {
+            @([string]$_.version, [string]$_.artifact.sha256)
+        })) {
+            $wrapper | Should -Not -Match ([regex]::Escape($value))
+        }
+    }
 
-        $result.action | Should -Be 'check'
-        $result.profile | Should -Be 'web'
-        $result.profileExists | Should -Be $false
-        $result.complete | Should -Be $false
-        @($result.components.name) | Should -Be @(
-            'dsh-github-copilot',
+    It 'routes Check and Apply through the authoritative main installer suite switch' {
+        $wrapper | Should -Match "install-windows-copilot\.ps1"
+        $wrapper | Should -Match "IncludeCompanionSuite"
+        $wrapper | Should -Match "CopilotIntegrationSourceRoot"
+        $wrapper | Should -Match "CopilotIntegrationArtifactPath"
+        $wrapper | Should -Match "DesktopArtifactPath"
+    }
+
+    It 'routes removal to the module-owned main installer action' {
+        $wrapper | Should -Match "RemoveCompanionSuite"
+        $main | Should -Match "Remove-WindowsCopilotCompanionSuite"
+        $module | Should -Match "function Remove-WindowsCopilotCompanionSuite"
+        $main.IndexOf("if (`$Action -eq 'RemoveCompanionSuite')") |
+            Should -BeLessThan $main.IndexOf("if (`$Action -eq 'Rollback')")
+        $main.IndexOf("if (`$Action -eq 'RemoveCompanionSuite')") |
+            Should -BeLessThan $main.IndexOf("if (-not `$NpmGlobalRoot)")
+    }
+
+    It 'keeps exactly one required Copilot member and two optional overlays' {
+        @($lock.companionSuite.members).Count | Should -Be 3
+        $required = @($lock.companionSuite.members | Where-Object requiredByBaseDeployment)
+        $optional = @($lock.companionSuite.members | Where-Object {
+            -not $_.requiredByBaseDeployment
+        })
+        @($required.name) | Should -Be @('dsh-github-copilot')
+        @($optional.name | Sort-Object) | Should -Be @(
             'dsh-cron',
             'dsh-playwright-host'
         )
-        $result.activation | Should -Match 'never restarts'
     }
 
-    It 'refuses apply when the target Profile has not been initialized' {
-        $dshHome = Join-Path $TestDrive 'missing-profile'
-
-        { & $scriptPath -Action Apply -DshHome $dshHome } |
-            Should -Throw '*Profile does not exist*'
+    It 'removes only optional member names and snapshots required Copilot state' {
+        $module | Should -Match "Get-WindowsCopilotCompanionOverlays"
+        $module | Should -Match "requiredTarget"
+        $module | Should -Match "beforeCoherence"
+        $module | Should -Match "afterCoherence"
+        $module | Should -Match "Restore-DeploymentSnapshots"
     }
 
-    It 'recognizes an already composed three-bundle profile without mutation' {
-        $dshHome = Join-Path $TestDrive 'complete-dsh-home'
-        $profile = Join-Path $dshHome 'profiles\web'
-        New-Item -ItemType Directory -Path $profile -Force | Out-Null
-        @{
-            dependencies = @{
-                'dsh-github-copilot' = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz'
-                'dsh-cron' = 'github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6'
-                'dsh-playwright-host' = 'github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f'
-            }
-            dsh = @{
-                profile = @{
-                    bundles = @(
-                        '@deepseek-ai/dsh-base',
-                        '@deepseek-ai/dsh-web-app',
-                        'dsh-github-copilot',
-                        'dsh-cron',
-                        'dsh-playwright-host'
-                    )
-                }
-            }
-        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $profile 'package.json') -Encoding UTF8
-        @"
-lockfileVersion: '9.0'
-importers:
-  .:
-    dependencies:
-      dsh-github-copilot:
-        specifier: https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz
-      dsh-cron:
-        specifier: github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6
-      dsh-playwright-host:
-        specifier: github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f
-"@ | Set-Content -LiteralPath (Join-Path $profile 'pnpm-lock.yaml') -Encoding UTF8
-        foreach ($package in @(
-            @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.15' },
-            @{ name = 'dsh-cron'; version = '0.3.3' },
-            @{ name = 'dsh-playwright-host'; version = '0.1.1' }
-        )) {
-            $packageRoot = Join-Path (Join-Path $profile 'node_modules') $package.name
-            New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
-            $package | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $packageRoot 'package.json') -Encoding UTF8
+    It 'uses the same global deployment mutex for wrapper mutations' {
+        $module | Should -Match "Global\\DshWindowsOpsDeployment"
+        $module | Should -Match "Enter-WindowsCopilotDeploymentLock"
+        $module | Should -Match "Exit-WindowsCopilotDeploymentLock"
+    }
+
+    It 'removes only optional overlays and preserves required Copilot bytes' {
+        $dshHome = Join-Path $TestDrive 'remove-success'
+        $fixture = Initialize-RemovalFixture -DshHome $dshHome
+        $officialTarget = Join-Path $TestDrive 'official-target'
+        $wrongTarget = Join-Path $TestDrive 'wrong-target'
+        $officialLink = Join-Path $fixture.nodeModules '@deepseek-ai\official-fixture'
+        New-Item -ItemType Directory -Path $officialTarget, $wrongTarget,
+            (Split-Path -Parent $officialLink) -Force | Out-Null
+        New-Item -ItemType Junction -Path $officialLink -Target $officialTarget |
+            Out-Null
+        Mock Test-WindowsCopilotProfileCoherence {
+            [pscustomobject]@{ valid = $true }
+        } -ModuleName WindowsCopilotDeployment
+        Mock Invoke-PinnedPnpmCommands {
+            [IO.Directory]::Delete($officialLink, $false)
+            New-Item -ItemType Junction -Path $officialLink -Target $wrongTarget |
+                Out-Null
+        } -ModuleName WindowsCopilotDeployment
+        Mock Get-WindowsCopilotInternalPluginStates {
+            @([pscustomobject]@{
+                name = '@deepseek-ai/official-fixture'
+                path = $officialLink
+                expectedTarget = $officialTarget
+                valid = $true
+            })
+        } -ModuleName WindowsCopilotDeployment
+
+        $result = Remove-WindowsCopilotCompanionSuite -Lock $lock -DshHome $dshHome `
+            -BackupRoot (Join-Path $TestDrive 'backups')
+        $profile = Get-Content -LiteralPath (
+            Join-Path $fixture.profileRoot 'package.json'
+        ) -Raw | ConvertFrom-Json
+
+        $result.mode | Should -Be 'remove-companion-suite'
+        $profile.dependencies.PSObject.Properties.Name | Should -Contain $fixture.required
+        @($profile.dsh.profile.bundles) | Should -Contain $fixture.required
+        (Get-Content -LiteralPath (
+            Join-Path $fixture.nodeModules "$($fixture.required)\payload.txt"
+        ) -Raw).Trim() | Should -BeExactly $fixture.required
+        [IO.Path]::GetFullPath([string]@(
+            (Get-Item -LiteralPath $officialLink -Force).Target
+        )[0]) | Should -Be ([IO.Path]::GetFullPath($officialTarget))
+        foreach ($name in $fixture.optional) {
+            $profile.dependencies.PSObject.Properties.Name | Should -Not -Contain $name
+            @($profile.dsh.profile.bundles) | Should -Not -Contain $name
+            Test-Path -LiteralPath (Join-Path $fixture.nodeModules $name) |
+                Should -BeFalse
         }
-
-        $result = & $scriptPath -DshHome $dshHome | ConvertFrom-Json
-
-        $result.complete | Should -Be $true
-        @($result.components | Where-Object { -not $_.dependencyPresent }).Count | Should -Be 0
-        @($result.components | Where-Object { -not $_.bundlePresent }).Count | Should -Be 0
-        @($result.components | Where-Object { -not $_.sourceValid }).Count | Should -Be 0
-        @($result.components | Where-Object { -not $_.installedValid }).Count | Should -Be 0
-        @($result.components | Where-Object { -not $_.lockEvidence }).Count | Should -Be 0
-
-        @"
-lockfileVersion: '9.0'
-importers:
-  .:
-    dependencies:
-      dsh-github-copilot:
-        specifier: github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6
-      dsh-cron:
-        specifier: github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f
-      dsh-playwright-host:
-        specifier: https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz
-"@ | Set-Content -LiteralPath (Join-Path $profile 'pnpm-lock.yaml') -Encoding UTF8
-        $rotated = & $scriptPath -DshHome $dshHome | ConvertFrom-Json
-        $rotated.complete | Should -Be $false
-        @($rotated.components | Where-Object lockEvidence).Count | Should -Be 0
-    }
-
-    It 'does not report completion for name-matching packages from wrong sources' {
-        $dshHome = Join-Path $TestDrive 'wrong-source-home'
-        $profile = Join-Path $dshHome 'profiles\web'
-        New-Item -ItemType Directory -Path $profile -Force | Out-Null
-        @{
-            dependencies = @{
-                'dsh-github-copilot' = 'fixture'
-                'dsh-cron' = 'fixture'
-                'dsh-playwright-host' = 'fixture'
-            }
-            dsh = @{ profile = @{ bundles = @('dsh-github-copilot', 'dsh-cron', 'dsh-playwright-host') } }
-        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $profile 'package.json') -Encoding UTF8
-
-        $result = & $scriptPath -DshHome $dshHome | ConvertFrom-Json
-
-        $result.complete | Should -Be $false
-        @($result.components | Where-Object sourceValid).Count | Should -Be 0
-    }
-
-    It 'removes a partial suite idempotently and restores the caller DSH_HOME' {
-        $dshHome = Join-Path $TestDrive 'partial-suite-home'
-        $profile = Join-Path $dshHome 'profiles\web'
-        New-Item -ItemType Directory -Path $profile -Force | Out-Null
-        @{
-            dependencies = @{ 'dsh-cron' = 'github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6' }
-            dsh = @{ profile = @{ bundles = @('dsh-github-copilot', 'dsh-cron', 'dsh-playwright-host') } }
-        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $profile 'package.json') -Encoding UTF8
-        Set-Content -LiteralPath (Join-Path $profile 'pnpm-lock.yaml') -Value "lockfileVersion: '9.0'" -Encoding UTF8
-        Set-Content -LiteralPath (Join-Path $profile 'pnpm-workspace.yaml') -Value "packages:`n  - ." -Encoding UTF8
-        $fakeDsh = Join-Path $TestDrive 'fake-dsh.ps1'
-        @'
-$manifestPath = Join-Path $env:DSH_HOME 'profiles\web\package.json'
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-$manifest.dependencies.psobject.Properties.Remove('dsh-cron')
-$manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
-$global:LASTEXITCODE = 0
-'@ | Set-Content -LiteralPath $fakeDsh -Encoding UTF8
-        $previous = $env:DSH_HOME
-        try {
-            $env:DSH_HOME = 'caller-sentinel'
-            $result = & $scriptPath -Action Remove -DshHome $dshHome -DshCliPath $fakeDsh | ConvertFrom-Json
-            $env:DSH_HOME | Should -Be 'caller-sentinel'
-        } finally {
-            $env:DSH_HOME = $previous
+        foreach ($name in $fixture.officialLinks.Keys) {
+            $item = Get-Item -LiteralPath (Join-Path $fixture.nodeModules $name)
+            [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint) |
+                Should -BeTrue
+            [IO.Path]::GetFullPath([string]@($item.Target)[0]) |
+                Should -BeExactly $fixture.officialLinks[$name]
         }
-
-        @($result.components | Where-Object { $_.dependencyPresent -or $_.bundlePresent }).Count | Should -Be 0
-        $result.backupPath | Should -Not -BeNullOrEmpty
     }
 
-    It 'restores a valid backup when a failed plugin command corrupts package.json' {
-        $dshHome = Join-Path $TestDrive 'corrupt-restore-home'
-        $profile = Join-Path $dshHome 'profiles\web'
-        New-Item -ItemType Directory -Path $profile -Force | Out-Null
-        @{
-            dependencies = @{ 'dsh-cron' = 'github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6' }
-            dsh = @{ profile = @{ bundles = @('dsh-cron') } }
-        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $profile 'package.json') -Encoding UTF8
-        Set-Content -LiteralPath (Join-Path $profile 'pnpm-lock.yaml') -Value "lockfileVersion: '9.0'" -Encoding UTF8
-        Set-Content -LiteralPath (Join-Path $profile 'pnpm-workspace.yaml') -Value "packages:`n  - ." -Encoding UTF8
-        $before = Get-Content -LiteralPath (Join-Path $profile 'package.json') -Raw
-        $fakeDsh = Join-Path $TestDrive 'corrupting-dsh.ps1'
-        @'
-Set-Content -LiteralPath (Join-Path $env:DSH_HOME 'profiles\web\package.json') -Value '{broken' -Encoding UTF8
-$global:LASTEXITCODE = 1
-'@ | Set-Content -LiteralPath $fakeDsh -Encoding UTF8
-        $fakePnpm = Join-Path $TestDrive 'successful-pnpm.ps1'
-        '$global:LASTEXITCODE = 0' | Set-Content -LiteralPath $fakePnpm -Encoding UTF8
+    It 'restores the complete profile when optional removal fails' {
+        $dshHome = Join-Path $TestDrive 'remove-rollback'
+        $fixture = Initialize-RemovalFixture -DshHome $dshHome
+        $packagePath = Join-Path $fixture.profileRoot 'package.json'
+        $before = Get-Content -LiteralPath $packagePath -Raw
+        Mock Test-WindowsCopilotProfileCoherence {
+            [pscustomobject]@{ valid = $true }
+        } -ModuleName WindowsCopilotDeployment
+        Mock Invoke-PinnedPnpmCommands {
+            throw 'fixture package-manager failure'
+        } -ModuleName WindowsCopilotDeployment
+        Mock Get-WindowsCopilotInternalPluginStates {
+            @()
+        } -ModuleName WindowsCopilotDeployment
 
-        { & $scriptPath -Action Remove -DshHome $dshHome -DshCliPath $fakeDsh -PnpmCliPath $fakePnpm } |
-            Should -Throw '*were restored*'
+        {
+            Remove-WindowsCopilotCompanionSuite -Lock $lock -DshHome $dshHome `
+                -BackupRoot (Join-Path $TestDrive 'rollback-backups')
+        } | Should -Throw '*fixture package-manager failure*'
 
-        (Get-Content -LiteralPath (Join-Path $profile 'package.json') -Raw) | Should -BeExactly $before
-    }
-
-    It 'pins reviewed immutable component versions and never performs a restart' {
-        $source = Get-Content -LiteralPath $scriptPath -Raw
-
-        $source | Should -Match 'dsh-github-copilot-0\.3\.0-cloga\.15\.tgz'
-        $source | Should -Match '7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1'
-        $source | Should -Match 'github:cloga/dsh-cron#f5e8df45496523c98874e6f484b886941683f7d6'
-        $source | Should -Match 'github:cloga/dsh-playwright-host#86ca74d4fdf89d6aa6036f273eb8acab4adae34f'
-        $source | Should -Not -Match 'Restart-Process|Stop-Process|taskkill'
+        (Get-Content -LiteralPath $packagePath -Raw) | Should -BeExactly $before
+        foreach ($name in @($fixture.required) + $fixture.optional) {
+            (Get-Content -LiteralPath (
+                Join-Path $fixture.nodeModules "$name\payload.txt"
+            ) -Raw).Trim() | Should -BeExactly $name
+        }
     }
 }

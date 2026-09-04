@@ -1,32 +1,36 @@
-# Local DSH Core, Desktop, and direct GitHub Copilot
+# Official DSH Desktop and direct GitHub Copilot
 
 ## Authoritative baseline
 
 [`deployments/windows-copilot.lock.json`](../deployments/windows-copilot.lock.json)
-is the machine-readable deployment contract.
+is the machine-readable deployment contract, verified on **2026-09-04**.
 
 | Component | Locked identity |
 |---|---|
-| Desktop | official `0.10.2`, commit `2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63` |
-| Controlled CLI | `@deepseek-ai/dsh@0.1.1-rc.2`, fork commit `a772dbbde82780bff2b9394427e9f0a24cafa1d5`, maintenance branch `cloga-pi-ai-model-api` |
-| Desktop runtime | either the controlled fork above or Desktop 0.10.2's managed wrapper `deepseek-harness-pkg@0.1.2-alpha.4` containing inner `@deepseek-ai/dsh@0.1.2-rc.1` under `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh`; the inner package contains 10 files with tree SHA-256 `4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.15`, source commit `4e09519f40430b021a06871bf7ed7313bb9a292f`, merge commit `473b8aa174eb47a323b026c098b73bf7d716772c`, PR #50 |
-| Plugin artifact | Immutable Release [`dsh-github-copilot-0.3.0-cloga.15.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz), SHA-256 `7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/SHA256SUMS) |
-| Desktop artifact | [`Deepseek.Harness.Desktop_0.10.2_x64-setup.exe`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe), SHA-256 `54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa` |
-| Desktop internal plugins | the seven official Profile `0.6.7` links plus the non-bundled panel placeholder into `resources\node_modules` |
+| Desktop | official `0.10.3`, release tag `v0.10.3`, commit `113dc8f77095e765f4f55e233d8455e7ad9204ae` |
+| Desktop artifact | [`Deepseek.Harness.Desktop_0.10.3_x64-setup.exe`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.3/Deepseek.Harness.Desktop_0.10.3_x64-setup.exe), SHA-256 `ce4328448a948e6df904548455a32b81f9905908f3b8562f8e8fdfdbac3bfb90` |
+| Desktop-managed runtime | root `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh`; wrapper `deepseek-harness-pkg@0.1.2-alpha.5`; inner official `@deepseek-ai/dsh@0.1.2-rc.1` |
+| Installed Desktop | executable 23,059,456 bytes, SHA-256 `d191cb2729f53c4fa889fab62c48af38979812f5560d0bb8f8ad4cadeff8b5df`; `resources` 1,765 files / 13,008,656 bytes, tree SHA-256 `29323493802cc7d75fd02a762066d7be8f0da1ac86e1fe1f8f44e2ea15d074ef` |
+| Runtime attestation | complete wrapper closure 10,347 files / 134,066,533 bytes, tree SHA-256 `b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d`, zero reparse directories; inner package 10 files, tree SHA-256 `4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea`; entrypoint 8,021 bytes, SHA-256 `dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166` |
+| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.15`, PR #56 source commit `4e095196197570776515423929ddb72e8299c1db`, merge commit `473b8aa174eb47a323b026c098b73bf7d716772c` |
+| Plugin artifact | Immutable Release [`dsh-github-copilot-0.3.0-cloga.15.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz), release commit `473b8aa174eb47a323b026c098b73bf7d716772c`, SHA-256 `7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/SHA256SUMS) |
+| Desktop internal plugins | eight official `0.6.7` Profile links, including `dsh-tauri-panel-scheduler`, plus the non-bundled panel placeholder under `resources\node_modules` |
 
-Do not independently upgrade one component. Update the lock, fixtures, tests,
-catalog, and this guide together after a new baseline is verified. The source
-commit is the reviewed PR head; the lock separately records the externally
-reviewed merge/tag target and immutable Release evidence. Apply validates the
-source checkout plus the tarball hash and packaged metadata, then installs only
-the locked Release bytes. Repository review—not the Apply command—attests the
-merge/tag relationship and Release immutability.
+Do not independently upgrade or substitute a locked component. Update the lock,
+catalog, fixtures, tests, and explanatory guides together only after a new
+baseline is verified. The installer consumes the official Desktop artifact and
+immutable Copilot Release; it does not distribute either one.
+
+Desktop owns the only supported DSH runtime. Apply never builds, installs, or
+selects another DSH runtime. It attests the Desktop-managed wrapper, inner
+package tree, and exact entrypoint, then confirms that the active exact Desktop
+PID owns the IPv4 listener at `127.0.0.1:3080`. A same-version executable,
+resource tree, wrapper closure, or hoisted dependency modification fails closed.
 
 ## What “all-in-one” means
 
-`dsh-github-copilot` is one DSH plugin that composes existing DSH services. It
-reuses built-in `@deepseek-ai/dsh-llm-pi-ai` and pi-ai for:
+`dsh-github-copilot` is one required DSH plugin that composes existing DSH
+services. It reuses built-in `@deepseek-ai/dsh-llm-pi-ai` and pi-ai for:
 
 - GitHub OAuth/device authorization;
 - account-available Copilot model discovery;
@@ -34,48 +38,26 @@ reuses built-in `@deepseek-ai/dsh-llm-pi-ai` and pi-ai for:
 - credential record `llm-pi-ai/github-copilot`;
 - serialized token refresh and direct Copilot model transport.
 
-At the Core credential-adapter boundary, `llm-pi-ai` rebuilds every provider's
-OAuth grant as detached strict JSON. Undefined object members are omitted,
-undefined array entries become `null`, and cyclic or non-JSON values are
-rejected without exposing their values. JSON extension fields remain intact
-because each provider owns its grant schema.
-
-The controlled rc.2 Core also accepts a supported `api` on each model entry.
-Model-level protocol wins over the route default and installed catalog, so one
-reference-free Copilot route can safely contain both Responses and Chat
-Completions models without connection fields on the route.
-
 The plugin adds the authorization UI and direct provider-hosted search. Its
 built client entry hands the plugin id, injected `require`, and materialized
 exports to Desktop's `window.__ModuleLoader__.load` contract. Client Remote
 calls use strict Zod result codecs so malformed authorization views fail closed.
-When the shared `llm-pi-ai/github-copilot` grant is valid, activation reconciles
-an absent, empty, or stale account model list without waiting for another OAuth
-completion. A missing profile is created without connection references. For an
-existing profile, the plugin changes only `providers.github-copilot.models` and
-`providers.github-copilot.compat.supportsStrictMode`; it deliberately preserves
-unowned fields. The Windows migration/bootstrap layer removes reviewed legacy
-`baseURL` and `apiKeyEnv` references so the locked deployed route remains
-reference-free. Every account-available model retains its installed `id` and
-`api`, including mixed Responses and Chat Completions protocols.
+When the shared grant is valid, activation reconciles an absent, empty, or stale
+account model list. Missing profiles are created without connection references;
+existing profiles retain fields the plugin does not own. Every available model
+keeps its installed `id` and `api`.
 
 The plugin removes top-level `sandbox_permissions` and `justification` only from
 tool schemas assembled for `github-copilot`; every other provider retains DSH's
 native escalation surface. Inline hosted search supports Responses and
 Anthropic Messages, while `github-copilot-hosted` through `ctx.web` is
 Responses-only. Capability probing is fail-closed by default; `probe: false`
-explicitly bypasses only capability proof, not route, account, protocol,
-endpoint, or authentication checks. Requests go directly to validated
-GitHub-hosted or signed-in Enterprise Copilot endpoints.
-
-Before storage or reuse, the Host rebuilds Copilot OAuth grants from validated
-provider-owned fields as a fresh plain JSON object; unrelated extension fields
-are discarded and malformed owned fields fail without exposing their values.
-It does not embed or launch a gateway. The active baseline has no local gateway
-URL, port 7777 listener, placeholder API key, pasted GitHub token, or separate
+bypasses only capability proof. Requests go directly to validated GitHub-hosted
+or signed-in Enterprise Copilot endpoints. There is no active local gateway,
+port 7777 dependency, pasted GitHub token, placeholder API key, or separate
 search-provider package.
 
-The fourteen required plugin capabilities are copied exactly from its exported
+The fourteen required plugin capabilities are copied from its exported
 `deployment-baseline.json`:
 
 1. `client-module-loader-handoff`
@@ -93,23 +75,32 @@ The fourteen required plugin capabilities are copied exactly from its exported
 13. `dsh-supported-baselines-fail-loud-guard`
 14. `dsh-rc2-models-settings-fallback`
 
-The plugin has runtime dependencies on `@deepseek-ai/dsh-authorization` across
-the supported `0.1.1-rc.2` and `0.1.2-rc.1` ranges and on `zod@^4.4.3` for
-strict client Remote result validation. It bootstraps the authorization service
-before integration activation on rc.2 and reuses the existing rc.1 service
-without duplicate registration. ACP subagents remain separate; see
+ACP subagents remain separate; see
 [`copilot-acp-subagent.md`](copilot-acp-subagent.md).
 
 ## Check first
 
-The installer is read-only unless `-Apply` is explicit:
+The one-command check is read-only:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1
 ```
 
-To preflight the exact source metadata and downloaded Release bytes without
-applying them, supply both paths in the same default check mode:
+Check mode validates the lock, official Desktop, Desktop-managed wrapper/tree/
+entrypoint, all eight official Profile links and the non-bundled placeholder,
+the direct Copilot package and composed profiles, credential-record metadata,
+the reference-free route, and the exact active Desktop PID owning IPv4
+`127.0.0.1:3080`. An absent runtime, unknown package, wrong path, stale process,
+non-owning PID, IPv6-only listener, or legacy gateway fails closed.
+
+For both `web` and `headless`, check mode compares the Copilot dependency in
+`package.json`, the matching `pnpm-lock.yaml` importer and tarball, the installed
+package manifest, exported deployment baseline, and artifact SHA-256. A mismatch
+is reported as `profile-manifest-lock-installed-drift`; check mode never repairs
+it. A missing `llm-pi-ai/github-copilot` grant is reported as
+`sign-in-required`. Credential payloads are never included in output.
+
+To preflight optional local copies of the exact plugin inputs without applying:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -118,77 +109,43 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.15.tgz
 ```
 
-Check mode validates the lock, Desktop, the controlled Core receipt and
-installed-file attestation, official Desktop plugin links, the direct plugin
-payload, composed configuration, credential-record metadata, the reference-free
-Copilot route, complete per-model `{id, api}` entries with mixed protocol
-coverage, and Desktop listener ownership. The running Desktop backend must select
-either the exact receipted fork entrypoint or Desktop 0.10.2's exact managed
-official `0.1.2-rc.1` entrypoint. The latter is accepted only at the locked
-AppData dependency root with the exact alpha.4 wrapper, rc.1 inner package, file count, and tree hash; an absent runtime,
-unknown version, unrelated bundled Core, or legacy gateway fails closed.
+## Apply the locked Desktop and plugin
 
-For both `web` and `headless`, check mode compares the Copilot dependency in
-`package.json`, the matching `pnpm-lock.yaml` importer and tarball, the installed
-package manifest, exported deployment baseline, and artifact SHA-256. A mismatch
-is reported as `profile-manifest-lock-installed-drift`; check mode never repairs
-it. Regenerate both locks with the controlled CLI before accepting an upgrade.
-A missing `llm-pi-ai/github-copilot` grant is reported as
-`sign-in-required`. Credential payloads are never included in output.
-
-## Apply the locked Desktop, Core, and plugin
-
-Use the exact source checkouts, locked Desktop installer, and immutable Copilot
-Release tarball. The plugin checkout must be at source commit
-`4e09519f40430b021a06871bf7ed7313bb9a292f`; it supplies independently reviewed
-source metadata, while the installed bytes come from the release artifact whose
-name and SHA-256 are locked above.
+Use only the plugin source checkout at
+`4e095196197570776515423929ddb72e8299c1db`, the immutable plugin Release
+tarball, and the official Desktop 0.10.3 artifact:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\install-windows-copilot.ps1 `
   -Apply `
-  -HarnessSourceRoot C:\src\deepseek-harness `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
   -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.15.tgz `
-  -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.10.2_x64-setup.exe `
-  -CoreInstallPrefix C:\.tools\dsh-cloga `
-  -CoreInstallTimeoutSeconds 900 `
+  -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.10.3_x64-setup.exe `
+  -IncludeCompanionSuite `
   -BackupRoot C:\dsh-ops-backups
 ```
 
-Apply builds and installs the receipted controlled CLI, verifies commit
-`a772dbbd` and the three installed executable hashes, independently validates
-the Copilot source checkout, verifies the immutable Release tarball hash and
-packaged metadata, installs the reviewed loader packages, preserves the seven
-official Desktop Profile links plus the non-bundled panel placeholder,
-physically materializes only the Copilot plugin, and activates the local CLI
-through `DSH_CLI_PATH`. It never substitutes a locally repacked plugin archive
-for the locked Release bytes.
+`-BackupRoot` is optional. `-IncludeCompanionSuite` opts the reviewed Cron and
+Playwright Host overlays into the same Copilot Apply plan, backup operation, and
+rollback receipt. Exact identities come from the deployment lock; the installer
+does not invoke a second opaque installer. Without the switch, the base remains
+Copilot-only. Apply verifies source metadata and immutable Release bytes,
+installs Desktop and the selected companions, preserves the eight official
+Profile links and non-bundled placeholder, and attests the official
+Desktop-managed runtime. It never builds, installs, or selects a DSH runtime.
 
-Desktop 0.10.2 may nevertheless use its own managed official `0.1.2-rc.1`
-runtime; restart acceptance attests that selector from the Desktop process tree
-and locked on-disk package metadata rather than requiring Desktop to honor
-`DSH_CLI_PATH`.
-`-CoreInstallTimeoutSeconds` bounds Core's internal package installation and
-defaults to 900 seconds; it is separate from the 90-second Desktop/runtime
-`-TimeoutSeconds` control.
+Add `-RestartDesktop` only when a restart is intended. Before stopping any
+process, the installer queries the live `session/list` API. Every running
+Session blocks restart unless the user directly accepts the listed
+interruptions and the same command supplies
+`-AcknowledgeLiveSessionIds <exact listed IDs>`. Stale, missing, or extra IDs
+block restart. Dry-run never stops a process, and an unavailable or malformed
+live-session response fails closed while Desktop is running.
 
-`-RestartDesktop` is fail-closed: it queries the live `session/list` API before
-stopping any process. Running Sessions block the restart unless the user has
-directly accepted the listed interruptions and the command includes
-`-AcknowledgeLiveSessionIds <exact listed IDs>`. Stale, missing, or extra IDs block the restart. Dry-run mode reports `would-block-live-sessions`
-without stopping anything; an unavailable or malformed session response also
-blocks a restart while Desktop is running.
-It does not install, start, stop, or verify a gateway. `-GatewayArtifactPath`
-is a retired compatibility parameter and is never an apply requirement.
-`-GatewayInstallRoot` is migration-only: if supplied, apply recognizes only
-the exact reviewed legacy binary, backs it up, and removes it. An unknown
-binary fails closed.
+## Bootstrap, sign in, and accept
 
-## Bootstrap and sign in
-
-The historical script name remains as a compatibility wrapper:
+The historical wrapper name remains for plugin configuration:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -198,30 +155,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 The package argument may be the exact locked GitHub Release URL or a local copy
 whose SHA-256 matches the lock; npm is not a distribution channel. The wrapper
-installs the plugin in the `web` and `headless` profiles, configures only the
-plugin and `github-copilot-hosted` search selection, removes reviewed legacy
-route references, and reports credential metadata. It does not write provider
-routes, model lists, base URLs, or API-key references.
+installs `dsh-github-copilot` in `web` and `headless`, selects
+`github-copilot-hosted` search, removes reviewed legacy references, and reports
+credential metadata without exposing grant payloads.
 
-The wrapper reads `deployments\windows-copilot.lock.json` by default and
-requires the exact locked Desktop executable. It always uses the receipted
-controlled CLI for plugin commands, while the active Desktop backend may use
-either the controlled selector or the exact lock-attested Desktop-managed
-`0.1.2-rc.1` selector. Override `-DeploymentLockPath` or
-`-DesktopExecutablePath` only for an equivalent reviewed deployment.
-
-The shell does not automate the interactive device flow:
-
-- on `0.1.1-rc.2`, open **Settings → GitHub Copilot**;
-- on `0.1.2-rc.1`, open **Models**, then the **GitHub Copilot** provider
-  card.
-
-Complete the displayed GitHub device flow. DSH writes the shared grant and an
-account-filtered, reference-free route whose model entries retain their exact
-installed `api`. If the grant already exists but Desktop saved an empty or
-incomplete route, plugin activation self-heals the route without another device
-flow. After sign-in, an optional model may be selected only if it already
-appears in the complete mixed-protocol route:
+Open **Models → GitHub Copilot**, complete the displayed device flow, and choose
+only a model present in the account-filtered route. Then run:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -230,52 +169,36 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -Model '<account-available-model-id>'
 ```
 
+Acceptance requires all of the following:
+
+1. direct sign-in succeeds and the shared Copilot grant remains payload-redacted;
+2. a direct model response succeeds with the selected account-available model;
+3. direct hosted search succeeds without a local gateway endpoint;
+4. a reasoning response renders nonempty reasoning without blank Think cards;
+5. a fresh Session accepts the Copilot-scoped Tool Schema while non-Copilot
+   providers retain the native schema;
+6. the exact active Desktop PID owns IPv4 `127.0.0.1:3080`.
+
 ## Optional Web-profile overlays
 
-The current reviewed machine overlay may include `dsh-playwright-host@0.1.2`
-from immutable commit `2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac` and
-`dsh-cron@0.4.1` from tag `v0.4.1` (commit
-`5f99313e110932195821d924259b2836947271f3`). They are reported as known
-optional additions and are not required by the Windows Copilot baseline. See
+`dsh-playwright-host@0.1.2` and `dsh-cron@0.4.1` remain optional Web overlays.
+Select both atomically with `-IncludeCompanionSuite`; they are not silently
+required by the base Windows Copilot deployment. `dsh-github-copilot` remains
+required and cannot be removed by optional-overlay removal. See
 [`computer-use.md`](plugins/computer-use.md) and
-[`scheduling.md`](plugins/scheduling.md). Unknown additions remain visible and
-must not be silently promoted into `requiredBundles`.
-## Legacy migration procedure
+[`scheduling.md`](plugins/scheduling.md).
 
-The lock retains legacy facts only under `migration.legacyGateway`; they are
-not active components or acceptance criteria.
+## Legacy migration and rollback
 
-1. Run the default installer check and save its JSON. Confirm any reported
-   binary, listener, routes, or credential reference matches the reviewed
-   migration contract.
-2. Before closing Desktop, query live `session/list`. Running Sessions require
-   direct user acknowledgement of the exact IDs before any interruption; an
-   unavailable or malformed response blocks the stop. If the legacy gateway
-   process or scheduled task is still running, stop or disable it manually only
-   after that preflight. Repository scripts intentionally do not terminate it.
-3. Preserve the installer backup root. For a known legacy install directory,
-   pass its parent as `-GatewayInstallRoot`; apply backs up and removes only
-   the exact reviewed binary.
-4. Run locked `-Apply` with the Core/plugin source checkouts, immutable Copilot
-   Release tarball, and Desktop artifact shown above. Do not pass a gateway
-   artifact or model catalog.
-5. Run the compatibility bootstrap with the currently locked tarball. It
-   removes superseded `.1` through `.12` or search-plugin dependencies,
-   backed-up local route blocks, and the legacy credential reference; it never
-   deletes the new DSH grant.
-6. When the result is `sign-in-required`, complete sign-in from the correct
-   Desktop UI for the installed DSH version.
-7. Optionally run wrapper `-Action Verify -Model <id>` to select an
-   account-available model. Never paste a token into settings.
-8. Run the default installer check again. Success requires the exact lock-selected plugin,
-   credential grant metadata, reference-free route, direct search composition,
-   official internal-plugin links, receipted controlled CLI, an exact supported
-   Desktop runtime selector, and only the Desktop loopback listener contract.
-9. Perform a user-initiated model and hosted-search smoke in Desktop. No local
-   endpoint probe is part of the direct contract.
+Legacy gateway facts remain migration signatures only, never active components
+or success criteria. Run check mode first, retain its redacted result, and apply
+only when detected files or configuration match the reviewed migration
+contract. Unknown binaries or references fail closed.
 
-Every mutation is backed up before route, credential-reference, profile, or
-binary cleanup. Use the returned operation ID for rollback:
+Every mutation is backed up before profile, route, credential-reference, or
+legacy cleanup. When Apply installs Desktop, the same operation also snapshots
+the install directory, uninstall registry key, and user Desktop/Start Menu
+shortcuts. Roll back an installer operation with:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -294,59 +217,36 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -OperationId '<bootstrap-operation-id>'
 ```
 
+Rollback does not waive restart safety. If a restart is requested, query live
+Sessions and acknowledge the exact running IDs as described above.
+
 ## Verification
 
 Repository-only checks do not touch the active deployment:
 
 ```powershell
-Invoke-Pester -Path tests
 node tools\validate-repository-content.mjs
 node tools\validate-plugin-catalog.mjs
-node --test tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\repository-content.test.mjs
+Invoke-Pester -Path tests
 ```
 
-Machine-state checks below remain read-only; the browser smoke uses an isolated
-browser profile and the existing DSH URL:
+Machine-state verification needs no DSH path:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tools\install-windows-copilot.ps1
+  -File tools\install-windows-copilot.ps1 -Action Verify
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\test-dsh-runtime-schema.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\dsh-replay.ps1 -Action SelfCheck
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tools\dsh-replay.ps1 -Action Preflight
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\dsh-replay.ps1 -Action Apply -DryRun
 python tools\dsh-web-smoke.py --expect-text "New Session" `
   --fail-on-console-error --fail-on-request-failure --fail-on-http-error
 ```
 
-The check command may report drift or `sign-in-required` on an un-migrated
-machine. That is expected fail-closed behavior, not a success-shaped fallback.
-Packaged current/fresh-Session Tool Schema evidence requires a separately
-authorized Host restart; repository-only verification does not claim to produce
-new runtime evidence.
-
-## Historical standalone runtime-schema diagnostic
-
-`tools\test-dsh-runtime-schema.ps1` is a development-only probe for the reviewed
-`0.1.2-alpha.1` / PR #10 schema fix. It follows the first command returned by
-`Get-Command dsh -All`, validates the exact package and compiled symbols, and
-issues a short-lived challenge that requires a newly started DSH process and
-session before behavior evidence can be accepted.
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tools\test-dsh-runtime-schema.ps1
-```
-
-The probe detects stale Pwsh schemas and returns `STALE_RUNTIME_SCHEMA` instead
-of a success-shaped result. Its positive session fields remain user-supplied,
-so it cannot attest or gate the current locked controlled `0.1.1-rc.2` or
-Desktop-managed `0.1.2-rc.1` deployment health.
-The current rc.1 acceptance path is separate: the locked `.14` Copilot
-package removes `sandbox_permissions` and `justification` only from
-`github-copilot` assemblies, preserves other providers, requires a Host restart,
-and records both packaged current-Session and fresh-Session success markers in
-`acceptance.copilotToolSchema`. The historical alpha.1 probe must not be used as
-proof of that provider-scoped behavior.
+Verify attests official Desktop 0.10.3, its managed wrapper/tree/entrypoint, the
+plugin and Profile contract, and the exact active PID owning IPv4
+`127.0.0.1:3080`. It does not install or select another runtime. Check or Verify
+may report drift or `sign-in-required` on an unprepared machine; that is
+expected fail-closed behavior, not a success-shaped fallback.

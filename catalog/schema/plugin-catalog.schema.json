@@ -8,6 +8,7 @@
     "schemaVersion",
     "updatedAt",
     "validationLevels",
+    "suites",
     "plugins"
   ],
   "properties": {
@@ -48,6 +49,55 @@
           "description": {
             "type": "string",
             "minLength": 1
+          }
+        }
+      }
+    },
+    "suites": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "displayName",
+          "profile",
+          "members"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile": {
+            "type": "string",
+            "minLength": 1
+          },
+          "members": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "plugin",
+                "requiredByBaseDeployment"
+              ],
+              "properties": {
+                "plugin": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "requiredByBaseDeployment": {
+                  "type": "boolean"
+                }
+              }
+            }
           }
         }
       }
@@ -143,6 +193,10 @@
               "type": "string",
               "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$"
             },
+            "releaseCommit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
             "releaseImmutable": {
               "type": "boolean"
             },
@@ -178,6 +232,10 @@
             "commit": {
               "type": "string",
               "pattern": "^[0-9a-f]{7,40}$"
+            },
+            "reviewedHead": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
             },
             "mergeCommit": {
               "type": "string",

@@ -11,6 +11,12 @@ Two independent fields describe each plugin:
 
 A high validation level does not automatically make a plugin broadly recommended. A desktop-control plugin can pass functional tests while remaining conditional because it can see screens, cookies, credentials, or native applications.
 
+`suites` groups independently reviewed plugins without merging their identities
+or validation levels. `windows-companion-suite` contains required
+`dsh-github-copilot` plus opt-in `dsh-cron` and `dsh-playwright-host`; exact
+versions, commits, and immutable artifacts remain owned by the deployment lock
+and plugin entries.
+
 ## Validation levels
 
 | Level | Meaning |

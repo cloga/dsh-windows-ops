@@ -18,8 +18,8 @@ body:
   - type: input
     id: versions
     attributes:
-      label: Desktop, DSH, and Copilot plugin versions
-      placeholder: Desktop 0.10.2; DSH ...; dsh-github-copilot ...
+      label: Desktop, Desktop-managed DSH, and Copilot plugin versions
+      placeholder: Desktop 0.10.3; deepseek-harness-pkg 0.1.2-alpha.5 / @deepseek-ai/dsh 0.1.2-rc.1; dsh-github-copilot 0.3.0-cloga.15
     validations:
       required: true
   - type: dropdown
@@ -30,7 +30,8 @@ body:
         - Installer check mode
         - Installer apply or rollback
         - Replay self-check or dry-run
-        - Desktop runtime selector
+        - Desktop-managed runtime attestation
+        - Desktop PID or IPv4 127.0.0.1:3080 ownership
         - Copilot sign-in or model route
         - Hosted search
         - Plugin catalog or optional overlay

@@ -6,110 +6,6 @@ Describe 'DSH Copilot bootstrap' {
         New-Item -ItemType Directory -Path $root -Force | Out-Null
     }
 
-    BeforeAll {
-    function Get-FixtureSha256 {
-        param([Parameter(Mandatory)][string]$Text)
-        $sha = [Security.Cryptography.SHA256]::Create()
-        try {
-            $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
-            return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-        } finally {
-            $sha.Dispose()
-        }
-    }
-
-    function New-DshReceiptFixture {
-        param(
-            $SchemaVersion = 1,
-            [string]$RepositoryUrl = 'https://github.com/cloga/deepseek-harness.git',
-            [string]$PackageVersion = '1.2.3',
-            [string]$InstalledVersion = '1.2.3',
-            [string]$CommitSha = '0123456789abcdef0123456789abcdef01234567',
-            [string]$PackageSha256 = ('a' * 64),
-            [string]$ReceiptCliPath,
-            [string]$ReleaseManifestSha256,
-            [string]$DesktopShim = "@ECHO off`r`n@CALL `"%~dp0node_modules\.bin\dsh.cmd`" %*"
-        )
-        $prefix = Join-Path $root ([guid]::NewGuid().ToString('N'))
-        $package = Join-Path $prefix 'node_modules\@deepseek-ai\dsh'
-        $canonicalCli = Join-Path $prefix 'node_modules\.bin\dsh.cmd'
-        $desktopCli = Join-Path $prefix 'dsh.cmd'
-        New-Item -ItemType Directory -Path $package, (Split-Path $canonicalCli -Parent) -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $package 'package.json') -Encoding UTF8 -Value (
-            [ordered]@{
-                name = '@deepseek-ai/dsh'
-                version = $InstalledVersion
-                bin = [ordered]@{ dsh = 'lib/bin.js' }
-                repository = [ordered]@{ url = 'git+https://github.com/deepseek-ai/deepseek-harness.git' }
-            } | ConvertTo-Json -Compress
-        )
-        Set-Content -LiteralPath $canonicalCli -Value '@echo off' -Encoding ASCII
-        Set-Content -LiteralPath $desktopCli -Value $DesktopShim -Encoding ASCII
-        New-Item -ItemType Directory -Path (Join-Path $package 'lib') -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $package 'lib\bin.js') -Value 'process.exit(0)' -Encoding UTF8
-        $packages = @([ordered]@{
-            name = '@deepseek-ai/dsh'
-            version = $PackageVersion
-            filename = "deepseek-ai-dsh-$PackageVersion.tgz"
-            sha256 = $PackageSha256
-            files = 10
-        })
-        $manifestJson = ConvertTo-Json -InputObject $packages -Compress -Depth 4
-        if (-not $ReleaseManifestSha256) { $ReleaseManifestSha256 = Get-FixtureSha256 -Text $manifestJson }
-        $installedFiles = @(
-            [ordered]@{
-                role = 'root-shim'
-                path = 'dsh.cmd'
-                sha256 = (Get-FileHash -LiteralPath $desktopCli -Algorithm SHA256).Hash.ToLowerInvariant()
-            },
-            [ordered]@{
-                role = 'npm-shim'
-                path = 'node_modules\.bin\dsh.cmd'
-                sha256 = (Get-FileHash -LiteralPath $canonicalCli -Algorithm SHA256).Hash.ToLowerInvariant()
-            },
-            [ordered]@{
-                role = 'entrypoint'
-                path = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
-                sha256 = (Get-FileHash -LiteralPath (Join-Path $package 'lib\bin.js') -Algorithm SHA256).Hash.ToLowerInvariant()
-            }
-        )
-        $receipt = [ordered]@{
-            schemaVersion = $SchemaVersion
-            repositoryUrl = $RepositoryUrl
-            commitSha = $CommitSha
-            packageName = '@deepseek-ai/dsh'
-            packageVersion = $PackageVersion
-            releaseManifestSha256 = $ReleaseManifestSha256
-            cliPath = $(if ($ReceiptCliPath) { $ReceiptCliPath } else { $desktopCli })
-            packages = $packages
-            installedFiles = $installedFiles
-        }
-        Set-Content -LiteralPath (Join-Path $prefix 'dsh-local-install.json') -Encoding UTF8 -Value (
-            $receipt | ConvertTo-Json -Depth 5
-        )
-        return [pscustomobject]@{
-            prefix = $prefix
-            packageRoot = $package
-            canonicalCli = $canonicalCli
-            desktopCli = $desktopCli
-            receiptPath = Join-Path $prefix 'dsh-local-install.json'
-        }
-    }
-
-    function Test-DshCliResolutionThrows {
-        param(
-            [Parameter(Mandatory)][string]$CliPath,
-            [string[]]$GlobalRoots
-        )
-        try {
-            Resolve-DshCliInfo -DshCliPath $CliPath -GlobalRoots $GlobalRoots | Out-Null
-            return $false
-        } catch {
-            return $true
-        }
-    }
-    }
-
     It 'removes only reviewed legacy route state and never writes provider transport settings' {
         $settings = Join-Path $root 'settings.yaml'
         @'
@@ -327,170 +223,6 @@ llm-pi-ai:
         $singleProtocol.status | Should -Be 'route-mixed-protocol-apis-missing'
     }
 
-    It 'accepts the deployed @ECHO and @CALL Desktop shim with a root receipt' {
-        $fixture = New-DshReceiptFixture
-        $info = Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
-        $info.cliPath | Should -Be ([IO.Path]::GetFullPath($fixture.desktopCli))
-        $info.canonicalCliPath | Should -Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
-        $info.packageRoot | Should -Be ([IO.Path]::GetFullPath($fixture.packageRoot))
-        $info.repository | Should -Be 'cloga/deepseek-harness'
-        $info.version | Should -Be '1.2.3'
-        $info.packageCount | Should -Be 1
-        $info.installedFileCount | Should -Be 3
-    }
-
-    It 'accepts the canonical user input alias with a root receipt' {
-        $fixture = New-DshReceiptFixture
-        (Resolve-DshCliInfo -DshCliPath $fixture.canonicalCli).canonicalCliPath |
-            Should -Be ([IO.Path]::GetFullPath($fixture.canonicalCli))
-    }
-
-    It 'rejects malformed Desktop shim forwarding' {
-        $fixture = New-DshReceiptFixture -DesktopShim "@echo off`r`n@call `"%~dp0other\dsh.cmd`" %*"
-        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should -Be $true
-
-        $fixture = New-DshReceiptFixture -DesktopShim "@echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" --unsafe %*"
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-
-        $fixture = New-DshReceiptFixture -DesktopShim " @echo off`r`n@call `"%~dp0node_modules\.bin\dsh.cmd`" %*"
-        Test-DshCliResolutionThrows -CliPath $fixture.desktopCli | Should -Be $true
-    }
-
-    It 'rejects a receipt that records the canonical alias' {
-        $fixture = New-DshReceiptFixture
-        $receipt = Get-Content -LiteralPath $fixture.receiptPath -Raw | ConvertFrom-Json
-        $receipt.cliPath = $fixture.canonicalCli
-        Set-Content -LiteralPath $fixture.receiptPath -Encoding UTF8 -Value (
-            $receipt | ConvertTo-Json -Depth 5
-        )
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects an unrelated dsh path' {
-        $fixture = New-DshReceiptFixture
-        $unrelatedCli = Join-Path $fixture.prefix 'other\dsh.cmd'
-        New-Item -ItemType Directory -Path (Split-Path $unrelatedCli -Parent) -Force | Out-Null
-        Set-Content -LiteralPath $unrelatedCli -Value '@echo off' -Encoding ASCII
-        Test-DshCliResolutionThrows -CliPath $unrelatedCli | Should -Be $true
-    }
-
-    It 'maps an implicitly discovered npm PowerShell shim to dsh.cmd' {
-        $fixture = New-DshReceiptFixture
-        Set-Content -LiteralPath (Join-Path $fixture.prefix 'dsh.ps1') -Value 'exit 1' -Encoding ASCII
-        $previousPath = $env:PATH
-        $previousCli = $env:DSH_CLI_PATH
-        try {
-            $env:PATH = $fixture.prefix + [IO.Path]::PathSeparator + $previousPath
-            $env:DSH_CLI_PATH = $null
-            (Resolve-DshCliInfo).cliPath | Should -Be ([IO.Path]::GetFullPath($fixture.desktopCli))
-        } finally {
-            $env:PATH = $previousPath
-            $env:DSH_CLI_PATH = $previousCli
-        }
-    }
-
-    It 'rejects a receipt for the wrong repository' {
-        $fixture = New-DshReceiptFixture -RepositoryUrl 'https://github.com/deepseek-ai/deepseek-harness.git'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects an unsupported receipt schema' {
-        $fixture = New-DshReceiptFixture -SchemaVersion 2
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-        $fixture = New-DshReceiptFixture -SchemaVersion '1'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-        $fixture = New-DshReceiptFixture -SchemaVersion $true
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects a receipt version that differs from the installed package' {
-        $fixture = New-DshReceiptFixture -PackageVersion '1.2.4'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects a receipt CLI outside the installed prefix' {
-        $fixture = New-DshReceiptFixture -ReceiptCliPath (Join-Path $root 'other\dsh.cmd')
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects malformed commit and release manifest SHAs' {
-        $fixture = New-DshReceiptFixture -CommitSha 'short'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-        $fixture = New-DshReceiptFixture -ReleaseManifestSha256 'not-a-sha'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-        $fixture = New-DshReceiptFixture -PackageSha256 'not-a-sha'
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects a release manifest hash that is not linked to its package list' {
-        $fixture = New-DshReceiptFixture -ReleaseManifestSha256 ('b' * 64)
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects a missing receipt' {
-        $fixture = New-DshReceiptFixture
-        Remove-Item -LiteralPath $fixture.receiptPath
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli | Should -Be $true
-    }
-
-    It 'rejects a receipt without installed executable hashes' {
-        $fixture = New-DshReceiptFixture
-        $receipt = Get-Content -LiteralPath $fixture.receiptPath -Raw | ConvertFrom-Json
-        $receipt.PSObject.Properties.Remove('installedFiles')
-        $receipt | ConvertTo-Json -Depth 6 |
-            Set-Content -LiteralPath $fixture.receiptPath -Encoding UTF8
-        {
-            Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
-        } | Should -Throw '*installed-bytes-unattested*'
-    }
-
-    It 'rejects tampered installed entrypoint and npm shim hashes' {
-        foreach ($relativePath in @(
-            'lib\bin.js',
-            '..\..\.bin\dsh.cmd'
-        )) {
-            $fixture = New-DshReceiptFixture
-            $target = Join-Path $fixture.packageRoot $relativePath
-            Add-Content -LiteralPath $target -Value 'tampered' -Encoding ASCII
-            {
-                Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
-            } | Should -Throw '*installed-bytes-mismatch*'
-        }
-    }
-
-    It 'rejects a byte-changed root shim that still has the valid forwarding shape' {
-        $fixture = New-DshReceiptFixture
-        Set-Content -LiteralPath $fixture.desktopCli -Encoding ASCII -NoNewline `
-            -Value "@echo off`r`n@CALL `"%~dp0node_modules\.bin\dsh.cmd`" %*"
-        {
-            Resolve-DshCliInfo -DshCliPath $fixture.desktopCli
-        } | Should -Throw '*installed-bytes-mismatch*'
-    }
-
-    It 'does not fall back to trusted-looking package metadata' {
-        $fixture = New-DshReceiptFixture
-        Remove-Item -LiteralPath $fixture.receiptPath
-        Test-DshCliResolutionThrows -CliPath $fixture.canonicalCli -GlobalRoots @($fixture.packageRoot) |
-            Should -Be $true
-    }
-
-    It 'validates the current local Core receipt when installed' {
-        $desktopCli = 'C:\.tools\dsh-cloga\dsh.cmd'
-        if (Test-Path -LiteralPath $desktopCli -PathType Leaf) {
-            $receiptPath = Join-Path (Split-Path -Parent $desktopCli) 'dsh-local-install.json'
-            $receipt = if (Test-Path -LiteralPath $receiptPath -PathType Leaf) {
-                Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            } else { $null }
-            if (-not $receipt -or -not $receipt.PSObject.Properties['installedFiles']) {
-                Set-ItResult -Skipped -Because 'The local Core receipt predates installed-file attestation.'
-                return
-            }
-            $info = Resolve-DshCliInfo -DshCliPath $desktopCli
-            $info.repository | Should -Be 'cloga/deepseek-harness'
-            $info.packageCount | Should -BeGreaterThan 1
-        }
-    }
-
     It 'reports only safe metadata for the built-in Copilot grant' {
         $credentialHome = Join-Path $root 'credential-home'
         New-Item -ItemType Directory -Path $credentialHome -Force | Out-Null
@@ -518,48 +250,25 @@ records:
             Should -Be 'sign-in-required'
     }
 
-    It 'accepts exact controlled and official Desktop runtime selectors' {
-        $cli = [pscustomobject]@{
-            version = '0.1.1-rc.2'
-            packageRoot = 'C:\controlled\node_modules\@deepseek-ai\dsh'
-            entryPath = 'C:\controlled\node_modules\@deepseek-ai\dsh\lib\bin.js'
-        }
+    It 'accepts only the exact official Desktop-managed runtime selector' {
         $lock = [pscustomobject]@{
             components = [pscustomobject]@{
                 desktop = [pscustomobject]@{
-                    runtimeSelectors = @(
-                        [pscustomobject]@{
-                            id = 'controlled-fork'
-                            source = 'controlled-core-receipt'
-                            package = [pscustomobject]@{ version = '0.1.1-rc.2' }
-                        },
-                        [pscustomobject]@{
-                            id = 'desktop-official'
-                            source = 'desktop-managed-download'
-                            root = '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh'
-                            package = [pscustomobject]@{
-                                version = '0.1.2-rc.1'
-                                entrypoint = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
-                            }
+                    defaultRuntimeSelector = 'desktop-official'
+                    runtimeSelectors = @([pscustomobject]@{
+                        id = 'desktop-official'
+                        source = 'desktop-managed-download'
+                        root = '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh'
+                        package = [pscustomobject]@{
+                            version = '0.1.2-rc.1'
+                            entrypoint = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
                         }
-                    )
+                    })
                 }
             }
         }
-        $controlled = [pscustomobject]@{
-            valid = $true
-            selector = 'controlled-fork'
-            source = 'controlled-core-receipt'
-            version = '0.1.1-rc.2'
-            packageRoot = $cli.packageRoot
-            entryPath = $cli.entryPath
-            processIds = @(11)
-        }
-        (Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
-            -DesktopRuntimeState $controlled).selector | Should -Be 'controlled-fork'
-
         $officialRoot = [IO.Path]::GetFullPath(
-            [Environment]::ExpandEnvironmentVariables([string]$lock.components.desktop.runtimeSelectors[1].root)
+            [Environment]::ExpandEnvironmentVariables([string]$lock.components.desktop.runtimeSelectors[0].root)
         )
         $official = [pscustomobject]@{
             valid = $true
@@ -570,12 +279,31 @@ records:
             entryPath = Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh\lib\bin.js'
             processIds = @(12)
         }
-        (Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
+        (Test-DshActiveDesktopCore -DeploymentLock $lock `
             -DesktopRuntimeState $official).selector | Should -Be 'desktop-official'
 
         $official.version = '0.1.2-alpha.6'
-        { Test-DshActiveDesktopCore -CliInfo $cli -DeploymentLock $lock `
+        { Test-DshActiveDesktopCore -DeploymentLock $lock `
             -DesktopRuntimeState $official } | Should -Throw '*exact managed path and locked version*'
+
+        $official.version = '0.1.2-rc.1'
+        $official.selector = 'controlled-fork'
+        { Test-DshActiveDesktopCore -DeploymentLock $lock `
+            -DesktopRuntimeState $official } | Should -Throw '*Unsupported Desktop runtime selector*'
+    }
+
+    It 'removes local Core resolution and invokes the official entrypoint for plugin commands' {
+        Get-Command Resolve-DshCliInfo -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+        (Get-Command Test-DshActiveDesktopCore).Parameters.Keys | Should -Not -Contain 'CliInfo'
+
+        $scriptText = Get-Content -LiteralPath (
+            Join-Path $PSScriptRoot '..\tools\enable-copilot-search-vision.ps1'
+        ) -Raw
+        $scriptText | Should -Not -Match 'DshCliPath|Resolve-DshCliInfo|ForkCliInfo|controlled-fork'
+        $scriptText | Should -Match (
+            [regex]::Escape('& $node.Source $officialRuntime.entryPath plugin')
+        )
+        $scriptText | Should -Match 'Test-DshRuntimeSchemaState'
     }
 
     It 'refuses a renderer without the exact SlotOutlet marker' {
@@ -595,7 +323,7 @@ records:
         $threw | Should -Be $true
     }
 
-    It 'accepts a hoisted renderer beside the active Core package' {
+    It 'accepts a hoisted renderer beside the active official package' {
         $package = Join-Path $root 'prefix\node_modules\@deepseek-ai\dsh'
         $renderer = Join-Path $root 'prefix\node_modules\@deepseek-ai\dsh-client-ui-renderer\lib'
         $flat = Join-Path $root 'home\profiles\node_modules\@deepseek-ai\dsh-client-ui-renderer\lib'
@@ -635,7 +363,7 @@ records:
         $expected = @([pscustomobject]@{
             path = [IO.Path]::GetFullPath($file)
             exists = $true
-            sha256 = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+            fingerprint = Get-DshCopilotPathFingerprint -Path $file
         })
         Complete-DshCopilotBackup -StateRoot $state -OperationId $backup.operationId -ExpectedStates $expected | Out-Null
         Restore-DshCopilotBackup -StateRoot $state -OperationId $backup.operationId | Out-Null
@@ -651,7 +379,7 @@ records:
         $expected = @([pscustomobject]@{
             path = [IO.Path]::GetFullPath($file)
             exists = $true
-            sha256 = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+            fingerprint = Get-DshCopilotPathFingerprint -Path $file
         })
         Complete-DshCopilotBackup -StateRoot $state -OperationId $backup.operationId -ExpectedStates $expected | Out-Null
         Set-Content -LiteralPath $file -Value 'later-user-change' -Encoding UTF8
@@ -663,6 +391,61 @@ records:
         }
         $threw | Should -Be $true
         (Get-Content -LiteralPath $file -Raw).Trim() | Should -Be 'later-user-change'
+    }
+
+    It 'backs up and restores a reviewed legacy provider closure and rejects unknown versions' {
+        $lock = Get-Content -LiteralPath (
+            Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'
+        ) -Raw -Encoding UTF8 | ConvertFrom-Json
+        $profile = Join-Path $root 'profiles\web'
+        $packageRoot = Join-Path $profile 'node_modules\dsh-web-search-provider'
+        New-Item -ItemType Directory -Path (Join-Path $packageRoot 'lib') -Force |
+            Out-Null
+        '{"version":"0.2.2"}' |
+            Set-Content -LiteralPath (Join-Path $packageRoot 'package.json') -Encoding UTF8
+        'payload' |
+            Set-Content -LiteralPath (Join-Path $packageRoot 'lib\index.js') -Encoding UTF8
+        '{"dependencies":{"dsh-web-search-provider":"0.2.2"}}' |
+            Set-Content -LiteralPath (Join-Path $profile 'package.json') -Encoding UTF8
+
+        $reviewed = Test-DshReviewedLegacySearchProvider -Lock $lock `
+            -ProfileRoot $profile
+        $reviewed.present | Should -Be $true
+        $reviewed.fingerprint.kind | Should -Be 'directory'
+
+        $state = Join-Path $root 'state'
+        $backup = New-DshCopilotBackup -Paths @($packageRoot) -StateRoot $state
+        Remove-Item -LiteralPath $packageRoot -Recurse -Force
+        $expected = @([pscustomobject]@{
+            path = [IO.Path]::GetFullPath($packageRoot)
+            exists = $false
+            fingerprint = Get-DshCopilotPathFingerprint -Path $packageRoot
+        })
+        Complete-DshCopilotBackup -StateRoot $state -OperationId $backup.operationId `
+            -ExpectedStates $expected | Out-Null
+        Restore-DshCopilotBackup -StateRoot $state -OperationId $backup.operationId |
+            Out-Null
+        (Get-Content -LiteralPath (Join-Path $packageRoot 'lib\index.js') -Raw).Trim() |
+            Should -Be 'payload'
+
+        '{"version":"9.9.9"}' |
+            Set-Content -LiteralPath (Join-Path $packageRoot 'package.json') -Encoding UTF8
+        {
+            Test-DshReviewedLegacySearchProvider -Lock $lock -ProfileRoot $profile
+        } | Should -Throw '*not in the reviewed migration inventory*'
+    }
+
+    It 'tracks Copilot payload directories and uses the global deployment mutex' {
+        $scriptText = Get-Content -LiteralPath (
+            Join-Path $PSScriptRoot '..\tools\enable-copilot-search-vision.ps1'
+        ) -Raw
+        $scriptText | Should -Match "node_modules\\dsh-github-copilot"
+        $scriptText | Should -Match "Enter-WindowsCopilotDeploymentLock"
+        $scriptText | Should -Match "Exit-WindowsCopilotDeploymentLock"
+        $scriptText | Should -Match "Test-WindowsCopilotProfileCoherence"
+        $scriptText | Should -Match "Save-WindowsCopilotLockedArtifact"
+        $scriptText.IndexOf('Test-WindowsCopilotProfileCoherence') |
+            Should -BeLessThan $scriptText.IndexOf('Complete-DshCopilotBackup')
     }
 
     It 'rejects the pre-fix sandbox contract under the required gate' {
@@ -709,7 +492,7 @@ export function apply(ctx) {
         } | Should -Throw '*sandbox non-widening regression gate*'
     }
 
-    It 'passes same narrower and wider sandbox behavior without lowering policy' {
+    It 'passes omitted non-widening calls and an approved wider sandbox request' {
         $nodeModules = Join-Path $root 'prefix\node_modules'
         $package = Join-Path $nodeModules '@deepseek-ai\dsh'
         $sandbox = Join-Path $nodeModules '@deepseek-ai\dsh-sandbox\lib'
@@ -719,8 +502,13 @@ export function apply(ctx) {
         New-Item -ItemType Directory -Path $sandbox, $bash, $pwsh -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $sandbox 'index.js') -Encoding UTF8 -Value @'
 export async function approveEscalation(request, approval) {
-  const rank = { 'read-only': 0, 'workspace-write': 1, 'danger-full-access': 2 }
-  if (rank[request.requestedMode] <= rank[request.effectiveMode]) return request.effectiveMode
+  const wider = {
+    'read-only': ['workspace-write', 'danger-full-access'],
+    'workspace-write': ['danger-full-access'],
+  }
+  if (!(wider[request.effectiveMode] ?? []).includes(request.requestedMode)) {
+    throw new Error('not strictly wider')
+  }
   await approval.approver.request()
   return request.requestedMode
 }
@@ -754,6 +542,8 @@ export function apply(ctx) {
             -ProbeScript (Join-Path $PSScriptRoot '..\tools\dsh-sandbox-regression-probe.mjs') -Mode Require
         $result.status | Should -Be 'passed'
         $result.effectiveMode | Should -Be 'danger-full-access'
+        $result.sameMode | Should -Be 'omitted-no-op-explicit-rejected'
+        $result.narrowerMode | Should -Be 'omitted-no-op-explicit-rejected'
         $result.sameAndNarrowerApprovalCalls | Should -Be 0
         $result.widerApprovalCalls | Should -Be 1
         @($result.tools).Count | Should -Be 2

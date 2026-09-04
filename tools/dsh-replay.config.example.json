@@ -19,19 +19,6 @@
       ]
     },
     {
-      "name": "dsh-local-core",
-      "rootEnv": "DSH_CORE_ROOT",
-      "rootCandidates": [
-        "%APPDATA%\\npm\\node_modules\\@deepseek-ai\\dsh"
-      ],
-      "versionProbes": [
-        {
-          "path": "package.json",
-          "property": "version"
-        }
-      ]
-    },
-    {
       "name": "dsh-desktop-runtime",
       "rootEnv": "DSH_DESKTOP_RUNTIME_ROOT",
       "rootCandidates": [

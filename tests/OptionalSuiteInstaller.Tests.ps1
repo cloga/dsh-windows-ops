@@ -589,6 +589,144 @@ Describe 'Optional companion suite compatibility wrapper' {
         ) -Raw).Trim() | Should -BeExactly 'preserved'
     }
 
+    It 'exports Apply with ArtifactDirectory through real materialization and imports' {
+        $fixtureLock = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $artifactDirectory = Join-Path $TestDrive 'exported-artifacts'
+        New-Item -ItemType Directory -Path $artifactDirectory -Force |
+            Out-Null
+        $packages = @([pscustomobject]@{
+            name = [string]$fixtureLock.components.copilotIntegration.package.name
+            version = [string]$fixtureLock.components.copilotIntegration.package.version
+            artifact = $fixtureLock.components.copilotIntegration.package.artifact
+        }) + @($fixtureLock.profile.optionalOverlays | ForEach-Object {
+            [pscustomobject]@{
+                name = [string]$_.name
+                version = [string]$_.version
+                artifact = $_.artifact
+            }
+        })
+        foreach ($package in $packages) {
+            $sourceRoot = Join-Path $TestDrive "packed-$($package.name)"
+            $payloadRoot = Join-Path $sourceRoot 'package'
+            New-Item -ItemType Directory -Path $payloadRoot -Force |
+                Out-Null
+            [ordered]@{
+                name = [string]$package.name
+                version = [string]$package.version
+                type = 'module'
+                main = 'index.js'
+                dsh = [ordered]@{
+                    bundle = [ordered]@{ patch = './cordis.patch.yml' }
+                }
+            } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (
+                Join-Path $payloadRoot 'package.json'
+            ) -Encoding UTF8
+            'export default true;' | Set-Content -LiteralPath (
+                Join-Path $payloadRoot 'index.js'
+            ) -Encoding UTF8
+            '[]' | Set-Content -LiteralPath (
+                Join-Path $payloadRoot 'cordis.patch.yml'
+            ) -Encoding UTF8
+            $artifactPath = Join-Path $artifactDirectory (
+                [string]$package.artifact.name
+            )
+            & (Join-Path $env:SystemRoot 'System32\tar.exe') -czf $artifactPath `
+                -C $sourceRoot package
+            $LASTEXITCODE | Should -Be 0
+            $item = Get-Item -LiteralPath $artifactPath
+            $package.artifact.size = [long]$item.Length
+            $package.artifact.sha256 = (
+                Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+        }
+
+        $dshHome = Join-Path $TestDrive 'exported-apply'
+        $profileRoot = Join-Path $dshHome (
+            [string]$fixtureLock.profile.relativePath
+        )
+        $nodeModules = Join-Path $profileRoot 'node_modules'
+        New-Item -ItemType Directory -Path $nodeModules -Force | Out-Null
+        '{"name":"fixture","dependencies":{},"dsh":{"profile":{"bundles":[]}}}' |
+            Set-Content -LiteralPath (Join-Path $profileRoot 'package.json') `
+                -Encoding UTF8
+        "packages:`n  - ." | Set-Content -LiteralPath (
+            Join-Path $profileRoot 'pnpm-workspace.yaml'
+        ) -Encoding UTF8
+        "lockfileVersion: '9.0'" | Set-Content -LiteralPath (
+            Join-Path $profileRoot 'pnpm-lock.yaml'
+        ) -Encoding UTF8
+        foreach ($name in @(
+            $fixtureLock.components.desktop.internalPlugins.name
+        )) {
+            $source = Join-Path $dshHome "desktop-resources\$name"
+            New-Item -ItemType Directory -Path $source -Force | Out-Null
+            New-Item -ItemType Junction -Path (Join-Path $nodeModules $name) `
+                -Target $source | Out-Null
+        }
+        $runtimeRoot = Join-Path $dshHome 'runtime'
+        foreach ($package in @(
+            '@deepseek-ai\dsh-app-boot',
+            '@deepseek-ai\dsh-mcp-client'
+        )) {
+            $target = Join-Path $runtimeRoot "node_modules\$package"
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+            '{"type":"module","main":"index.js"}' |
+                Set-Content -LiteralPath (Join-Path $target 'package.json') `
+                    -Encoding UTF8
+            'export default true;' | Set-Content -LiteralPath (
+                Join-Path $target 'index.js'
+            ) -Encoding UTF8
+        }
+
+        InModuleScope WindowsCopilotDeployment -Parameters @{
+            FixtureLock = $fixtureLock
+            FixtureHome = $dshHome
+            FixtureArtifacts = $artifactDirectory
+            FixtureBackup = (Join-Path $TestDrive 'exported-apply-backups')
+        } {
+            Mock Test-WindowsCopilotLock {}
+            Mock Test-WindowsCopilotCompanionCompatibility {
+                [pscustomobject]@{
+                    valid = $true
+                    runtimeRoot = (Join-Path $FixtureHome 'runtime')
+                    reasons = @()
+                }
+            }
+            Mock Test-CopilotIntegrationDeploymentContract {
+                [pscustomobject]@{ valid = $true }
+            }
+            Mock Save-WindowsCopilotReleaseArtifact {
+                'fixture checksum' | Set-Content -LiteralPath (
+                    Join-Path (Split-Path -Parent $Destination) 'SHA256SUMS'
+                )
+                [pscustomobject]@{ path = $Destination; valid = $true }
+            }
+            Mock Invoke-PinnedPnpmCommands {}
+            Mock Get-WindowsCopilotLiveSessions { @() }
+
+            $result = Invoke-WindowsCopilotCompanionSuiteApply `
+                -Lock $FixtureLock -DshHome $FixtureHome `
+                -BackupRoot $FixtureBackup `
+                -ArtifactDirectory $FixtureArtifacts
+            $result.verification.valid | Should -BeTrue
+            $result.verification.imports.status |
+                Should -BeExactly 'entrypoints-imported'
+        }
+
+        foreach ($name in @($packages.name)) {
+            $link = Get-Item -LiteralPath (
+                Join-Path $nodeModules "$name\node_modules"
+            ) -Force
+            $link.LinkType | Should -BeExactly 'Junction'
+            [IO.Path]::GetFullPath([string]@($link.Target)[0]) |
+                Should -BeExactly (
+                    [IO.Path]::GetFullPath(
+                        (Join-Path $runtimeRoot 'node_modules')
+                    )
+                )
+        }
+    }
+
     It 'keeps exactly one required Copilot member and two optional overlays' {
         @($lock.companionSuite.members).Count | Should -Be 3
         $required = @($lock.companionSuite.members | Where-Object requiredByBaseDeployment)

@@ -2007,7 +2007,10 @@ function Restore-WindowsCopilotRegistrySnapshots {
 }
 
 function Get-DeploymentPathFingerprint {
-    param([Parameter(Mandatory)][string]$Path)
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [string[]]$ExcludeRelativePath
+    )
     $item = Get-DeploymentPathItem -Path $Path
     if (-not $item) { return [pscustomobject]@{ kind = 'absent' } }
     if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
@@ -2023,7 +2026,8 @@ function Get-DeploymentPathFingerprint {
             sha256 = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         }
     }
-    $tree = Get-WindowsCopilotDirectoryTreeState -Path $item.FullName
+    $tree = Get-WindowsCopilotDirectoryTreeState -Path $item.FullName `
+        -ExcludeRelativePath $ExcludeRelativePath
     return [pscustomobject]@{
         kind = 'directory'
         fileCount = [int]$tree.fileCount
@@ -2050,7 +2054,12 @@ function Restore-DeploymentSnapshots {
         if (-not (Test-Path -LiteralPath $source)) {
             throw "Deployment rollback backup is missing: $source"
         }
-        $backupFingerprint = Get-DeploymentPathFingerprint -Path $source
+        $exclude = @(
+            Get-LockProperty -InputObject $snapshot `
+                -Name 'excludeRelativePath'
+        )
+        $backupFingerprint = Get-DeploymentPathFingerprint -Path $source `
+            -ExcludeRelativePath $exclude
         if (-not (Test-DeploymentFingerprintEqual -Left $backupFingerprint `
             -Right $snapshot.originalFingerprint)) {
             throw "Deployment rollback backup fingerprint mismatch: $source"
@@ -2059,7 +2068,12 @@ function Restore-DeploymentSnapshots {
     for ($index = $Snapshots.Count - 1; $index -ge 0; $index--) {
         $snapshot = $Snapshots[$index]
         $target = [string]$snapshot.path
-        $currentFingerprint = Get-DeploymentPathFingerprint -Path $target
+        $exclude = @(
+            Get-LockProperty -InputObject $snapshot `
+                -Name 'excludeRelativePath'
+        )
+        $currentFingerprint = Get-DeploymentPathFingerprint -Path $target `
+            -ExcludeRelativePath $exclude
         if ([bool]$snapshot.existed -and
             (Test-DeploymentFingerprintEqual -Left $currentFingerprint `
                 -Right $snapshot.originalFingerprint)) {
@@ -4961,10 +4975,7 @@ function Invoke-WindowsCopilotCompanionSuiteApplyLocked {
             Test-LockedArtifact -Path $candidate `
                 -Sha256 ([string]$member.artifact.sha256) `
                 -ExpectedName ([string]$member.artifact.name) `
-                -ExpectedSize ([long]$member.artifact.size) `
-                -DependencyNodeModulesRoot (
-                    Join-Path ([string]$compatibility.runtimeRoot) 'node_modules'
-                ) | Out-Null
+                -ExpectedSize ([long]$member.artifact.size) | Out-Null
             $member.suppliedPath = $candidate
         }
     }
@@ -5073,6 +5084,7 @@ function Invoke-WindowsCopilotCompanionSuiteApplyLocked {
                 path = Join-Path $nodeModules ([string]$member.name)
                 relativePath = "plugins\$([string]$member.name)"
                 pluginTarget = $true
+                excludeRelativePath = 'node_modules'
             }
         )) {
             $snapshot = [pscustomobject]@{
@@ -5080,7 +5092,15 @@ function Invoke-WindowsCopilotCompanionSuiteApplyLocked {
                 relativePath = [string]$item.relativePath
                 pluginTarget = [bool]$item.pluginTarget
                 existed = Test-Path -LiteralPath ([string]$item.path)
-                originalFingerprint = Get-DeploymentPathFingerprint -Path ([string]$item.path)
+                excludeRelativePath = @(
+                    Get-LockProperty -InputObject $item `
+                        -Name 'excludeRelativePath'
+                )
+                originalFingerprint = Get-DeploymentPathFingerprint `
+                    -Path ([string]$item.path) -ExcludeRelativePath @(
+                        Get-LockProperty -InputObject $item `
+                            -Name 'excludeRelativePath'
+                    )
             }
             $snapshots.Add($snapshot)
             Backup-DeploymentPath -Path ([string]$item.path) `
@@ -5215,7 +5235,10 @@ function Invoke-WindowsCopilotCompanionSuiteApplyLocked {
                 -Version ([string]$member.version) `
                 -Sha256 ([string]$member.artifact.sha256) `
                 -ExpectedName ([string]$member.artifact.name) `
-                -ExpectedSize ([long]$member.artifact.size) | Out-Null
+                -ExpectedSize ([long]$member.artifact.size) `
+                -DependencyNodeModulesRoot (
+                    Join-Path ([string]$compatibility.runtimeRoot) 'node_modules'
+                ) | Out-Null
         }
         foreach ($snapshot in $officialSnapshots) {
             $current = Get-DeploymentPathFingerprint -Path ([string]$snapshot.path)
@@ -5231,9 +5254,11 @@ function Invoke-WindowsCopilotCompanionSuiteApplyLocked {
         }
         foreach ($snapshot in $snapshots) {
             $snapshot | Add-Member -NotePropertyName appliedFingerprint `
-                -NotePropertyValue (Get-DeploymentPathFingerprint -Path (
-                    [string]$snapshot.path
-                )) -Force
+                -NotePropertyValue (Get-DeploymentPathFingerprint `
+                    -Path ([string]$snapshot.path) -ExcludeRelativePath @(
+                        Get-LockProperty -InputObject $snapshot `
+                            -Name 'excludeRelativePath'
+                    )) -Force
         }
         $receipt = [pscustomobject]@{
             schemaVersion = 1

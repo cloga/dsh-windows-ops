@@ -155,9 +155,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 The package argument may be the exact locked GitHub Release URL or a local copy
 whose SHA-256 matches the lock; npm is not a distribution channel. The wrapper
-installs `dsh-github-copilot` in `web` and `headless`, selects
-`github-copilot-hosted` search, removes reviewed legacy references, and reports
-credential metadata without exposing grant payloads.
+installs `dsh-github-copilot` in `web` and `headless`, configures only the
+plugin and `github-copilot-hosted` search selection, removes reviewed legacy
+route references, and reports credential metadata without exposing grant
+payloads. It does not write provider routes, model lists, base URLs, or API-key
+references. Despite its historical file name, it does not install
+`dsh-vision-any` or another visual fallback. Image-capable models receive
+uploaded attachments through DSH's native image channel, and Agents use the
+built-in `read_image` tool to open workspace image files. Text-only models must
+be switched to an image-capable route rather than silently delegating the image
+to a second provider.
 
 Open **Models → GitHub Copilot**, complete the displayed device flow, and choose
 only a model present in the account-filtered route. Then run:

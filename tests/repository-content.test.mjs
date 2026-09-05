@@ -16,6 +16,7 @@ const fixtureFiles = [
   'docs/plugins/scheduling.md',
   'docs/windows-replay-tooling.md',
   'docs/improvement-portfolio.md',
+  'docs/vision-dual-channel.md',
   'docs/powershell-5.1-pitfalls.md',
   'tools/README.md',
   'tools/dsh-replay.config.example.json',

@@ -60,7 +60,7 @@ node tools\validate-plugin-catalog.mjs
 | 类别 | 主要工具 | 用途 |
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
-| Bootstrap | `tools/enable-copilot-search-vision.ps1` | 安装直连插件、选择 hosted search，并报告 UI 登录要求 |
+| Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
 | 可选套件 | `tools/install-windows-copilot.ps1 -IncludeCompanionSuite` | 在一次基线 Apply/rollback 事务中包含锁定的 Copilot、Cron 与 Playwright Bundle；窄版 optional-suite wrapper 使用同一份 lock |
 | 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |
 | 插件兼容 | `tools/dsh-compat-check.mjs` | 静态依赖清单和真实 host import probe |
@@ -73,8 +73,8 @@ node tools\validate-plugin-catalog.mjs
 
 ## 文档地图
 
-- **部署与集成**：`local-core-desktop-copilot.md`、`vision-dual-channel.md`
-- **插件治理与可选 overlays**：`docs/plugins/`（包括 `computer-use.md`、`scheduling.md`）及 `catalog/`
+- **部署与集成**：`local-core-desktop-copilot.md`、`vision-dual-channel.md`（当前为 DSH 原生附件与 `read_image` 架构）
+- **插件治理与可选 overlays**：`docs/plugins/`（包括 `computer-use.md`、`scheduling.md`、`better-sidebar.md`）及 `catalog/`
 - **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
 - **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`
 - **维护状态**：`improvement-portfolio.md`、`windows-replay-tooling.md`

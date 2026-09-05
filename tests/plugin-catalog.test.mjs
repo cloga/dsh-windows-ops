@@ -48,6 +48,14 @@ test('current catalog validates', () => {
   assert.match(output, /Plugin catalog valid/)
 })
 
+test('dsh-vision-any is retained only as superseded history', () => {
+  const plugin = pluginById(read(sourceCatalog), 'dsh-vision-any')
+  assert.equal(plugin.recommendation, 'historical')
+  assert.match(plugin.summary, /superseded/)
+  assert.ok(plugin.security.notes.some(note => /built-in attachment path and read_image/.test(note)))
+  assert.ok(plugin.notes.some(note => /image-capable model/.test(note)))
+})
+
 test('dsh-dev-tools records rc1 evidence and deployment-owned approval policy', () => {
   const plugin = pluginById(read(sourceCatalog), 'dsh-dev-tools')
   assert.equal(plugin.source.release, '0.2.0')

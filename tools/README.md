@@ -10,7 +10,7 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Apply the exact locked Desktop and companion selection | Same command with `-Apply`, plugin source/Release paths, Desktop artifact, and optional `-IncludeCompanionSuite`; add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after the user accepts every listed interruption | High | One backup/rollback transaction; Copilot is required, while the switch atomically includes locked Cron 0.4.1 and Playwright Host 0.1.2; never builds, installs, or selects a DSH runtime |
 | Verify the official Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Attests `deepseek-harness-pkg@0.1.2-alpha.5`, inner official `@deepseek-ai/dsh@0.1.2-rc.1`, the 10-file tree and exact entrypoint, and the exact active PID owning IPv4 `127.0.0.1:3080` |
 | Roll back an installer operation | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -OperationId <id>` (add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after explicit interruption approval) | Backup restore | Restores the operation's backed-up Desktop/plugin/profile state without bypassing live-Session restart safety |
-| Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Defaults to the canonical locked Release URL, hash-checks any local tarball, rejects registry/arbitrary specs, upgrades both profiles through the Desktop-managed official CLI, and returns `sign-in-required` until UI authorization completes |
+| Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Historical compatibility path; installs no vision fallback. It resolves the canonical locked Release, hash-checks local tarballs, rejects registry/arbitrary specs, upgrades both profiles through the Desktop-managed official CLI, and returns `sign-in-required` until UI authorization completes |
 | Check or stage the optional companion suite directly | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` | None by default / Web Profile composition | Narrow wrapper over the same authoritative deployment lock; the main baseline flow is `install-windows-copilot.ps1 -IncludeCompanionSuite`; never restarts Host |
 | Check versions and direct-provider replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Includes Desktop-managed runtime, `llm-pi-ai` OAuth JSON normalization, per-model API route, and direct-integration evidence; no local gateway endpoint |
 | Preview replay patches | `powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun` | None | Exact-marker plan only |
@@ -38,10 +38,13 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 - **Historical helpers:** scripts whose guides explicitly mark them historical, such as `patch-brand-title.mjs`
 
 Existing paths are intentionally retained so tested commands and links do not break. A future physical reorganization should leave wrappers at old paths until consumers migrate.
-`enable-copilot-search-vision.ps1` is therefore retained as a compatibility
+`enable-copilot-search-vision.ps1` is therefore retained only as a compatibility
 path even though it now configures the broader `dsh-github-copilot`
-integration. For deployment Apply, use `-CopilotIntegrationSourceRoot`;
-the old `-ProviderSourceRoot` spelling remains an alias.
+integration. It does not install `dsh-vision-any` or any second vision provider;
+image-capable routes use DSH's built-in attachment path and local files use the
+built-in `read_image` tool. For deployment Apply, use
+`-CopilotIntegrationSourceRoot`; the old `-ProviderSourceRoot` spelling remains
+an alias.
 
 The direct baseline is one DSH plugin reusing built-in `llm-pi-ai`, not an
 embedded gateway. The wrapper never writes provider routes, endpoints, API-key

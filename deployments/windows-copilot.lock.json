@@ -250,6 +250,36 @@
     "id": "windows-companion-suite",
     "profile": "web",
     "includeParameter": "IncludeCompanionSuite",
+    "compatibility": {
+      "core": {
+        "name": "@deepseek-ai/dsh",
+        "manifest": "node_modules\\@deepseek-ai\\dsh\\package.json",
+        "versions": [
+          "0.1.2-rc.1"
+        ]
+      },
+      "cordis": {
+        "name": "cordis",
+        "manifest": "node_modules\\cordis\\package.json",
+        "versions": [
+          "4.0.2"
+        ]
+      },
+      "requiredPluginApis": [
+        {
+          "id": "authorization",
+          "manifest": "node_modules\\@deepseek-ai\\dsh-authorization\\package.json"
+        },
+        {
+          "id": "pi-ai-provider",
+          "manifest": "node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\package.json"
+        },
+        {
+          "id": "web-tools",
+          "manifest": "node_modules\\@deepseek-ai\\dsh-tool-web\\package.json"
+        }
+      ]
+    },
     "members": [
       {
         "name": "dsh-github-copilot",

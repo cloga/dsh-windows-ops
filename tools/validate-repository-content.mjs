@@ -182,9 +182,10 @@ export function validateRepositoryContent(root = defaultRoot) {
     }
   }
   expect(optionalSuite.includes('ManifestPath'), 'optional suite does not accept the authoritative deployment lock')
-  expect(optionalSuite.includes('install-windows-copilot.ps1'), 'optional suite does not route through the authoritative installer')
-  expect(optionalSuite.includes('IncludeCompanionSuite'), 'optional suite does not select the authoritative companion suite')
-  expect(optionalSuite.includes('RemoveCompanionSuite'), 'optional suite does not route optional removal through the main installer')
+  expect(optionalSuite.includes('WindowsCopilotDeployment.psm1'), 'optional suite does not import the authoritative deployment module')
+  expect(optionalSuite.includes('Invoke-WindowsCopilotCompanionSuiteApply'), 'optional suite does not select the authoritative plugin-only transaction')
+  expect(optionalSuite.includes('Test-WindowsCopilotCompanionSuite'), 'optional suite does not expose plugin-only verification')
+  expect(optionalSuite.includes('Remove-WindowsCopilotCompanionSuite'), 'optional suite does not route optional removal through the deployment module')
   for (const retiredPin of ['0.3.3', '0.1.1', 'f5e8df45496523c98874e6f484b886941683f7d6', '86ca74d4fdf89d6aa6036f273eb8acab4adae34f']) {
     expect(!optionalSuite.includes(retiredPin), `optional suite retains retired independent pin: ${retiredPin}`)
   }

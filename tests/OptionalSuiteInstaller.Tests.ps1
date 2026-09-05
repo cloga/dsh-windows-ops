@@ -2,11 +2,9 @@ Describe 'Optional companion suite compatibility wrapper' {
     BeforeAll {
         $repoRoot = Split-Path -Parent $PSScriptRoot
         $wrapperPath = Join-Path $repoRoot 'tools\install-optional-companion-suite.ps1'
-        $mainPath = Join-Path $repoRoot 'tools\install-windows-copilot.ps1'
         $modulePath = Join-Path $repoRoot 'tools\WindowsCopilotDeployment.psm1'
         $lockPath = Join-Path $repoRoot 'deployments\windows-copilot.lock.json'
         $wrapper = Get-Content -LiteralPath $wrapperPath -Raw
-        $main = Get-Content -LiteralPath $mainPath -Raw
         $module = Get-Content -LiteralPath $modulePath -Raw
         $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
         Import-Module $modulePath -Force
@@ -66,22 +64,164 @@ Describe 'Optional companion suite compatibility wrapper' {
         }
     }
 
-    It 'routes Check and Apply through the authoritative main installer suite switch' {
-        $wrapper | Should -Match "install-windows-copilot\.ps1"
-        $wrapper | Should -Match "IncludeCompanionSuite"
-        $wrapper | Should -Match "CopilotIntegrationSourceRoot"
+    It 'routes Check Apply and Verify through authoritative plugin-only module functions' {
+        $wrapper | Should -Match "Get-WindowsCopilotCompanionSuitePlan"
+        $wrapper | Should -Match "Test-WindowsCopilotCompanionSuite"
+        $wrapper | Should -Match "Invoke-WindowsCopilotCompanionSuiteApply"
         $wrapper | Should -Match "CopilotIntegrationArtifactPath"
-        $wrapper | Should -Match "DesktopArtifactPath"
+        $wrapper | Should -Not -Match "DesktopArtifactPath|NpmGlobalRoot|RestartDesktop"
     }
 
-    It 'routes removal to the module-owned main installer action' {
-        $wrapper | Should -Match "RemoveCompanionSuite"
-        $main | Should -Match "Remove-WindowsCopilotCompanionSuite"
+    It 'routes removal directly to the module-owned plugin-only action' {
+        $wrapper | Should -Match "Remove-WindowsCopilotCompanionSuite"
         $module | Should -Match "function Remove-WindowsCopilotCompanionSuite"
-        $main.IndexOf("if (`$Action -eq 'RemoveCompanionSuite')") |
-            Should -BeLessThan $main.IndexOf("if (`$Action -eq 'Rollback')")
-        $main.IndexOf("if (`$Action -eq 'RemoveCompanionSuite')") |
-            Should -BeLessThan $main.IndexOf("if (-not `$NpmGlobalRoot)")
+    }
+
+    It 'checks Core Cordis and required plugin APIs without checking Desktop version' {
+        $runtimeRoot = Join-Path $TestDrive 'compatible-runtime'
+        $compatibility = $lock.companionSuite.compatibility
+        foreach ($component in @($compatibility.core, $compatibility.cordis)) {
+            $path = Join-Path $runtimeRoot ([string]$component.manifest)
+            New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force |
+                Out-Null
+            [ordered]@{
+                name = [string]$component.name
+                version = [string]$component.versions[0]
+            } | ConvertTo-Json | Set-Content -LiteralPath $path -Encoding UTF8
+        }
+        foreach ($api in @($compatibility.requiredPluginApis)) {
+            $path = Join-Path $runtimeRoot ([string]$api.manifest)
+            New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force |
+                Out-Null
+            '{"name":"fixture-api","version":"1.0.0"}' |
+                Set-Content -LiteralPath $path -Encoding UTF8
+        }
+
+        $result = Test-WindowsCopilotCompanionCompatibility -Lock $lock `
+            -RuntimeRoot $runtimeRoot
+
+        $result.valid | Should -BeTrue
+        $result.core.version | Should -Be '0.1.2-rc.1'
+        $result.cordis.version | Should -Be '4.0.2'
+        $result.desktopVersionChecked | Should -BeFalse
+    }
+
+    It 'fails closed for unsupported Core and missing plugin APIs' {
+        $runtimeRoot = Join-Path $TestDrive 'unsupported-runtime'
+        $compatibility = $lock.companionSuite.compatibility
+        foreach ($component in @($compatibility.core, $compatibility.cordis)) {
+            $path = Join-Path $runtimeRoot ([string]$component.manifest)
+            New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force |
+                Out-Null
+            [ordered]@{
+                name = [string]$component.name
+                version = if ([string]$component.name -eq '@deepseek-ai/dsh') {
+                    '9.9.9'
+                } else {
+                    [string]$component.versions[0]
+                }
+            } | ConvertTo-Json | Set-Content -LiteralPath $path -Encoding UTF8
+        }
+
+        $result = Test-WindowsCopilotCompanionCompatibility -Lock $lock `
+            -RuntimeRoot $runtimeRoot
+
+        $result.valid | Should -BeFalse
+        $result.status | Should -Be 'unsupported-core-or-plugin-api'
+        @($result.reasons) | Should -Contain 'core-version-unsupported'
+        @($result.reasons | Where-Object { $_ -like 'plugin-api-*-missing' }).Count |
+            Should -Be 3
+    }
+
+    It 'keeps the plugin transaction free of Desktop Core global and restart mutations' {
+        $tokens = $null
+        $errors = $null
+        $ast = [Management.Automation.Language.Parser]::ParseInput(
+            $module,
+            [ref]$tokens,
+            [ref]$errors
+        )
+        $errors.Count | Should -Be 0
+        $apply = @($ast.FindAll({
+            param($node)
+            $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq 'Invoke-WindowsCopilotCompanionSuiteApplyLocked'
+        }, $true))[0].Extent.Text
+        $apply | Should -Not -Match 'Start-Process|Stop-WindowsCopilot|npm.+--global|legacyGateway'
+        $apply | Should -Match 'Test-WindowsCopilotCompanionCompatibility'
+        $apply | Should -Match 'Restore-DeploymentSnapshots'
+        $apply | Should -Match 'officialSnapshots'
+        $apply | Should -Match 'Test-WindowsCopilotInstalledArtifactClosure'
+        $apply | Should -Match 'Save-WindowsCopilotReleaseArtifact'
+    }
+
+    It 'restores the complete Profile when plugin-only package installation fails' {
+        $dshHome = Join-Path $TestDrive 'apply-rollback'
+        $profileRoot = Join-Path $dshHome ([string]$lock.profile.relativePath)
+        $nodeModules = Join-Path $profileRoot 'node_modules'
+        New-Item -ItemType Directory -Path $nodeModules -Force | Out-Null
+        $profilePath = Join-Path $profileRoot 'package.json'
+        $workspacePath = Join-Path $profileRoot 'pnpm-workspace.yaml'
+        $lockfilePath = Join-Path $profileRoot 'pnpm-lock.yaml'
+        $settingsPath = Join-Path $dshHome 'settings.yaml'
+        '{"name":"fixture","dependencies":{"unrelated":"1.0.0"},"dsh":{"profile":{"bundles":["unrelated"]}}}' |
+            Set-Content -LiteralPath $profilePath -Encoding UTF8
+        "packages:`n  - ." | Set-Content -LiteralPath $workspacePath -Encoding UTF8
+        "lockfileVersion: '9.0'" | Set-Content -LiteralPath $lockfilePath -Encoding UTF8
+        'preserve: true' | Set-Content -LiteralPath $settingsPath -Encoding UTF8
+        $beforeProfile = Get-Content -LiteralPath $profilePath -Raw
+        $beforeWorkspace = Get-Content -LiteralPath $workspacePath -Raw
+        $officialTargets = @{}
+        foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
+            $source = Join-Path $dshHome "desktop-resources\$name"
+            $target = Join-Path $nodeModules $name
+            New-Item -ItemType Directory -Path $source -Force | Out-Null
+            New-Item -ItemType Junction -Path $target -Target $source | Out-Null
+            $officialTargets[$name] = [IO.Path]::GetFullPath($source)
+        }
+
+        InModuleScope WindowsCopilotDeployment -Parameters @{
+            FixtureLock = $lock
+            FixtureHome = $dshHome
+            FixtureBackup = (Join-Path $TestDrive 'apply-backups')
+        } {
+            Mock Test-WindowsCopilotLock {}
+            Mock Test-WindowsCopilotCompanionCompatibility {
+                [pscustomobject]@{
+                    valid = $true
+                    runtimeRoot = (Join-Path $FixtureHome 'runtime')
+                    reasons = @()
+                }
+            }
+            Mock Save-WindowsCopilotReleaseArtifact {
+                [pscustomobject]@{ path = $Destination; valid = $true }
+            }
+            Mock Test-CopilotIntegrationDeploymentContract {
+                [pscustomobject]@{ valid = $true }
+            }
+            Mock Invoke-PinnedPnpmCommands {
+                throw 'fixture package-manager failure'
+            }
+
+            {
+                Invoke-WindowsCopilotCompanionSuiteApplyLocked -Lock $FixtureLock `
+                    -DshHome $FixtureHome -BackupRoot $FixtureBackup
+            } | Should -Throw '*fixture package-manager failure*'
+        }
+
+        (Get-Content -LiteralPath $profilePath -Raw) | Should -BeExactly $beforeProfile
+        (Get-Content -LiteralPath $workspacePath -Raw) | Should -BeExactly $beforeWorkspace
+        (Get-Content -LiteralPath $settingsPath -Raw).Trim() |
+            Should -BeExactly 'preserve: true'
+        foreach ($name in $officialTargets.Keys) {
+            $item = Get-Item -LiteralPath (Join-Path $nodeModules $name) -Force
+            [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint) |
+                Should -BeTrue
+            [IO.Path]::GetFullPath([string]@($item.Target)[0]) |
+                Should -BeExactly $officialTargets[$name]
+        }
+        Test-Path -LiteralPath (Join-Path $nodeModules 'unrelated') |
+            Should -BeFalse
     }
 
     It 'keeps exactly one required Copilot member and two optional overlays' {

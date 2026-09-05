@@ -142,6 +142,13 @@ function Test-WindowsCopilotLock {
         'companionSuite.id',
         'companionSuite.profile',
         'companionSuite.includeParameter',
+        'companionSuite.compatibility.core.name',
+        'companionSuite.compatibility.core.manifest',
+        'companionSuite.compatibility.core.versions',
+        'companionSuite.compatibility.cordis.name',
+        'companionSuite.compatibility.cordis.manifest',
+        'companionSuite.compatibility.cordis.versions',
+        'companionSuite.compatibility.requiredPluginApis',
         'companionSuite.members',
         'companionSuite.acceptance',
         'acceptance.credential.record',
@@ -471,6 +478,32 @@ function Test-WindowsCopilotLock {
     }
     foreach ($package in @($Lock.globalInstall.packages)) {
         Assert-LockValue -Value $package.version -Path "globalInstall.packages.$($package.name).version"
+    }
+
+    $companionCompatibility = $Lock.companionSuite.compatibility
+    $requiredPluginApis = @($companionCompatibility.requiredPluginApis)
+    if ([string]$companionCompatibility.core.name -cne '@deepseek-ai/dsh' -or
+        [string]$companionCompatibility.core.manifest -cne
+            'node_modules\@deepseek-ai\dsh\package.json' -or
+        @($companionCompatibility.core.versions).Count -ne 1 -or
+        [string]$companionCompatibility.core.versions[0] -cne '0.1.2-rc.1' -or
+        [string]$companionCompatibility.cordis.name -cne 'cordis' -or
+        [string]$companionCompatibility.cordis.manifest -cne
+            'node_modules\cordis\package.json' -or
+        @($companionCompatibility.cordis.versions).Count -ne 1 -or
+        [string]$companionCompatibility.cordis.versions[0] -cne '4.0.2' -or
+        $requiredPluginApis.Count -ne 3 -or
+        @($requiredPluginApis.id) -cnotcontains 'authorization' -or
+        @($requiredPluginApis.id) -cnotcontains 'pi-ai-provider' -or
+        @($requiredPluginApis.id) -cnotcontains 'web-tools') {
+        throw 'Companion compatibility must pin the reviewed Core, Cordis, and plugin API contract.'
+    }
+    foreach ($api in $requiredPluginApis) {
+        if ([string]::IsNullOrWhiteSpace([string]$api.manifest) -or
+            [IO.Path]::IsPathRooted([string]$api.manifest) -or
+            [string]$api.manifest -match '(^|[\\/])\.\.([\\/]|$)') {
+            throw "Companion plugin API '$([string]$api.id)' has an invalid manifest path."
+        }
     }
 
     $internalPluginNames = @(
@@ -948,6 +981,98 @@ function Save-WindowsCopilotLockedArtifact {
     }
     return Test-LockedArtifact -Path $path -Sha256 ([string]$Artifact.sha256) `
         -ExpectedName ([string]$Artifact.name) -ExpectedSize ([long]$Artifact.size)
+}
+
+function Save-WindowsCopilotReleaseArtifact {
+    param(
+        [Parameter(Mandatory)]$Artifact,
+        [Parameter(Mandatory)][string]$Destination
+    )
+    if ($Artifact.releaseImmutable -ne $true) {
+        throw "Release artifact '$([string]$Artifact.name)' is not declared immutable."
+    }
+    $saved = Save-WindowsCopilotLockedArtifact -Artifact $Artifact -Destination $Destination
+    $manifest = $Artifact.checksumManifest
+    $manifestPath = Join-Path (Split-Path -Parent $saved.path) ([string]$manifest.name)
+    Save-WindowsCopilotLockedArtifact -Artifact $manifest -Destination $manifestPath |
+        Out-Null
+    $linePattern = '(?im)^' + [regex]::Escape([string]$Artifact.sha256) +
+        '\s+\*?' + [regex]::Escape([string]$Artifact.name) + '\s*$'
+    $manifestText = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
+    if ($manifestText -notmatch $linePattern) {
+        throw "Locked checksum manifest does not attest '$([string]$Artifact.name)'."
+    }
+    return $saved
+}
+
+function Test-WindowsCopilotCompanionCompatibility {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [string]$RuntimeRoot
+    )
+    Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    if (-not $RuntimeRoot) {
+        $RuntimeRoot = [Environment]::ExpandEnvironmentVariables(
+            [string](Get-WindowsCopilotRuntimeSelector -Lock $Lock).root
+        )
+    }
+    $root = Resolve-DeploymentPath $RuntimeRoot
+    $contract = $Lock.companionSuite.compatibility
+    $reasons = [Collections.Generic.List[string]]::new()
+    $readIdentity = {
+        param($Component, [string]$ReasonPrefix)
+        $manifestPath = Join-Path $root ([string]$Component.manifest)
+        $name = $null
+        $version = $null
+        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            $reasons.Add("$ReasonPrefix-manifest-missing")
+        } else {
+            try {
+                $metadata = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 |
+                    ConvertFrom-Json
+                $name = [string]$metadata.name
+                $version = [string]$metadata.version
+                if ($name -cne [string]$Component.name) {
+                    $reasons.Add("$ReasonPrefix-name-mismatch")
+                }
+                if (@($Component.versions | ForEach-Object { [string]$_ }) -cnotcontains
+                    $version) {
+                    $reasons.Add("$ReasonPrefix-version-unsupported")
+                }
+            } catch {
+                $reasons.Add("$ReasonPrefix-manifest-invalid")
+            }
+        }
+        return [pscustomobject]@{
+            name = $name
+            version = $version
+            manifestPath = $manifestPath
+            supportedVersions = @($Component.versions)
+        }
+    }
+    $core = & $readIdentity $contract.core 'core'
+    $cordis = & $readIdentity $contract.cordis 'cordis'
+    $apis = @($contract.requiredPluginApis | ForEach-Object {
+        $path = Join-Path $root ([string]$_.manifest)
+        $available = Test-Path -LiteralPath $path -PathType Leaf
+        if (-not $available) { $reasons.Add("plugin-api-$([string]$_.id)-missing") }
+        [pscustomobject]@{
+            id = [string]$_.id
+            manifestPath = $path
+            available = $available
+        }
+    })
+    return [pscustomobject]@{
+        valid = $reasons.Count -eq 0
+        status = if ($reasons.Count -eq 0) { 'compatible' } else { 'unsupported-core-or-plugin-api' }
+        runtimeRoot = $root
+        core = $core
+        cordis = $cordis
+        pluginApis = $apis
+        reasons = @($reasons)
+        desktopVersionChecked = $false
+    }
 }
 
 function Test-WindowsCopilotInstalledArtifactClosure {
@@ -2767,7 +2892,8 @@ function Get-WindowsCopilotDesktopState {
         $null
     }
     $discoveries = [Collections.Generic.List[object]]::new()
-    foreach ($candidatePath in @($canonicalPath, $Path)) {
+    $candidatePaths = if ($Path) { @($Path) } else { @($canonicalPath) }
+    foreach ($candidatePath in $candidatePaths) {
         if (-not $candidatePath -or -not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) { continue }
         $fullPath = [IO.Path]::GetFullPath($candidatePath)
         if (@($discoveries | Where-Object { $_.path -ieq $fullPath }).Count -gt 0) { continue }
@@ -4216,6 +4342,444 @@ function Test-WindowsCopilotVerificationAcceptance {
     }
 }
 
+function Get-WindowsCopilotCompanionSuitePlan {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DshHome,
+        [string]$RuntimeRoot
+    )
+    Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock `
+        -RuntimeRoot $RuntimeRoot
+    $members = @([pscustomobject]@{
+        name = [string]$Lock.components.copilotIntegration.package.name
+        version = [string]$Lock.components.copilotIntegration.package.version
+        artifact = $Lock.components.copilotIntegration.package.artifact
+    }) + @(Get-WindowsCopilotCompanionOverlays -Lock $Lock | ForEach-Object {
+        [pscustomobject]@{
+            name = [string]$_.name
+            version = [string]$_.version
+            artifact = $_.artifact
+        }
+    })
+    return [pscustomobject]@{
+        mode = 'check-companion-suite'
+        changesSystem = $false
+        compatible = [bool]$compatibility.valid
+        compatibility = $compatibility
+        profileRoot = Join-Path (Resolve-DeploymentPath $DshHome) (
+            [string]$Lock.profile.relativePath
+        )
+        members = $members
+        mutationScope = @(
+            'web-profile-package-and-lock',
+            'locked-plugin-artifact-store',
+            'three-companion-package-directories'
+        )
+        excludedMutations = @(
+            'desktop',
+            'desktop-managed-core',
+            'global-packages',
+            'settings',
+            'credentials',
+            'legacy-gateway',
+            'runtime-restart'
+        )
+    }
+}
+
+function Test-WindowsCopilotCompanionSuite {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DshHome,
+        [string]$RuntimeRoot
+    )
+    Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $home = Resolve-DeploymentPath $DshHome
+    $profileRoot = Join-Path $home ([string]$Lock.profile.relativePath)
+    $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
+    $profile = $null
+    $profileReason = $null
+    try {
+        if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
+            $profileReason = 'profile-manifest-missing'
+        } else {
+            $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 |
+                ConvertFrom-Json
+        }
+    } catch {
+        $profileReason = 'profile-manifest-invalid'
+    }
+    $bundles = if ($profile -and $profile.dsh -and $profile.dsh.profile) {
+        @($profile.dsh.profile.bundles)
+    } else { @() }
+    $members = @([pscustomobject]@{
+        name = [string]$Lock.components.copilotIntegration.package.name
+        version = [string]$Lock.components.copilotIntegration.package.version
+        commit = [string]$Lock.components.copilotIntegration.source.commit
+        artifact = $Lock.components.copilotIntegration.package.artifact
+    }) + @(Get-WindowsCopilotCompanionOverlays -Lock $Lock | ForEach-Object {
+        [pscustomobject]@{
+            name = [string]$_.name
+            version = [string]$_.version
+            commit = [string]$_.sourceCommit
+            artifact = $_.artifact
+        }
+    })
+    $states = @($members | ForEach-Object {
+        $member = $_
+        $dependency = if ($profile -and $profile.dependencies) {
+            [string](Get-LockProperty -InputObject $profile.dependencies -Name (
+                [string]$member.name
+            ))
+        } else { '' }
+        $artifactPath = Join-Path $home (
+            'artifacts\' + [string]$member.commit + '\' +
+            [string]$member.artifact.name
+        )
+        $expectedDependency = 'file:../../artifacts/' + [string]$member.commit +
+            '/' + [string]$member.artifact.name
+        $installedRoot = Join-Path $profileRoot (
+            'node_modules\' + [string]$member.name
+        )
+        $installedVersion = $null
+        $closure = $null
+        try {
+            $installedVersion = [string](
+                Get-Content -LiteralPath (Join-Path $installedRoot 'package.json') `
+                    -Raw -Encoding UTF8 | ConvertFrom-Json
+            ).version
+            $closure = Test-WindowsCopilotInstalledArtifactClosure `
+                -ArtifactPath $artifactPath -InstalledRoot $installedRoot `
+                -Sha256 ([string]$member.artifact.sha256) `
+                -ExpectedName ([string]$member.artifact.name) `
+                -ExpectedSize ([long]$member.artifact.size)
+        } catch {
+            $closure = [pscustomobject]@{
+                valid = $false
+                status = 'artifact-or-installed-package-invalid'
+                reason = $_.Exception.Message
+            }
+        }
+        [pscustomobject]@{
+            name = [string]$member.name
+            version = $installedVersion
+            expectedVersion = [string]$member.version
+            dependency = $dependency
+            expectedDependency = $expectedDependency
+            dependencyValid = $dependency -ceq $expectedDependency
+            bundlePresent = $bundles -contains [string]$member.name
+            artifactPath = $artifactPath
+            closure = $closure
+            valid = [bool](
+                $dependency -ceq $expectedDependency -and
+                $bundles -contains [string]$member.name -and
+                $installedVersion -ceq [string]$member.version -and
+                $closure.valid
+            )
+        }
+    })
+    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock `
+        -RuntimeRoot $RuntimeRoot
+    return [pscustomobject]@{
+        mode = 'verify-companion-suite'
+        valid = [bool](
+            -not $profileReason -and
+            $compatibility.valid -and
+            @($states | Where-Object { -not $_.valid }).Count -eq 0
+        )
+        compatibility = $compatibility
+        profileReason = $profileReason
+        members = $states
+        desktopVersionChecked = $false
+    }
+}
+
+function Invoke-WindowsCopilotCompanionSuiteApplyLocked {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DshHome,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [string]$CopilotIntegrationArtifactPath,
+        [string]$RuntimeRoot
+    )
+    Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock `
+        -RuntimeRoot $RuntimeRoot
+    if (-not $compatibility.valid) {
+        throw "Companion installation requires a supported Core, Cordis, and plugin API set: $($compatibility.reasons -join ', ')."
+    }
+    $home = Resolve-DeploymentPath $DshHome
+    $profileRoot = Join-Path $home ([string]$Lock.profile.relativePath)
+    $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
+    $lockPath = Join-Path $profileRoot ([string]$Lock.profile.lockManifest)
+    $workspacePath = Join-Path $profileRoot ([string]$Lock.profile.workspaceManifest)
+    $nodeModules = Join-Path $profileRoot 'node_modules'
+    if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
+        throw "The '$([string]$Lock.profile.name)' Profile is not initialized."
+    }
+    $members = @([pscustomobject]@{
+        name = [string]$Lock.components.copilotIntegration.package.name
+        version = [string]$Lock.components.copilotIntegration.package.version
+        commit = [string]$Lock.components.copilotIntegration.source.commit
+        artifact = $Lock.components.copilotIntegration.package.artifact
+        suppliedPath = $CopilotIntegrationArtifactPath
+        provider = $true
+    }) + @(Get-WindowsCopilotCompanionOverlays -Lock $Lock | ForEach-Object {
+        [pscustomobject]@{
+            name = [string]$_.name
+            version = [string]$_.version
+            commit = [string]$_.sourceCommit
+            artifact = $_.artifact
+            suppliedPath = $null
+            provider = $false
+        }
+    })
+    $operationRoot = New-BackupOperation -BackupRoot $BackupRoot -DshHome $home
+    $snapshots = [Collections.Generic.List[object]]::new()
+    foreach ($item in @(
+        [pscustomobject]@{ path = $packagePath; relativePath = 'profile\package.json'; pluginTarget = $false },
+        [pscustomobject]@{ path = $lockPath; relativePath = 'profile\pnpm-lock.yaml'; pluginTarget = $false },
+        [pscustomobject]@{ path = $workspacePath; relativePath = 'profile\pnpm-workspace.yaml'; pluginTarget = $false }
+    )) {
+        $snapshot = [pscustomobject]@{
+            path = [IO.Path]::GetFullPath([string]$item.path)
+            relativePath = [string]$item.relativePath
+            pluginTarget = [bool]$item.pluginTarget
+            existed = Test-Path -LiteralPath ([string]$item.path)
+            originalFingerprint = Get-DeploymentPathFingerprint -Path ([string]$item.path)
+        }
+        $snapshots.Add($snapshot)
+        Backup-DeploymentPath -Path ([string]$item.path) `
+            -RelativePath ([string]$item.relativePath) -OperationRoot $operationRoot
+    }
+    foreach ($member in $members) {
+        $artifactRoot = Join-Path $home ('artifacts\' + [string]$member.commit)
+        $member | Add-Member -NotePropertyName artifactPath -NotePropertyValue (
+            Join-Path $artifactRoot ([string]$member.artifact.name)
+        )
+        foreach ($item in @(
+            [pscustomobject]@{
+                path = [string]$member.artifactPath
+                relativePath = "artifacts\$([string]$member.name)\$([string]$member.artifact.name)"
+                pluginTarget = $false
+            },
+            [pscustomobject]@{
+                path = Join-Path (Split-Path -Parent ([string]$member.artifactPath)) (
+                    [string]$member.artifact.checksumManifest.name
+                )
+                relativePath = "artifacts\$([string]$member.name)\$([string]$member.artifact.checksumManifest.name)"
+                pluginTarget = $false
+            },
+            [pscustomobject]@{
+                path = Join-Path $nodeModules ([string]$member.name)
+                relativePath = "plugins\$([string]$member.name)"
+                pluginTarget = $true
+            }
+        )) {
+            $snapshot = [pscustomobject]@{
+                path = [IO.Path]::GetFullPath([string]$item.path)
+                relativePath = [string]$item.relativePath
+                pluginTarget = [bool]$item.pluginTarget
+                existed = Test-Path -LiteralPath ([string]$item.path)
+                originalFingerprint = Get-DeploymentPathFingerprint -Path ([string]$item.path)
+            }
+            $snapshots.Add($snapshot)
+            Backup-DeploymentPath -Path ([string]$item.path) `
+                -RelativePath ([string]$item.relativePath) -OperationRoot $operationRoot
+        }
+    }
+    $officialSnapshots = @($Lock.components.desktop.internalPlugins | ForEach-Object {
+        $path = Join-Path $nodeModules ([string]$_.name)
+        $item = Get-DeploymentPathItem -Path $path
+        if (-not $item -or
+            -not [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "Official Desktop Profile link is missing or not a link: '$([string]$_.name)'."
+        }
+        $rawTarget = [string]@($item.Target)[0]
+        $target = if ([IO.Path]::IsPathRooted($rawTarget)) {
+            $rawTarget
+        } else {
+            Join-Path (Split-Path -Parent $path) $rawTarget
+        }
+        [pscustomobject]@{
+            path = [IO.Path]::GetFullPath($path)
+            relativePath = "plugins\official\$([string]$_.name)"
+            pluginTarget = $true
+            existed = $false
+            linkTarget = [IO.Path]::GetFullPath($target)
+            originalFingerprint = Get-DeploymentPathFingerprint -Path $path
+        }
+    })
+    foreach ($snapshot in $officialSnapshots) { $snapshots.Add($snapshot) }
+    try {
+        foreach ($member in $members) {
+            if ($member.suppliedPath) {
+                $source = Resolve-DeploymentPath ([string]$member.suppliedPath)
+                if ($member.provider) {
+                    Test-CopilotIntegrationDeploymentContract -Lock $Lock `
+                        -ArtifactPath $source | Out-Null
+                } else {
+                    Test-LockedArtifact -Path $source `
+                        -Sha256 ([string]$member.artifact.sha256) `
+                        -ExpectedName ([string]$member.artifact.name) `
+                        -ExpectedSize ([long]$member.artifact.size) | Out-Null
+                }
+                New-Item -ItemType Directory -Path (
+                    Split-Path -Parent ([string]$member.artifactPath)
+                ) -Force | Out-Null
+                if ($source -ine [IO.Path]::GetFullPath(
+                    [string]$member.artifactPath
+                )) {
+                    Copy-Item -LiteralPath $source -Destination (
+                        [string]$member.artifactPath
+                    ) -Force
+                }
+            }
+            Save-WindowsCopilotReleaseArtifact -Artifact $member.artifact `
+                -Destination ([string]$member.artifactPath) | Out-Null
+            if ($member.provider) {
+                Test-CopilotIntegrationDeploymentContract -Lock $Lock `
+                    -ArtifactPath ([string]$member.artifactPath) | Out-Null
+            }
+        }
+        $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        if (-not (Get-LockProperty -InputObject $profile -Name 'dependencies')) {
+            Set-ObjectProperty -Object $profile -Name 'dependencies' `
+                -Value ([pscustomobject]@{})
+        }
+        if (-not (Get-LockProperty -InputObject $profile -Name 'dsh')) {
+            Set-ObjectProperty -Object $profile -Name 'dsh' -Value ([pscustomobject]@{})
+        }
+        if (-not (Get-LockProperty -InputObject $profile.dsh -Name 'profile')) {
+            Set-ObjectProperty -Object $profile.dsh -Name 'profile' `
+                -Value ([pscustomobject]@{})
+        }
+        $bundles = @((Get-LockProperty -InputObject $profile.dsh.profile -Name 'bundles'))
+        foreach ($member in $members) {
+            $dependency = 'file:../../artifacts/' + [string]$member.commit + '/' +
+                [string]$member.artifact.name
+            Set-ObjectProperty -Object $profile.dependencies -Name (
+                [string]$member.name
+            ) -Value $dependency
+            $bundles = @($bundles | Where-Object {
+                [string]$_ -cne [string]$member.name
+            }) + [string]$member.name
+        }
+        Set-ObjectProperty -Object $profile.dsh.profile -Name 'bundles' -Value $bundles
+        $profile | ConvertTo-Json -Depth 12 |
+            Set-Content -LiteralPath $packagePath -Encoding UTF8
+        Set-PnpmAllowBuilds -Path $workspacePath -Packages @($Lock.profile.allowBuilds)
+        Invoke-PinnedPnpmCommands `
+            -PackageManager ([string]$Lock.components.copilotIntegration.package.packageManager) `
+            -Commands @(, @('install', '--no-frozen-lockfile')) `
+            -WorkingDirectory $profileRoot
+        foreach ($member in $members) {
+            $target = Join-Path $nodeModules ([string]$member.name)
+            Remove-ProfilePluginTarget -Target $target -NodeModulesRoot $nodeModules
+            $temporary = Join-Path ([IO.Path]::GetTempPath()) (
+                'dsh-companion-materialize-' + [guid]::NewGuid().ToString('N')
+            )
+            New-Item -ItemType Directory -Path $temporary -Force | Out-Null
+            try {
+                & (Join-Path $env:SystemRoot 'System32\tar.exe') -xzf `
+                    ([string]$member.artifactPath) -C $temporary
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Could not extract companion artifact '$([string]$member.name)'."
+                }
+                Copy-Item -LiteralPath (Join-Path $temporary 'package') `
+                    -Destination $target -Recurse -Force
+            } finally {
+                Remove-Item -LiteralPath $temporary -Recurse -Force `
+                    -ErrorAction SilentlyContinue
+            }
+            $metadata = Get-Content -LiteralPath (Join-Path $target 'package.json') `
+                -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ([string]$metadata.name -cne [string]$member.name -or
+                [string]$metadata.version -cne [string]$member.version) {
+                throw "Installed companion identity mismatch for '$([string]$member.name)'."
+            }
+            $closure = Test-WindowsCopilotInstalledArtifactClosure `
+                -ArtifactPath ([string]$member.artifactPath) -InstalledRoot $target `
+                -Sha256 ([string]$member.artifact.sha256) `
+                -ExpectedName ([string]$member.artifact.name) `
+                -ExpectedSize ([long]$member.artifact.size)
+            if (-not $closure.valid) {
+                throw "Installed companion closure mismatch for '$([string]$member.name)'."
+            }
+        }
+        foreach ($snapshot in $officialSnapshots) {
+            $current = Get-DeploymentPathFingerprint -Path ([string]$snapshot.path)
+            if (-not (Test-DeploymentFingerprintEqual -Left $current `
+                -Right $snapshot.originalFingerprint)) {
+                throw "Official Desktop Profile link changed during companion installation: '$([string]$snapshot.path)'."
+            }
+        }
+        $verification = Test-WindowsCopilotCompanionSuite -Lock $Lock `
+            -DshHome $home -RuntimeRoot ([string]$compatibility.runtimeRoot)
+        if (-not $verification.valid) {
+            throw 'Companion post-install verification failed.'
+        }
+        foreach ($snapshot in $snapshots) {
+            $snapshot | Add-Member -NotePropertyName appliedFingerprint `
+                -NotePropertyValue (Get-DeploymentPathFingerprint -Path (
+                    [string]$snapshot.path
+                )) -Force
+        }
+        $receipt = [pscustomobject]@{
+            schemaVersion = 1
+            deploymentId = [string]$Lock.deploymentId
+            operationId = Split-Path -Leaf $operationRoot
+            status = 'active'
+            mode = 'apply-companion-suite'
+            nodeModulesRoot = $nodeModules
+            snapshots = @($snapshots)
+            members = @($verification.members)
+        }
+        Set-WindowsCopilotJsonFile -Value $receipt `
+            -Path (Join-Path $operationRoot 'receipt.json') -Depth 12
+        return [pscustomobject]@{
+            mode = 'apply-companion-suite'
+            operationId = [string]$receipt.operationId
+            verification = $verification
+            desktopChanged = $false
+            coreChanged = $false
+            globalPackagesChanged = $false
+            restartRequested = $false
+        }
+    } catch {
+        $failure = $_
+        try {
+            Restore-DeploymentSnapshots -Snapshots @($snapshots) `
+                -OperationRoot $operationRoot -NodeModulesRoot $nodeModules
+        } catch {
+            throw "Companion installation failed and rollback was incomplete: $($failure.Exception.Message) Rollback error: $($_.Exception.Message)"
+        }
+        throw $failure
+    }
+}
+
+function Invoke-WindowsCopilotCompanionSuiteApply {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DshHome,
+        [Parameter(Mandatory)][string]$BackupRoot,
+        [string]$CopilotIntegrationArtifactPath,
+        [string]$RuntimeRoot
+    )
+    $mutex = Enter-WindowsCopilotDeploymentLock -BackupRoot $BackupRoot
+    try {
+        return Invoke-WindowsCopilotCompanionSuiteApplyLocked @PSBoundParameters
+    } finally {
+        Exit-WindowsCopilotDeploymentLock -Mutex $mutex
+    }
+}
+
 function Remove-WindowsCopilotCompanionSuiteLocked {
             [CmdletBinding()]
             param(
@@ -5325,6 +5889,10 @@ Export-ModuleMember -Function @(
     'Restart-WindowsCopilotDesktop',
     'Test-WindowsCopilotInstallation',
     'Test-WindowsCopilotVerificationAcceptance',
+    'Test-WindowsCopilotCompanionCompatibility',
+    'Get-WindowsCopilotCompanionSuitePlan',
+    'Test-WindowsCopilotCompanionSuite',
+    'Invoke-WindowsCopilotCompanionSuiteApply',
     'Remove-WindowsCopilotCompanionSuite',
     'Enter-WindowsCopilotDeploymentLock',
     'Exit-WindowsCopilotDeploymentLock',

@@ -10,11 +10,13 @@ The optional companion suite is a single **installation entry**, not a merged pl
 
 Keeping the packages separate preserves focused security review, independent upgrades and rollback, and compatibility evidence. The suite installer only coordinates their installation into one Profile. It does not copy source between repositories, replace Core, or make Cron and Playwright part of the locked Copilot baseline.
 
-The authoritative end-to-end deployment path is
-`tools\install-windows-copilot.ps1 -IncludeCompanionSuite`, which includes all
-three packages in the main installer backup and rollback transaction. This
-narrow script remains useful for Profile-only maintenance but reads the same
-deployment lock and owns no independent version pins.
+The authoritative whole-machine deployment path remains
+`tools\install-windows-copilot.ps1 -IncludeCompanionSuite`, with its exact
+Desktop lock. For an already installed Desktop, the authoritative plugin-only
+path is `tools\install-optional-companion-suite.ps1`. It calls the same
+deployment module and lock, but deliberately does not install, downgrade, or
+attest an exact Desktop build; replace Core; mutate global packages or legacy
+gateway state; change settings or credentials; or restart a process.
 
 ## Check first
 
@@ -24,7 +26,15 @@ The default action is read-only:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1
 ```
 
-It reads component names, versions, source identities, immutable artifact metadata, and the required three-member suite shape from `deployments/windows-copilot.lock.json`. The script carries no independent package pins. It reports the derived release identity, bundle layer, lockfile evidence, and resolved installed package version for each component. A locally referenced suite tarball is hash-checked; a canonical Release URL declaration is identified but cannot be byte-hashed without downloading it. Check mode does not access GitHub, install packages, or restart DSH.
+It reads component names, versions, source identities, immutable artifact
+metadata, and the required three-member suite shape from
+`deployments/windows-copilot.lock.json`. The script carries no independent
+package pins. Compatibility is evaluated against the installed
+`@deepseek-ai/dsh` Core, Cordis, and required authorization, pi-ai provider, and
+Web-tool package APIs. The Desktop version is not part of this decision, so a
+newer Desktop patch does not block plugins when it still carries the reviewed
+Core/API set. Unknown Core, Cordis, or API combinations fail closed. Check mode
+does not access GitHub, install packages, or restart DSH.
 
 Use a non-default DSH home or Profile explicitly when needed:
 
@@ -43,15 +53,22 @@ After reviewing the check result, first ensure the target Web Profile already ex
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 -Apply
 ```
 
-The installer:
+The plugin-only installer:
 
-1. downloads each Release artifact selected by the deployment lock into `$DSH_HOME/downloads`;
-2. verifies every artifact's size and SHA-256 plus the identity and matching entry of its pinned `SHA256SUMS`;
-3. snapshots the Profile manifest, lockfile, and pnpm workspace policy under `$DSH_HOME/suite-backups`;
-4. installs the three verified local artifacts in one coordinated `dsh plugin --profile web add ...` operation;
-5. verifies the exact dependency sources and all three bundle layers;
-6. restores the previous Profile files and reconciles `node_modules` from the prior lockfile if installation or post-check fails;
-7. returns a JSON status document, including the backup path after mutation.
+1. verifies installed Core, Cordis, and required plugin API manifests;
+2. downloads each immutable Release artifact into the shared locked artifact store;
+3. verifies every artifact's size and SHA-256 plus its pinned `SHA256SUMS` identity and matching entry;
+4. snapshots only the Web Profile manifest, lockfile, workspace policy, three package directories, and artifact targets;
+5. records and protects the eight official Desktop Profile links;
+6. installs and physically materializes the three exact artifacts, then verifies their complete byte closure;
+7. restores the complete snapshot if package installation, link preservation, or post-check fails;
+8. returns a JSON receipt without restarting Desktop or the Host.
+
+Run the same compatibility and installed-closure checks without mutation:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 -Action Verify
+```
 
 The authoritative deployment lock owns the complete pinned set. Top-level `companionSuite.members` must declare exactly one required member sourced from `components.copilotIntegration` and two optional members sourced from `profile.optionalOverlays`; names, roles, and `identitySource` values are cross-checked before any action. Changing that contract requires independent compatibility review. The installer does not silently track a tag, default branch, or `latest` label.
 

@@ -1,22 +1,14 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Check', 'Apply', 'Remove')]
+    [ValidateSet('Check', 'Apply', 'Verify', 'Remove')]
     [string]$Action = 'Check',
     [string]$Profile = 'web',
     [string]$ManifestPath = $(Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'),
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }),
-    [string]$NpmGlobalRoot,
-    [Alias('ProviderSourceRoot')]
-    [string]$CopilotIntegrationSourceRoot,
     [Alias('ProviderArtifactPath')]
     [string]$CopilotIntegrationArtifactPath,
-    [string]$DesktopArtifactPath,
     [string]$BackupRoot = $(Join-Path $env:LOCALAPPDATA 'dsh-windows-ops\deployment-backups'),
-    [string]$DesktopExecutablePath,
-    [string]$DshCliPath = 'dsh',
-    [string[]]$AcknowledgeLiveSessionIds,
-    [int]$TimeoutSeconds = 90,
-    [switch]$SkipRuntimeChecks,
+    [string]$RuntimeRoot,
     [switch]$Apply
 )
 
@@ -33,29 +25,32 @@ if ($Profile -cne 'web') {
     throw "The reviewed Windows companion suite is locked to Profile 'web'."
 }
 
-$installer = Join-Path $PSScriptRoot 'install-windows-copilot.ps1'
-$arguments = @{
-    Action = if ($Action -eq 'Remove') { 'RemoveCompanionSuite' } else { $Action }
-    ManifestPath = $ManifestPath
-    DshHome = $DshHome
-    BackupRoot = $BackupRoot
-    IncludeCompanionSuite = $true
-    TimeoutSeconds = $TimeoutSeconds
-    SkipRuntimeChecks = [bool]$SkipRuntimeChecks
+Import-Module (Join-Path $PSScriptRoot 'WindowsCopilotDeployment.psm1') -Force
+$lock = Read-WindowsCopilotLock -Path $ManifestPath
+
+if ($Action -eq 'Remove') {
+    Remove-WindowsCopilotCompanionSuite -Lock $lock -DshHome $DshHome `
+        -BackupRoot $BackupRoot | ConvertTo-Json -Depth 20
+    exit 0
 }
-foreach ($entry in @{
-    NpmGlobalRoot = $NpmGlobalRoot
-    CopilotIntegrationSourceRoot = $CopilotIntegrationSourceRoot
-    CopilotIntegrationArtifactPath = $CopilotIntegrationArtifactPath
-    DesktopArtifactPath = $DesktopArtifactPath
-    DesktopExecutablePath = $DesktopExecutablePath
-}.GetEnumerator()) {
-    if (-not [string]::IsNullOrWhiteSpace([string]$entry.Value)) {
-        $arguments[$entry.Key] = $entry.Value
-    }
+if ($Action -eq 'Check') {
+    [pscustomobject]@{
+        plan = Get-WindowsCopilotCompanionSuitePlan -Lock $lock -DshHome $DshHome `
+            -RuntimeRoot $RuntimeRoot
+        installation = Test-WindowsCopilotCompanionSuite -Lock $lock -DshHome $DshHome `
+            -RuntimeRoot $RuntimeRoot
+    } | ConvertTo-Json -Depth 20
+    exit 0
 }
-if ($AcknowledgeLiveSessionIds) {
-    $arguments.AcknowledgeLiveSessionIds = $AcknowledgeLiveSessionIds
+if ($Action -eq 'Verify') {
+    $verification = Test-WindowsCopilotCompanionSuite -Lock $lock -DshHome $DshHome `
+        -RuntimeRoot $RuntimeRoot
+    $verification | ConvertTo-Json -Depth 20
+    if (-not $verification.valid) { exit 2 }
+    exit 0
 }
 
-& $installer @arguments
+Invoke-WindowsCopilotCompanionSuiteApply -Lock $lock -DshHome $DshHome `
+    -BackupRoot $BackupRoot `
+    -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath `
+    -RuntimeRoot $RuntimeRoot | ConvertTo-Json -Depth 20

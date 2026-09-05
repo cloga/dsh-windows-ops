@@ -100,6 +100,11 @@ This repository does not redistribute Desktop, DSH, or the Copilot plugin. It pi
 | [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | PR #56 source commit `4e095196197570776515423929ddb72e8299c1db`; merge/immutable Release commit `473b8aa174eb47a323b026c098b73bf7d716772c`; Release `v0.3.0-cloga.15` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 
+The optional-suite entrypoint evaluates the installed Core, Cordis, and plugin
+APIs rather than requiring the exact locked Desktop patch. Its transaction is
+limited to the Web Profile and immutable plugin artifacts; it never replaces
+Desktop/Core, changes global packages, or restarts running Sessions.
+
 The historical ACP subagent practice remains in
 [`docs/copilot-acp-subagent.md`](docs/copilot-acp-subagent.md), but it is a
 separate optional integration and not part of the `dsh-github-copilot`

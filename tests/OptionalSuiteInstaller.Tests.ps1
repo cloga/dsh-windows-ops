@@ -242,9 +242,14 @@ for (const id of ['dsh-github-copilot', 'dsh-cron']) {
         $apply | Should -Match 'Test-WindowsCopilotCompanionArtifactCompatibility'
         $apply | Should -Match 'Restore-DeploymentSnapshots'
         $apply | Should -Match 'officialSnapshots'
-        $apply | Should -Match 'Test-WindowsCopilotInstalledArtifactClosure'
+        $apply | Should -Match 'Install-WindowsCopilotLockedPackage'
         $apply | Should -Match 'Save-WindowsCopilotReleaseArtifact'
-        $module | Should -Match 'function Install-WindowsCopilotLockedPackage'
+        $materializer = @($ast.FindAll({
+            param($node)
+            $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq 'Install-WindowsCopilotLockedPackage'
+        }, $true))[0].Extent.Text
+        $materializer | Should -Match 'Test-WindowsCopilotInstalledArtifactClosure'
     }
 
     It 'restores the complete Profile when plugin-only package installation fails' {

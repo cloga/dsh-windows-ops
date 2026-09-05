@@ -229,333 +229,43 @@ function Get-DshCopilotRouteState {
     }
 }
 
-function Get-DshRequiredProperty {
-    param(
-        [Parameter(Mandatory)]$Object,
-        [Parameter(Mandatory)][string]$Name,
-        [Parameter(Mandatory)][string]$Context
-    )
-    $property = $Object.PSObject.Properties[$Name]
-    if (-not $property -or $null -eq $property.Value) {
-        throw "$Context is missing required property '$Name'."
-    }
-    return $property.Value
-}
-
-function ConvertTo-DshRepositorySlug {
-    param([Parameter(Mandatory)][string]$RepositoryUrl)
-
-    $value = $RepositoryUrl.Trim() -replace '^git\+', ''
-    $match = [regex]::Match(
-        $value,
-        '^(?:(?:https?|ssh)://(?:git@)?|git@)?github\.com[/:](?<owner>[^/:\s]+)/(?<repo>[^/:\s]+?)(?:\.git)?/?$',
-        [Text.RegularExpressions.RegexOptions]::IgnoreCase
-    )
-    if (-not $match.Success) { throw "Receipt repositoryUrl is not a normalized GitHub repository URL." }
-    return ($match.Groups['owner'].Value + '/' + $match.Groups['repo'].Value).ToLowerInvariant()
-}
-
-function Get-DshPrefixFromCliPath {
-    param([Parameter(Mandatory)][string]$CliPath)
-
-    $normalized = $CliPath.Replace('/', '\')
-    $canonicalSuffix = '\node_modules\.bin\dsh.cmd'
-    if ($normalized.EndsWith($canonicalSuffix, [StringComparison]::OrdinalIgnoreCase)) {
-        return $normalized.Substring(0, $normalized.Length - $canonicalSuffix.Length)
-    }
-    if ([IO.Path]::GetFileName($normalized) -ieq 'dsh.cmd') {
-        return [IO.Path]::GetDirectoryName($normalized)
-    }
-    throw "DSH_CLI_PATH must name the prefix-root dsh.cmd or the receipt canonical CLI."
-}
-
-function Get-DshSha256Text {
-    param([Parameter(Mandatory)][string]$Text)
-
-    $sha = [Security.Cryptography.SHA256]::Create()
-    try {
-        $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
-        return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    } finally {
-        $sha.Dispose()
-    }
-}
-
-function Resolve-DshCliInfo {
-    param(
-        [string]$DshCliPath,
-        [string]$ExpectedRepository = 'cloga/deepseek-harness',
-        [string[]]$GlobalRoots
-    )
-
-    $candidate = $DshCliPath
-    if (-not $candidate) { $candidate = $env:DSH_CLI_PATH }
-    if (-not $candidate) {
-        $command = Get-Command dsh -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($command) {
-            $candidate = $command.Source
-            if ([IO.Path]::GetExtension($candidate) -ieq '.ps1') {
-                $cmdShim = [IO.Path]::ChangeExtension($candidate, '.cmd')
-                if (Test-Path -LiteralPath $cmdShim -PathType Leaf) { $candidate = $cmdShim }
-            }
-        }
-    }
-    if (-not $candidate) { throw 'Local dsh CLI was not found. Set DSH_CLI_PATH.' }
-    $cliPath = [IO.Path]::GetFullPath($candidate)
-    if (-not (Test-Path -LiteralPath $cliPath -PathType Leaf)) {
-        throw "DSH_CLI_PATH does not name a file: '$cliPath'."
-    }
-
-    $prefix = [IO.Path]::GetFullPath((Get-DshPrefixFromCliPath -CliPath $cliPath))
-    $canonicalCli = [IO.Path]::GetFullPath((Join-Path $prefix 'node_modules\.bin\dsh.cmd'))
-    $desktopCli = [IO.Path]::GetFullPath((Join-Path $prefix 'dsh.cmd'))
-    if ($cliPath -ine $canonicalCli -and $cliPath -ine $desktopCli) {
-        throw "DSH_CLI_PATH is not consistent with the installed prefix '$prefix'."
-    }
-    if (-not (Test-Path -LiteralPath $canonicalCli -PathType Leaf)) {
-        throw "The receipt canonical CLI is missing: '$canonicalCli'."
-    }
-    if (-not (Test-Path -LiteralPath $desktopCli -PathType Leaf)) {
-        throw "The receipt prefix-root CLI is missing: '$desktopCli'."
-    }
-    $shimLines = @(Get-Content -LiteralPath $desktopCli -Encoding UTF8)
-    if (
-        $shimLines.Count -ne 2 -or
-        $shimLines[0] -notmatch '(?i)^@?echo off$' -or
-        $shimLines[1] -notmatch '(?i)^@?call "%~dp0node_modules\\\.bin\\dsh\.cmd" %\*$'
-    ) {
-        throw "The prefix-root dsh.cmd does not forward to the receipt canonical CLI."
-    }
-
-    $receiptPath = Join-Path $prefix 'dsh-local-install.json'
-    if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
-        throw "The local Core install receipt is missing: '$receiptPath'."
-    }
-    try {
-        $receipt = Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    } catch {
-        throw "The local Core install receipt is not valid JSON: '$receiptPath'."
-    }
-    $schemaVersion = Get-DshRequiredProperty -Object $receipt -Name 'schemaVersion' -Context 'Receipt'
-    if (
-        ($schemaVersion -isnot [int] -and $schemaVersion -isnot [long]) -or
-        [int64]$schemaVersion -ne 1
-    ) {
-        throw 'The local Core install receipt schemaVersion must be 1.'
-    }
-    $repositoryUrl = [string](Get-DshRequiredProperty -Object $receipt -Name 'repositoryUrl' -Context 'Receipt')
-    $repository = ConvertTo-DshRepositorySlug -RepositoryUrl $repositoryUrl
-    if ($repository -ine $ExpectedRepository) {
-        throw "The local Core receipt repository is '$repository', expected '$ExpectedRepository'."
-    }
-    $commitSha = [string](Get-DshRequiredProperty -Object $receipt -Name 'commitSha' -Context 'Receipt')
-    if ($commitSha -notmatch '^[0-9a-fA-F]{40}$') { throw 'Receipt commitSha must be a full 40-character SHA.' }
-    $releaseManifestSha256 = [string](Get-DshRequiredProperty -Object $receipt -Name 'releaseManifestSha256' -Context 'Receipt')
-    if ($releaseManifestSha256 -notmatch '^[0-9a-fA-F]{64}$') {
-        throw 'Receipt releaseManifestSha256 must be a 64-character SHA-256.'
-    }
-    $receiptCli = [IO.Path]::GetFullPath(
-        [string](Get-DshRequiredProperty -Object $receipt -Name 'cliPath' -Context 'Receipt')
-    )
-    if ($receiptCli -ine $desktopCli) {
-        throw "Receipt cliPath '$receiptCli' does not match prefix-root CLI '$desktopCli'."
-    }
-
-    $packageRoot = [IO.Path]::GetFullPath((Join-Path $prefix 'node_modules\@deepseek-ai\dsh'))
-    $manifestPath = Join-Path $packageRoot 'package.json'
-    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-        throw "The installed @deepseek-ai/dsh manifest is missing: '$manifestPath'."
-    }
-    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $packageName = [string](Get-DshRequiredProperty -Object $receipt -Name 'packageName' -Context 'Receipt')
-    $packageVersion = [string](Get-DshRequiredProperty -Object $receipt -Name 'packageVersion' -Context 'Receipt')
-    if ($packageName -cne '@deepseek-ai/dsh' -or [string]$manifest.name -cne $packageName) {
-        throw 'Receipt packageName does not match the installed @deepseek-ai/dsh package.'
-    }
-    if (-not $packageVersion -or [string]$manifest.version -cne $packageVersion) {
-        throw 'Receipt packageVersion does not match the installed @deepseek-ai/dsh package.'
-    }
-    $bin = Get-DshRequiredProperty -Object $manifest -Name 'bin' -Context 'Installed @deepseek-ai/dsh manifest'
-    $entryRelative = if ($bin -is [string]) {
-        [string]$bin
-    } else {
-        [string](Get-DshRequiredProperty -Object $bin -Name 'dsh' -Context 'Installed @deepseek-ai/dsh bin')
-    }
-    $entryPath = [IO.Path]::GetFullPath((Join-Path $packageRoot $entryRelative))
-    $packagePrefix = $packageRoot.TrimEnd('\') + '\'
-    if (-not $entryPath.StartsWith($packagePrefix, [StringComparison]::OrdinalIgnoreCase) -or
-        -not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
-        throw 'The installed @deepseek-ai/dsh entry point is missing or outside the package root.'
-    }
-
-    $installedFilesProperty = $receipt.PSObject.Properties['installedFiles']
-    if (-not $installedFilesProperty -or $null -eq $installedFilesProperty.Value) {
-        throw 'Core receipt installed-bytes-unattested: installedFiles is missing.'
-    }
-    $expectedInstalledFiles = @(
-        [pscustomobject]@{ role = 'root-shim'; path = 'dsh.cmd'; fullPath = $desktopCli },
-        [pscustomobject]@{
-            role = 'npm-shim'
-            path = 'node_modules\.bin\dsh.cmd'
-            fullPath = $canonicalCli
-        },
-        [pscustomobject]@{
-            role = 'entrypoint'
-            path = 'node_modules\@deepseek-ai\dsh\lib\bin.js'
-            fullPath = $entryPath
-        }
-    )
-    $installedFiles = @($installedFilesProperty.Value)
-    if ($installedFiles.Count -ne $expectedInstalledFiles.Count) {
-        throw 'Core receipt installed-bytes-unattested: installedFiles must contain exactly three entries.'
-    }
-    $seenInstalledRoles = @{}
-    foreach ($item in $installedFiles) {
-        $roleProperty = $item.PSObject.Properties['role']
-        $pathProperty = $item.PSObject.Properties['path']
-        $shaProperty = $item.PSObject.Properties['sha256']
-        if (-not $roleProperty -or -not $pathProperty -or -not $shaProperty) {
-            throw 'Core receipt installed-bytes-unattested: an installedFiles entry is incomplete.'
-        }
-        $role = [string]$roleProperty.Value
-        $relativePath = ([string]$pathProperty.Value).Replace('/', '\')
-        $sha256 = [string]$shaProperty.Value
-        $expectedFile = @($expectedInstalledFiles | Where-Object { $_.role -ceq $role })
-        if ($seenInstalledRoles.ContainsKey($role) -or $expectedFile.Count -ne 1 -or
-            [IO.Path]::IsPathRooted($relativePath) -or $relativePath -ne [string]$expectedFile[0].path -or
-            $sha256 -notmatch '^[0-9a-fA-F]{64}$') {
-            throw "Core receipt installed-bytes-unattested: invalid installedFiles entry '$role'."
-        }
-        $seenInstalledRoles[$role] = $true
-        $fullPath = [IO.Path]::GetFullPath((Join-Path $prefix $relativePath))
-        if ($fullPath -ine [string]$expectedFile[0].fullPath -or
-            -not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
-            throw "Core receipt installed-bytes-unattested: '$role' does not resolve to the required file."
-        }
-        $actualSha256 = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash
-        if ($actualSha256 -ine $sha256) {
-            throw "Core receipt installed-bytes-mismatch: '$role' SHA-256 does not match."
-        }
-    }
-
-    $receiptPackages = @((Get-DshRequiredProperty -Object $receipt -Name 'packages' -Context 'Receipt'))
-    if ($receiptPackages.Count -eq 0) { throw 'Receipt packages must contain the installed runtime closure.' }
-    $seen = @{}
-    $normalizedPackages = @()
-    foreach ($item in $receiptPackages) {
-        $name = [string](Get-DshRequiredProperty -Object $item -Name 'name' -Context 'Receipt package')
-        $version = [string](Get-DshRequiredProperty -Object $item -Name 'version' -Context "Receipt package '$name'")
-        $filename = [string](Get-DshRequiredProperty -Object $item -Name 'filename' -Context "Receipt package '$name'")
-        $sha256 = [string](Get-DshRequiredProperty -Object $item -Name 'sha256' -Context "Receipt package '$name'")
-        $files = Get-DshRequiredProperty -Object $item -Name 'files' -Context "Receipt package '$name'"
-        if (-not $name -or $seen.ContainsKey($name)) { throw "Receipt package name is empty or duplicated: '$name'." }
-        if ($name -notmatch '^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$') {
-            throw "Receipt package name is invalid: '$name'."
-        }
-        if (-not $version) { throw "Receipt package '$name' has no version." }
-        if ([IO.Path]::GetFileName($filename) -cne $filename -or $filename -notmatch '\.tgz$') {
-            throw "Receipt package '$name' has an invalid tarball filename."
-        }
-        if ($sha256 -notmatch '^[0-9a-fA-F]{64}$') { throw "Receipt package '$name' has an invalid SHA-256." }
-        if ($files -isnot [ValueType] -or [int64]$files -le 0 -or [double]$files -ne [int64]$files) {
-            throw "Receipt package '$name' has an invalid file count."
-        }
-        $seen[$name] = $true
-
-        $installedManifestPath = Join-Path $prefix (
-            'node_modules\' + $name.Replace('/', '\') + '\package.json'
-        )
-        if (-not (Test-Path -LiteralPath $installedManifestPath -PathType Leaf)) {
-            throw "Receipt package '$name' is not installed under the receipt prefix."
-        }
-        $installedManifest = Get-Content -LiteralPath $installedManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ([string]$installedManifest.name -cne $name -or [string]$installedManifest.version -cne $version) {
-            throw "Receipt package '$name@$version' does not match its installed manifest."
-        }
-        $normalizedPackages += [ordered]@{
-            name = $name
-            version = $version
-            filename = $filename
-            sha256 = $sha256.ToLowerInvariant()
-            files = [int64]$files
-        }
-    }
-    if (-not $seen.ContainsKey($packageName)) {
-        throw "Receipt packages do not include '$packageName'."
-    }
-    $manifestJson = ConvertTo-Json -InputObject @($normalizedPackages) -Compress -Depth 4
-    if ((Get-DshSha256Text -Text $manifestJson) -ine $releaseManifestSha256) {
-        throw 'Receipt releaseManifestSha256 does not match the listed installed packages.'
-    }
-
-    return [pscustomobject]@{
-        cliPath = $cliPath
-        canonicalCliPath = $canonicalCli
-        prefix = $prefix
-        packageRoot = $packageRoot
-        entryPath = $entryPath
-        version = $packageVersion
-        repository = $ExpectedRepository
-        repositoryUrl = $repositoryUrl
-        commitSha = $commitSha.ToLowerInvariant()
-        receiptPath = [IO.Path]::GetFullPath($receiptPath)
-        releaseManifestSha256 = $releaseManifestSha256.ToLowerInvariant()
-        packageCount = $receiptPackages.Count
-        installedFileCount = $installedFiles.Count
-    }
-}
-
 function Test-DshActiveDesktopCore {
     param(
-        [Parameter(Mandatory)]$CliInfo,
         [Parameter(Mandatory)]$DeploymentLock,
         [Parameter(Mandatory)]$DesktopRuntimeState
     )
     $selectors = @($DeploymentLock.components.desktop.runtimeSelectors)
-    $controlled = @($selectors | Where-Object {
-        [string]$_.id -ceq 'controlled-fork' -and
-        [string]$_.source -ceq 'controlled-core-receipt'
-    })
-    $official = @($selectors | Where-Object {
-        [string]$_.id -ceq 'desktop-official' -and
-        [string]$_.source -ceq 'desktop-managed-download'
-    })
-    if ($controlled.Count -ne 1 -or $official.Count -ne 1) {
-        throw 'The deployment lock does not define the exact supported Desktop runtime selectors.'
+    if ($selectors.Count -ne 1 -or
+        [string]$DeploymentLock.components.desktop.defaultRuntimeSelector -cne 'desktop-official') {
+        throw 'The deployment lock does not define only the official Desktop-managed runtime.'
     }
-    if ([string]$CliInfo.version -cne [string]$controlled[0].package.version) {
-        throw 'The receipted controlled CLI version does not match the deployment lock.'
+    $official = $selectors[0]
+    if ([string]$official.id -cne 'desktop-official' -or
+        [string]$official.source -cne 'desktop-managed-download') {
+        throw 'The deployment lock does not define the official Desktop-managed runtime.'
     }
     if (-not [bool]$DesktopRuntimeState.valid) {
         throw "Desktop runtime selector is not accepted: '$($DesktopRuntimeState.status)'."
     }
 
     $selector = [string]$DesktopRuntimeState.selector
-    if ($selector -ceq 'controlled-fork') {
-        if ([string]$DesktopRuntimeState.source -cne [string]$controlled[0].source -or
-            [string]$DesktopRuntimeState.version -cne [string]$controlled[0].package.version -or
-            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.entryPath) -ine
-                [IO.Path]::GetFullPath([string]$CliInfo.entryPath)) {
-            throw 'Desktop controlled-fork runtime does not match the receipted controlled CLI.'
-        }
-    } elseif ($selector -ceq 'desktop-official') {
-        $officialRoot = [IO.Path]::GetFullPath(
-            [Environment]::ExpandEnvironmentVariables([string]$official[0].root)
-        )
-        $expectedPackageRoot = [IO.Path]::GetFullPath(
-            (Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh')
-        )
-        $expectedEntry = [IO.Path]::GetFullPath(
-            (Join-Path $officialRoot ([string]$official[0].package.entrypoint))
-        )
-        if ([string]$DesktopRuntimeState.source -cne [string]$official[0].source -or
-            [string]$DesktopRuntimeState.version -cne [string]$official[0].package.version -or
-            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.packageRoot) -ine $expectedPackageRoot -or
-            [IO.Path]::GetFullPath([string]$DesktopRuntimeState.entryPath) -ine $expectedEntry) {
-            throw 'Desktop official runtime does not match the exact managed path and locked version.'
-        }
-    } else {
+    if ($selector -cne 'desktop-official') {
         throw "Unsupported Desktop runtime selector '$selector'."
+    }
+    $officialRoot = [IO.Path]::GetFullPath(
+        [Environment]::ExpandEnvironmentVariables([string]$official.root)
+    )
+    $expectedPackageRoot = [IO.Path]::GetFullPath(
+        (Join-Path $officialRoot 'node_modules\@deepseek-ai\dsh')
+    )
+    $expectedEntry = [IO.Path]::GetFullPath(
+        (Join-Path $officialRoot ([string]$official.package.entrypoint))
+    )
+    if ([string]$DesktopRuntimeState.source -cne [string]$official.source -or
+        [string]$DesktopRuntimeState.version -cne [string]$official.package.version -or
+        [IO.Path]::GetFullPath([string]$DesktopRuntimeState.packageRoot) -ine $expectedPackageRoot -or
+        [IO.Path]::GetFullPath([string]$DesktopRuntimeState.entryPath) -ine $expectedEntry) {
+        throw 'Desktop official runtime does not match the exact managed path and locked version.'
     }
 
     return [pscustomobject]@{
@@ -879,6 +589,59 @@ function Test-DshCopilotSettings {
     }
 }
 
+function Get-DshCopilotPathFingerprint {
+    param([Parameter(Mandatory)][string]$Path)
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item) { return [pscustomobject]@{ kind = 'absent' } }
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw "Tracked bootstrap path contains a reparse point: '$Path'."
+    }
+    if (-not $item.PSIsContainer) {
+        return [pscustomobject]@{
+            kind = 'file'
+            size = [int64]$item.Length
+            sha256 = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash
+        }
+    }
+    $root = $item.FullName.TrimEnd('\') + '\'
+    $items = @(Get-ChildItem -LiteralPath $item.FullName -Recurse -Force)
+    if (@($items | Where-Object {
+        $_.Attributes -band [IO.FileAttributes]::ReparsePoint
+    }).Count -gt 0) {
+        throw "Tracked bootstrap directory contains a reparse point: '$Path'."
+    }
+    $entries = @($items | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
+        [pscustomobject]@{
+            relativePath = $_.FullName.Substring($root.Length).Replace('\', '/')
+            sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+            size = [int64]$_.Length
+        }
+    } | Sort-Object relativePath)
+    $text = ($entries | ForEach-Object {
+        [string]$_.relativePath + "`t" + [string]$_.sha256
+    }) -join "`n"
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $treeSha256 = ([BitConverter]::ToString(
+            $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($text))
+        )).Replace('-', '')
+    } finally {
+        $sha.Dispose()
+    }
+    return [pscustomobject]@{
+        kind = 'directory'
+        fileCount = $entries.Count
+        totalBytes = [int64](($entries | Measure-Object size -Sum).Sum)
+        treeSha256 = $treeSha256
+    }
+}
+
+function Test-DshCopilotFingerprintEqual {
+    param($Left, $Right)
+    return (ConvertTo-Json $Left -Compress -Depth 5) -ceq
+        (ConvertTo-Json $Right -Compress -Depth 5)
+}
+
 function New-DshCopilotBackup {
     param(
         [Parameter(Mandatory)][string[]]$Paths,
@@ -893,16 +656,26 @@ function New-DshCopilotBackup {
     $index = 0
     foreach ($path in $Paths | Select-Object -Unique) {
         $full = [IO.Path]::GetFullPath($path)
-        $exists = Test-Path -LiteralPath $full -PathType Leaf
+        $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
+        $exists = $null -ne $item
+        $kind = if (-not $exists) {
+            'absent'
+        } elseif ($item.PSIsContainer) {
+            'directory'
+        } else {
+            'file'
+        }
         $backup = Join-Path $root ("{0:D3}.bak" -f $index)
-        if ($exists) { Copy-Item -LiteralPath $full -Destination $backup -Force }
+        if ($exists) { Copy-Item -LiteralPath $full -Destination $backup -Recurse -Force }
+        $original = Get-DshCopilotPathFingerprint -Path $full
         $files.Add([pscustomobject]@{
             path = $full
             existed = $exists
+            kind = $kind
             backup = if ($exists) { $backup } else { $null }
-            originalSha256 = if ($exists) { (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash } else { $null }
+            originalFingerprint = $original
             committedExists = $null
-            committedSha256 = $null
+            committedFingerprint = $null
         })
         $index++
     }
@@ -931,14 +704,14 @@ function Complete-DshCopilotBackup {
             ([string]$_.path).Equals([string]$file.path, [StringComparison]::OrdinalIgnoreCase)
         } | Select-Object -First 1)
         if ($expected.Count -eq 0) { throw "Missing expected committed state for '$($file.path)'." }
-        $exists = Test-Path -LiteralPath ([string]$file.path) -PathType Leaf
+        $fingerprint = Get-DshCopilotPathFingerprint -Path ([string]$file.path)
+        $exists = [string]$fingerprint.kind -cne 'absent'
         if ($exists -ne [bool]$expected[0].exists) { throw "Tracked file state changed during verification for '$($file.path)'." }
-        $hash = if ($exists) { (Get-FileHash -LiteralPath ([string]$file.path) -Algorithm SHA256).Hash } else { $null }
-        if ($exists -and $hash -ne [string]$expected[0].sha256) {
+        if (-not (Test-DshCopilotFingerprintEqual -Left $fingerprint -Right $expected[0].fingerprint)) {
             throw "Tracked file changed during verification for '$($file.path)'."
         }
         $file.committedExists = $exists
-        $file.committedSha256 = $hash
+        $file.committedFingerprint = $fingerprint
     }
     $metadata.state = 'completed'
     $metadata | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $metadataPath -Encoding UTF8
@@ -968,20 +741,23 @@ function Restore-DshCopilotBackup {
     }
     foreach ($file in @($metadata.files)) {
         if ($file.existed) {
-            if (-not (Test-Path -LiteralPath ([string]$file.backup) -PathType Leaf)) {
+            if (-not (Test-Path -LiteralPath ([string]$file.backup))) {
                 throw "Backup file is missing for '$($file.path)'."
             }
-            if ((Get-FileHash -LiteralPath ([string]$file.backup) -Algorithm SHA256).Hash -ne [string]$file.originalSha256) {
+            $backupFingerprint = Get-DshCopilotPathFingerprint -Path ([string]$file.backup)
+            if (-not (Test-DshCopilotFingerprintEqual -Left $backupFingerprint `
+                -Right $file.originalFingerprint)) {
                 throw "Backup hash mismatch for '$($file.path)'."
             }
         }
         if (-not $ForceIncomplete) {
-            $currentExists = Test-Path -LiteralPath ([string]$file.path) -PathType Leaf
+            $currentFingerprint = Get-DshCopilotPathFingerprint -Path ([string]$file.path)
+            $currentExists = [string]$currentFingerprint.kind -cne 'absent'
             if ([bool]$file.committedExists -ne $currentExists) {
                 throw "Current file state changed after bootstrap for '$($file.path)'."
             }
-            if ($currentExists -and
-                (Get-FileHash -LiteralPath ([string]$file.path) -Algorithm SHA256).Hash -ne [string]$file.committedSha256) {
+            if (-not (Test-DshCopilotFingerprintEqual -Left $currentFingerprint `
+                -Right $file.committedFingerprint)) {
                 throw "Current file changed after bootstrap for '$($file.path)'."
             }
         }
@@ -989,14 +765,66 @@ function Restore-DshCopilotBackup {
     $results = foreach ($file in @($metadata.files)) {
         if (-not $DryRun) {
             if ($file.existed) {
-                Copy-Item -LiteralPath ([string]$file.backup) -Destination ([string]$file.path) -Force
-            } elseif (Test-Path -LiteralPath ([string]$file.path) -PathType Leaf) {
-                Remove-Item -LiteralPath ([string]$file.path) -Force
+                if (Test-Path -LiteralPath ([string]$file.path)) {
+                    Remove-Item -LiteralPath ([string]$file.path) -Recurse -Force
+                }
+                Copy-Item -LiteralPath ([string]$file.backup) -Destination ([string]$file.path) `
+                    -Recurse -Force
+            } elseif (Test-Path -LiteralPath ([string]$file.path)) {
+                Remove-Item -LiteralPath ([string]$file.path) -Recurse -Force
             }
         }
         [pscustomobject]@{ path = [string]$file.path; status = if ($DryRun) { 'would-restore' } else { 'restored' } }
     }
     return [pscustomobject]@{ operationId = $OperationId; dryRun = [bool]$DryRun; results = @($results) }
+}
+
+function Test-DshReviewedLegacySearchProvider {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$ProfileRoot
+    )
+    $manifestPath = Join-Path $ProfileRoot 'package.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        return [pscustomobject]@{ present = $false; valid = $true; packageRoot = $null }
+    }
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 |
+        ConvertFrom-Json
+    $dependency = if ($manifest.PSObject.Properties['dependencies']) {
+        $manifest.dependencies.PSObject.Properties['dsh-web-search-provider']
+    } else { $null }
+    if (-not $dependency) {
+        return [pscustomobject]@{ present = $false; valid = $true; packageRoot = $null }
+    }
+    $packageRoot = Join-Path $ProfileRoot 'node_modules\dsh-web-search-provider'
+    $packageManifest = Join-Path $packageRoot 'package.json'
+    if (-not (Test-Path -LiteralPath $packageManifest -PathType Leaf)) {
+        throw 'Legacy dsh-web-search-provider payload is missing.'
+    }
+    $metadata = Get-Content -LiteralPath $packageManifest -Raw -Encoding UTF8 |
+        ConvertFrom-Json
+    $matches = @($Lock.profile.legacyCopilotIntegrations | Where-Object {
+        [string]$_.name -ceq 'dsh-web-search-provider' -and
+        [string]$_.version -ceq [string]$metadata.version -and
+        (
+            [string]$dependency.Value -ceq [string]$_.version -or
+            [IO.Path]::GetFileName(([string]$dependency.Value).Replace('\', '/')) -like
+                [string]$_.artifactPattern
+        )
+    })
+    if ($matches.Count -ne 1) {
+        throw 'Legacy dsh-web-search-provider is not in the reviewed migration inventory.'
+    }
+    $fingerprint = Get-DshCopilotPathFingerprint -Path $packageRoot
+    return [pscustomobject]@{
+        present = $true
+        valid = $true
+        version = [string]$metadata.version
+        dependency = [string]$dependency.Value
+        packageRoot = $packageRoot
+        fingerprint = $fingerprint
+    }
 }
 
 function Test-DshCopilotProfile {
@@ -1116,13 +944,11 @@ function Test-DshSandboxRegression {
         status = 'expected-fail'
         required = $false
         reason = [string]$result.reason
-        owner = 'cloga/deepseek-harness'
+        owner = 'official-desktop-managed-runtime'
     }
 }
 
 Export-ModuleMember -Function @(
-    'ConvertTo-DshRepositorySlug',
-    'Resolve-DshCliInfo',
     'Test-DshActiveDesktopCore',
     'Test-DshRendererCompatibility',
     'Test-DshCopilotCredentialRecord',
@@ -1135,8 +961,10 @@ Export-ModuleMember -Function @(
     'Test-DshCopilotSettings',
     'New-DshCopilotBackup',
     'Complete-DshCopilotBackup',
+    'Get-DshCopilotPathFingerprint',
     'Restore-DshCopilotBackup',
     'Test-DshCopilotProfile',
+    'Test-DshReviewedLegacySearchProvider',
     'Invoke-DshVisionProbe',
     'Test-DshSandboxRegression'
 )

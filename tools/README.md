@@ -6,14 +6,15 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 
 | Need | Command | Mutation | Evidence / rollback |
 |---|---|---:|---|
-| Check the locked Desktop/Core/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply`; compares web/headless manifest, lockfile, installed baseline, and artifact hash |
-| Apply and activate the exact locked fork Core | Same command with Core/plugin source roots, `-CopilotIntegrationArtifactPath <locked-release.tgz>`, Desktop artifact, and `-Apply`; add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after the user accepts every listed interruption | High | Receipt-backed controlled CLI, hash-verified immutable Copilot Release bytes, persisted `DSH_CLI_PATH`, quarantined conflicting npm shims, rollback receipt, and an exact supported Desktop runtime selector |
-| Verify the locked rc.2 controlled CLI and Desktop runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify -CoreInstallPrefix C:\.tools\dsh-cloga` | None | Requires fork receipt URL/commit/bytes, zero-approval same/narrower probe, and Desktop selecting either that fork or the exact alpha.4 wrapper containing the locked rc.1 inner CLI |
-| Roll back Core selection | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback` (add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after explicit interruption approval) | Environment and shim restore | Restores the previous user `DSH_CLI_PATH` and exact backed-up npm global shims |
-| Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Historical compatibility path; installs no vision fallback. It resolves the canonical locked Release, hash-checks local tarballs, upgrades both profiles, and returns `sign-in-required` until UI authorization completes |
-| Check or stage the optional companion suite | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` | None by default / Web Profile composition | Installs independently pinned Copilot, Cron, and Playwright bundles in one command, verifies the Copilot tarball SHA-256, and never restarts Host; see `docs/plugins/optional-companion-suite.md` |
-| Check versions and direct-provider/Core replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Includes built `llm-pi-ai` OAuth JSON normalization and per-model API route evidence; no local gateway endpoint |
+| Check the locked Desktop/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply`; attests official Desktop 0.10.3, its managed wrapper/tree/entrypoint, web/headless package coherence, and the exact active PID owning IPv4 `127.0.0.1:3080` |
+| Apply the exact locked Desktop and companion selection | Same command with `-Apply`, plugin source/Release paths, Desktop artifact, and optional `-IncludeCompanionSuite`; add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after the user accepts every listed interruption | High | One backup/rollback transaction; Copilot is required, while the switch atomically includes locked Cron 0.4.1 and Playwright Host 0.1.2; never builds, installs, or selects a DSH runtime |
+| Verify the official Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Attests `deepseek-harness-pkg@0.1.2-alpha.5`, inner official `@deepseek-ai/dsh@0.1.2-rc.1`, the 10-file tree and exact entrypoint, and the exact active PID owning IPv4 `127.0.0.1:3080` |
+| Roll back an installer operation | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -OperationId <id>` (add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after explicit interruption approval) | Backup restore | Restores the operation's backed-up Desktop/plugin/profile state without bypassing live-Session restart safety |
+| Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Historical compatibility path; installs no vision fallback. It resolves the canonical locked Release, hash-checks local tarballs, rejects registry/arbitrary specs, upgrades both profiles through the Desktop-managed official CLI, and returns `sign-in-required` until UI authorization completes |
+| Check or stage the optional companion suite directly | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` | None by default / Web Profile composition | Narrow wrapper over the same authoritative deployment lock; the main baseline flow is `install-windows-copilot.ps1 -IncludeCompanionSuite`; never restarts Host |
+| Check versions and direct-provider replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Includes Desktop-managed runtime, `llm-pi-ai` OAuth JSON normalization, per-model API route, and direct-integration evidence; no local gateway endpoint |
 | Preview replay patches | `powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun` | None | Exact-marker plan only |
+| Preflight the session store | `node tools\preflight-check.mjs` / `--fix` | None by default / directory quarantine | Scans every `session-*` stable name and strictly validates the first Zstd frame before startup |
 | Diagnose or repair the installation | `node tools\dsh-doctor.mjs` / `--fix` / `--smoke` | None / targeted | Read the report before `--fix`; repairs back up or quarantine where supported |
 | Check community-plugin host imports | `node tools\dsh-compat-check.mjs <profile> --probe=<package>` | Executes plugin top-level code | `--json` emits L2 evidence; not a functional test |
 | Validate repository/lock/doc parity | `node tools\validate-repository-content.mjs` | None | Rejects source, Release, version, fixture, capability, and README drift |
@@ -41,13 +42,21 @@ Existing paths are intentionally retained so tested commands and links do not br
 path even though it now configures the broader `dsh-github-copilot`
 integration. It does not install `dsh-vision-any` or any second vision provider;
 image-capable routes use DSH's built-in attachment path and local files use the
-built-in `read_image` tool. For deployment apply, prefer `-CopilotIntegrationSourceRoot`;
-the old `-ProviderSourceRoot` spelling remains an alias.
+built-in `read_image` tool. For deployment Apply, use
+`-CopilotIntegrationSourceRoot`; the old `-ProviderSourceRoot` spelling remains
+an alias.
 
 The direct baseline is one DSH plugin reusing built-in `llm-pi-ai`, not an
 embedded gateway. The wrapper never writes provider routes, endpoints, API-key
-references, or model lists. Use **Settings → GitHub Copilot** on rc.2 or the
-**Models** provider card on rc.1 for the interactive device flow.
+references, or model lists. Use the **Models → GitHub Copilot** provider card
+for the interactive device flow.
+
+`preflight-check.mjs` scans all `session-*` stable names. Each session log's
+first Zstd frame must contain exactly one newline-terminated official v0
+session header. The encoded directory must match `header.id`, project placement
+must match `cwd`, and duplicates are detected by parsed header identity.
+Default mode is read-only; `--fix` moves the entire affected session directory
+outside `sessions` into quarantine without rewriting or deleting its contents.
 
 ## Plugin validation boundary
 
@@ -62,9 +71,10 @@ Even with `--probe`, this is only the catalog's **L2** boundary. It does not pro
 ## Safety and contribution rules
 
 - Run check/dry-run before apply/fix.
-- Treat `-Action Verify` exit code `0` as success and `2` as failed fork activation evidence.
+- Treat `-Action Verify` exit code `0` as successful official Desktop/runtime attestation and `2` as failed evidence.
 - Never expose credentials in output or evidence.
-- Preserve deployment-lock identities and the seven official Desktop Profile links and non-bundled panel placeholder.
+- Preserve deployment-lock identities, all eight official Desktop 0.6.7 Profile links (including `dsh-tauri-panel-scheduler`), and the non-bundled panel placeholder.
+- Accept the deployment only after direct sign-in, model response, hosted search, nonempty reasoning, fresh-Session Copilot Tool Schema, rollback, and exact listener-owner checks pass.
 - Use synthetic fixtures; do not test browser/desktop controllers against personal profiles or arbitrary real applications.
 - Functional tests must assert an outcome and verify cleanup.
 - New tools must document purpose, mutation level, prerequisites, evidence, rollback, and tests.
@@ -72,6 +82,7 @@ Even with `--probe`, this is only the catalog's **L2** boundary. It does not pro
 ## Test entry points
 
 - Plugin catalog: `node tools\validate-plugin-catalog.mjs`
+- Strict session preflight: `node --test tests\preflight-check.test.mjs`
 - JavaScript syntax: `node --check <script>`
 - Host Playwright bundle: `node --test tests\host-playwright-bundle.test.mjs`
 - Browser smoke tool: `python -m py_compile tools\dsh-web-smoke.py`; with the existing GUI running, `python tools\dsh-web-smoke.py --expect-text "New Session" --fail-on-console-error --fail-on-request-failure --fail-on-http-error`
@@ -82,4 +93,4 @@ Even with `--probe`, this is only the catalog's **L2** boundary. It does not pro
 
 See `catalog/README.md`, `docs/plugins/plugin-validation.md`, and `docs/security-notes.md`. Issue #33 tracks this information-architecture and plugin-governance change.
 
-As of 2026-08-30, no Computer Use executor belongs to the locked Windows Copilot baseline.
+As of 2026-09-04, no Computer Use executor belongs to the locked Windows Copilot baseline.

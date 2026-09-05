@@ -194,6 +194,25 @@ if (catalog && schema && deployment) {
       if (plugin.artifact?.checksumManifestUrl !== locked?.package?.artifact?.checksumManifest?.url) fail(`${at}.artifact.checksumManifestUrl`, 'does not match deployment lock');
     }
   }
+
+  const suites = Array.isArray(catalog.suites) ? catalog.suites : [];
+  if (suites.length !== 1 || suites[0]?.id !== 'windows-companion-suite') {
+    fail('catalog.suites', 'must contain exactly one windows-companion-suite');
+  } else {
+    const suite = suites[0];
+    const members = Array.isArray(suite.members) ? suite.members : [];
+    const memberIds = members.map(member => member?.plugin);
+    if (new Set(memberIds).size !== memberIds.length) fail('catalog.suites[0].members', 'contains duplicate plugin ids');
+    for (const memberId of memberIds) {
+      if (!ids.has(memberId)) fail('catalog.suites[0].members', `references unknown plugin ${memberId}`);
+    }
+    const lockedMembers = deployment.companionSuite?.members ?? [];
+    const catalogRoles = members.map(member => `${member.plugin}:${member.requiredByBaseDeployment}`).sort();
+    const lockedRoles = lockedMembers.map(member => `${member.name}:${member.requiredByBaseDeployment}`).sort();
+    if (JSON.stringify(catalogRoles) !== JSON.stringify(lockedRoles)) {
+      fail('catalog.suites[0].members', 'does not match deployment companionSuite membership and roles');
+    }
+  }
 }
 
 if (errors.length > 0) {

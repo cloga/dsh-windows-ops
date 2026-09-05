@@ -20,7 +20,7 @@ The tag-to-commit resolution above was verified from the local Git checkout with
 
 ## Compatibility
 
-The bounded peer contract is `>=0.1.1-rc.2 <0.1.2-0 || >=0.1.2-alpha.4 <0.1.2`. The current certification target is official DSH `0.1.2-rc.1` at `a66e4702047846cdaa10c66c9d3df3951f5ea70d`; the controlled `0.1.1-rc.2` lane remains observed. Stable `0.1.2` is intentionally excluded until separately reviewed.
+The bounded peer contract is `>=0.1.1-rc.2 <0.1.2-0 || >=0.1.2-alpha.4 <0.1.2`. The current Windows certification target is the official Desktop-managed DSH `0.1.2-rc.1` at `a66e4702047846cdaa10c66c9d3df3951f5ea70d`. Stable `0.1.2` is intentionally excluded until separately reviewed.
 
 The package consumes Agent, Agent Preset, default-model, LLM, live Session, Session persistence, and Tools APIs. Optional HTTP mounting consumes WebServer and Web services. Node.js must satisfy `^22.19.0 || >=24.0.0`.
 

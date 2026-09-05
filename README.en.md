@@ -8,22 +8,21 @@
 
 > Windows deployment baselines, operations tooling, and a community-plugin validation catalog for DeepSeek Harness (DSH).
 
-This repository captures DSH Desktop/Core/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, Core, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
+This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
 ## Current supported baseline
 
-[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-03**.
+[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-04**.
 
 | Component | Locked version |
 |---|---|
-| DeepSeek Harness Desktop | 0.10.2 |
-| Controlled `@deepseek-ai/dsh` CLI | fork 0.1.1-rc.2 |
-| Desktop-selected `@deepseek-ai/dsh` runtime | fork 0.1.1-rc.2 or Desktop-managed wrapper 0.1.2-alpha.4 with inner DSH 0.1.2-rc.1 |
-| `dsh-github-copilot` | 0.3.0-cloga.15 |
-| Desktop internal plugins | seven official Profile links plus one non-bundled 0.6.7 panel placeholder under `resources\node_modules` |
+| DeepSeek Harness Desktop | official 0.10.3 |
+| Desktop-managed DSH runtime | `deepseek-harness-pkg@0.1.2-alpha.5` wrapper with official inner `@deepseek-ai/dsh@0.1.2-rc.1`; complete 10,347-file wrapper tree is hash-locked with no reparse directories |
+| Required `dsh-github-copilot` | 0.3.0-cloga.15 |
+| Desktop internal plugins | eight official 0.6.7 Profile links, including `dsh-tauri-panel-scheduler`, plus one non-bundled panel placeholder under `resources\node_modules` |
 | Optional Web overlays (not baseline requirements) | `dsh-playwright-host@0.1.2`, `dsh-cron@0.4.1` |
 
-A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline. The default branch and deployment lock are this repository's publication channel; this repository does not redistribute Desktop/Core/plugin binaries. A lock update defines the reviewed target baseline, not proof that a particular machine already ran `-Apply`; default check mode reports unapplied drift truthfully.
+A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline. The default branch and deployment lock are this repository's publication channel; this repository does not redistribute Desktop/DSH/plugin binaries. A lock update defines the reviewed target baseline, not proof that a particular machine already ran `-Apply`; default check mode reports unapplied drift truthfully.
 
 ## Start here
 
@@ -62,7 +61,7 @@ Then use an isolated `DSH_HOME` to verify Cordis activation, tool registration, 
 |---|---|---|
 | Deployment | `tools/install-windows-copilot.ps1` | Check by default; install the locked baseline only with explicit `-Apply` |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1` (historical compatibility name) | Install the direct Copilot plugin, select hosted search, and report UI sign-in requirements; no vision fallback is installed |
-| Optional suite | `tools/install-optional-companion-suite.ps1` | Check by default; explicitly `-Apply` the independently versioned Copilot, Cron, and Playwright Bundles together without restarting the Host |
+| Optional suite | `tools/install-windows-copilot.ps1 -IncludeCompanionSuite` | Include locked Copilot, Cron, and Playwright bundles in one baseline Apply/rollback transaction; the narrow optional-suite wrapper uses the same lock |
 | Replay and acceptance | `tools/dsh-replay.ps1` | Self-check, strict-marker patches, dry-run, backup, and rollback |
 | Plugin compatibility | `tools/dsh-compat-check.mjs` | Static dependency inventory and real host import probe |
 | Plugin catalog | `tools/validate-plugin-catalog.mjs` | Validate catalog constraints, evidence references, and baseline consistency |
@@ -82,24 +81,23 @@ Use each script's header and linked guide for full parameters.
 
 ## Security rules
 
-- Load credentials only from a user-designated trusted source into the current process or DSH credential service. Prefer one centralized `.env`; never print, copy between repositories, or commit values.
+- Use the existing GitHub CLI login; `.env` is optional, not a prerequisite. Load additional credentials only from a user-designated trusted source into the current process or DSH credential service; never print, copy between repositories, or commit values.
 - Start community MCP servers read-only; enable side effects only when explicitly required.
 - Computer Use, real-browser control, and vision plugins may expose screens, cookies, messages, passwords, and native applications. Recommendation policy must remain separate from functional validation.
 - Back up runtime/configuration changes, keep patches idempotent, and document rollback.
 - Before any Desktop/Host restart, query live Sessions; require direct acknowledgement before interrupting any running Session.
-- Preserve and attest Desktop's seven official Profile links and non-bundled panel placeholder; do not replace them with guessed registry packages.
+- Preserve and attest Desktop's eight official 0.6.7 Profile links, including `dsh-tauri-panel-scheduler`, and the non-bundled panel placeholder; do not replace them with guessed registry packages.
 
 See [`docs/security-notes.md`](docs/security-notes.md).
 
 ## Project relationships and maintenance
 
-This repository does not redistribute Desktop, Core, or the Copilot plugin. It pins reviewed versions and commits and orchestrates installation, migration, acceptance, and rollback. The `cloga/*` repositories are controlled deployment forks, so this table describes default-branch capability and the current deployment pin rather than internal PR workflow state.
+This repository does not redistribute Desktop, DSH, or the Copilot plugin. It pins reviewed versions and commits and orchestrates installation, migration, acceptance, and rollback. This table describes the current official Desktop and controlled Copilot plugin identities.
 
 | Project | Deployment responsibility | Current relationship |
 |---|---|---|
-| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, and seven Profile plugins plus one shipped placeholder | Current lock uses official 0.10.2 |
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Local Core, model/vision metadata, receipt installation, sandbox policy, strict pi-ai OAuth JSON record normalization, and per-model API routes | Deployment pin `a772dbbd` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI that clears one-time device-code notices after success, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | Source `4e09519f`, merge `473b8aa1`, immutable Release `0.3.0-cloga.15` |
+| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | Official Windows shell, lifecycle, Desktop-managed official DSH, eight Profile plugins, and one shipped placeholder | Current lock uses official 0.10.3 at release/tag commit `113dc8f77095e765f4f55e233d8455e7ad9204ae` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | PR #56 source commit `4e095196197570776515423929ddb72e8299c1db`; merge/immutable Release commit `473b8aa174eb47a323b026c098b73bf7d716772c`; Release `v0.3.0-cloga.15` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 
 The historical ACP subagent practice remains in

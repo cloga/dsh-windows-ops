@@ -4,11 +4,10 @@
 
 - Use the `cloga` GitHub identity for every issue, push, pull request, review,
   and merge in this repository.
-- Load the credential into the current process only from a user-designated
-  trusted `.env`. Prefer one centralized file explicitly designated by the
-  user; a repository-local `.env` is allowed only when it is explicitly chosen
-  and Git confirms it is ignored. Never print, copy between repositories,
-  include in documentation, or commit the credential.
+- Use the existing authenticated GitHub CLI session by default. No `.env`
+  file is required; its absence must not block GitHub operations.
+  If additional credentials are needed, use a user-designated trusted source.
+  Never print, copy between repositories, document, or commit credential values.
 - Before any GitHub write, run `gh api user --jq .login` and require the exact
   result `cloga`. Stop if the identity differs.
 - Every published branch must be named `cloga-<task-slug>`. Never publish an
@@ -53,15 +52,11 @@ Before an installation agent emits every `pwsh` tool call:
   registry package or an unverified latest URL.
 - Keep the official DSH Desktop shell unless the task specifically changes the
   shell.
-- For `cloga/deepseek-harness` changes, build a local `@deepseek-ai/dsh`
-  tarball and make Desktop run that local CLI. Do not redirect Desktop's
-  bundled-core release URL as a substitute for local-core testing.
-- Prefer an explicit `DSH_CLI_PATH` when more than one `dsh` executable exists.
-  Otherwise, verify that Desktop selected the global local CLI.
-- Do not use Desktop's local-core update action while testing the fork; it
-  installs `@deepseek-ai/dsh@latest` and can replace the fork build.
+- The supported runtime is only Desktop's managed official wrapper and bundled
+  `@deepseek-ai/dsh`. Do not build, install, select, or document a private Core
+  fork as part of the Windows baseline, and do not persist `DSH_CLI_PATH`.
 - Treat plugins and the core as separate compatibility layers. Preserve and
-  attest Desktop's seven official Profile links plus its non-bundled panel
+  attest Desktop's eight official Profile links plus its non-bundled panel
   placeholder; never replace them with guessed registry packages. The locked
   installer physically materializes only the reviewed `dsh-github-copilot`
   integration. Classify `dsh-playwright-host` and `dsh-cron` as optional Web

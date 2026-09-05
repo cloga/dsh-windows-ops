@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "deploymentId": "windows-copilot-2026-09-03",
-  "verifiedDate": "2026-09-03",
+  "deploymentId": "windows-copilot-2026-09-04",
+  "verifiedDate": "2026-09-04",
   "platform": {
     "os": "windows",
     "architecture": "x64",
@@ -21,16 +21,34 @@
   },
   "components": {
     "desktop": {
-      "version": "0.10.2",
+      "version": "0.10.3",
       "source": {
         "repository": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop",
-        "releaseTag": "v0.10.2",
-        "commit": "2bb8f6b8e75c7e6e61b9bf5da7abbe53f9e93c63"
+        "releaseTag": "v0.10.3",
+        "commit": "113dc8f77095e765f4f55e233d8455e7ad9204ae"
       },
       "artifact": {
-        "name": "Deepseek.Harness.Desktop_0.10.2_x64-setup.exe",
-        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.2/Deepseek.Harness.Desktop_0.10.2_x64-setup.exe",
-        "sha256": "54d4c4a5718e5b1bb1276c256dbea8dccac6c36835f195f98b711b850e6488fa"
+        "name": "Deepseek.Harness.Desktop_0.10.3_x64-setup.exe",
+        "url": "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.3/Deepseek.Harness.Desktop_0.10.3_x64-setup.exe",
+        "sha256": "ce4328448a948e6df904548455a32b81f9905908f3b8562f8e8fdfdbac3bfb90",
+        "size": 6213496
+      },
+      "installedExecutable": {
+        "relativePath": "deepseek-harness-desktop.exe",
+        "sha256": "d191cb2729f53c4fa889fab62c48af38979812f5560d0bb8f8ad4cadeff8b5df",
+        "size": 23059456,
+        "productName": "Deepseek Harness Desktop",
+        "fileDescription": "Deepseek Harness Desktop",
+        "companyName": "github",
+        "productVersion": "0.10.3",
+        "authenticodeStatus": "NotSigned"
+      },
+      "installedResources": {
+        "relativePath": "resources",
+        "fileCount": 1765,
+        "totalBytes": 13008656,
+        "treeSha256": "29323493802cc7d75fd02a762066d7be8f0da1ac86e1fe1f8f44e2ea15d074ef",
+        "reparseDirectoryCount": 0
       },
       "install": {
         "arguments": [
@@ -38,26 +56,39 @@
         ],
         "acceptedExitCodes": [
           0
-        ]
+        ],
+        "sideEffects": {
+          "registryKeys": [
+            "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Deepseek Harness Desktop"
+          ],
+          "shortcuts": [
+            {
+              "specialFolder": "Desktop",
+              "name": "Deepseek Harness Desktop.lnk"
+            },
+            {
+              "specialFolder": "Programs",
+              "name": "Deepseek Harness Desktop.lnk"
+            }
+          ]
+        }
       },
+      "defaultRuntimeSelector": "desktop-official",
       "runtimeSelectors": [
-        {
-          "id": "controlled-fork",
-          "source": "controlled-core-receipt",
-          "package": {
-            "name": "@deepseek-ai/dsh",
-            "version": "0.1.1-rc.2"
-          }
-        },
         {
           "id": "desktop-official",
           "source": "desktop-managed-download",
-          "desktopVersion": "0.10.2",
+          "desktopVersion": "0.10.3",
           "root": "%APPDATA%\\io.github.hairyf.deepseek-harness-desktop\\dependencies\\dsh",
           "rootPackage": {
             "name": "deepseek-harness-pkg",
-            "version": "0.1.2-alpha.4",
-            "manifest": "package.json"
+            "version": "0.1.2-alpha.5",
+            "manifest": "package.json",
+            "manifestSha256": "bcfbd3f14511fa9470ea748303a8f9c6307121d2741990823089c5677291e8ba",
+            "fileCount": 10347,
+            "totalBytes": 134066533,
+            "treeSha256": "b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d",
+            "reparseDirectoryCount": 0
           },
           "package": {
             "name": "@deepseek-ai/dsh",
@@ -66,6 +97,8 @@
             "entrypoint": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js",
             "fileCount": 10,
             "treeSha256": "4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea",
+            "entrypointSize": 8021,
+            "entrypointSha256": "dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166",
             "releaseTag": "dsh-v0.1.2-rc.1",
             "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
           }
@@ -86,6 +119,11 @@
           "name": "dsh-tauri-panel-extension",
           "version": "0.6.7",
           "relativePath": "resources\\node_modules\\dsh-tauri-panel-extension"
+        },
+        {
+          "name": "dsh-tauri-panel-scheduler",
+          "version": "0.6.7",
+          "relativePath": "resources\\node_modules\\dsh-tauri-panel-scheduler"
         },
         {
           "name": "dsh-tauri-rightclick",
@@ -117,103 +155,12 @@
         }
       ]
     },
-    "core": {
-      "source": {
-        "repository": "https://github.com/cloga/deepseek-harness",
-        "pullRequest": 8,
-        "maintenanceBranch": "cloga-pi-ai-model-api",
-        "commit": "a772dbbde82780bff2b9394427e9f0a24cafa1d5"
-      },
-      "package": {
-        "name": "@deepseek-ai/dsh",
-        "version": "0.1.1-rc.2",
-        "packageManager": "pnpm@11.7.0"
-      },
-      "capabilities": [
-        "sandbox-same-and-narrower-no-op",
-        "pi-ai-oauth-json-record-normalization",
-        "pi-ai-per-model-api-routes"
-      ],
-      "build": {
-        "artifactDirectories": [
-          "dist\\npm",
-          "dist\\npm-vendor",
-          "dist\\npm-landlock"
-        ],
-        "publishOrderFile": "publish-order.txt",
-        "rootPackage": "@deepseek-ai/dsh",
-        "commands": [
-          [
-            "install",
-            "--frozen-lockfile"
-          ],
-          [
-            "run",
-            "build:official"
-          ],
-          [
-            "run",
-            "release:pack",
-            "--family",
-            "dsh",
-            "--out",
-            "dist/npm"
-          ],
-          [
-            "run",
-            "release:pack",
-            "--family",
-            "vendor",
-            "--out",
-            "dist/npm-vendor"
-          ],
-          [
-            "--dir",
-            "native/landlock-run/packages/entry",
-            "pack",
-            "--pack-destination",
-            "{sourceRoot}\\dist\\npm-landlock"
-          ]
-        ]
-      },
-      "install": {
-        "script": "release:install-local",
-        "attestedFiles": [
-          {
-            "role": "root-shim",
-            "path": "dsh.cmd"
-          },
-          {
-            "role": "npm-shim",
-            "path": "node_modules\\.bin\\dsh.cmd"
-          },
-          {
-            "role": "entrypoint",
-            "path": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js"
-          }
-        ]
-      },
-      "activation": {
-        "environmentVariable": "DSH_CLI_PATH",
-        "currentReceipt": "core-activation-current.json",
-        "operationReceipt": "core-activation.json",
-        "conflictShims": [
-          "dsh",
-          "dsh.cmd",
-          "dsh.ps1"
-        ],
-        "conflictShimSha256": {
-          "dsh": "5c0ebf041d893e13eeb0019cb4779fca3bf23c0be4de8bebec3004bfd897efa7",
-          "dsh.cmd": "7add58b833bfdf0696a6a6f08516997af3abb2b570f62a6588478cde78cd4888",
-          "dsh.ps1": "e2c07177f9f20a61ba98e55a4a21a3c6e295ae611fb8ef579bbc1b009e1d9c87"
-        }
-      }
-    },
     "copilotIntegration": {
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
         "pullRequest": 56,
-        "commit": "4e09519f40430b021a06871bf7ed7313bb9a292f",
+        "commit": "4e095196197570776515423929ddb72e8299c1db",
+        "reviewedHead": "4e095196197570776515423929ddb72e8299c1db",
         "mergeCommit": "473b8aa174eb47a323b026c098b73bf7d716772c"
       },
       "package": {
@@ -233,6 +180,7 @@
           "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz",
           "sha256": "7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1",
           "releaseTag": "v0.3.0-cloga.15",
+          "releaseCommit": "473b8aa174eb47a323b026c098b73bf7d716772c",
           "releaseImmutable": true,
           "checksumManifest": {
             "name": "SHA256SUMS",
@@ -298,6 +246,50 @@
       }
     }
   },
+  "companionSuite": {
+    "id": "windows-companion-suite",
+    "profile": "web",
+    "includeParameter": "IncludeCompanionSuite",
+    "members": [
+      {
+        "name": "dsh-github-copilot",
+        "identitySource": "components.copilotIntegration",
+        "requiredByBaseDeployment": true
+      },
+      {
+        "name": "dsh-cron",
+        "identitySource": "profile.optionalOverlays",
+        "requiredByBaseDeployment": false
+      },
+      {
+        "name": "dsh-playwright-host",
+        "identitySource": "profile.optionalOverlays",
+        "requiredByBaseDeployment": false
+      }
+    ],
+    "acceptance": {
+      "requiresHostRestart": true,
+      "copilot": {
+        "modelMarker": "DIRECT_COPILOT_OK",
+        "hostedSearchEvidenceProperty": "url_citation"
+      },
+      "cron": {
+        "requiredTools": [
+          "cron_list",
+          "cron_add",
+          "cron_remove"
+        ],
+        "smoke": "create-and-remove-disposable-task"
+      },
+      "playwright": {
+        "requiredTools": [
+          "mcp__playwright__browser_snapshot"
+        ],
+        "isolatedBrowser": true,
+        "target": "http://127.0.0.1:3080"
+      }
+    }
+  },
   "globalInstall": {
     "transactionId": "dsh-runtime-and-loaders",
     "packages": [
@@ -353,6 +345,7 @@
       "dsh-tauri",
       "dsh-tauri-panel",
       "dsh-tauri-panel-extension",
+      "dsh-tauri-panel-scheduler",
       "dsh-tauri-rightclick",
       "dsh-tauri-session",
       "dsh-tauri-ui",
@@ -376,6 +369,13 @@
       },
       {
         "name": "dsh-tauri-panel-extension",
+        "version": "0.6.7",
+        "source": "desktop-internal",
+        "materialize": false,
+        "preserve": true
+      },
+      {
+        "name": "dsh-tauri-panel-scheduler",
         "version": "0.6.7",
         "source": "desktop-internal",
         "materialize": false,
@@ -676,43 +676,57 @@
       "widerApprovalCount": 1
     },
     "runtimeSchema": {
-      "scope": "historical-diagnostic-only",
+      "scope": "desktop-official",
+      "root": "%APPDATA%\\io.github.hairyf.deepseek-harness-desktop\\dependencies\\dsh",
       "source": {
-        "repository": "github.com/cloga/deepseek-harness",
-        "pullRequest": 10,
-        "integrationCommit": "56fdc3fd3ed14c9de2430ec517d02a98038e1197",
-        "pullRequestHead": "aa625de7be0e25b869b8a85d4a5301e84541c51c"
+        "repository": "github.com/deepseek-ai/deepseek-harness",
+        "releaseTag": "dsh-v0.1.2-rc.1",
+        "commit": "a66e4702047846cdaa10c66c9d3df3951f5ea70d"
+      },
+      "wrapper": {
+        "name": "deepseek-harness-pkg",
+        "version": "0.1.2-alpha.5",
+        "manifest": "package.json",
+        "manifestSha256": "bcfbd3f14511fa9470ea748303a8f9c6307121d2741990823089c5677291e8ba",
+        "fileCount": 10347,
+        "totalBytes": 134066533,
+        "treeSha256": "b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d",
+        "reparseDirectoryCount": 0
       },
       "package": {
         "name": "@deepseek-ai/dsh",
-        "version": "0.1.2-alpha.1"
+        "version": "0.1.2-rc.1",
+        "manifest": "node_modules\\@deepseek-ai\\dsh\\package.json",
+        "entrypoint": "node_modules\\@deepseek-ai\\dsh\\lib\\bin.js",
+        "entrypointSize": 8021,
+        "entrypointSha256": "dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166"
       },
-      "requiredBuiltSymbols": [
+      "requiredBuiltFiles": [
         {
           "path": "node_modules\\@deepseek-ai\\dsh-tools\\lib\\index.js",
-          "symbol": "projectModelSchema(agent)"
+          "size": 151923,
+          "sha256": "598d5a54cfed9fdc497b8504aefb464efe97ff6c6918e68888481bb6e3dfbda9"
         },
         {
           "path": "node_modules\\@deepseek-ai\\dsh-tool-pwsh\\lib\\index.js",
-          "symbol": "modelSchema: (agent)"
+          "size": 20501,
+          "sha256": "c1dd78a35722e47eaeef57b33d15d4170f4bb27db2bee15da76a6d4ea9557e63"
+        },
+        {
+          "path": "node_modules\\@deepseek-ai\\dsh-sandbox\\lib\\index.js",
+          "size": 10754,
+          "sha256": "8994b3e497b0673eddd3640392de4671621aa8972846f4a66d0b1219decf3c03"
         }
       ],
       "behavior": {
-        "sandboxMode": "danger-full-access",
-        "approval": "disabled",
-        "maximumEvidenceAgeMinutes": 15,
-        "forbiddenRequiredFields": [
+        "escalationProperties": [
           "sandbox_permissions",
           "justification"
         ],
-        "successMarker": "PWSH_SCHEMA_OK",
-        "staleErrorPatterns": [
-          "equal escalation",
-          "sandbox_permissions.*required",
-          "justification.*required"
-        ]
+        "escalationPropertiesRequired": false,
+        "providerCompatibilityOwner": "dsh-github-copilot"
       },
-      "releaseStatus": "historical-diagnostic-only"
+      "releaseStatus": "official-desktop-managed"
     },
     "copilotToolSchema": {
       "provider": "github-copilot",
@@ -722,7 +736,7 @@
       },
       "source": {
         "pullRequest": 56,
-        "commit": "4e09519f40430b021a06871bf7ed7313bb9a292f",
+        "commit": "4e095196197570776515423929ddb72e8299c1db",
         "mergeCommit": "473b8aa174eb47a323b026c098b73bf7d716772c"
       },
       "forbiddenProperties": [
@@ -761,7 +775,9 @@
       ],
       "processNames": [
         "copilot2api",
-        "copilot2api.exe"
+        "copilot2api.exe",
+        "copilot2api-windows-amd64",
+        "copilot2api-windows-amd64.exe"
       ],
       "listenerPorts": [
         7777

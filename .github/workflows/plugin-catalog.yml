@@ -41,7 +41,7 @@ jobs:
           $env:DSH_RC1_ROOT = Join-Path $PWD 'dsh-rc1'
           node tools\validate-repository-content.mjs
           node tools\validate-plugin-catalog.mjs
-          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs
+          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs
           node --check tools\dsh-compat-check.mjs
           node --check tools\validate-plugin-catalog.mjs
           node --check tools\validate-repository-content.mjs

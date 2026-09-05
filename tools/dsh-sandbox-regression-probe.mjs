@@ -81,7 +81,10 @@ if (!packageRoot) {
             },
           },
           shellEnv: { collect: () => ({}) },
-          systemPrompt: { section: () => {} },
+          systemPrompt: {
+            getSectionOrder: () => 0,
+            section: () => {},
+          },
           tools: { register: value => { registered = value } },
         }
         await module.apply(context)
@@ -114,23 +117,23 @@ if (!packageRoot) {
         },
       }
       const ingredients = { approver, agent: {}, callId: 'ops-probe', toolName: 'pwsh' }
-      const same = await approveEscalation({
-        requestedMode: 'danger-full-access',
-        justification: 'same mode probe',
-        effectiveMode: 'danger-full-access',
-        subject: 'command',
-      }, ingredients)
-      if (same !== 'danger-full-access') throw new Error('same-mode-lowered-effective-policy')
-      if (approvals !== 0) throw new Error(`same-mode-requested-approval-${approvals}`)
-
-      const narrower = await approveEscalation({
-        requestedMode: 'workspace-write',
-        justification: 'narrower mode probe',
-        effectiveMode: 'danger-full-access',
-        subject: 'command',
-      }, ingredients)
-      if (narrower !== 'danger-full-access') throw new Error('narrower-request-lowered-effective-policy')
-      if (approvals !== 0) throw new Error(`narrower-requested-approval-${approvals}`)
+      const expectNonWideningRejected = async (requestedMode, label) => {
+        try {
+          await approveEscalation({
+            requestedMode,
+            justification: `${label} probe`,
+            effectiveMode: 'danger-full-access',
+            subject: 'command',
+          }, ingredients)
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('not strictly wider')) return
+          throw error
+        }
+        throw new Error(`${label}-request-was-not-rejected`)
+      }
+      await expectNonWideningRejected('danger-full-access', 'same-mode')
+      await expectNonWideningRejected('workspace-write', 'narrower-mode')
+      if (approvals !== 0) throw new Error(`non-widening-requested-approval-${approvals}`)
 
       const wider = await approveEscalation({
         requestedMode: 'danger-full-access',
@@ -145,8 +148,8 @@ if (!packageRoot) {
       process.stdout.write(JSON.stringify({
         status: 'passed',
         capability: 'sandbox-same-and-narrower-no-op',
-        sameMode: 'no-op',
-        narrowerMode: 'no-op',
+        sameMode: 'omitted-no-op-explicit-rejected',
+        narrowerMode: 'omitted-no-op-explicit-rejected',
         widerMode: 'approved-once',
         effectiveMode: 'danger-full-access',
         sameAndNarrowerApprovalCalls: 0,

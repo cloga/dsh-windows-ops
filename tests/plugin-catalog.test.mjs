@@ -134,6 +134,19 @@ test('rejects deployment lock identity drift', () => {
   assert.match(result.stderr, /does not match deployment lock/)
 })
 
+test('rejects companion suite membership and role drift', () => {
+  const paths = fixture(({ catalog }) => {
+    catalog.suites[0].members = [
+      { plugin: 'dsh-github-copilot', requiredByBaseDeployment: false },
+      { plugin: 'missing-plugin', requiredByBaseDeployment: false },
+    ]
+  })
+  const result = run(paths)
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /references unknown plugin missing-plugin/)
+  assert.match(result.stderr, /does not match deployment companionSuite/)
+})
+
 test('rejects mutable or mismatched baseline release evidence', () => {
   const paths = fixture(({ catalog }) => {
     const plugin = pluginById(catalog, 'dsh-github-copilot')

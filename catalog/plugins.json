@@ -38,6 +38,27 @@
       "description": "The exact component is part of a maintained deployment lock and its complete acceptance contract."
     }
   ],
+  "suites": [
+    {
+      "id": "windows-companion-suite",
+      "displayName": "Windows companion suite",
+      "profile": "web",
+      "members": [
+        {
+          "plugin": "dsh-github-copilot",
+          "requiredByBaseDeployment": true
+        },
+        {
+          "plugin": "dsh-cron",
+          "requiredByBaseDeployment": false
+        },
+        {
+          "plugin": "dsh-playwright-host",
+          "requiredByBaseDeployment": false
+        }
+      ]
+    }
+  ],
   "plugins": [
     {
       "id": "dsh-github-copilot",
@@ -53,6 +74,7 @@
         "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz",
         "sha256": "7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1",
         "releaseTag": "v0.3.0-cloga.15",
+        "releaseCommit": "473b8aa174eb47a323b026c098b73bf7d716772c",
         "releaseImmutable": true,
         "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/SHA256SUMS",
         "size": 149632,
@@ -61,7 +83,8 @@
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "4e09519f40430b021a06871bf7ed7313bb9a292f",
+        "commit": "4e095196197570776515423929ddb72e8299c1db",
+        "reviewedHead": "4e095196197570776515423929ddb72e8299c1db",
         "mergeCommit": "473b8aa174eb47a323b026c098b73bf7d716772c",
         "pullRequest": 56,
         "release": "0.3.0-cloga.15"
@@ -72,13 +95,13 @@
       "recommendation": "recommended",
       "validation": {
         "level": "baseline",
-        "verifiedAt": "2026-09-03",
-        "dshVersion": "controlled 0.1.1-rc.2 / 0.1.2-rc.1",
+        "verifiedAt": "2026-09-04",
+        "dshVersion": "official Desktop-managed 0.1.2-rc.1",
         "nodeVersion": "24.19.0",
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows Copilot deployment lock pins official Desktop 0.10.2, its seven Profile links, and its non-bundled panel placeholder together with the Copilot artifact, source commit, build commands, and required capabilities.",
+            "description": "The Windows Copilot deployment lock pins official Desktop 0.10.3, its eight Profile links, its non-bundled panel placeholder, and its exact Desktop-managed DSH runtime together with the Copilot artifact, source commit, build commands, and required capabilities.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -93,7 +116,7 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "The controlled rc.2 Desktop handoff, strict Remote codecs and OAuth JSON normalization, authorization fallback, leaf-only account model reconciliation, mixed per-model protocols, Copilot-scoped removal of unusable escalation fields, direct GitHub-hosted and Enterprise Copilot endpoints, dual-protocol inline search, Responses-only ctx.web search, default capability probing, and explicit probe bypass semantics are documented.",
+            "description": "The official Desktop-managed rc.1 runtime, strict Remote codecs and OAuth JSON normalization, authorization fallback, leaf-only account model reconciliation, mixed per-model protocols, Copilot-scoped removal of unusable escalation fields, direct GitHub-hosted and Enterprise Copilot endpoints, dual-protocol inline search, Responses-only ctx.web search, default capability probing, and explicit probe bypass semantics are documented.",
             "path": "docs/local-core-desktop-copilot.md"
           }
         ]

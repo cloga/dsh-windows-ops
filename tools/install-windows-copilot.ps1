@@ -3,8 +3,6 @@ param(
     [string]$ManifestPath,
     [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }),
     [string]$NpmGlobalRoot,
-    [string]$CoreInstallPrefix,
-    [string]$HarnessSourceRoot,
     [Alias('ProviderSourceRoot')]
     [string]$CopilotIntegrationSourceRoot,
     [Alias('ProviderArtifactPath')]
@@ -16,43 +14,39 @@ param(
     [string]$ModelCatalogPath,
     [string]$SearchSmokeResponsePath,
     [string]$ComposedConfigPath,
-    [string]$DshCliPath,
     [string]$DesktopExecutablePath,
     [string]$GatewayExecutablePath,
-    [ValidateSet('Check', 'Apply', 'Verify', 'Rollback')]
+    [ValidateSet('Check', 'Apply', 'Verify', 'Rollback', 'RemoveCompanionSuite')]
     [string]$Action = 'Check',
     [string]$OperationId,
     [switch]$RestartDesktop,
+    [switch]$IncludeCompanionSuite,
     [string[]]$AcknowledgeLiveSessionIds,
     [int]$TimeoutSeconds = 90,
-    [ValidateRange(1, 2147483)]
-    [int]$CoreInstallTimeoutSeconds = 900,
     [switch]$SkipRuntimeChecks,
     [switch]$Apply
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$npmGlobalRootWasExplicit = $PSBoundParameters.ContainsKey('NpmGlobalRoot')
 
 Import-Module (Join-Path $PSScriptRoot 'WindowsCopilotDeployment.psm1') -Force
 if (-not $ManifestPath) {
     $ManifestPath = Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'
 }
 $lock = Read-WindowsCopilotLock -Path $ManifestPath
-if (-not $DshCliPath -and -not $CoreInstallPrefix -and -not $npmGlobalRootWasExplicit) {
-    $DshCliPath = [Environment]::GetEnvironmentVariable(
-        [string]$lock.components.core.activation.environmentVariable,
-        'User'
-    )
-}
 if ($Apply) {
     if ($Action -notin @('Check', 'Apply')) {
-        throw '-Apply cannot be combined with -Action Verify or Rollback.'
+        throw '-Apply cannot be combined with -Action Verify, Rollback, or RemoveCompanionSuite.'
     }
     $Action = 'Apply'
 }
-
+if ($Action -eq 'RemoveCompanionSuite') {
+    Remove-WindowsCopilotCompanionSuite -Lock $lock -DshHome $DshHome `
+        -BackupRoot $BackupRoot -DesktopExecutablePath $DesktopExecutablePath |
+        ConvertTo-Json -Depth 20
+    exit 0
+}
 if (-not $NpmGlobalRoot) {
     $NpmGlobalRoot = (& npm root --global).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $NpmGlobalRoot) {
@@ -61,21 +55,23 @@ if (-not $NpmGlobalRoot) {
 }
 
 $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome $DshHome `
-    -NpmGlobalRoot $NpmGlobalRoot -HarnessSourceRoot $HarnessSourceRoot `
-    -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
-    -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath -DesktopArtifactPath $DesktopArtifactPath `
-    -GatewayArtifactPath $GatewayArtifactPath -CoreInstallPrefix $CoreInstallPrefix -BackupRoot $BackupRoot
+    -NpmGlobalRoot $NpmGlobalRoot -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
+    -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath `
+    -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
+    -BackupRoot $BackupRoot -IncludeCompanionSuite:$IncludeCompanionSuite
 
 if ($Action -eq 'Rollback') {
-    $rollback = Restore-WindowsCopilotForkCore -Lock $lock -BackupRoot $BackupRoot `
-        -NpmGlobalRoot $NpmGlobalRoot -OperationId $OperationId
+    $rollback = Restore-WindowsCopilotDeployment -Lock $lock -BackupRoot $BackupRoot `
+        -OperationId $OperationId -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds
     $restart = if ($RestartDesktop) {
         $desktop = Get-WindowsCopilotDesktopState -Lock $lock -Path $DesktopExecutablePath
         if (-not $desktop.valid) {
             throw 'Rollback completed, but the exact locked Desktop executable is unavailable for restart.'
         }
+
         Restart-WindowsCopilotDesktop -DesktopExecutablePath ([string]$desktop.path) `
-            -TimeoutSeconds $TimeoutSeconds -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds
+            -Lock $lock -TimeoutSeconds $TimeoutSeconds `
+            -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds
     } else {
         [pscustomobject]@{ status = 'not-requested' }
     }
@@ -88,17 +84,24 @@ if ($Action -eq 'Rollback') {
 }
 
 if ($Action -eq 'Verify') {
-    $verification = Test-WindowsCopilotForkCore -Lock $lock -NpmGlobalRoot $NpmGlobalRoot `
-        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
-        -DesktopRoot $(if ($DesktopExecutablePath) { Split-Path -Parent $DesktopExecutablePath } else { $null }) `
-        -DesktopExecutablePath $DesktopExecutablePath `
-        -SkipRuntimeChecks:$SkipRuntimeChecks
+    $desktop = Get-WindowsCopilotDesktopState -Lock $lock -Path $DesktopExecutablePath
+    $verification = Test-WindowsCopilotOfficialRuntime -Lock $lock `
+        -DesktopExecutablePath ([string]$desktop.path) -SkipRuntimeChecks:$SkipRuntimeChecks
+    $installation = Test-WindowsCopilotInstallation -Lock $lock -DshHome $DshHome `
+        -NpmGlobalRoot $NpmGlobalRoot -DesktopExecutablePath $DesktopExecutablePath `
+        -GatewayExecutablePath $GatewayExecutablePath -SkipRuntimeChecks:$SkipRuntimeChecks `
+        -IncludeCompanionSuite:$IncludeCompanionSuite
+    $acceptance = Test-WindowsCopilotVerificationAcceptance -Installation $installation `
+        -IncludeCompanionSuite:$IncludeCompanionSuite
     [pscustomobject]@{
         mode = 'verify'
-        valid = [bool]$verification.valid
-        forkCore = $verification
+        valid = [bool]($desktop.valid -and $verification.valid -and $acceptance.valid)
+        desktop = $desktop
+        officialRuntime = $verification
+        companionSuite = $installation.profile.companionSuite
+        acceptance = $acceptance
     } | ConvertTo-Json -Depth 20
-    if (-not $verification.valid) { exit 2 }
+    if (-not ($desktop.valid -and $verification.valid -and $acceptance.valid)) { exit 2 }
     exit 0
 }
 
@@ -106,15 +109,8 @@ if ($Action -eq 'Check') {
     $installation = Test-WindowsCopilotInstallation -Lock $lock -DshHome $DshHome `
         -NpmGlobalRoot $NpmGlobalRoot -ModelCatalogPath $ModelCatalogPath `
         -ComposedConfigPath $ComposedConfigPath -SearchSmokeResponsePath $SearchSmokeResponsePath `
-        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
-        -DesktopExecutablePath $DesktopExecutablePath `
-        -GatewayExecutablePath $GatewayExecutablePath `
-        -SkipRuntimeChecks:$SkipRuntimeChecks
-    $forkCore = Test-WindowsCopilotForkCore -Lock $lock -NpmGlobalRoot $NpmGlobalRoot `
-        -CoreInstallPrefix $CoreInstallPrefix -DshCliPath $DshCliPath `
-        -DesktopRoot $(if ($DesktopExecutablePath) { Split-Path -Parent $DesktopExecutablePath } else { $null }) `
-        -DesktopExecutablePath $DesktopExecutablePath `
-        -SkipRuntimeChecks:$SkipRuntimeChecks
+        -DesktopExecutablePath $DesktopExecutablePath -GatewayExecutablePath $GatewayExecutablePath `
+        -SkipRuntimeChecks:$SkipRuntimeChecks -IncludeCompanionSuite:$IncludeCompanionSuite
     $checks = [ordered]@{
         manifest = Test-WindowsCopilotLock -Lock $lock
         desktopArtifact = if ($DesktopArtifactPath) {
@@ -130,28 +126,38 @@ if ($Action -eq 'Check') {
             Test-CopilotIntegrationDeploymentContract -Lock $lock `
                 -ArtifactPath $CopilotIntegrationArtifactPath
         } else { [pscustomobject]@{ status = 'not-supplied'; requiredForApply = $true } }
+        officialRuntime = $installation.runtime.officialRuntime
         legacyGateway = $installation.migration.legacyGateway
         credential = $installation.profile.credential
         providerRoute = $installation.profile.providerRoute
         composedConfig = if ($ComposedConfigPath) {
             $installation.runtime.composedConfig
-        } else { [pscustomobject]@{ status = 'not-supplied'; command = @($lock.acceptance.composedConfig.command) } }
+        } else {
+            [pscustomobject]@{
+                status = 'not-supplied'
+                command = @($lock.acceptance.composedConfig.command)
+            }
+        }
         searchSmoke = if ($SearchSmokeResponsePath) {
             Test-WindowsCopilotSearchResponse -Lock $lock -ResponsePath $SearchSmokeResponsePath
-        } else { [pscustomobject]@{ status = 'manual-or-injectable'; contract = $lock.acceptance.searchSmoke } }
-        forkCore = $forkCore
+        } else {
+            [pscustomobject]@{
+                status = 'manual-or-injectable'
+                contract = $lock.acceptance.searchSmoke
+            }
+        }
         installation = $installation
+        companionSuite = $installation.profile.companionSuite
     }
-    [pscustomobject]@{ mode = 'check'; plan = $plan; checks = $checks } | ConvertTo-Json -Depth 20
+    [pscustomobject]@{ mode = 'check'; plan = $plan; checks = $checks } |
+        ConvertTo-Json -Depth 20
     exit 0
 }
 
 foreach ($required in @{
-    HarnessSourceRoot = $HarnessSourceRoot
     CopilotIntegrationSourceRoot = $CopilotIntegrationSourceRoot
     CopilotIntegrationArtifactPath = $CopilotIntegrationArtifactPath
     DesktopArtifactPath = $DesktopArtifactPath
-    CoreInstallPrefix = $CoreInstallPrefix
 }.GetEnumerator()) {
     if ([string]::IsNullOrWhiteSpace([string]$required.Value)) {
         throw "-$($required.Key) is required with -Apply."
@@ -159,11 +165,11 @@ foreach ($required in @{
 }
 
 Invoke-WindowsCopilotApply -Lock $lock -DshHome $DshHome -NpmGlobalRoot $NpmGlobalRoot `
-    -HarnessSourceRoot $HarnessSourceRoot -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
-    -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
+    -CopilotIntegrationSourceRoot $CopilotIntegrationSourceRoot `
+    -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath `
+    -DesktopArtifactPath $DesktopArtifactPath -GatewayArtifactPath $GatewayArtifactPath `
     -GatewayInstallRoot $GatewayInstallRoot -GatewayExecutablePath $GatewayExecutablePath `
-    -CoreInstallPrefix $CoreInstallPrefix `
-    -BackupRoot $BackupRoot `
-    -DesktopExecutablePath $DesktopExecutablePath -RestartDesktop:$RestartDesktop `
-    -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds -TimeoutSeconds $TimeoutSeconds -CoreInstallTimeoutSeconds $CoreInstallTimeoutSeconds |
-    ConvertTo-Json -Depth 20
+    -BackupRoot $BackupRoot -DesktopExecutablePath $DesktopExecutablePath `
+    -RestartDesktop:$RestartDesktop -IncludeCompanionSuite:$IncludeCompanionSuite `
+    -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds `
+    -TimeoutSeconds $TimeoutSeconds | ConvertTo-Json -Depth 20

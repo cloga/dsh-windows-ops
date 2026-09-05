@@ -81,7 +81,7 @@ Use each script's header and linked guide for full parameters.
 
 ## Security rules
 
-- Load credentials only from a user-designated trusted source into the current process or DSH credential service. Prefer one centralized `.env`; never print, copy between repositories, or commit values.
+- Use the existing GitHub CLI login; `.env` is optional, not a prerequisite. Load additional credentials only from a user-designated trusted source into the current process or DSH credential service; never print, copy between repositories, or commit values.
 - Start community MCP servers read-only; enable side effects only when explicitly required.
 - Computer Use, real-browser control, and vision plugins may expose screens, cookies, messages, passwords, and native applications. Recommendation policy must remain separate from functional validation.
 - Back up runtime/configuration changes, keep patches idempotent, and document rollback.

@@ -81,7 +81,7 @@ node tools\validate-plugin-catalog.mjs
 
 ## 安全铁律
 
-- 凭据只从用户明确指定的可信来源加载到当前进程或 DSH credential service；优先使用一个集中式 `.env`，绝不打印、跨仓库复制或提交其值。
+- GitHub 操作默认使用现有 CLI 登录，`.env` 可选，不是前置条件。额外凭据只从用户明确指定的可信来源加载到当前进程或 DSH credential service；绝不打印、跨仓库复制或提交其值。
 - 社区 MCP 默认 read-only；明确需要副作用后再启用写操作。
 - Computer Use、真实浏览器控制和视觉插件可能接触屏幕、Cookie、聊天、密码和本机应用；推荐状态必须与功能验证等级分开。
 - 所有 runtime/配置改动先备份，补丁必须幂等并提供回滚。

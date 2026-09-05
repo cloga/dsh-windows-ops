@@ -1330,31 +1330,69 @@ function Test-WindowsCopilotCompanionImports {
         }
     }
     $root = Resolve-DeploymentPath $RuntimeRoot
-    $entry = Join-Path $root 'node_modules\@deepseek-ai\dsh\lib\bin.js'
-    if (-not (Test-Path -LiteralPath $entry -PathType Leaf)) {
+    $installAnchor = Join-Path $root (
+        'node_modules\@deepseek-ai\dsh-app-boot\package.json'
+    )
+    $profileAnchor = Join-Path $ProfileRoot 'package.json'
+    if (-not (Test-Path -LiteralPath $installAnchor -PathType Leaf)) {
         return [pscustomobject]@{
             valid = $false
-            status = 'managed-loader-not-found'
-            failure = "Managed DSH loader is missing: '$entry'."
+            status = 'managed-loader-anchor-not-found'
+            failure = "Managed DSH loader anchor is missing: '$installAnchor'."
         }
     }
-    $profileName = Split-Path -Leaf $ProfileRoot
-    $dshHome = Split-Path -Parent (Split-Path -Parent $ProfileRoot)
-    $previousDshHome = $env:DSH_HOME
+    $anchors = ConvertTo-Json @($installAnchor, $profileAnchor) -Compress
+    $packages = ConvertTo-Json @(
+        'dsh-github-copilot',
+        'dsh-cron',
+        '@deepseek-ai/dsh-mcp-client'
+    ) -Compress
+    $expectedRoots = ConvertTo-Json ([ordered]@{
+        'dsh-github-copilot' = Join-Path $ProfileRoot (
+            'node_modules\dsh-github-copilot'
+        )
+        'dsh-cron' = Join-Path $ProfileRoot 'node_modules\dsh-cron'
+        '@deepseek-ai/dsh-mcp-client' = Join-Path $root (
+            'node_modules\@deepseek-ai\dsh-mcp-client'
+        )
+    }) -Compress
+    $script = "import { createRequire } from 'node:module'; import { realpathSync } from 'node:fs'; import { sep } from 'node:path'; import { pathToFileURL } from 'node:url'; const anchors = $anchors; const packages = $packages; const expectedRoots = $expectedRoots; for (const id of packages) { let resolved; for (const anchor of anchors) { try { resolved = createRequire(pathToFileURL(anchor)).resolve(id); break; } catch {} } if (!resolved) throw new Error('cannot resolve ' + id); const actual = realpathSync(resolved); const expected = realpathSync(expectedRoots[id]); if (actual !== expected && !actual.startsWith(expected + sep)) throw new Error('resolved outside expected package root: ' + id); await import(pathToFileURL(actual).href); }"
+    $probeRoot = Join-Path ([IO.Path]::GetTempPath()) (
+        'dsh-companion-import-' + [guid]::NewGuid().ToString('N')
+    )
+    $probeScript = Join-Path $probeRoot 'probe.mjs'
+    $stdoutPath = Join-Path $probeRoot 'stdout.log'
+    $stderrPath = Join-Path $probeRoot 'stderr.log'
+    $exitCode = -1
+    $output = @()
+    New-Item -ItemType Directory -Path $probeRoot -Force | Out-Null
     try {
-        $env:DSH_HOME = $dshHome
-        $output = @(& $node.Source $entry --profile $profileName `
-            --dump-config 2>&1)
-        $exitCode = $LASTEXITCODE
+        [IO.File]::WriteAllText(
+            $probeScript,
+            $script,
+            [Text.UTF8Encoding]::new($false)
+        )
+        $process = Start-Process -FilePath $node.Source `
+            -ArgumentList @($probeScript) -Wait -PassThru -NoNewWindow `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+        $exitCode = $process.ExitCode
+        if ($exitCode -ne 0) {
+            $output = @(Get-Content -LiteralPath $stderrPath `
+                -ErrorAction SilentlyContinue)
+        }
+    } catch {
+        $output = @($_.Exception.Message)
     } finally {
-        $env:DSH_HOME = $previousDshHome
+        Remove-Item -LiteralPath $probeRoot -Recurse -Force `
+            -ErrorAction SilentlyContinue
     }
     return [pscustomobject]@{
         valid = [bool]($exitCode -eq 0)
         status = if ($exitCode -eq 0) {
-            'managed-loader-verified'
+            'entrypoints-imported'
         } else {
-            'managed-loader-failed'
+            'entrypoint-import-failed'
         }
         packages = @(
             'dsh-github-copilot',
@@ -1403,8 +1441,10 @@ function Test-WindowsCopilotInstalledArtifactClosure {
             if (-not (Test-Path -LiteralPath $expectedRoot -PathType Container)) {
                 throw 'Locked package artifact has no package root.'
             }
-            $expected = Get-WindowsCopilotDirectoryTreeState -Path $expectedRoot
-            $installed = Get-WindowsCopilotDirectoryTreeState -Path $InstalledRoot
+            $expected = Get-WindowsCopilotDirectoryTreeState -Path $expectedRoot `
+                -ExcludeRelativePath 'node_modules'
+            $installed = Get-WindowsCopilotDirectoryTreeState -Path $InstalledRoot `
+                -ExcludeRelativePath 'node_modules'
             $valid = [bool](
                 [int]$installed.fileCount -eq [int]$expected.fileCount -and
                 [int64]$installed.totalBytes -eq [int64]$expected.totalBytes -and
@@ -1435,7 +1475,8 @@ function Install-WindowsCopilotLockedPackage {
         [Parameter(Mandatory)][string]$Version,
         [Parameter(Mandatory)][string]$Sha256,
         [Parameter(Mandatory)][string]$ExpectedName,
-        [Parameter(Mandatory)][long]$ExpectedSize
+        [Parameter(Mandatory)][long]$ExpectedSize,
+        [string]$DependencyNodeModulesRoot
     )
     Remove-ProfilePluginTarget -Target $Target -NodeModulesRoot $NodeModulesRoot
     $temporary = Join-Path ([IO.Path]::GetTempPath()) (
@@ -1469,6 +1510,14 @@ function Install-WindowsCopilotLockedPackage {
         -ExpectedName $ExpectedName -ExpectedSize $ExpectedSize
     if (-not $closure.valid) {
         throw "Installed locked package closure mismatch for '$Name'."
+    }
+    if ($DependencyNodeModulesRoot) {
+        $dependencyRoot = Resolve-DeploymentPath $DependencyNodeModulesRoot
+        if (-not (Test-Path -LiteralPath $dependencyRoot -PathType Container)) {
+            throw "Managed dependency root is missing for '$Name'."
+        }
+        New-Item -ItemType Junction -Path (Join-Path $Target 'node_modules') `
+            -Target $dependencyRoot | Out-Null
     }
     return [pscustomobject]@{
         name = $Name
@@ -3297,10 +3346,25 @@ function Get-WindowsCopilotDesktopState {
 }
 
 function Get-WindowsCopilotDirectoryTreeState {
-    param([Parameter(Mandatory)][string]$Path)
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [string[]]$ExcludeRelativePath
+    )
     Assert-NoReparsePointAncestor -Path $Path
     $root = [IO.Path]::GetFullPath($Path).TrimEnd('\') + '\'
-    $items = @(Get-ChildItem -LiteralPath $root -Recurse -Force)
+    $exclude = @($ExcludeRelativePath | ForEach-Object {
+        ([string]$_).Trim('\', '/').Replace('\', '/') + '/'
+    })
+    $items = @(Get-ChildItem -LiteralPath $root -Recurse -Force |
+        Where-Object {
+            $relative = $_.FullName.Substring($root.Length).Replace('\', '/')
+            @($exclude | Where-Object {
+                ($relative + '/').StartsWith(
+                    $_,
+                    [StringComparison]::OrdinalIgnoreCase
+                )
+            }).Count -eq 0
+        })
     if (@($items | Where-Object {
         [bool]($_.Attributes -band [IO.FileAttributes]::ReparsePoint)
     }).Count -gt 0) {
@@ -4897,7 +4961,10 @@ function Invoke-WindowsCopilotCompanionSuiteApplyLocked {
             Test-LockedArtifact -Path $candidate `
                 -Sha256 ([string]$member.artifact.sha256) `
                 -ExpectedName ([string]$member.artifact.name) `
-                -ExpectedSize ([long]$member.artifact.size) | Out-Null
+                -ExpectedSize ([long]$member.artifact.size) `
+                -DependencyNodeModulesRoot (
+                    Join-Path ([string]$compatibility.runtimeRoot) 'node_modules'
+                ) | Out-Null
             $member.suppliedPath = $candidate
         }
     }

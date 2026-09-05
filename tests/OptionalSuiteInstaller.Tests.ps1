@@ -69,6 +69,7 @@ Describe 'Optional companion suite compatibility wrapper' {
         $wrapper | Should -Match "Test-WindowsCopilotCompanionSuite"
         $wrapper | Should -Match "Invoke-WindowsCopilotCompanionSuiteApply"
         $wrapper | Should -Match "CopilotIntegrationArtifactPath"
+        $wrapper | Should -Match "ArtifactDirectory"
         $wrapper | Should -Not -Match "DesktopArtifactPath|NpmGlobalRoot|RestartDesktop"
     }
 
@@ -86,7 +87,11 @@ Describe 'Optional companion suite compatibility wrapper' {
                 Out-Null
             [ordered]@{
                 name = [string]$component.name
-                version = [string]$component.versions[0]
+                version = if ([string]$component.name -eq '@deepseek-ai/dsh') {
+                    [string]$component.versions[0]
+                } else {
+                    '4.0.2'
+                }
             } | ConvertTo-Json | Set-Content -LiteralPath $path -Encoding UTF8
         }
         foreach ($api in @($compatibility.requiredPluginApis)) {
@@ -118,7 +123,7 @@ Describe 'Optional companion suite compatibility wrapper' {
                 version = if ([string]$component.name -eq '@deepseek-ai/dsh') {
                     '9.9.9'
                 } else {
-                    [string]$component.versions[0]
+                    '4.0.2'
                 }
             } | ConvertTo-Json | Set-Content -LiteralPath $path -Encoding UTF8
         }
@@ -130,7 +135,92 @@ Describe 'Optional companion suite compatibility wrapper' {
         $result.status | Should -Be 'unsupported-core-or-plugin-api'
         @($result.reasons) | Should -Contain 'core-version-unsupported'
         @($result.reasons | Where-Object { $_ -like 'plugin-api-*-missing' }).Count |
-            Should -Be 3
+            Should -Be 4
+    }
+
+    It 'evaluates plugin peer ranges with SemVer prerelease rules and fails unknown syntax' {
+        InModuleScope WindowsCopilotDeployment {
+            Test-WindowsCopilotSemVerRange -Version '0.1.2-rc.1' `
+                -Range '0.1.1-rc.2 || 0.1.2-rc.1' | Should -BeTrue
+            Test-WindowsCopilotSemVerRange -Version '0.1.2-rc.1' `
+                -Range '>=0.1.1-rc.2 <0.1.2-0 || >=0.1.2-alpha.4 <0.1.2' |
+                Should -BeTrue
+            Test-WindowsCopilotSemVerRange -Version '0.1.2-beta.1' `
+                -Range '>=0.1.1 <0.2.0' | Should -BeFalse
+            Test-WindowsCopilotSemVerRange -Version '4.0.2' -Range '^4.0.1' |
+                Should -BeTrue
+            Test-WindowsCopilotSemVerRange -Version '5.0.0' -Range '^4.0.1' |
+                Should -BeFalse
+            {
+                Test-WindowsCopilotSemVerRange -Version '0.1.2-rc.1' `
+                    -Range 'workspace:*'
+            } | Should -Throw '*Unsupported SemVer range syntax*'
+        }
+    }
+
+    It 'loads companion entrypoints through the preserved Profile and runtime resolution' {
+        $profileRoot = Join-Path $TestDrive 'import-home\profiles\web'
+        $runtimeRoot = Join-Path $TestDrive 'import-runtime'
+        New-Item -ItemType Directory -Path $profileRoot, $runtimeRoot `
+            -Force | Out-Null
+        '{}' | Set-Content -LiteralPath (Join-Path $profileRoot 'package.json') `
+            -Encoding UTF8
+        '{}' | Set-Content -LiteralPath (Join-Path $runtimeRoot 'package.json') `
+            -Encoding UTF8
+        foreach ($package in @(
+            @{
+                Root = $profileRoot
+                Name = 'dsh-github-copilot'
+            },
+            @{
+                Root = $profileRoot
+                Name = 'dsh-cron'
+            },
+            @{
+                Root = $runtimeRoot
+                Name = '@deepseek-ai\dsh-mcp-client'
+            }
+        )) {
+            $target = Join-Path $package.Root "node_modules\$($package.Name)"
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+            '{"type":"module","main":"index.js"}' | Set-Content -LiteralPath (
+                Join-Path $target 'package.json'
+            ) -Encoding UTF8
+            'export default true;' | Set-Content -LiteralPath (
+                Join-Path $target 'index.js'
+            ) -Encoding UTF8
+        }
+        $loaderRoot = Join-Path $runtimeRoot (
+            'node_modules\@deepseek-ai\dsh'
+        )
+        New-Item -ItemType Directory -Path (Join-Path $loaderRoot 'lib') `
+            -Force | Out-Null
+        '{"type":"module"}' | Set-Content -LiteralPath (
+            Join-Path $loaderRoot 'package.json'
+        ) -Encoding UTF8
+        @'
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import path from 'node:path';
+const manifest = path.join(
+  process.env.DSH_HOME, 'profiles', 'web', 'package.json'
+);
+const profile = createRequire(pathToFileURL(manifest));
+for (const id of ['dsh-github-copilot', 'dsh-cron']) {
+  await import(pathToFileURL(profile.resolve(id)).href);
+}
+'@ | Set-Content -LiteralPath (Join-Path $loaderRoot 'lib\bin.js') `
+            -Encoding UTF8
+
+        InModuleScope WindowsCopilotDeployment -Parameters @{
+            FixtureProfile = $profileRoot
+            FixtureRuntime = $runtimeRoot
+        } {
+            $result = Test-WindowsCopilotCompanionImports `
+                -ProfileRoot $FixtureProfile -RuntimeRoot $FixtureRuntime
+            $result.valid | Should -BeTrue
+            $result.status | Should -BeExactly 'managed-loader-verified'
+        }
     }
 
     It 'keeps the plugin transaction free of Desktop Core global and restart mutations' {
@@ -149,10 +239,12 @@ Describe 'Optional companion suite compatibility wrapper' {
         }, $true))[0].Extent.Text
         $apply | Should -Not -Match 'Start-Process|Stop-WindowsCopilot|npm.+--global|legacyGateway'
         $apply | Should -Match 'Test-WindowsCopilotCompanionCompatibility'
+        $apply | Should -Match 'Test-WindowsCopilotCompanionArtifactCompatibility'
         $apply | Should -Match 'Restore-DeploymentSnapshots'
         $apply | Should -Match 'officialSnapshots'
         $apply | Should -Match 'Test-WindowsCopilotInstalledArtifactClosure'
         $apply | Should -Match 'Save-WindowsCopilotReleaseArtifact'
+        $module | Should -Match 'function Install-WindowsCopilotLockedPackage'
     }
 
     It 'restores the complete Profile when plugin-only package installation fails' {
@@ -169,6 +261,12 @@ Describe 'Optional companion suite compatibility wrapper' {
         "packages:`n  - ." | Set-Content -LiteralPath $workspacePath -Encoding UTF8
         "lockfileVersion: '9.0'" | Set-Content -LiteralPath $lockfilePath -Encoding UTF8
         'preserve: true' | Set-Content -LiteralPath $settingsPath -Encoding UTF8
+        New-Item -ItemType Directory -Path (
+            Join-Path $nodeModules 'unrelated'
+        ) -Force | Out-Null
+        'original unrelated bytes' | Set-Content -LiteralPath (
+            Join-Path $nodeModules 'unrelated\payload.txt'
+        )
         $beforeProfile = Get-Content -LiteralPath $profilePath -Raw
         $beforeWorkspace = Get-Content -LiteralPath $workspacePath -Raw
         $officialTargets = @{}
@@ -194,12 +292,28 @@ Describe 'Optional companion suite compatibility wrapper' {
                 }
             }
             Mock Save-WindowsCopilotReleaseArtifact {
+                New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) `
+                    -Force | Out-Null
+                'fixture artifact' | Set-Content -LiteralPath $Destination
+                'fixture checksum' | Set-Content -LiteralPath (
+                    Join-Path (Split-Path -Parent $Destination) 'SHA256SUMS'
+                )
                 [pscustomobject]@{ path = $Destination; valid = $true }
             }
             Mock Test-CopilotIntegrationDeploymentContract {
                 [pscustomobject]@{ valid = $true }
             }
+            Mock Test-WindowsCopilotCompanionArtifactCompatibility {
+                [pscustomobject]@{ valid = $true; plugins = @() }
+            }
+            Mock Get-WindowsCopilotLiveSessions { @() }
             Mock Invoke-PinnedPnpmCommands {
+                $changed = Join-Path $FixtureHome (
+                    'profiles\web\node_modules\unrelated\payload.txt'
+                )
+                New-Item -ItemType Directory -Path (Split-Path -Parent $changed) `
+                    -Force | Out-Null
+                'changed by pnpm' | Set-Content -LiteralPath $changed
                 throw 'fixture package-manager failure'
             }
 
@@ -221,7 +335,160 @@ Describe 'Optional companion suite compatibility wrapper' {
                 Should -BeExactly $officialTargets[$name]
         }
         Test-Path -LiteralPath (Join-Path $nodeModules 'unrelated') |
-            Should -BeFalse
+            Should -BeTrue
+        (Get-Content -LiteralPath (
+            Join-Path $nodeModules 'unrelated\payload.txt'
+        ) -Raw).Trim() | Should -BeExactly 'original unrelated bytes'
+    }
+
+    It 'does not overwrite an external Profile edit when artifact staging fails' {
+        $dshHome = Join-Path $TestDrive 'download-failure'
+        $profileRoot = Join-Path $dshHome ([string]$lock.profile.relativePath)
+        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
+        $profilePath = Join-Path $profileRoot 'package.json'
+        '{"name":"before-download"}' |
+            Set-Content -LiteralPath $profilePath -Encoding UTF8
+        $backupRoot = Join-Path $TestDrive 'download-failure-backups'
+
+        InModuleScope WindowsCopilotDeployment -Parameters @{
+            FixtureLock = $lock
+            FixtureHome = $dshHome
+            FixtureProfile = $profilePath
+            FixtureBackup = $backupRoot
+        } {
+            Mock Test-WindowsCopilotLock {}
+            Mock Test-WindowsCopilotCompanionCompatibility {
+                [pscustomobject]@{
+                    valid = $true
+                    runtimeRoot = (Join-Path $FixtureHome 'runtime')
+                    reasons = @()
+                }
+            }
+            Mock Save-WindowsCopilotReleaseArtifact {
+                '{"name":"external-edit"}' |
+                    Set-Content -LiteralPath $FixtureProfile -Encoding UTF8
+                throw 'fixture download failure'
+            }
+
+            {
+                Invoke-WindowsCopilotCompanionSuiteApplyLocked -Lock $FixtureLock `
+                    -DshHome $FixtureHome -BackupRoot $FixtureBackup
+            } | Should -Throw '*fixture download failure*'
+        }
+
+        (Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json).name |
+            Should -BeExactly 'external-edit'
+        Test-Path -LiteralPath $backupRoot | Should -BeFalse
+    }
+
+    It 'places and activates all three reviewed companions without replacing unrelated packages' {
+        $dshHome = Join-Path $TestDrive 'apply-success'
+        $profileRoot = Join-Path $dshHome ([string]$lock.profile.relativePath)
+        $nodeModules = Join-Path $profileRoot 'node_modules'
+        New-Item -ItemType Directory -Path $nodeModules -Force | Out-Null
+        $profilePath = Join-Path $profileRoot 'package.json'
+        '{"name":"fixture","dependencies":{"unrelated":"1.0.0"},"dsh":{"profile":{"bundles":["unrelated"]}}}' |
+            Set-Content -LiteralPath $profilePath -Encoding UTF8
+        "packages:`n  - ." | Set-Content -LiteralPath (
+            Join-Path $profileRoot 'pnpm-workspace.yaml'
+        ) -Encoding UTF8
+        "lockfileVersion: '9.0'" | Set-Content -LiteralPath (
+            Join-Path $profileRoot 'pnpm-lock.yaml'
+        ) -Encoding UTF8
+        New-Item -ItemType Directory -Path (
+            Join-Path $nodeModules 'unrelated'
+        ) -Force | Out-Null
+        'preserved' | Set-Content -LiteralPath (
+            Join-Path $nodeModules 'unrelated\payload.txt'
+        )
+        foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
+            $source = Join-Path $dshHome "desktop-resources\$name"
+            New-Item -ItemType Directory -Path $source -Force | Out-Null
+            New-Item -ItemType Junction -Path (Join-Path $nodeModules $name) `
+                -Target $source | Out-Null
+        }
+
+        InModuleScope WindowsCopilotDeployment -Parameters @{
+            FixtureLock = $lock
+            FixtureHome = $dshHome
+            FixtureBackup = (Join-Path $TestDrive 'apply-success-backups')
+        } {
+            Mock Test-WindowsCopilotLock {}
+            Mock Test-WindowsCopilotCompanionCompatibility {
+                [pscustomobject]@{
+                    valid = $true
+                    runtimeRoot = (Join-Path $FixtureHome 'runtime')
+                    reasons = @()
+                }
+            }
+            Mock Save-WindowsCopilotReleaseArtifact {
+                New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) `
+                    -Force | Out-Null
+                'fixture artifact' | Set-Content -LiteralPath $Destination
+                'fixture checksum' | Set-Content -LiteralPath (
+                    Join-Path (Split-Path -Parent $Destination) 'SHA256SUMS'
+                )
+                [pscustomobject]@{ path = $Destination; valid = $true }
+            }
+            Mock Test-CopilotIntegrationDeploymentContract {
+                [pscustomobject]@{ valid = $true }
+            }
+            Mock Test-WindowsCopilotCompanionArtifactCompatibility {
+                [pscustomobject]@{ valid = $true; plugins = @() }
+            }
+            Mock Get-WindowsCopilotLiveSessions {
+                @([pscustomobject]@{
+                    sessionId = 'session-approved'
+                    title = 'fixture session'
+                })
+            }
+            Mock Invoke-PinnedPnpmCommands {}
+            Mock Install-WindowsCopilotLockedPackage {
+                New-Item -ItemType Directory -Path $Target -Force | Out-Null
+                [ordered]@{ name = $Name; version = $Version } |
+                    ConvertTo-Json | Set-Content -LiteralPath (
+                        Join-Path $Target 'package.json'
+                    ) -Encoding UTF8
+                [pscustomobject]@{
+                    name = $Name
+                    version = $Version
+                    artifactPath = $ArtifactPath
+                    artifactSha256 = 'fixture'
+                    physical = $true
+                    closure = [pscustomobject]@{ valid = $true }
+                }
+            }
+            Mock Test-WindowsCopilotInstalledArtifactClosure {
+                [pscustomobject]@{ valid = $true }
+            }
+            Mock Test-WindowsCopilotCompanionImports {
+                [pscustomobject]@{
+                    valid = $true
+                    status = 'imported'
+                    failure = $null
+                }
+            }
+
+            Invoke-WindowsCopilotCompanionSuiteApplyLocked -Lock $FixtureLock `
+                -DshHome $FixtureHome -BackupRoot $FixtureBackup `
+                -AcknowledgeLiveSessionIds 'session-approved' | Out-Null
+            Should -Invoke Test-WindowsCopilotCompanionImports -Times 1
+        }
+
+        $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+        foreach ($name in @(
+            'dsh-github-copilot',
+            'dsh-cron',
+            'dsh-playwright-host'
+        )) {
+            [string]$profile.dependencies.$name | Should -Not -BeNullOrEmpty
+            @($profile.dsh.profile.bundles) | Should -Contain $name
+            Test-Path -LiteralPath (Join-Path $nodeModules "$name\package.json") |
+                Should -BeTrue
+        }
+        (Get-Content -LiteralPath (
+            Join-Path $nodeModules 'unrelated\payload.txt'
+        ) -Raw).Trim() | Should -BeExactly 'preserved'
     }
 
     It 'keeps exactly one required Copilot member and two optional overlays' {

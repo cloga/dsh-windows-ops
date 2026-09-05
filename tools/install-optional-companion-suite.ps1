@@ -3,18 +3,31 @@ param(
     [ValidateSet('Check', 'Apply', 'Verify', 'Remove')]
     [string]$Action = 'Check',
     [string]$Profile = 'web',
-    [string]$ManifestPath = $(Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json'),
-    [string]$DshHome = $(if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }),
+    [string]$ManifestPath,
+    [string]$DshHome,
     [Alias('ProviderArtifactPath')]
     [string]$CopilotIntegrationArtifactPath,
+    [string]$ArtifactDirectory,
     [string]$BackupRoot = $(Join-Path $env:LOCALAPPDATA 'dsh-windows-ops\deployment-backups'),
     [string]$RuntimeRoot,
+    [string[]]$AcknowledgeLiveSessionIds,
     [switch]$Apply
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+if ([string]::IsNullOrWhiteSpace($ManifestPath)) {
+    $ManifestPath = Join-Path $PSScriptRoot `
+        '..\deployments\windows-copilot.lock.json'
+}
+if ([string]::IsNullOrWhiteSpace($DshHome)) {
+    $DshHome = if ($env:DSH_HOME) {
+        $env:DSH_HOME
+    } else {
+        Join-Path $HOME '.dsh'
+    }
+}
 if ($Apply) {
     if ($Action -eq 'Remove') {
         throw '-Apply cannot be combined with -Action Remove.'
@@ -38,7 +51,7 @@ if ($Action -eq 'Check') {
         plan = Get-WindowsCopilotCompanionSuitePlan -Lock $lock -DshHome $DshHome `
             -RuntimeRoot $RuntimeRoot
         installation = Test-WindowsCopilotCompanionSuite -Lock $lock -DshHome $DshHome `
-            -RuntimeRoot $RuntimeRoot
+            -RuntimeRoot $RuntimeRoot -ArtifactDirectory $ArtifactDirectory
     } | ConvertTo-Json -Depth 20
     exit 0
 }
@@ -53,4 +66,7 @@ if ($Action -eq 'Verify') {
 Invoke-WindowsCopilotCompanionSuiteApply -Lock $lock -DshHome $DshHome `
     -BackupRoot $BackupRoot `
     -CopilotIntegrationArtifactPath $CopilotIntegrationArtifactPath `
-    -RuntimeRoot $RuntimeRoot | ConvertTo-Json -Depth 20
+    -ArtifactDirectory $ArtifactDirectory `
+    -RuntimeRoot $RuntimeRoot `
+    -AcknowledgeLiveSessionIds $AcknowledgeLiveSessionIds |
+    ConvertTo-Json -Depth 20

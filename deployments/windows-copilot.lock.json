@@ -259,11 +259,9 @@
         ]
       },
       "cordis": {
-        "name": "cordis",
-        "manifest": "node_modules\\cordis\\package.json",
-        "versions": [
-          "4.0.2"
-        ]
+        "name": "@deepseek-ai/cordis",
+        "manifest": "node_modules\\@deepseek-ai\\cordis\\package.json",
+        "range": "^4.0.1"
       },
       "requiredPluginApis": [
         {
@@ -277,6 +275,10 @@
         {
           "id": "web-tools",
           "manifest": "node_modules\\@deepseek-ai\\dsh-tool-web\\package.json"
+        },
+        {
+          "id": "mcp-client",
+          "manifest": "node_modules\\@deepseek-ai\\dsh-mcp-client\\package.json"
         }
       ]
     },

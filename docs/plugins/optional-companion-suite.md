@@ -30,17 +30,26 @@ It reads component names, versions, source identities, immutable artifact
 metadata, and the required three-member suite shape from
 `deployments/windows-copilot.lock.json`. The script carries no independent
 package pins. Compatibility is evaluated against the installed
-`@deepseek-ai/dsh` Core, Cordis, and required authorization, pi-ai provider, and
-Web-tool package APIs. The Desktop version is not part of this decision, so a
-newer Desktop patch does not block plugins when it still carries the reviewed
-Core/API set. Unknown Core, Cordis, or API combinations fail closed. Check mode
-does not access GitHub, install packages, or restart DSH.
+`@deepseek-ai/dsh` Core, `@deepseek-ai/cordis`, and required authorization,
+pi-ai provider, Web-tool, and MCP-client package APIs. Apply also reads each
+packed plugin's peer declarations and evaluates them with prerelease-aware
+SemVer rules; unsupported range syntax fails closed. The Desktop version is not
+part of this decision, so a newer Desktop patch does not block plugins when it
+still carries the reviewed Core/API set. Check mode does not access GitHub,
+install packages, or restart DSH.
 
 Use a non-default DSH home or Profile explicitly when needed:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 `
   -DshHome C:\path\to\.dsh -Profile web
+```
+
+To preflight exact artifacts already downloaded from their immutable Releases:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 `
+  -Action Check -ArtifactDirectory C:\path\to\locked-artifacts
 ```
 
 `-ManifestPath` can point to an explicitly reviewed copy of the deployment lock for replay or testing. Missing, malformed, mutable, or incomplete component metadata fails closed.
@@ -50,19 +59,33 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-c
 After reviewing the check result, first ensure the target Web Profile already exists and its official Desktop-managed runtime is healthy. The installer deliberately refuses to bootstrap an absent Profile because doing so can introduce unrelated package build approvals.
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 -Apply
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 `
+  -Apply -ArtifactDirectory C:\path\to\locked-artifacts `
+  -AcknowledgeLiveSessionIds <exact-running-session-id>
 ```
+
+Apply is a maintenance operation: it briefly parks the Web Profile's complete
+`node_modules` tree, so lazy imports in a running Host would be temporarily
+unavailable. Enumerate `session/list` immediately before Apply and obtain direct
+user approval for the exact running Session IDs. The installer fails closed
+when the live set and `-AcknowledgeLiveSessionIds` differ; pass no IDs only when
+the live set is empty. It still does not stop or restart Desktop or the Host.
 
 The plugin-only installer:
 
 1. verifies installed Core, Cordis, and required plugin API manifests;
-2. downloads each immutable Release artifact into the shared locked artifact store;
+2. stages each immutable Release artifact before taking a Profile snapshot;
 3. verifies every artifact's size and SHA-256 plus its pinned `SHA256SUMS` identity and matching entry;
 4. snapshots only the Web Profile manifest, lockfile, workspace policy, three package directories, and artifact targets;
 5. records and protects the eight official Desktop Profile links;
-6. installs and physically materializes the three exact artifacts, then verifies their complete byte closure;
-7. restores the complete snapshot if package installation, link preservation, or post-check fails;
-8. returns a JSON receipt without restarting Desktop or the Host.
+6. parks the complete original `node_modules`, lets pnpm update only the Profile
+   manifest/lockfile against a fresh layout, restores the original tree, and
+   physically materializes only the three exact packages;
+7. verifies all three packages' complete byte closure, activation entries, and
+   actual Copilot/Cron/MCP-client module imports through the restored
+   Profile/runtime dependency resolution;
+8. restores the complete snapshot if package installation, link preservation, or post-check fails;
+9. returns a JSON receipt without restarting Desktop or the Host.
 
 Run the same compatibility and installed-closure checks without mutation:
 

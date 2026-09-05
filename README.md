@@ -61,7 +61,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
-| 可选套件 | `tools/install-windows-copilot.ps1 -IncludeCompanionSuite` | 在一次基线 Apply/rollback 事务中包含锁定的 Copilot、Cron 与 Playwright Bundle；窄版 optional-suite wrapper 使用同一份 lock |
+| 可选套件 | `tools/install-optional-companion-suite.ps1` | 依据已安装 Core/Cordis/API 而非 Desktop 补丁版本，单独 Check/Apply/Verify 锁定的 Copilot、Cron 与 Playwright Bundle；不替换 Desktop/Core、全局包或运行中进程 |
 | 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |
 | 插件兼容 | `tools/dsh-compat-check.mjs` | 静态依赖清单和真实 host import probe |
 | 插件目录 | `tools/validate-plugin-catalog.mjs` | 验证 schema 关键约束、证据引用和基线一致性 |

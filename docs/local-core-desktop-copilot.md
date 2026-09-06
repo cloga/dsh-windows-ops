@@ -78,6 +78,14 @@ The fourteen required plugin capabilities are copied from its exported
 ACP subagents remain separate; see
 [`copilot-acp-subagent.md`](copilot-acp-subagent.md).
 
+## Core 0.1.3-alpha.1 readiness record
+
+[`core-0.1.3-alpha.1-desktop-cutover.md`](core-0.1.3-alpha.1-desktop-cutover.md)
+records reviewed companion-plugin evidence and local risk reduction. It is a
+non-executable readiness record: the cutover remains blocked until an official
+Desktop-managed target and the complete lock/catalog/fixture/test baseline are
+updated together. It does not change the locked baseline on this page.
+
 ## Check first
 
 The one-command check is read-only:

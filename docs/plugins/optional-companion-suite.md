@@ -97,6 +97,11 @@ The authoritative deployment lock owns the complete pinned set. Top-level `compa
 
 ## Activation safety
 
+The [Core `0.1.3-alpha.1` Desktop readiness record](../core-0.1.3-alpha.1-desktop-cutover.md)
+documents source compatibility and local risk reduction, but explicitly blocks
+cutover until a complete official Desktop lock update exists. Companion-suite
+installation alone is not evidence that the whole Profile is alpha.1-safe.
+
 Installation only stages Profile changes. The script never stops or restarts Desktop or DSH. Before activation:
 
 1. inspect `dsh --profile web --dump-config`;

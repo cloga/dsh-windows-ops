@@ -1677,8 +1677,10 @@ It 'removes fork-only inputs and mutations from the installer and Apply implemen
         $apply | Should -Match '\$restartAcknowledgements'
         $moduleText |
             Should -Not -Match 'components\.core|DSH_CLI_PATH|CoreInstall|ForkCore|HarnessSourceRoot'
-        $moduleText | Should -Match 'profile-unknown-dependency'
-        $moduleText | Should -Match '\$unknownOverlayNames\.Count -eq 0'
+        $moduleText | Should -Not -Match "driftReasons\.Add\('profile-unknown-dependency'\)"
+        $moduleText | Should -Not -Match '\$unknownOverlayNames\.Count -eq 0'
+        $moduleText | Should -Match "driftReasons\.Add\('profile-known-incompatible-plugin-active'\)"
+        $moduleText | Should -Match '@\(\$pluginPolicy\.blocking\)\.Count -eq 0'
         Get-Command -Module WindowsCopilotDeployment |
             Select-Object -ExpandProperty Name |
             Should -Not -Contain 'Enable-WindowsCopilotForkCore'

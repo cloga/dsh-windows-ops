@@ -98,8 +98,11 @@ Check mode validates the lock, official Desktop, Desktop-managed wrapper/tree/
 entrypoint, all eight official Profile links and the non-bundled placeholder,
 the direct Copilot package and composed profiles, credential-record metadata,
 the reference-free route, and the exact active Desktop PID owning IPv4
-`127.0.0.1:3080`. An absent runtime, unknown package, wrong path, stale process,
-non-owning PID, IPv6-only listener, or legacy gateway fails closed.
+`127.0.0.1:3080`. An absent managed runtime, managed identity/payload drift,
+wrong path, stale process, non-owning PID, IPv6-only listener, or legacy gateway
+fails closed. User-installed plugins are reported separately as unmanaged
+inventory and warnings; they never contribute managed-baseline health. An exact
+active target-Core denylist match remains a cutover blocker.
 
 For both `web` and `headless`, check mode compares the Copilot dependency in
 `package.json`, the matching `pnpm-lock.yaml` importer and tarball, the installed
@@ -196,10 +199,12 @@ Acceptance requires all of the following:
 
 ## Optional Web-profile overlays
 
-`dsh-playwright-host@0.1.2` and `dsh-cron@0.4.1` remain optional Web overlays.
-Select both atomically with `-IncludeCompanionSuite`; they are not silently
-required by the base Windows Copilot deployment. `dsh-github-copilot` remains
-required and cannot be removed by optional-overlay removal. See
+`dsh-playwright-host@0.1.2` and `dsh-cron@0.4.1` remain reviewed optional Web
+overlays. When `-IncludeCompanionSuite` selects them, their exact source,
+artifact, closure, and bundle state are strict gates. When not selected, a
+configured-source mismatch is inventory/warning data rather than base-baseline
+health. `dsh-github-copilot` remains required and cannot be removed by
+optional-overlay removal. See
 [`computer-use.md`](plugins/computer-use.md) and
 [`scheduling.md`](plugins/scheduling.md).
 

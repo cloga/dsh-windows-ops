@@ -98,6 +98,26 @@ export function validateRepositoryContent(root = defaultRoot) {
   expect(desktop?.internalPlugins?.some(entry => entry.name === 'dsh-tauri-panel-scheduler' && entry.version === '0.6.7'), 'Desktop scheduler Profile link is missing')
   expect(lock.profile?.requiredBundles?.includes('dsh-tauri-panel-scheduler'), 'Desktop scheduler bundle is missing')
   expect(lock.profile?.plugins?.some(entry => entry.name === 'dsh-tauri-panel-scheduler' && entry.source === 'desktop-internal'), 'Desktop scheduler plugin contract is missing')
+  const pluginPolicy = lock.profile?.pluginPolicy
+  expect(pluginPolicy?.unmanagedDisposition === 'warning', 'unmanaged plugins must be inventory warnings')
+  const alphaPolicy = pluginPolicy?.targets?.find(entry => entry.core?.name === '@deepseek-ai/dsh'
+    && entry.core?.version === '0.1.3-alpha.1'
+    && entry.core?.commit === 'd347e703908d0406b7a7ef80e3a0e594d86b2215')
+  expect(alphaPolicy !== undefined, 'Core 0.1.3-alpha.1 plugin policy target is missing')
+  const expectedPolicyRules = new Map([
+    ['dsh-better-sidebar', ['0.18.0', 'deny-active']],
+    ['dsh-tauri-worktree', ['0.6.7', 'deny-active']],
+    ['dsh-tauri-panel-scheduler', ['0.6.7', 'deny-active']],
+    ['dsh-tauri-pet', ['0.1.0', 'require-disabled']],
+  ])
+  expect(alphaPolicy?.rules?.length === expectedPolicyRules.size, 'alpha.1 plugin denylist size differs')
+  for (const [name, [version, disposition]] of expectedPolicyRules) {
+    const rule = alphaPolicy?.rules?.find(entry => entry.name === name)
+    expect(rule?.version === version, `${name} policy version differs`)
+    expect(rule?.disposition === disposition, `${name} policy disposition differs`)
+    expect(typeof rule?.reason === 'string' && rule.reason.length > 0, `${name} policy reason is missing`)
+    expect(Array.isArray(rule?.entryIds) && rule.entryIds.length > 0, `${name} policy entryIds are missing`)
+  }
   const runtimeSchema = lock.acceptance?.runtimeSchema
   expect(runtimeSchema?.scope === 'desktop-official', 'runtime schema must attest the official Desktop runtime')
   expect(runtimeSchema?.root === official?.root, 'runtime schema root differs from the Desktop selector')

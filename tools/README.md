@@ -25,6 +25,13 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Smoke-test the existing DSH Web GUI from any coding session | `python tools\dsh-web-smoke.py --expect-text "New Session"` | Browser read/isolated profile only | Screenshot plus JSON summary with document, Console, request, and HTTP evidence |
 | Move a session safely | `node tools\dsh-move-session.mjs ...` | Session data | Backup and post-write verification |
 
+`Test-WindowsCopilotInstallation` reports plugin policy separately under
+`profile.pluginInventory`, `profile.pluginWarnings`, and `profile.pluginBlocks`.
+Locked managed components remain fail-closed. Unmanaged dependencies are
+inventory-only and cannot make the baseline healthy; an exact active match in
+the target-Core denylist adds `profile-known-incompatible-plugin-active` and
+blocks that cutover.
+
 ## Tool families
 
 - **Deployment:** `install-windows-copilot.ps1`, `WindowsCopilotDeployment.psm1`, `enable-copilot-search-vision.ps1`

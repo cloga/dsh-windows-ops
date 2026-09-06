@@ -357,6 +357,57 @@
       "requireManifestLockInstalledMatch": true,
       "checkModeMutates": false
     },
+    "pluginPolicy": {
+      "unmanagedDisposition": "warning",
+      "targets": [
+        {
+          "core": {
+            "name": "@deepseek-ai/dsh",
+            "version": "0.1.3-alpha.1",
+            "commit": "d347e703908d0406b7a7ef80e3a0e594d86b2215"
+          },
+          "rules": [
+            {
+              "name": "dsh-better-sidebar",
+              "version": "0.18.0",
+              "disposition": "deny-active",
+              "reason": "removed-session-persistence-and-assistant-chunk-apis",
+              "entryIds": [
+                "better-sidebar"
+              ]
+            },
+            {
+              "name": "dsh-tauri-worktree",
+              "version": "0.6.7",
+              "disposition": "deny-active",
+              "reason": "removed-session-events-and-seed-length-apis",
+              "entryIds": [
+                "dsh-tauri-worktree"
+              ]
+            },
+            {
+              "name": "dsh-tauri-panel-scheduler",
+              "version": "0.6.7",
+              "disposition": "deny-active",
+              "reason": "removed-agent-session-events-api",
+              "entryIds": [
+                "dsh-tauri-panel-scheduler"
+              ]
+            },
+            {
+              "name": "dsh-tauri-pet",
+              "version": "0.1.0",
+              "disposition": "require-disabled",
+              "reason": "target-core-compatibility-unproven",
+              "entryIds": [
+                "dsh-tauri-pet-skills",
+                "dsh-tauri-pet"
+              ]
+            }
+          ]
+        }
+      ]
+    },
     "legacyPhysicalPlugins": [
       {
         "name": "dsh-tauri",

@@ -87,6 +87,7 @@ Use each script's header and linked guide for full parameters.
 - Back up runtime/configuration changes, keep patches idempotent, and document rollback.
 - Before any Desktop/Host restart, query live Sessions; require direct acknowledgement before interrupting any running Session.
 - Preserve and attest Desktop's eight official 0.6.7 Profile links, including `dsh-tauri-panel-scheduler`, and the non-bundled panel placeholder; do not replace them with guessed registry packages.
+- Govern plugins in three layers: locked managed baseline drift remains fail-closed; user-installed plugins are inventory/warnings only and never contribute baseline health; only an exact target-Core denylist match that is active or ambiguous blocks cutover.
 
 See [`docs/security-notes.md`](docs/security-notes.md).
 

@@ -139,6 +139,8 @@ function Test-WindowsCopilotLock {
         'profile.requiredBundles',
         'profile.coherence.copilotProfiles',
         'profile.optionalOverlays',
+        'profile.pluginPolicy.unmanagedDisposition',
+        'profile.pluginPolicy.targets',
         'companionSuite.id',
         'companionSuite.profile',
         'companionSuite.includeParameter',
@@ -676,6 +678,44 @@ function Test-WindowsCopilotLock {
             'ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf' -or
         [int]$cronArtifact.checksumManifest.size -ne 85) {
         throw 'Optional dsh-cron artifact must match the immutable v0.4.1 Release and SHA256SUMS.'
+    }
+
+    $pluginPolicy = $Lock.profile.pluginPolicy
+    if ([string]$pluginPolicy.unmanagedDisposition -cne 'warning') {
+        throw 'Profile pluginPolicy must classify unmanaged plugins as warnings.'
+    }
+    $policyTargets = @($pluginPolicy.targets)
+    if ($policyTargets.Count -ne 1 -or
+        [string]$policyTargets[0].core.name -cne '@deepseek-ai/dsh' -or
+        [string]$policyTargets[0].core.version -cne '0.1.3-alpha.1' -or
+        [string]$policyTargets[0].core.commit -cne 'd347e703908d0406b7a7ef80e3a0e594d86b2215') {
+        throw 'Profile pluginPolicy must identify the exact reviewed Core 0.1.3-alpha.1 target.'
+    }
+    $expectedPolicyRules = [ordered]@{
+        'dsh-better-sidebar' = [ordered]@{ version = '0.18.0'; disposition = 'deny-active'; entryIds = @('better-sidebar') }
+        'dsh-tauri-worktree' = [ordered]@{ version = '0.6.7'; disposition = 'deny-active'; entryIds = @('dsh-tauri-worktree') }
+        'dsh-tauri-panel-scheduler' = [ordered]@{ version = '0.6.7'; disposition = 'deny-active'; entryIds = @('dsh-tauri-panel-scheduler') }
+        'dsh-tauri-pet' = [ordered]@{ version = '0.1.0'; disposition = 'require-disabled'; entryIds = @('dsh-tauri-pet-skills', 'dsh-tauri-pet') }
+    }
+    $policyRules = @($policyTargets[0].rules)
+    if ($policyRules.Count -ne $expectedPolicyRules.Count) {
+        throw 'Profile pluginPolicy denylist must contain exactly the reviewed compatibility rules.'
+    }
+    foreach ($name in $expectedPolicyRules.Keys) {
+        $expected = $expectedPolicyRules[$name]
+        $matches = @($policyRules | Where-Object { [string]$_.name -ceq $name })
+        if ($matches.Count -ne 1 -or
+            [string]$matches[0].version -cne [string]$expected.version -or
+            [string]$matches[0].disposition -cne [string]$expected.disposition -or
+            [string]::IsNullOrWhiteSpace([string]$matches[0].reason) -or
+            @($matches[0].entryIds).Count -ne @($expected.entryIds).Count) {
+            throw "Profile pluginPolicy rule '$name' is incomplete or invalid."
+        }
+        foreach ($entryId in @($expected.entryIds)) {
+            if (@($matches[0].entryIds | Where-Object { [string]$_ -ceq $entryId }).Count -ne 1) {
+                throw "Profile pluginPolicy rule '$name' omits entry '$entryId'."
+            }
+        }
     }
 
     $allowBuilds = @($Lock.profile.allowBuilds)
@@ -4688,6 +4728,173 @@ function Get-WindowsCopilotOptionalOverlayStates {
     })
 }
 
+function Get-WindowsCopilotComposedEntryActivation {
+    [CmdletBinding()]
+    param(
+        [string]$Content,
+        [Parameter(Mandatory)][string[]]$EntryIds
+    )
+    if ([string]::IsNullOrWhiteSpace($Content)) { return 'ambiguous' }
+    $lines = @($Content -split "`r?`n")
+    $states = [Collections.Generic.List[string]]::new()
+    foreach ($entryId in $EntryIds) {
+        $escaped = [regex]::Escape($entryId)
+        $starts = @()
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match ("^(?<indent>\s*)-\s+id\s*:\s*['""]?" + $escaped + "['""]?\s*$")) {
+                $starts += [pscustomobject]@{ index = $i; indent = $matches['indent'].Length }
+            }
+        }
+        if ($starts.Count -eq 0) { $states.Add('missing'); continue }
+        if ($starts.Count -gt 1) { $states.Add('duplicate') }
+        foreach ($start in $starts) {
+            $end = $lines.Count
+            for ($j = $start.index + 1; $j -lt $lines.Count; $j++) {
+                if ($lines[$j] -match '^\s*$') { continue }
+                if ($lines[$j] -match '^(?<indent>\s*)\S' -and $matches['indent'].Length -le $start.indent) {
+                    $end = $j
+                    break
+                }
+            }
+            $directIndent = $start.indent + 2
+            $rowDisabled = $false
+            for ($j = $start.index + 1; $j -lt $end; $j++) {
+                if ($lines[$j] -match '^(?<indent>\s*)disabled:\s*true\s*$' -and
+                    $matches['indent'].Length -eq $directIndent) {
+                    $rowDisabled = $true
+                    break
+                }
+            }
+            $states.Add($(if ($rowDisabled) { 'disabled' } else { 'active' }))
+        }
+    }
+    if ($states -contains 'active') { return 'active' }
+    if ($states -contains 'duplicate') { return 'ambiguous' }
+    if (@($states | Where-Object { $_ -eq 'missing' }).Count -eq $EntryIds.Count) { return 'absent' }
+    if ($states -contains 'missing') { return 'ambiguous' }
+    return 'disabled'
+}
+
+function Get-WindowsCopilotProfilePluginPolicyState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$ProfileRoot,
+        $Profile,
+        [string]$TargetCoreVersion,
+        [string]$TargetCoreCommit,
+        [string]$ComposedConfigContent
+    )
+    $dependencies = if ($Profile) { Get-LockProperty -InputObject $Profile -Name 'dependencies' } else { $null }
+    $dependencyNames = if ($dependencies) {
+        @($dependencies.PSObject.Properties | ForEach-Object { [string]$_.Name })
+    } else { @() }
+    $profileDsh = if ($Profile) { Get-LockProperty -InputObject $Profile -Name 'dsh' } else { $null }
+    $profileSpec = if ($profileDsh) { Get-LockProperty -InputObject $profileDsh -Name 'profile' } else { $null }
+    $bundleNames = if ($profileSpec) { @(Get-LockProperty -InputObject $profileSpec -Name 'bundles') } else { @() }
+    $managedNames = @(
+        @($Lock.profile.plugins.name | ForEach-Object { [string]$_ }) +
+        @($Lock.profile.requiredBundles | ForEach-Object { [string]$_ }) |
+            Select-Object -Unique
+    )
+    $optionalNames = @($Lock.profile.optionalOverlays.name | ForEach-Object { [string]$_ })
+    $names = @(@($dependencyNames) + @($bundleNames) | Select-Object -Unique)
+    $nodeModulesRoot = [IO.Path]::GetFullPath((Join-Path $ProfileRoot 'node_modules')).TrimEnd('\') + '\'
+    $inventory = foreach ($name in $names) {
+        $validPackageName = [regex]::IsMatch(
+            $name,
+            '^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$',
+            [Text.RegularExpressions.RegexOptions]::CultureInvariant
+        )
+        $manifestPath = $null
+        if ($validPackageName) {
+            $packageRoot = [IO.Path]::GetFullPath((Join-Path $nodeModulesRoot $name.Replace('/', '\')))
+            if ($packageRoot.StartsWith($nodeModulesRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                $manifestPath = Join-Path $packageRoot 'package.json'
+            }
+        }
+        $version = $null
+        if ($manifestPath -and (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            try { $version = [string](Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json).version } catch { }
+        }
+        $declared = $dependencyNames -contains $name
+        $bundled = $bundleNames -contains $name
+        [pscustomobject]@{
+            name = $name
+            version = $version
+            ownership = if ($managedNames -contains $name) { 'managed-baseline' }
+                elseif ($optionalNames -contains $name) { 'managed-optional' }
+                else { 'unmanaged' }
+            validPackageName = [bool]$validPackageName
+            declared = [bool]$declared
+            installed = [bool]$version
+            bundlePresent = [bool]$bundled
+            activation = if ($bundled) { 'active' } elseif ($version) { 'installed-only' } else { 'declared-only' }
+        }
+    }
+    $warnings = @($inventory | Where-Object ownership -eq 'unmanaged' | ForEach-Object {
+        [pscustomobject]@{
+            name = $_.name
+            version = $_.version
+            code = if ($_.validPackageName) { 'unmanaged-plugin-inventory' } else { 'unmanaged-plugin-invalid-name' }
+            message = if ($_.validPackageName) {
+                "Unmanaged plugin '$($_.name)' does not contribute to managed baseline health."
+            } else {
+                "Unmanaged plugin declaration '$($_.name)' is not a valid package name; no package path was read."
+            }
+        }
+    })
+    $policy = Get-LockProperty -InputObject $Lock.profile -Name 'pluginPolicy'
+    $target = @($policy.targets | Where-Object {
+        [string]$_.core.name -ceq '@deepseek-ai/dsh' -and
+        [string]$_.core.version -ceq $TargetCoreVersion -and
+        [string]$_.core.commit -ceq $TargetCoreCommit
+    } | Select-Object -First 1)
+    $blocking = [Collections.Generic.List[object]]::new()
+    if ($target.Count -eq 1) {
+        foreach ($rule in @($target[0].rules)) {
+            $item = @($inventory | Where-Object { $_.name -ceq [string]$rule.name } | Select-Object -First 1)
+            if ($item.Count -eq 0 -or [string]$item[0].version -cne [string]$rule.version) { continue }
+            $activation = if ([string]::IsNullOrWhiteSpace($ComposedConfigContent)) {
+                if ($item[0].bundlePresent) { 'ambiguous' } else { 'inactive' }
+            } else {
+                $observed = Get-WindowsCopilotComposedEntryActivation `
+                    -Content $ComposedConfigContent -EntryIds @($rule.entryIds)
+                if ($observed -eq 'absent') { 'inactive' } else { $observed }
+            }
+            $item[0].activation = $activation
+            $isBlocked = switch ([string]$rule.disposition) {
+                'deny-active' { $activation -in @('active', 'ambiguous') }
+                'require-disabled' { $activation -in @('active', 'ambiguous') }
+                default { $true }
+            }
+            if ($isBlocked) {
+                $blocking.Add([pscustomobject]@{
+                    name = [string]$rule.name
+                    version = [string]$rule.version
+                    disposition = [string]$rule.disposition
+                    activation = $activation
+                    reason = [string]$rule.reason
+                })
+            }
+        }
+    }
+    return [pscustomobject]@{
+        unmanagedDisposition = [string]$policy.unmanagedDisposition
+        inventory = @($inventory)
+        warnings = @($warnings)
+        target = if ($target.Count -eq 1) { [pscustomobject]@{
+            name = [string]$target[0].core.name
+            version = [string]$target[0].core.version
+            commit = [string]$target[0].core.commit
+        } } else { $null }
+        status = if ($target.Count -eq 0) { 'not-evaluated' }
+            elseif ($blocking.Count -gt 0) { 'blocked-denylist' }
+            else { 'allowed' }
+        blocking = @($blocking)
+    }
+}
+
 function Test-WindowsCopilotVerificationAcceptance {
     [CmdletBinding()]
     param(
@@ -5846,6 +6053,7 @@ function Test-WindowsCopilotInstallation {
         modelCount = @($providerRoute.availableModels).Count
     }
 
+    $composedContent = $null
     try {
         if ($ComposedConfigPath) {
             $composedContent = Get-Content -LiteralPath $ComposedConfigPath -Raw -Encoding UTF8
@@ -5876,6 +6084,7 @@ function Test-WindowsCopilotInstallation {
                 $output = & $entryPath @arguments 2>&1 | Out-String
             }
             if ($LASTEXITCODE -ne 0) { throw 'active runtime dump-config failed.' }
+            $composedContent = $output
             $composedCheck = Get-WindowsCopilotComposedConfigState -Lock $Lock -Content $output
             $composedCheck | Add-Member -NotePropertyName execution -NotePropertyValue ([pscustomobject]@{
                 selector = $activeRuntime.selector
@@ -5893,6 +6102,15 @@ function Test-WindowsCopilotInstallation {
             managedConfigValid = $false
         }
     }
+
+    $runtimeSelector = @($Lock.components.desktop.runtimeSelectors | Where-Object {
+        [string]$_.id -ceq [string]$Lock.components.desktop.defaultRuntimeSelector
+    } | Select-Object -First 1)
+    $pluginPolicy = Get-WindowsCopilotProfilePluginPolicyState -Lock $Lock `
+        -ProfileRoot $profileRoot -Profile $profile `
+        -TargetCoreVersion $(if ($runtimeSelector.Count -eq 1) { [string]$runtimeSelector[0].package.version } else { '' }) `
+        -TargetCoreCommit $(if ($runtimeSelector.Count -eq 1) { [string]$runtimeSelector[0].package.commit } else { '' }) `
+        -ComposedConfigContent $composedContent
 
     try {
         $searchCheck = if ($SearchSmokeResponsePath) {
@@ -5914,7 +6132,7 @@ function Test-WindowsCopilotInstallation {
         $routesValid -and
         $credential.configured -and
         $companionSuiteValid -and
-        $unknownOverlayNames.Count -eq 0 -and
+        @($pluginPolicy.blocking).Count -eq 0 -and
         @($plugins | Where-Object {
             -not $_.exists -or -not $_.versionValid -or
             ($_.materialize -and -not $_.physical) -or
@@ -5956,11 +6174,12 @@ function Test-WindowsCopilotInstallation {
         $driftReasons.Add('official-runtime-schema-invalid')
     }
     if (-not $profileCoherence.valid) { $driftReasons.Add('profile-manifest-lock-installed-drift') }
-    if (@($optionalOverlayStates | Where-Object classification -eq 'optional-unknown').Count -gt 0) {
+    if ($IncludeCompanionSuite -and
+        @($optionalOverlayStates | Where-Object classification -eq 'optional-unknown').Count -gt 0) {
         $driftReasons.Add('profile-optional-overlay-source-drift')
     }
-    if ($unknownOverlayNames.Count -gt 0) {
-        $driftReasons.Add('profile-unknown-dependency')
+    if (@($pluginPolicy.blocking).Count -gt 0) {
+        $driftReasons.Add('profile-known-incompatible-plugin-active')
     }
     if ($IncludeCompanionSuite -and -not $companionSuiteValid) {
         $driftReasons.Add('companion-suite-drift')
@@ -6063,8 +6282,16 @@ function Test-WindowsCopilotInstallation {
                 acceptance = $Lock.companionSuite.acceptance
             }
             unknownOverlays = @($unknownOverlayNames | ForEach-Object {
-                [pscustomobject]@{ name = [string]$_; classification = 'optional-unknown' }
+                [pscustomobject]@{ name = [string]$_; classification = 'unmanaged' }
             })
+            pluginInventory = @($pluginPolicy.inventory)
+            pluginWarnings = @($pluginPolicy.warnings)
+            pluginBlocks = @($pluginPolicy.blocking)
+            pluginPolicy = [pscustomobject]@{
+                unmanagedDisposition = $pluginPolicy.unmanagedDisposition
+                target = $pluginPolicy.target
+                status = $pluginPolicy.status
+            }
             credential = $credential
             plugins = @($plugins)
             shippedDependencies = @($shippedDependencyStates)
@@ -6433,6 +6660,7 @@ Export-ModuleMember -Function @(
     'Test-DshRuntimeSchemaState',
     'Test-WindowsCopilotProfileCoherence',
     'Get-WindowsCopilotOptionalOverlayStates',
+    'Get-WindowsCopilotProfilePluginPolicyState',
     'Get-WindowsCopilotDesktopState',
     'Get-WindowsCopilotOfficialRuntimeState',
     'Get-WindowsCopilotDesktopRuntimeState',

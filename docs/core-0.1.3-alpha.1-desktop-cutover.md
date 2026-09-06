@@ -54,6 +54,11 @@ The following installed versions consume APIs removed by Core alpha.1:
 | `dsh-tauri-worktree@0.6.7` | `Session.events` and `meta.seedLength` | Worktree creation, inherited history, or checkout handback can lose or reject Session lineage |
 | `dsh-tauri-panel-scheduler@0.6.7` | `agent.session.events` | Scheduled-run result summarization can fail after the model turn |
 
+The deployment lock records these exact package/Core combinations in
+`profile.pluginPolicy`. Unmanaged packages remain inventory/warning data and do
+not contribute managed health. The cutover gate blocks only an exact denylist
+match whose entry is active or whose activation state cannot be established.
+
 On the inspected machine these three names have already been removed from the
 Web Profile's `dsh.profile.bundles` array. Their dependency entries, Desktop
 resources, tasks, worktrees, and Sidebar state remain intact for rollback. A

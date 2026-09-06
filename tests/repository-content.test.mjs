@@ -109,6 +109,18 @@ test('rejects official Desktop runtime byte and selector drift', () => {
   assert.match(messages(result), /runtime schema entrypoint digest differs/)
 })
 
+test('rejects plugin policy drift', () => {
+  const target = copyFixture()
+  const lock = readJson(target, 'deployments/windows-copilot.lock.json')
+  lock.profile.pluginPolicy.unmanagedDisposition = 'allow'
+  lock.profile.pluginPolicy.targets[0].rules = lock.profile.pluginPolicy.targets[0].rules
+    .filter(rule => rule.name !== 'dsh-tauri-worktree')
+  writeJson(target, 'deployments/windows-copilot.lock.json', lock)
+  const result = validateRepositoryContent(target)
+  assert.match(messages(result), /unmanaged plugins must be inventory warnings/)
+  assert.match(messages(result), /alpha\.1 plugin denylist size differs/)
+})
+
 test('rejects fixture capability and version drift', () => {
   const target = copyFixture()
   const fixturePath = 'tests/fixtures/windows-copilot/provider/deployment-baseline.json'

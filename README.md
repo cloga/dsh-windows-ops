@@ -87,6 +87,7 @@ node tools\validate-plugin-catalog.mjs
 - 所有 runtime/配置改动先备份，补丁必须幂等并提供回滚。
 - 重启 Desktop/Host 前必须查询 live Sessions；存在 running Session 时必须先取得用户对中断列表的明确确认。
 - 保留并校验 Desktop 的 8 个官方 0.6.7 Profile 链接（包括 `dsh-tauri-panel-scheduler`）及不直接挂载的 panel placeholder，不用猜测的 registry 包替换。
+- 插件分三层治理：locked managed baseline 继续严格失败；用户自行安装的插件只进入 inventory/warning，不能贡献 baseline 健康；仅精确命中目标 Core denylist 且处于活动或状态不明时阻断 cutover。
 
 详见 [`docs/security-notes.md`](docs/security-notes.md)。
 

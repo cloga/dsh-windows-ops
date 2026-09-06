@@ -25,8 +25,16 @@ Do not substitute a private CLI, use Desktop's local-Core action, persist
 Target under evaluation:
 
 - release: `0.1.3-alpha.1`
-- tag: `dsh-v0.1.3-alpha.1`
-- commit: `d347e703908d0406b7a7ef80e3a0e594d86b2215`
+- upstream tag: `dsh-v0.1.3-alpha.1`
+- upstream Core commit: `d347e703908d0406b7a7ef80e3a0e594d86b2215`
+- latest Windows prebuild tag: `dsh-src-0.1.3-alpha.1-34026101853`
+- prebuild wrapper commit: `b907ecdcc7ef6113737788f56e421e790a3e9977`
+- prebuild Windows ZIP SHA-256: `a9e4b9c38053860fcb65168afe98fc13b0738d84268d271db5d7b13b3a540c1e`
+
+The latest prebuild uses Node `22.22.0` and supersedes the older Node 24 build
+`33889851724`. Its GitHub prerelease is not immutable and provides no
+`SHA256SUMS`, so these facts are discovery evidence, not yet a complete locked
+runtime identity.
 
 The release changes Session persistence to per-Session handles, replaces
 durable `assistant/chunk` events with transient Assistant stream frames and
@@ -41,7 +49,7 @@ requires immutable artifacts in the updated lock.
 | Plugin | Evidence | Deployment requirement |
 |---|---|---|
 | `dsh-cron` | Installed `0.4.6` uses `list()` snapshots plus `open(id, 'read')`, `read()`, and `close()`; its immutable Release commit `8c8e7f2030b790eff1bacd1d83614b01a770d4d2` passed Windows/Linux and Node 22/24 checks against rc.1 and alpha.1; the installed tarball SHA-256 matches its local `SHA256SUMS` | Pin the immutable `v0.4.6` Release URL, digest, and checksum-manifest identity in the updated lock before treating it as baseline evidence |
-| `dsh-github-copilot` | Installed `0.3.1-alpha.2` detects top-level and nested file blocks and returns control to Core; source-equivalent commit `6c33a287c53b45b147077f7d24ba1d48b74d9835` passed all six rc.2/rc.1/alpha.1 Windows/Linux checks | The installed file artifact is local-build evidence only. Publish or select a reviewed immutable GitHub Release and pin its URL, digest, source/merge commits, and `SHA256SUMS`; a tree-equivalent local tarball cannot enter the locked baseline |
+| `dsh-github-copilot` | Installed `0.3.1-alpha.2` detects top-level and nested file blocks and returns control to Core; source-equivalent commit `6c33a287c53b45b147077f7d24ba1d48b74d9835` passed all six rc.2/rc.1/alpha.1 Windows/Linux checks | Immutable Release `v0.3.1-alpha.2` is now available at release commit `587d074901d2f7574ffcb175ebfe3aae1e6b8f53`; pin its tarball SHA-256 `1186b86653dd11590389d31b50defd56534abd4d6a2d8881ef6d0c624da3e021` and `SHA256SUMS` SHA-256 `1a6da9e88d0e0d933dfcf965421c01d337ebd5d6eff372a97023593fa2344fe0` in the complete baseline update |
 | `dsh-playwright-host` | Source `0.1.3` at merge commit `787ba673b2155b1ba12c9785807c4a70bb2522df` passed Windows/Linux source-seam checks against rc.1 and alpha.1 | It is not currently configured in the Web Profile. Publish and lock an immutable `0.1.3` Release before enabling it as a reviewed overlay |
 
 ## Installed incompatible overlays
@@ -74,8 +82,9 @@ It must remain disabled through any future cutover acceptance.
 
 1. The locked installer was run in default read-only check mode. It reported
    expected drift rather than repairing it: the installed Desktop is newer than
-   the lock, the official runtime path is a reparse point, and the locally built
-   Copilot artifact is not the lock's immutable Release. These findings block
+   the lock, the official runtime path is a reparse point, and the installed
+   Copilot artifact does not match the old lock. An immutable Copilot alpha.2
+   Release now exists, but the lock has not adopted it. These findings block
    `-Apply`; they do not authorize replacing the installed state with the older
    lock.
 2. The Web Profile manifest, lockfile, root patch, and root composition were
@@ -85,14 +94,15 @@ It must remain disabled through any future cutover acceptance.
 4. The exact Desktop-managed CLI successfully dumped the composed Web
    configuration. None of the three removed bundle names remained, while
    `dsh-cron` and `dsh-github-copilot` remained composed.
-5. Repository validators and all 127 Pester tests passed for this advisory.
+5. Repository validators and all 139 Pester tests passed for the policy and advisory changes.
 
 ## Required work before switching Core
 
 1. Obtain an official Desktop-managed target runtime and update the complete
    Windows lock atomically. Do not independently replace the inner Core.
-2. Pin immutable companion artifacts as described above. Do not put the current
-   local Copilot tarball into the baseline.
+2. Pin the immutable Copilot `v0.3.1-alpha.2` and Cron `v0.4.6` artifacts with
+   their canonical URLs, source/release commits, sizes, hashes, and checksum
+   manifests. Do not substitute the currently installed local Copilot tarball.
 3. Review every official Desktop internal plugin delivered with that Desktop,
    including the Session, Worktree, Scheduler, UI, Panel, Right-click, and Pet
    surfaces. Keeping a row disabled is acceptable risk reduction, not positive

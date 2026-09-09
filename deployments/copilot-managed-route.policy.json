@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "purpose": "config-only-managed-route-maintenance",
+  "migrationStatusProtocol": 1,
+  "nativeProvider": "github-copilot",
+  "managedProvider": "github-copilot-preview",
+  "releaseVerified": true,
+  "plugin": {
+    "name": "dsh-github-copilot",
+    "version": "0.4.0-alpha.9",
+    "source": {
+      "repository": "https://github.com/cloga/dsh-github-copilot",
+      "pullRequest": 102,
+      "reviewedHead": "c657a368e66c80e1231f2f8ac0a80877329d98ab",
+      "mergeCommit": "435517843c8974e48dfc6528b9f943dc3d7d38ef",
+      "ciRun": 34224715368
+    },
+    "artifact": {
+      "name": "dsh-github-copilot-0.4.0-alpha.9.tgz",
+      "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.9/dsh-github-copilot-0.4.0-alpha.9.tgz",
+      "sha256": "c2413f9a9b466646c176e69450d8c8b0d995e0449d665b5c71a0b963b16dde81",
+      "size": 499443,
+      "releaseTag": "v0.4.0-alpha.9",
+      "releaseCommit": "435517843c8974e48dfc6528b9f943dc3d7d38ef",
+      "releaseImmutable": true,
+      "checksumManifest": {
+        "name": "SHA256SUMS",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.9/SHA256SUMS",
+        "sha256": "0ae0679c5ccaaaae2d29b6cd59a0994fe559d4176ace256c602575cfb5ffb35a",
+        "size": 103
+      }
+    }
+  },
+  "requiredCapabilities": [
+    "agentsList",
+    "sessionProjections",
+    "settingsCas",
+    "providerRegistry",
+    "defaultSelection"
+  ],
+  "supportedCoreVersions": ["0.1.2-rc.1", "0.1.3-alpha.1"],
+  "search": {
+    "namespace": "github-copilot",
+    "path": ["providers"],
+    "from": ["github-copilot"],
+    "to": ["github-copilot-preview"]
+  },
+  "evidenceBoundary": {
+    "fullDesktopBaseline": "not-certified-by-this-policy",
+    "coreVersions": "plugin-compatibility-evidence-not-live-runtime-attestation",
+    "liveState": "fresh-plugin-migrationStatus-and-native-settings-CAS",
+    "historyScope": "live-agents-only",
+    "coldHistoryRequiresAcknowledgement": true,
+    "defaultAndSessionWrites": false,
+    "installationAndProcessControl": false
+  }
+}

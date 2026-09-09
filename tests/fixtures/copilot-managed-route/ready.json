@@ -1,0 +1,50 @@
+{
+  "source": "offline-snapshot",
+  "settings": {
+    "writable": true,
+    "hasDocument": true,
+    "namespaces": [
+      {
+        "ns": "llm-pi-ai", "revision": 7,
+        "base": { "providers": {} },
+        "user": { "providers": { "github-copilot": { "displayName": "GitHub Copilot", "models": [{ "id": "account-model", "api": "openai-responses" }], "compat": { "supportsStrictMode": false } }, "fixture": { "displayName": "Preserved provider" } } },
+        "value": { "providers": { "github-copilot": { "displayName": "GitHub Copilot", "models": [{ "id": "account-model", "api": "openai-responses" }], "compat": { "supportsStrictMode": false } }, "fixture": { "displayName": "Preserved provider" } } },
+        "secrets": []
+      },
+      {
+        "ns": "github-copilot", "revision": 3,
+        "base": { "providers": ["github-copilot"], "probe": true },
+        "user": {}, "value": { "providers": ["github-copilot"], "probe": true }, "secrets": []
+      },
+      {
+        "ns": "agent-default-model", "revision": 2,
+        "base": {},
+        "user": { "provider": "github-copilot-preview", "model": "account-model" },
+        "value": { "provider": "github-copilot-preview", "model": "account-model" }, "secrets": []
+      }
+    ]
+  },
+  "catalog": {
+    "default": { "provider": "github-copilot-preview", "model": "account-model" },
+    "routableProviders": ["github-copilot", "github-copilot-preview", "fixture"],
+    "groups": [
+      { "id": "github-copilot", "name": "GitHub Copilot", "models": [{ "id": "account-model", "name": "Account model" }] },
+      { "id": "github-copilot-preview", "name": "GitHub Copilot account models", "models": [{ "id": "account-model", "name": "Account model" }] },
+      { "id": "fixture", "name": "Other provider", "models": [] }
+    ],
+    "failures": []
+  },
+  "inventory": { "entries": [
+    { "entryId": "github-copilot", "moduleName": "dsh-github-copilot", "enabled": true, "fiberPhase": "active" },
+    { "entryId": "llm-pi-ai", "moduleName": "@deepseek-ai/dsh-llm-pi-ai", "enabled": true, "fiberPhase": "active" }
+  ] },
+  "migrationStatus": {
+    "plugin": { "name": "dsh-github-copilot", "version": "0.4.0-alpha.9" },
+    "protocolVersion": 1, "historyScope": "live-agents-only", "observedAt": 1000,
+    "capabilities": { "agentsList": true, "sessionProjections": true, "settingsCas": true, "providerRegistry": true, "defaultSelection": true },
+    "complete": { "sessions": true, "defaultSelection": true, "routes": true },
+    "defaultSelection": { "provider": "github-copilot-preview", "model": "account-model" },
+    "sessions": [],
+    "routes": { "nativeConfigured": true, "nativeRegistered": true, "managedRegistered": true }
+  }
+}

@@ -76,6 +76,80 @@ records:
         (Set-DshCopilotProfilePatch -Path $patch).status | Should -Be 'unchanged'
     }
 
+    It 'generates an exact managed allowlist with probing and preserves unrelated rows' {
+        $patch = Join-Path $root 'cordis.patch.yml'
+        Set-Content $patch "- id: unrelated`n  config:`n    providers: [unrelated]`n" -Encoding UTF8
+        (Set-DshCopilotProfilePatch -Path $patch -RouteMode Managed).changed | Should -Be $true
+        $text = Get-Content $patch -Raw
+        $text | Should -Match 'providers: \[github-copilot-preview\]'
+        $text | Should -Match 'probe: true'
+        $text | Should -Match 'providers: \[unrelated\]'
+        $text | Should -Not -Match 'providers: \[github-copilot\]'
+        (Set-DshCopilotProfilePatch -Path $patch -RouteMode Managed).changed | Should -Be $false
+    }
+
+    It 'previews managed generation without changing the native block' {
+        $patch = Join-Path $root 'cordis.patch.yml'
+        Set-Content $patch '[]' -Encoding UTF8
+        Set-DshCopilotProfilePatch -Path $patch | Out-Null
+        $before = Get-Content $patch -Raw
+        (Set-DshCopilotProfilePatch -Path $patch -RouteMode Managed -DryRun).changed | Should -Be $true
+        Get-Content $patch -Raw | Should -Be $before
+    }
+
+    It 'refuses accidental legacy regeneration after managed-route generation' {
+        $patch = Join-Path $root 'cordis.patch.yml'
+        Set-Content $patch '[]' -Encoding UTF8
+        Set-DshCopilotProfilePatch -Path $patch -RouteMode Managed | Out-Null
+        $before = Get-Content $patch -Raw
+        { Set-DshCopilotProfilePatch -Path $patch } | Should -Throw '*Refusing to replace*'
+        Get-Content $patch -Raw | Should -Be $before
+    }
+
+    It 'does not broaden or replace an edited custom allowlist in the owned block' {
+        $patch = Join-Path $root 'cordis.patch.yml'
+        Set-Content $patch '[]' -Encoding UTF8
+        Set-DshCopilotProfilePatch -Path $patch | Out-Null
+        $before = (Get-Content $patch -Raw).Replace('providers: [github-copilot]', 'providers: [github-copilot, custom]')
+        Set-Content $patch $before -Encoding UTF8 -NoNewline
+        { Set-DshCopilotProfilePatch -Path $patch -RouteMode Managed } | Should -Throw '*custom provider allowlist*'
+        Get-Content $patch -Raw | Should -Be $before
+    }
+
+    It 'rejects quoted provider keys and comment tricks instead of overwriting an edited block' {
+        $patch = Join-Path $root 'cordis.patch.yml'
+        Set-Content $patch '[]' -Encoding UTF8
+        Set-DshCopilotProfilePatch -Path $patch | Out-Null
+        $generated = Get-Content $patch -Raw
+        foreach ($replacement in @("'providers': [github-copilot, custom]", '# providers: [github-copilot]')) {
+            $edited = $generated.Replace('providers: [github-copilot]', $replacement)
+            Set-Content $patch $edited -Encoding UTF8 -NoNewline
+            { Set-DshCopilotProfilePatch -Path $patch -RouteMode Managed } | Should -Throw '*exact known Ops blocks*'
+            Get-Content $patch -Raw | Should -Be $edited
+        }
+    }
+
+    It 'validates the explicitly requested managed profile policy without requiring native model entries' {
+        $profileRoot = Join-Path $root 'profiles\web'
+        $pluginRoot = Join-Path $profileRoot 'node_modules\dsh-github-copilot'
+        New-Item -ItemType Directory -Path $pluginRoot -Force | Out-Null
+        '{"dependencies":{"dsh-github-copilot":"file:fixture.tgz"},"dsh":{"profile":{"bundles":["dsh-github-copilot"]}}}' | Set-Content (Join-Path $profileRoot 'package.json') -Encoding UTF8
+        '{"name":"dsh-github-copilot","version":"0.4.0-alpha.9"}' | Set-Content (Join-Path $pluginRoot 'package.json') -Encoding UTF8
+        "- insert:`n    - id: github-copilot`n      name: dsh-github-copilot" | Set-Content (Join-Path $pluginRoot 'cordis.patch.yml') -Encoding UTF8
+        $patch = Join-Path $profileRoot 'cordis.patch.yml'
+        Set-Content $patch '[]' -Encoding UTF8
+        Set-DshCopilotProfilePatch -Path $patch -RouteMode Managed | Out-Null
+        (Test-DshCopilotProfile -DshHome $root -Profile web -ExpectedPluginVersion '0.4.0-alpha.9' -RouteMode Managed).healthy | Should -Be $true
+        { Test-DshCopilotProfile -DshHome $root -Profile web -ExpectedPluginVersion '0.4.0-alpha.9' } | Should -Throw '*missing managed search configuration*'
+        $generated = Get-Content $patch -Raw
+        $spoofed = $generated.Replace('providers: [github-copilot-preview]', "providers: [custom]`n    # providers: [github-copilot-preview]")
+        Set-Content $patch $spoofed -Encoding UTF8 -NoNewline
+        { Test-DshCopilotProfile -DshHome $root -Profile web -ExpectedPluginVersion '0.4.0-alpha.9' -RouteMode Managed } | Should -Throw '*exact generated managed*'
+        $unsafe = $generated.Replace('probe: true', 'probe: false')
+        Set-Content $patch $unsafe -Encoding UTF8 -NoNewline
+        { Test-DshCopilotProfile -DshHome $root -Profile web -ExpectedPluginVersion '0.4.0-alpha.9' -RouteMode Managed } | Should -Throw '*preserve capability probing*'
+    }
+
     It 'refuses unmanaged conflicts outside an existing managed block' {
         $path = Join-Path $root 'cordis.patch.yml'
         Set-Content -LiteralPath $path -Value "[]`n" -Encoding UTF8

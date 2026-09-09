@@ -130,7 +130,8 @@
         "notes": [
           "Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.",
           "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.",
-          "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration."
+          "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration.",
+          "This entry pins the historical full deployment baseline, not the newer managed-route maintenance contract. See docs/copilot-managed-route.md and deployments/copilot-managed-route.policy.json for separately approved configuration-only maintenance; no implicit component upgrade or full-baseline attestation is provided."
         ]
       },
       "summary": "The locked DSH companion for Copilot sign-in, account-aware leaf-only model reconciliation, strict Host-only grant handling, provider-scoped Tool compatibility, dual-protocol inline search, and Responses-only ctx.web search through validated GitHub-hosted or Enterprise endpoints; no second adapter, embedded gateway, or ACP scope."

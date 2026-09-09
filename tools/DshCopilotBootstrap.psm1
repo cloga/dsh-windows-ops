@@ -541,12 +541,10 @@ function Set-DshCopilotModelSelection {
     }
 }
 
-function Set-DshCopilotProfilePatch {
-    param(
-        [Parameter(Mandatory)][string]$Path,
-        [switch]$DryRun
-    )
-    $block = @"
+function Get-DshCopilotProfileBlock {
+    param([ValidateSet('NativeLegacy', 'Managed')][string]$RouteMode = 'NativeLegacy')
+    $provider = if ($RouteMode -eq 'Managed') { 'github-copilot-preview' } else { 'github-copilot' }
+    return @"
 $script:ProfileBegin
 - id: web
   config:
@@ -554,10 +552,39 @@ $script:ProfileBegin
 - id: github-copilot
   config:
     enabled: true
-    providers: [github-copilot]
+    providers: [$provider]
     probe: true
 $script:ProfileEnd
 "@
+}
+
+function Set-DshCopilotProfilePatch {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [ValidateSet('NativeLegacy', 'Managed')][string]$RouteMode = 'NativeLegacy',
+        [switch]$DryRun
+    )
+    $block = Get-DshCopilotProfileBlock -RouteMode $RouteMode
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        $existing = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+        $start = $existing.IndexOf($script:ProfileBegin, [StringComparison]::Ordinal)
+        $finish = $existing.IndexOf($script:ProfileEnd, [StringComparison]::Ordinal)
+        $owned = if ($start -ge 0 -and $finish -gt $start) { $existing.Substring($start, $finish + $script:ProfileEnd.Length - $start) } else { '' }
+        if ($RouteMode -eq 'NativeLegacy' -and $owned.Contains('github-copilot-preview')) {
+            throw 'Refusing to replace an existing managed Copilot search policy with the legacy route. Use Managed mode or a separately reviewed rollback.'
+        }
+        if ($RouteMode -eq 'Managed' -and $owned.Length -gt 0) {
+            # This is a generator for known Ops blocks, not a general YAML parser.
+            # Quoted keys, comments, duplicate keys, and extra settings need review.
+            $known = @(
+                (Get-DshCopilotProfileBlock -RouteMode NativeLegacy).Replace("`r`n", "`n").Trim(),
+                $block.Replace("`r`n", "`n").Trim()
+            )
+            if ($owned.Replace("`r`n", "`n").Trim() -cnotin $known) {
+                throw 'A custom provider allowlist or edited managed block requires separate review; generation only accepts exact known Ops blocks.'
+            }
+        }
+    }
     return Set-DshManagedTextBlock -Path $Path -Begin $script:ProfileBegin -End $script:ProfileEnd `
         -Block $block -ConflictPatterns @(
             '(?m)^\s*-\s+id:\s+web\s*$',
@@ -831,7 +858,8 @@ function Test-DshCopilotProfile {
     param(
         [Parameter(Mandatory)][string]$DshHome,
         [Parameter(Mandatory)][string]$Profile,
-        [Parameter(Mandatory)][string]$ExpectedPluginVersion
+        [Parameter(Mandatory)][string]$ExpectedPluginVersion,
+        [ValidateSet('NativeLegacy', 'Managed')][string]$RouteMode = 'NativeLegacy'
     )
     $profileRoot = Join-Path $DshHome (Join-Path 'profiles' $Profile)
     $manifestPath = Join-Path $profileRoot 'package.json'
@@ -873,13 +901,18 @@ function Test-DshCopilotProfile {
     )) {
         if ($outside -match $pattern) { throw "Profile '$Profile' contains unmanaged conflicting search configuration." }
     }
+    $provider = if ($RouteMode -eq 'Managed') { 'github-copilot-preview' } else { 'github-copilot' }
+    if ($RouteMode -eq 'Managed' -and $managed.Replace("`r`n", "`n").Trim() -cne
+        (Get-DshCopilotProfileBlock -RouteMode Managed).Replace("`r`n", "`n").Trim()) {
+        throw "Profile '$Profile' must preserve capability probing and the exact generated managed search block."
+    }
     foreach ($marker in @(
         $script:ProfileBegin,
         '- id: web',
         'searchProvider: github-copilot-hosted',
         '- id: github-copilot',
         'enabled: true',
-        'providers: [github-copilot]',
+        "providers: [$provider]",
         $script:ProfileEnd
     )) {
         if (-not $managed.Contains($marker)) { throw "Profile '$Profile' is missing managed search configuration." }

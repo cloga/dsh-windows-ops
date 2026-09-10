@@ -75,6 +75,11 @@ See `docs/startup-60s-timeout.md` for the launcher incident and `docs/plugins/pl
 
 ## Maintained browser-verification practice
 
+For the separately tracked newer plugin source certification, see the
+[Core 0.1.5-rc.2 compatibility record](../core-0.1.5-rc.2-plugin-compatibility.md).
+It does not replace the historical review snapshot or deployment lock below,
+and source-seam checks do not establish browser/runtime acceptance.
+
 For local DSH Web development and repair, use Microsoft's upstream
 [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) through DSH's
 shipped `@deepseek-ai/dsh-mcp-client`. This is the preferred baseline for

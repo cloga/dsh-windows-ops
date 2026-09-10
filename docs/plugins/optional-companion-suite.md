@@ -1,5 +1,9 @@
 # Optional DSH companion suite on Windows
 
+The [Core 0.1.5-rc.2 plugin certification follow-up](../core-0.1.5-rc.2-plugin-compatibility.md)
+is separate from this exact locked installation contract. Candidate source
+support does not update the lock or authorize installation/restart.
+
 The optional companion suite is a single **installation entry**, not a merged plugin. It stages three independently versioned Web Profile Bundles:
 
 | Bundle | Responsibility | Important boundary |

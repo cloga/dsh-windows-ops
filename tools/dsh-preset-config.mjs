@@ -32,7 +32,9 @@ function cleanContext(item) {
 // The supervisor never imports target code, and never forwards child exception streams.
 let result;
 try {
-  const request = JSON.parse(readFileSync(0, 'utf8'));
+  // Windows PowerShell 5.1's redirected stdin writer can emit a UTF-8 preamble
+  // before our raw UTF-8 bytes when the runner console uses that encoding.
+  const request = JSON.parse(readFileSync(0, 'utf8').replace(/^\uFEFF/, ''));
   if (!Number.isInteger(request.timeoutMs) || request.timeoutMs < 1000 || request.timeoutMs > 60000) {
     throw new Error('request');
   }

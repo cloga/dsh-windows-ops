@@ -102,6 +102,16 @@ Describe 'Read-only target preset Config gate' {
         (Test-DshUserPresetConfig -DshHome $homePath -Contract $contract).valid | Should -BeTrue
     }
 
+    It 'accepts UTF-8 console stdin preambles without changing Unicode request paths' {
+        $encoding = [Console]::InputEncoding
+        try {
+            [Console]::InputEncoding = [Text.Encoding]::UTF8
+            $unicodeHome = Join-Path $homePath ([string][char]0x6D4B + [char]0x8BD5)
+            Set-PresetRows $unicodeHome @(@{ name = 'fixture-persona'; config = @{ prefix = 'valid' } })
+            (Test-DshUserPresetConfig -DshHome $unicodeHome -Contract $contract).valid | Should -BeTrue
+        } finally { [Console]::InputEncoding = $encoding }
+    }
+
     It 'does not resolve a current or parent runtime in place of the target' {
         Set-PresetRows $homePath @(@{ name = 'fixture-persona'; config = @{ prefix = 'x' } })
         '{"name":"@deepseek-ai/dsh","version":"9.9.9"}' |

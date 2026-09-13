@@ -92,6 +92,80 @@ updated together. It does not change the locked baseline on this page.
 
 ## Check first
 
+### User preset Config compatibility (managed entrypoints only)
+
+A preset can remain on disk but stop mounting after an official runtime schema
+change. The September 2026 persona incident was **not file loss**: the persisted
+`config.text` still held the instructions, while upstream
+`deepseek-ai/deepseek-harness@40792330c0d534ef382bbf1fb44c9289323bbb27`
+changed the persona contract to required `prefix` and optional `suffix`.
+A cold resume then failed on missing `prefix`. Recovering a reviewed key while
+preserving its content restored the affected tasks and model UI; copying a
+default preset over the user's instructions is not a safe recovery.
+
+Check and Verify now run `Test-DshUserPresetConfig` before other runtime checks.
+The locked Apply implementation runs the same gate before Desktop inspection,
+artifact extraction, backup creation, npm, process or Profile mutations.
+`-SkipRuntimeChecks` does **not** disable this gate. Incompatibility or an
+uncheckable scope returns `checks.userPresetConfig.valid = false` and exit code
+**2** from Check/Verify; Apply throws `user-preset-config-blocked`.
+The direct installation health report also includes `profile.userPresetConfig`.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 `
+  -Action Check -DshHome (Join-Path $HOME '.dsh') -SkipRuntimeChecks
+```
+
+The scope is direct child directories of the explicitly resolved, fully qualified local
+`<DshHome>\.agent-presets`, each containing `agent.cordis.yml`. Missing
+compositions, reparse points, malformed YAML, conflicting metadata, unresolved
+plugins and dynamic **config** fail closed. Non-config `!!js` control predicates
+are left unevaluated; even disabled rows are conservatively checked. Nested
+literal `group` lists are checked recursively. Custom preset roots, relative/file
+plugins, package subpaths, custom loader hooks and include/tree-carrier plugins
+are unsupported rather than guessed healthy. Limits are 128 manifests, 1 MiB
+each / 8 MiB total, 4,096 rows, 32 group levels and 256 diagnostics.
+An absent or empty user roster reports `no-user-presets` without creating it or
+requiring target artifacts; it does not attest an absent target runtime.
+
+For a nonempty roster, the **target** is exclusively
+`acceptance.runtimeSchema` in the deployment lock, including its whole-wrapper
+hash and exact package/entrypoint identity. The current parent process, global
+npm packages, Profile overlays and a newer installed runtime are not substitute
+targets. The existing lock still selects wrapper `0.1.2-alpha.5` / Core
+`0.1.2-rc.1`; this gate does not certify a live `0.1.5-rc.2` installation against
+that older lock. Missing target artifacts on a new installation return
+`target-artifacts-unavailable`; differing bytes return
+`target-artifacts-unverified`. There is no staged-target installer in this gate:
+the exact locked, physical official wrapper must already be available.
+Do not replace a running wrapper just to satisfy this precondition.
+
+An isolated Node subprocess resolves every imported file from that attested
+target, consumes its exported `entryListSchema`, and uses the plugin's published
+Standard Schema `Config` contract without starting a Cordis context or invoking
+plugin apply, boot, resume, model or provider APIs. As in published Cordis
+`resolveConfig`, a plugin with no `Config` is explicitly reported as
+`schema-less-passthrough`, **not** proof of application-level config validity.
+Conflicting exports, malformed schemas and async validators block the gate.
+Schema-normalized values are discarded; no migration or write-back occurs.
+
+The child runs with Node read-only filesystem permissions, no inherited
+credentials/Node preload environment, no child processes/native addons/workers,
+and disabled network entrypoints. Imports or validators needing those facilities
+are unsupported. This is isolation for reviewed, attested code, not a sandbox
+for hostile plugins. The worker has a 20-second default deadline (maximum 60),
+192 MiB V8 heap and bounded output. Diagnostics contain only preset-relative
+paths, positional rows, plugin/version, schema-declared key paths (unproven
+segments become `*`), stable codes and review actions. Parser buffers, schema
+messages, prompt values and child stdout/stderr are never forwarded.
+Input hashes are rechecked before reporting; the result is a point-in-time
+assessment, not a lock against concurrent external edits.
+
+**Boundary:** this protects these managed entrypoints only. It cannot intercept
+arbitrary official Desktop GUI updates, and does not claim that it does.
+It does not rewrite presets, change scheduler tasks, migrate credentials,
+install dependencies, patch Core or restart Desktop/Host.
+
 The one-command check is read-only:
 
 ```powershell

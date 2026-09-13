@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'DshCopilotBootstrap.psm1')
 Import-Module (Join-Path $PSScriptRoot 'DshRuntimeSchema.psm1')
+Import-Module (Join-Path $PSScriptRoot 'DshPresetConfig.psm1')
 
 function Get-LockProperty {
     param(
@@ -1786,6 +1787,15 @@ function Get-WindowsCopilotInstallPlan {
             action = 'check'
             changesSystem = $false
             inputs = @([string]$Lock.deploymentId)
+        },
+        [pscustomobject]@{
+            id = 'verify-user-preset-config'
+            action = 'read-only-target-config-schema'
+            changesSystem = $false
+            inputs = @(
+                (Join-Path (Resolve-DeploymentPath $DshHome) '.agent-presets'),
+                [string]$Lock.acceptance.runtimeSchema.root
+            )
         },
         [pscustomobject]@{
             id = 'verify-source-checkouts'
@@ -5730,6 +5740,7 @@ function Test-WindowsCopilotInstallation {
         [switch]$IncludeCompanionSuite
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $userPresetConfig = Test-DshUserPresetConfig -DshHome $DshHome -Contract $Lock.acceptance.runtimeSchema
     $home = Resolve-DeploymentPath $DshHome
     $profileRoot = Join-Path $home ([string]$Lock.profile.relativePath)
     $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
@@ -6123,6 +6134,7 @@ function Test-WindowsCopilotInstallation {
     }
 
     $staticValid = [bool](
+        $userPresetConfig.valid -and
         $desktop.valid -and
         $officialRuntime.valid -and
         $profileCoherence.valid -and
@@ -6155,6 +6167,7 @@ function Test-WindowsCopilotInstallation {
         $_.name -eq [string]$Lock.components.copilotIntegration.package.name
     })[0]
     $driftReasons = [Collections.Generic.List[string]]::new()
+    if (-not $userPresetConfig.valid) { $driftReasons.Add('user-preset-config-blocked') }
     if ($desktop.newerThanLock) { $driftReasons.Add('desktop-newer-than-lock') }
     elseif (-not $desktop.valid) { $driftReasons.Add('desktop-version-mismatch') }
     if ($legacyGateway.detected) { $driftReasons.Add('legacy-copilot2api-detected') }
@@ -6265,6 +6278,7 @@ function Test-WindowsCopilotInstallation {
             backupRequired = [bool]$Lock.migration.legacyGateway.backupRequired
         }
         profile = [pscustomobject]@{
+            userPresetConfig = $userPresetConfig
             dependencyValid = $dependencyValid
             copilotIntegrationDependency = $providerDependency
             providerDependency = $providerDependency
@@ -6331,6 +6345,10 @@ function Invoke-WindowsCopilotApplyLocked {
         [int]$TimeoutSeconds = 90
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $userPresetConfig = Test-DshUserPresetConfig -DshHome $DshHome -Contract $Lock.acceptance.runtimeSchema
+    if (-not $userPresetConfig.valid) {
+        throw ('user-preset-config-blocked: ' + ($userPresetConfig | ConvertTo-Json -Depth 12 -Compress))
+    }
     if (-not [string]::IsNullOrWhiteSpace($GatewayArtifactPath)) {
         throw '-GatewayArtifactPath is retired and is not accepted by Apply.'
     }
@@ -6658,6 +6676,7 @@ Export-ModuleMember -Function @(
     'Test-WindowsCopilotSearchResponse',
     'Test-WindowsCopilotComposedConfig',
     'Test-DshRuntimeSchemaState',
+    'Test-DshUserPresetConfig',
     'Test-WindowsCopilotProfileCoherence',
     'Get-WindowsCopilotOptionalOverlayStates',
     'Get-WindowsCopilotProfilePluginPolicyState',

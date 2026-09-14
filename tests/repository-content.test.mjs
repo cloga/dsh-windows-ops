@@ -13,6 +13,7 @@ const fixtureFiles = [
   'README.md',
   'README.en.md',
   'docs/local-core-desktop-copilot.md',
+  'docs/official-desktop-plugin-provisioning-removal.md',
   'docs/plugins/scheduling.md',
   'docs/windows-replay-tooling.md',
   'docs/improvement-portfolio.md',
@@ -25,6 +26,11 @@ const fixtureFiles = [
   'tools/install-optional-companion-suite.ps1',
   'tools/DshCopilotBootstrap.psm1',
   'tools/WindowsCopilotDeployment.psm1',
+  'tools/DshOfficialDesktopBuild.psm1',
+  'tools/DshOfficialDesktopPluginProvisioning.psm1',
+  'tools/DshOfficialDesktopUpdateChannel.psm1',
+  'tools/Install-DshOfficialDesktopLocal.psm1',
+  'tools/sync-official-desktop-plugin-release.ps1',
   'tools/enable-copilot-search-vision.ps1',
   'tools/dsh-replay.ps1',
   'tests/fixtures/windows-copilot/provider/deployment-baseline.json',
@@ -137,8 +143,8 @@ test('rejects stale README versions and missing repository entry points', () => 
   const target = copyFixture()
   const readmePath = path.join(target, 'README.en.md')
   fs.writeFileSync(readmePath, fs.readFileSync(readmePath, 'utf8')
-    .replaceAll('0.3.0-cloga.15', '0.3.0-cloga.12')
-    .replaceAll('4e095196', '00000000'))
+    .replaceAll('0.4.0-alpha.18', '0.4.0-alpha.17')
+    .replaceAll('08bfccc3', '00000000'))
   fs.rmSync(path.join(target, 'SECURITY.md'))
   const result = validateRepositoryContent(target)
   assert.match(messages(result), /README\.en\.md does not name/)

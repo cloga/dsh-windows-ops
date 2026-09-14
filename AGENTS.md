@@ -47,9 +47,14 @@ Before an installation agent emits every `pwsh` tool call:
   `node tools/validate-repository-content.mjs` and
   `node tools/validate-plugin-catalog.mjs` before Pester.
 - The Copilot package is distributed only by immutable GitHub Release. Pin its
-  exact source and merge commits, versioned tarball URL and SHA-256, release tag,
-  immutable-release assertion, and `SHA256SUMS` identity; never substitute a
-  registry package or an unverified latest URL.
+  exact source and merge commits, versioned tarball URL, size, SHA-256,
+  SHA-512/SRI, release tag, immutable-release assertion, and `SHA256SUMS`
+  identity; never substitute a registry package or an unverified latest URL.
+- Route every official local Desktop build/install/update through the single
+  `desktopProvisioning` contract and adapter. `windowsOpsVerifiedRelease` and
+  `desktopNativeVerifiedRelease` are mutually exclusive; native mode requires
+  committed capability evidence and the removal runbook. Never run ordinary
+  `pnpm add` against the live reserved profile or copy `node_modules`.
 - Keep the official DSH Desktop shell unless the task specifically changes the
   shell.
 - The supported runtime is only Desktop's managed official wrapper and bundled

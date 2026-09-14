@@ -130,11 +130,14 @@ runs only `apps/desktop/tests/macos-signature.spec.ts --maxWorkers=1`, records
 both commands, and requires the focused summary to be exactly 9/9. Every other
 failure, or a failed/malformed retry, remains fatal.
 
-The seed preparation routes npm through two exact source literals: the pnpm CLI
-`--config.registry` argument and `NPM_CONFIG_REGISTRY`. The default is
-`https://registry.npmjs.org/`. An explicit `-Registry` may select another
-absolute HTTPS URL with no credentials, query, or fragment. For a non-default
-registry the tool requires the pinned `prepare-seed.ts` SHA-256
+The upstream seed preparation routes npm through two exact source literals: the
+pnpm CLI `--config.registry` argument and `NPM_CONFIG_REGISTRY`; the pinned
+upstream source value is `https://registry.npmjs.org/`. Windows Ops defaults
+`-Registry` to `https://packagefeedproxy.microsoft.io/npm/` because direct npm
+TLS is unavailable in the supported corporate environment. A caller may select
+another absolute HTTPS URL with no credentials, query, or fragment. For any
+value different from the pinned upstream source, the tool requires the exact
+`prepare-seed.ts` SHA-256
 `2c2050620aa51ae0eabe9e15303c8ceedc08706378c88f2dac4564470201327e` and
 exactly two literals, replaces both only around the official `prepare:desktop`
 command, records the patched hash, and restores the original bytes in `finally`
@@ -156,7 +159,7 @@ inventory.
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\build-official-desktop.ps1 -Action PackageLocal `
   -BuildRoot C:\tmp\dsh-official-desktop-build\work `
-  -Registry https://registry.npmjs.org/
+  -Registry https://packagefeedproxy.microsoft.io/npm/
 ```
 
 `PackageLocal` deliberately performs the complete Build sequence first and then
@@ -195,6 +198,15 @@ release. Its local app ID, package name, artifact name, and receipt retain that
 provenance even though its visible branding and icon match DeepSeek Harness.
 The packaging command itself does not install or launch it, touch a live DSH
 home, or write outside the isolated build root.
+
+The PackageLocal receipt carries the single versioned
+`desktopProvisioning` recipe from `deployments/windows-copilot.lock.json`.
+That recipe pins `dsh-github-copilot@0.4.0-alpha.18`, immutable Release/tag
+commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`, artifact name/URL/size,
+SHA-256, SHA-512/SRI, `SHA256SUMS` identity, the corporate dependency registry,
+redirect allowlist, adapter, and active mode. PackageLocal does not put a user
+Home, Sessions, settings, credentials, or a prebuilt `node_modules` tree into
+the installer.
 
 This packaging choice does **not** mean the official product lacks updates.
 At the pinned commit, `apps/desktop/src/main.ts` exposes **Check for Updates**.
@@ -317,7 +329,10 @@ After the installer exits successfully, `Install` immediately reuses
 executable and seed hashes, seed package versions, uninstall registration,
 absence of `app-update.yml`, prior receipt trust, launcher/shortcut ownership,
 and archived installer/build-receipt/manifest metadata before writing the
-schema-3 receipt.
+schema-3 receipt. Before completion succeeds, it also invokes the same
+transactional plugin provisioner used by first install. A plugin staging,
+dependency, composition, Host health, activation, or rollback failure blocks
+update completion instead of recording success.
 
 If Windows has not made the final files observable yet, or another strict
 post-install condition blocks immediate completion, the result is
@@ -373,7 +388,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\install-official-desktop-local.ps1 -Apply `
   -AcknowledgeUnsignedLocalBuild `
   -BuildRoot C:\tmp\dsh-official-desktop-build\work `
-  -Registry https://registry.npmjs.org/
+  -Registry https://packagefeedproxy.microsoft.io/npm/
 ```
 
 Defaults are `%LOCALAPPDATA%\Programs\DSH Local Build` for the application and
@@ -409,6 +424,26 @@ unsigned local source build. The atomic install receipt records source/build
 receipt identity, installer and installed hashes, roots, local app identity,
 unsigned/no-update status, uninstall command, community retention, and its own
 hash; it contains no credentials or Session contents.
+
+After binary and seed validation, Apply provisions the locked Copilot plugin
+before reporting completion. It verifies the local cached Release tgz or
+downloads the exact versioned URL through an HTTPS redirect allowlist, then
+checks file name, size, SHA-256, SHA-512/SRI, package name/version/entrypoints,
+archive paths and entry types, and the absence of lifecycle hooks. The root
+plugin always comes from that verified tgz; only transitive dependencies are
+resolved through the explicit corporate registry, with
+`--config.ignore-scripts=true`.
+
+Provisioning never runs ordinary `pnpm add` against the live reserved profile
+and never copies `node_modules`. It creates a complete staging project from the
+packaged seed or current official profile metadata, uses Desktop's bundled
+Node/pnpm to materialize dependencies, preserves the two official base bundles
+and any valid exact-version third-party bundles, rejects conflicting app
+bundles such as headless/SDK surfaces, runs staged Host protocol health, writes
+a recovery journal, atomically swaps the profile, and reruns active health.
+Failure before activation leaves the active profile unchanged; failure after
+activation restores the rollback profile or retains recovery state if rollback
+itself cannot complete.
 
 ### Opt in to one existing shared Harness home
 
@@ -510,20 +545,35 @@ web plus headless produced `duplicate loader entry id: code-runtime` in the
 observed installation. Check reports `shared-official-profile-conflicting-app-bundles`
 and blocks rather than silently rewriting the manifest.
 
-The current Windows operations contracts reference checksum-verified Copilot
-GitHub Release artifacts. Newer plugin releases may also publish to npm, but
-that does not prove that this pinned official Desktop can install or safely
-compose them. Its `DesktopProjectManager.packageNameFromSpec()` currently
-rejects URL and `file:` specs, while the CLI forbids booting or mutating the
-reserved `desktop` profile. Consequently, the reviewed Release tarball still
-has **no supported Desktop installation route in this version**, and no npm
-route has been accepted by this repository for the corporate Desktop.
-Check reports
-`copilotDesktopInstall=unsupported-release-tarball-spec`. A supported route
-requires a Desktop-owned artifact or package-manager flow with exact version,
-registry, dependency, profile-ownership, and runtime acceptance evidence. Do
-not copy `node_modules`, edit profile manifests, patch Core, or infer credential
-loss or reauthentication from this plugin boundary.
+The pinned upstream `DesktopProjectManager` rejects URL and `file:` plugin specs
+and hard-codes the public npm registry. Windows Ops therefore owns the current
+`windowsOpsVerifiedRelease` adapter without changing DSH Core. Every
+PackageLocal, first install, idempotent install, and managed update completion
+consumes the same lock contract and adapter. Check is read-only and does not
+download; Apply alone may acquire the immutable Release and mutate the reserved
+profile while Desktop/Host are closed.
+
+For isolated Home, a new install creates only the Desktop-owned profile and
+private pnpm state below `<DataRoot>\harness-home`. For an existing isolated or
+explicit shared Home, upgrade replaces only the validated reserved
+`profiles\desktop` transaction and Desktop's private package state. Sessions,
+settings, credentials, workspaces, and unrelated profiles are neither read nor
+modified. Existing web/headless Copilot registration is not treated as Desktop
+registration and is not copied.
+
+Use the read-only Release drift command before changing a pin:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\sync-official-desktop-plugin-release.ps1 -Action Check
+```
+
+It queries the exact immutable tag/release/assets and emits machine-readable
+drift. `-Action Generate` prints the verification/update commands but does not
+edit the lock or persist credentials. Mutable `latest` URLs are never accepted.
+Future switch-over to native Desktop provisioning must satisfy the committed
+capability gate and [removal runbook](official-desktop-plugin-provisioning-removal.md);
+both provisioners may never be active together.
 
 An exact existing receipt/install is idempotently reverified and repairs the
 launcher, local shortcuts, and receipt without rerunning the installer. Archived

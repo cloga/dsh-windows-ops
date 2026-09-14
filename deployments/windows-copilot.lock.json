@@ -158,14 +158,14 @@
     "copilotIntegration": {
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "pullRequest": 56,
-        "commit": "4e095196197570776515423929ddb72e8299c1db",
-        "reviewedHead": "4e095196197570776515423929ddb72e8299c1db",
-        "mergeCommit": "473b8aa174eb47a323b026c098b73bf7d716772c"
+        "pullRequest": 120,
+        "commit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
+        "reviewedHead": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
+        "mergeCommit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704"
       },
       "package": {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.15",
+        "version": "0.4.0-alpha.18",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
@@ -176,19 +176,21 @@
           "lib/remote.js"
         ],
         "artifact": {
-          "name": "dsh-github-copilot-0.3.0-cloga.15.tgz",
-          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz",
-          "sha256": "7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1",
-          "releaseTag": "v0.3.0-cloga.15",
-          "releaseCommit": "473b8aa174eb47a323b026c098b73bf7d716772c",
+          "name": "dsh-github-copilot-0.4.0-alpha.18.tgz",
+          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/dsh-github-copilot-0.4.0-alpha.18.tgz",
+          "sha256": "2ca4f604e89eda3000cf2a51d79871cee3cb721fa6f4324fc9a1197926c359a8",
+          "sha512": "15975665b6ff2bc8e613ae06c1bf5953e5000c0a9a9007ea2d7aebbbfaa92c5492e2a0b82cc3b4b88714d4a6ecc350a0e79c5fd2af9949b9f4cb771dc83ccb5f",
+          "integrity": "sha512-FZdWZbb/K8jmE64Gwb9ZU+UADAqakAfqLXrru/qpLFSS4qC4LMO0uIcU1Kbsw1Cg55xf0q+ZSbn0y3cdyDzLXw==",
+          "releaseTag": "v0.4.0-alpha.18",
+          "releaseCommit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
           "releaseImmutable": true,
           "checksumManifest": {
             "name": "SHA256SUMS",
-            "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/SHA256SUMS",
-            "sha256": "0788b9f490e29e21c8081b8574f890e6b7400db266351bc0878353a985aaf484",
+            "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/SHA256SUMS",
+            "sha256": "caf7a63a46764b499df15acd6eca020b449ca34bd868f7064712c29df53a5293",
             "size": 104
           },
-          "size": 149632
+          "size": 538911
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
@@ -199,35 +201,54 @@
             "windows",
             "linux"
           ],
-          "node": ">=22.0.0",
-          "dshRelease": "0.1.2-rc.1",
-          "dshDevelopmentRelease": "0.1.1-rc.2",
-          "dshPeerRange": "0.1.1-rc.2 || 0.1.2-rc.1",
-          "piAi": "^0.84.2",
+          "node": ">=22.19.0",
+          "dshRelease": "0.1.5-alpha.2",
+          "dshDevelopmentRelease": "0.1.2-rc.1",
+          "dshPeerRange": "0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2",
+          "piAi": "0.85.1",
           "runtimeDependencies": {
-            "@deepseek-ai/dsh-authorization": "0.1.1-rc.2 || 0.1.2-rc.1",
+            "@deepseek-ai/dsh-authorization": "0.1.2-rc.1",
+            "@deepseek-ai/schemastery": "^3.18.2",
+            "@earendil-works/pi-ai": "0.85.1",
             "zod": "^4.4.3"
           },
           "requiredCapabilities": [
+            "readonly-search-composition-preflight",
+            "session-model-search-routing",
+            "explicit-deepseek-search-fallback",
+            "account-driven-provider-metadata",
+            "account-scoped-discovery-snapshot",
+            "public-adapter-account-model-route",
+            "managed-model-generation-and-lifetime",
+            "account-discovery-native-oauth",
+            "responses-public-reasoning-and-safe-replay-delegation",
+            "replay-safe-copilot-reasoning-presentation",
             "client-module-loader-handoff",
             "strict-remote-result-codecs",
             "authorization-service-bootstrap",
             "models-provider-card-authorization",
-            "path-level-account-model-reconciliation",
+            "canonical-owner-preservation",
             "copilot-optional-tool-arguments",
-            "per-model-api-route-materialization",
-            "existing-grant-route-self-healing",
+            "selected-account-route-protocol-facts",
+            "existing-grant-legacy-profile-repair",
+            "read-only-status-and-explicit-discovery",
+            "credential-bound-lazy-search-proof",
+            "legacy-route-conflict-protection",
+            "legacy-global-override-restoration",
             "shared-copilot-credential-refresh",
             "strict-json-oauth-grant-normalization",
             "direct-provider-hosted-search",
+            "hosted-search-file-context-fail-closed",
             "traditional-search-bridge",
             "dsh-supported-baselines-fail-loud-guard",
-            "dsh-rc2-models-settings-fallback"
+            "dsh-models-settings-and-managed-discovery-ui",
+            "single-managed-route-native-oauth",
+            "compact-account-row-and-auth-disclosure"
           ]
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-github-copilot-0.3.0-cloga.15.tgz",
+        "artifactPattern": "dist\\dsh-github-copilot-0.4.0-alpha.18.tgz",
         "commands": [
           [
             "install",
@@ -243,6 +264,33 @@
             ".\\dist"
           ]
         ]
+      },
+      "desktopProvisioning": {
+        "schemaVersion": 1,
+        "mode": "windowsOpsVerifiedRelease",
+        "adapter": "DshOfficialDesktopPluginProvisioning.psm1",
+        "registry": "https://packagefeedproxy.microsoft.io/npm/",
+        "allowedRedirectHosts": [
+          "github.com",
+          "release-assets.githubusercontent.com"
+        ],
+        "nativeCapability": {
+          "verified": false,
+          "coreCommit": null,
+          "desktopCommit": null,
+          "fixture": null
+        },
+        "removal": {
+          "compatibilityReadUntilSchema": 1,
+          "runbook": "docs/official-desktop-plugin-provisioning-removal.md",
+          "removeWhenNative": [
+            "tools/DshOfficialDesktopPluginProvisioning.psm1",
+            "tools/dsh-official-desktop-plugin-health.mjs",
+            "tests/DshOfficialDesktopPluginProvisioning.Tests.ps1",
+            "PackageLocal plugin provisioning receipt fields",
+            "local install and update completion adapter hooks"
+          ]
+        }
       }
     }
   },
@@ -494,7 +542,7 @@
       },
       {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.15",
+        "version": "0.4.0-alpha.18",
         "source": "built-artifact",
         "materialize": true
       }
@@ -815,12 +863,12 @@
       "provider": "github-copilot",
       "package": {
         "name": "dsh-github-copilot",
-        "version": "0.3.0-cloga.15"
+        "version": "0.4.0-alpha.18"
       },
       "source": {
-        "pullRequest": 56,
-        "commit": "4e095196197570776515423929ddb72e8299c1db",
-        "mergeCommit": "473b8aa174eb47a323b026c098b73bf7d716772c"
+        "pullRequest": 120,
+        "commit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
+        "mergeCommit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704"
       },
       "forbiddenProperties": [
         "sandbox_permissions",

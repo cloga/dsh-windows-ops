@@ -131,6 +131,8 @@ if (catalog && schema && deployment) {
     if (plugin.source?.mergeCommit !== undefined && !/^[0-9a-f]{7,40}$/.test(plugin.source.mergeCommit)) fail(`${at}.source.mergeCommit`, 'must be a hexadecimal commit id');
     if (plugin.source?.pullRequest !== undefined && (!Number.isInteger(plugin.source.pullRequest) || plugin.source.pullRequest < 1)) fail(`${at}.source.pullRequest`, 'must be a positive integer');
     if (plugin.artifact !== undefined && (!isObject(plugin.artifact) || !nonempty(plugin.artifact.name) || !/^https:\/\/github\.com\//.test(plugin.artifact.url ?? '') || !/^[0-9a-f]{64}$/.test(plugin.artifact.sha256 ?? ''))) fail(`${at}.artifact`, 'requires name, GitHub HTTPS URL, and lowercase SHA-256');
+    if (plugin.artifact?.sha512 !== undefined && !/^[0-9a-f]{128}$/.test(plugin.artifact.sha512)) fail(`${at}.artifact.sha512`, 'must be a lowercase SHA-512');
+    if (plugin.artifact?.integrity !== undefined && !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(plugin.artifact.integrity)) fail(`${at}.artifact.integrity`, 'must be SHA-512 SRI');
     if (plugin.artifact?.releaseTag !== undefined && !/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?$/.test(plugin.artifact.releaseTag)) fail(`${at}.artifact.releaseTag`, 'must be a version tag');
     if (plugin.artifact?.releaseImmutable !== undefined && typeof plugin.artifact.releaseImmutable !== 'boolean') fail(`${at}.artifact.releaseImmutable`, 'must be boolean');
     if (plugin.artifact?.checksumManifestUrl !== undefined && !/^https:\/\/github\.com\//.test(plugin.artifact.checksumManifestUrl)) fail(`${at}.artifact.checksumManifestUrl`, 'must be a GitHub HTTPS URL');
@@ -189,6 +191,8 @@ if (catalog && schema && deployment) {
       if (plugin.artifact?.name !== locked?.package?.artifact?.name) fail(`${at}.artifact.name`, 'does not match deployment lock');
       if (plugin.artifact?.url !== locked?.package?.artifact?.url) fail(`${at}.artifact.url`, 'does not match deployment lock');
       if (plugin.artifact?.sha256 !== locked?.package?.artifact?.sha256) fail(`${at}.artifact.sha256`, 'does not match deployment lock');
+      if (plugin.artifact?.sha512 !== locked?.package?.artifact?.sha512) fail(`${at}.artifact.sha512`, 'does not match deployment lock');
+      if (plugin.artifact?.integrity !== locked?.package?.artifact?.integrity) fail(`${at}.artifact.integrity`, 'does not match deployment lock');
       if (plugin.artifact?.releaseTag !== locked?.package?.artifact?.releaseTag) fail(`${at}.artifact.releaseTag`, 'does not match deployment lock');
       if (plugin.artifact?.releaseImmutable !== true || locked?.package?.artifact?.releaseImmutable !== true) fail(`${at}.artifact.releaseImmutable`, 'locked baseline release must be immutable');
       if (plugin.artifact?.checksumManifestUrl !== locked?.package?.artifact?.checksumManifest?.url) fail(`${at}.artifact.checksumManifestUrl`, 'does not match deployment lock');

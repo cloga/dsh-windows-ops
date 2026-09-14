@@ -3,7 +3,7 @@ param(
     [ValidateSet('Check','Apply')][string]$Action = 'Check',
     [switch]$Apply,
     [string]$BuildRoot = 'C:\tmp\dsh-official-desktop-build\work',
-    [string]$Registry = 'https://registry.npmjs.org/',
+    [string]$Registry = 'https://packagefeedproxy.microsoft.io/npm/',
     [string]$PnpmPath,
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'Programs\DSH Local Build'),
     [string]$DataRoot = (Join-Path $env:LOCALAPPDATA 'DSH Local Build'),

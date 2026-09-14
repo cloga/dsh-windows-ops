@@ -251,7 +251,7 @@ function Invoke-PreparedDesktopBuild { param([string]$Source,[string]$Root,$Poli
 function Get-LocalExecutableVersionInfo { param([string]$Path);return (Get-Item -LiteralPath $Path).VersionInfo }
 function Get-LocalPackageEvidence { param([string]$Source,[string]$Root,$Policy,[string]$OverlayPath);$target=Join-Path $Source ($script:ArtifactRelativeRoot.Replace('/','\'));Assert-NoReparseTree $target;$artifacts=Join-Path $target 'artifacts';$installer=Join-Path $artifacts $Policy.localPackage.installerName;$unpacked=Join-Path $artifacts 'win-unpacked';$exe=Join-Path $unpacked ($Policy.localPackage.productName+'.exe');$asar=Join-Path $unpacked 'resources\app.asar';$release=Join-Path $target 'seed\desktop-release.json';$runtime=Join-Path $target 'runtime\versions.json';foreach($p in @($installer,$exe,$asar,$release,$runtime,$OverlayPath)){if(-not(Test-Path -LiteralPath $p -PathType Leaf)){throw('local-package-artifact-missing:'+($p|Split-Path -Leaf))}};$expectedOverlay=Get-NormalizedPath (Join-Path (Join-Path $Root $Policy.toolStateDirectory) 'local-electron-builder.config.mjs');if((Get-NormalizedPath $OverlayPath)-cne$expectedOverlay-or-not(Test-PathAtOrWithin $expectedOverlay (Join-Path $Root $Policy.toolStateDirectory))){throw 'local-overlay-path-mismatch'};Assert-OfficialToolStateTree $Root;Assert-NoReparseAncestor $expectedOverlay;$expectedIcon=Get-NormalizedPath (Join-Path $Source 'apps\web\public\favicon.svg');if(-not(Test-PathAtOrWithin $expectedIcon $Source)-or-not(Test-Path -LiteralPath $expectedIcon -PathType Leaf)){throw 'local-icon-source-invalid'};Assert-NoReparseAncestor $expectedIcon;if([IO.File]::ReadAllText($expectedOverlay)-cne(Get-LocalOverlayContent $Source $Policy $expectedIcon)){throw 'local-overlay-content-mismatch'};$rel=Get-Content $release -Raw|ConvertFrom-Json;$run=Get-Content $runtime -Raw|ConvertFrom-Json;if($rel.version-cne$Policy.version-or$rel.hostProtocolVersion-ne3-or$rel.nodeVersion-cne'24.17.0'-or$rel.pnpmVersion-cne'11.7.0'-or$run.node-cne'24.17.0'-or$run.pnpm-cne'11.7.0'){throw 'local-package-seed-version-mismatch'};if(Test-Path (Join-Path $unpacked 'resources\app-update.yml')){throw 'local-package-update-config-present'};$installerSig=(Get-AuthenticodeSignature $installer).Status.ToString();$exeSig=(Get-AuthenticodeSignature $exe).Status.ToString();if($installerSig-cne'NotSigned'-or$exeSig-cne'NotSigned'){throw 'local-package-unexpected-signature'};$versionInfo=Get-LocalExecutableVersionInfo $exe;foreach($value in @($versionInfo.ProductName,$versionInfo.FileDescription,$versionInfo.InternalName)){if($value-cne$Policy.localPackage.productName){throw 'local-package-version-info-identity-mismatch'}};[pscustomobject]@{overlayPath=(Get-NormalizedPath $OverlayPath);installerPath=(Get-NormalizedPath $installer);installerSignature=$installerSig;executablePath=(Get-NormalizedPath $exe);executableSignature=$exeSig;appUpdatePresent=$false;identity=[pscustomobject]@{appId=$Policy.localPackage.appId;packageName=$Policy.localPackage.packageName;productName=$Policy.localPackage.productName};seed=$rel;hashes=[pscustomobject]@{installer=(Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant();appAsar=(Get-FileHash $asar -Algorithm SHA256).Hash.ToLowerInvariant();executable=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant();seed=(Get-TreeHash (Join-Path $target 'seed'));overlay=(Get-FileHash $OverlayPath -Algorithm SHA256).Hash.ToLowerInvariant()}} }
 function Test-DshOfficialDesktopBuildReceipt {
- [CmdletBinding()]param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][string]$SourceRoot,$Policy=(Get-DshOfficialDesktopBuildPolicy),[string]$GitPath=(Get-OfficialToolPath git),[string]$NodeVersion,[string]$PnpmVersion='11.7.0',[scriptblock]$CommandRunner,[string]$PnpmPath)
+ [CmdletBinding()]param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][string]$SourceRoot,$Policy=(Get-DshOfficialDesktopBuildPolicy),[string]$GitPath=(Get-OfficialToolPath git),[string]$NodeVersion,[string]$PnpmVersion='11.7.0',[scriptblock]$CommandRunner,[string]$PnpmPath,[switch]$RecordedEvidenceOnly)
  try {
   $r=Get-Content $Path -Raw|ConvertFrom-Json
   $topKeys=@('schemaVersion','action','status','createdUtc','source','tools','commands','artifacts','validation','releaseBoundary','receiptSha256')
@@ -262,12 +262,15 @@ function Test-DshOfficialDesktopBuildReceipt {
   if($r.schemaVersion-ne1-or$r.action-cnotin@('prepare','build','packagelocal')-or$r.status-cne'complete'){throw 'schema-values'}
   if(-not(Test-ExactKeys $r.source @('repository','tag','commit','tree','clean','lockfileSha256'))-or-not(Test-ExactKeys $r.tools @('nodeVersion','packageManager','pnpmVersion','pnpmMode','pnpmExecutable'))-or-not(Test-ExactKeys $r.validation @('launchedGui','installedDesktop','trackedSourceModified','isolatedDshHome'))){throw 'nested-schema-keys'}
   $root=Split-Path -Parent (Get-NormalizedPath $SourceRoot)
-  Assert-ManagedBuildTrees $root $Policy -IncludeTarget
+  if(-not $RecordedEvidenceOnly){Assert-ManagedBuildTrees $root $Policy -IncludeTarget}
   if((Get-NormalizedPath $r.validation.isolatedDshHome)-cne(Get-NormalizedPath (Join-Path $root 'isolated-dsh-home'))){throw 'isolated-home-path'}
-  $state=Assert-OfficialSourceState $SourceRoot $GitPath $Policy $null $CommandRunner
+  if($RecordedEvidenceOnly){
+   if($r.action -cne 'packagelocal' -or $r.source.lockfileSha256 -cnotmatch '^[0-9a-f]{64}$'){throw 'recorded-source-fields'}
+   $state=[pscustomobject]@{lockHash=$r.source.lockfileSha256}
+  }else{$state=Assert-OfficialSourceState $SourceRoot $GitPath $Policy $null $CommandRunner}
   if($r.source.repository-cne$Policy.repository-or$r.source.tag-cne$Policy.tag-or$r.source.commit-cne$Policy.commit-or$r.source.tree-cne$Policy.tree-or$r.source.clean-ne$true-or$r.source.lockfileSha256-cne$state.lockHash){throw 'source-fields'}
   if($r.tools.packageManager-cne$Policy.packageManager-or$r.tools.pnpmVersion-cne$PnpmVersion-or$r.tools.pnpmMode-cne'direct'-or-not[IO.Path]::IsPathRooted([string]$r.tools.pnpmExecutable)-or($NodeVersion-and$r.tools.nodeVersion-cne$NodeVersion)){throw 'tool-fields'}
-   $expectedExecutable=if($PnpmPath){Resolve-OfficialPnpmPath $PnpmPath}else{Get-OfficialToolPath pnpm};if(-not$expectedExecutable-or(Get-NormalizedPath $r.tools.pnpmExecutable)-cne(Get-NormalizedPath $expectedExecutable)){throw 'tool-executable'}
+   if(-not $RecordedEvidenceOnly){$expectedExecutable=if($PnpmPath){Resolve-OfficialPnpmPath $PnpmPath}else{Get-OfficialToolPath pnpm};if(-not$expectedExecutable-or(Get-NormalizedPath $r.tools.pnpmExecutable)-cne(Get-NormalizedPath $expectedExecutable)){throw 'tool-executable'}}
   $expectedBase=if($r.action-ceq'prepare'){@('pnpm-version','frozen-install')}elseif($r.action-ceq'build'){@('pnpm-version','frozen-install','official-desktop-test','official-desktop-prepare')}else{@('pnpm-version','frozen-install','official-desktop-test','official-desktop-prepare','local-electron-builder')}
   $expectedRetry=if($r.action-ceq'build'){@('pnpm-version','frozen-install','official-desktop-test',$Policy.officialCommands.testRetry.name,'official-desktop-prepare')}elseif($r.action-ceq'packagelocal'){@('pnpm-version','frozen-install','official-desktop-test',$Policy.officialCommands.testRetry.name,'official-desktop-prepare','local-electron-builder')}else{@()};$actualNames=@($r.commands|ForEach-Object{$_.name});$primaryTests=@($r.commands|Where-Object{$_.name-ceq'official-desktop-test'});$usedRetry=$primaryTests.Count-eq1-and$primaryTests[0].exitCode-ne0;$expected=if($usedRetry){$expectedRetry}else{$expectedBase};if((ConvertTo-CanonicalJson $actualNames)-cne(ConvertTo-CanonicalJson $expected)){throw ('command-order:'+($actualNames-join','))}
   foreach($c in @($r.commands)){
@@ -280,9 +283,40 @@ function Test-DshOfficialDesktopBuildReceipt {
   }
   if($r.validation.launchedGui-ne$false-or$r.validation.installedDesktop-ne$false-or$r.validation.trackedSourceModified-ne$false){throw 'command-order'}
   foreach($a in @($r.artifacts)){if(-not(Test-ExactKeys $a @('path','size','sha256'))-or$a.path.StartsWith('/')-or$a.path.Contains('..')-or-not$a.path.StartsWith($script:ArtifactRelativeRoot+'/',[StringComparison]::Ordinal)){throw 'command-order'}}
-  if((ConvertTo-CanonicalJson @($r.artifacts))-cne(ConvertTo-CanonicalJson @(Get-OfficialArtifactInventory $SourceRoot))){throw 'command-order'}
+  if(-not $RecordedEvidenceOnly -and (ConvertTo-CanonicalJson @($r.artifacts))-cne(ConvertTo-CanonicalJson @(Get-OfficialArtifactInventory $SourceRoot))){throw 'command-order'}
   if($r.action-cin@('build','packagelocal')){if(-not(Test-ExactKeys $r.registryRouting @('registry','deviation','sourcePath','originalSha256','literalCount','patchedSha256','restored','lockAndIntegrityRetained'))-or$r.registryRouting.restored-ne$true-or$r.registryRouting.literalCount-ne2-or$r.registryRouting.originalSha256-cne$Policy.prepareSeedSha256-or$r.registryRouting.lockAndIntegrityRetained-ne$true){throw 'command-order'};Assert-DshRegistry $r.registryRouting.registry|Out-Null;if(($r.registryRouting.registry-cne$Policy.defaultRegistry)-ne[bool]$r.registryRouting.deviation){throw 'command-order'}}
-  if($r.action-ceq'packagelocal'){if((ConvertTo-CanonicalJson $r.releaseBoundary)-cne(ConvertTo-CanonicalJson $Policy.localReleaseBoundary)){throw 'command-order'};$e=Get-LocalPackageEvidence $SourceRoot $root $Policy $r.localPackage.overlayPath;if((ConvertTo-CanonicalJson $e)-cne(ConvertTo-CanonicalJson $r.localPackage)){throw 'command-order'}}elseif((ConvertTo-CanonicalJson $r.releaseBoundary)-cne(ConvertTo-CanonicalJson $Policy.releaseBoundary)){throw 'command-order'}
+  if($r.action-ceq'packagelocal'){
+   if((ConvertTo-CanonicalJson $r.releaseBoundary)-cne(ConvertTo-CanonicalJson $Policy.localReleaseBoundary)){throw 'command-order'}
+   if($RecordedEvidenceOnly){
+    $local=$r.localPackage
+    if(-not(Test-ExactKeys $local @('overlayPath','installerPath','installerSignature','executablePath','executableSignature','appUpdatePresent','identity','seed','hashes')) -or
+      -not(Test-ExactKeys $local.identity @('appId','packageName','productName')) -or
+      -not(Test-ExactKeys $local.hashes @('installer','appAsar','executable','seed','overlay'))){throw 'recorded-package-shape'}
+    if($local.identity.appId -cne $Policy.localPackage.appId -or $local.identity.packageName -cne $Policy.localPackage.packageName -or
+      $local.identity.productName -cne $Policy.localPackage.productName -or $local.installerSignature -cne 'NotSigned' -or
+      $local.executableSignature -cne 'NotSigned' -or $local.appUpdatePresent -ne $false -or
+      $local.seed.version -cne $Policy.version -or $local.seed.hostProtocolVersion -ne 3 -or
+      $local.seed.nodeVersion -cne '24.17.0' -or $local.seed.pnpmVersion -cne '11.7.0'){throw 'recorded-package-identity'}
+    foreach($hash in $local.hashes.PSObject.Properties.Value){if($hash -cnotmatch '^[0-9a-f]{64}$'){throw 'recorded-package-hash'}}
+    $target=Join-Path $SourceRoot ($script:ArtifactRelativeRoot.Replace('/','\'))
+    if((Get-NormalizedPath $local.overlayPath) -cne (Get-NormalizedPath (Join-Path $root 'tool-state\local-electron-builder.config.mjs')) -or
+      (Get-NormalizedPath $local.installerPath) -cne (Get-NormalizedPath (Join-Path $target ('artifacts\'+$Policy.localPackage.installerName))) -or
+      (Get-NormalizedPath $local.executablePath) -cne (Get-NormalizedPath (Join-Path $target 'artifacts\win-unpacked\DeepSeek Harness.exe'))){throw 'recorded-package-path'}
+    $seen=@{}
+    foreach($artifact in @($r.artifacts)){
+     if($artifact.sha256 -cnotmatch '^[0-9a-f]{64}$' -or $artifact.size -lt 0 -or $artifact.size -ne [math]::Truncate($artifact.size) -or $seen.ContainsKey($artifact.path)){throw 'recorded-artifact-invalid'}
+     $seen[$artifact.path]=$true
+    }
+    foreach($pair in @(@($local.installerPath,$local.hashes.installer),@($local.executablePath,$local.hashes.executable),@((Join-Path (Split-Path $local.executablePath -Parent) 'resources\app.asar'),$local.hashes.appAsar))){
+     $relative=(Get-NormalizedPath $pair[0]).Substring((Get-NormalizedPath $SourceRoot).Length+1).Replace('\','/')
+     $records=@($r.artifacts|Where-Object{$_.path -ceq $relative})
+     if($records.Count -ne 1 -or $records[0].sha256 -cne $pair[1]){throw 'recorded-artifact-hash-mismatch'}
+    }
+   }else{
+    $e=Get-LocalPackageEvidence $SourceRoot $root $Policy $r.localPackage.overlayPath
+    if((ConvertTo-CanonicalJson $e)-cne(ConvertTo-CanonicalJson $r.localPackage)){throw 'command-order'}
+   }
+  }elseif((ConvertTo-CanonicalJson $r.releaseBoundary)-cne(ConvertTo-CanonicalJson $Policy.releaseBoundary)){throw 'command-order'}
   $true
  } catch {$script:LastReceiptValidationError=$_.Exception.Message;Write-Verbose("receipt-invalid: "+$_.Exception.Message);$false}
 }

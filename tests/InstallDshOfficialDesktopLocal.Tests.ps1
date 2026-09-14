@@ -47,13 +47,47 @@ Describe 'Official Desktop local side-by-side installer' {
             WriteShortcut={param($path,$target,$arguments,$description,$icon)$script:calls.Add("shortcut:$path");$script:shortcuts[$path]=[pscustomobject]@{TargetPath=$target;Arguments=$arguments;Description=$description}}
             WriteText={param($path,$text)$script:calls.Add("write:$path");$script:files[$path]=$text;$script:exists[$path]=$true}
             WriteAtomicText={param($path,$text)$script:calls.Add("atomic:$path");$script:files[$path]=$text;$script:exists[$path]=$true}
-            CopyFile={param($source,$destination)$script:calls.Add("copy:$destination");$script:exists[$destination]=$true;$script:hashes[$destination]=$script:hashes[$source];if($source-eq$script:buildReceiptPath){$script:files[$destination]=$script:buildReceipt}elseif($script:files.ContainsKey($source)){$script:files[$destination]=$script:files[$source]}}
+            CopyFile={param($source,$destination)$script:calls.Add("copy:$destination");$script:exists[$destination]=$true;$script:hashes[$destination]=if($script:hashes.ContainsKey($source)){$script:hashes[$source]}elseif($source-eq$script:launcher){'d'*64}else{'e'*64};if($source-eq$script:buildReceiptPath){$script:files[$destination]=$script:buildReceipt}elseif($script:files.ContainsKey($source)){$script:files[$destination]=$script:files[$source]}}
             TestReparse={param($path)$false}
             GetChildren={param($path)@()}
             GetSpecialFolder={param($name)if($name-eq'Desktop'){Join-Path $TestDrive 'Desktop'}else{Join-Path $TestDrive 'ProgramsMenu'}}
             PathExists={param($path,$type)[bool]$script:exists[$path]}
             ReadJson={param($path)if($path-eq$script:buildReceiptPath){$script:buildReceipt}elseif($script:files.ContainsKey($path)){$v=$script:files[$path];if($v-is[string]){$v|ConvertFrom-Json}else{$v}}else{throw 'missing-json'}}
             ReadText={param($path)[string]$script:files[$path]}
+            RemoveFile={param($path)$script:exists.Remove($path);$script:files.Remove($path)}
+            IsCurrentUserOwner={param($path)$true}
+            GetDirectChildren={param($path)if($script:directChildren.ContainsKey($path)){@($script:directChildren[$path])}else{@()}}
+            GetOpaqueTreeHash={param($path)'1'*64}
+            MoveDirectory={
+                param($source,$destination)
+                $script:calls.Add("move:$source")
+                foreach($path in @($script:exists.Keys|Where-Object{$_ -eq $source -or $_.StartsWith($source+'\')})){
+                    $script:exists[$destination+$path.Substring($source.Length)]=$script:exists[$path]
+                    $script:exists.Remove($path)
+                }
+            }
+        }
+        $script:directChildren=@{}
+        $script:sharedRoot=Join-Path $TestDrive 'shared-home'
+        $script:sharedProfile=Join-Path $sharedRoot 'profiles\desktop'
+        foreach($path in @($sharedRoot,(Join-Path $sharedRoot 'settings.yaml'),(Join-Path $sharedRoot 'sessions'),(Join-Path $sharedRoot 'profiles'))){$script:exists[$path]=$true}
+        function New-LegacyProfileFixture {
+            $script:exists[$script:sharedProfile]=$true
+            $hashes=@{
+                'package.json'='bb3969723f1c7590c78a59cd7aaf8b98ad8eefae0ec590cfe6e7f4ef21d77f53'
+                'cordis.yml'='37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570'
+                'cordis.patch.yml'='ef189a8c27db6d63930aa3046a3040482e952eafcb7487c644d508e8d461f027'
+                'pnpm-workspace.yaml'='ae7c5b68e2f157528e62885804e69e88583897b775e03c86fcbe52feaf498aba'
+            }
+            $names=@($hashes.Keys)+@('node_modules','.dsh-module-fallback')
+            $script:directChildren[$script:sharedProfile]=@($names|ForEach-Object{[pscustomobject]@{Name=$_}})
+            foreach($name in $names){$path=Join-Path $script:sharedProfile $name;$script:exists[$path]=$true;if($hashes.ContainsKey($name)){$script:hashes[$path]=$hashes[$name]}}
+            $script:exists[(Join-Path $script:sharedProfile '.dsh-module-fallback\node_modules')]=$true
+            $script:directChildren[(Join-Path $script:sharedProfile '.dsh-module-fallback')]=@([pscustomobject]@{Name='node_modules'})
+        }
+        function Invoke-FixtureInstall {
+            param([string]$SharedHome,[switch]$UseIsolatedHome,[string]$Action='Apply')
+            Invoke-DshOfficialDesktopLocalInstall -Action $Action -AcknowledgeUnsignedLocalBuild -BuildRoot $script:buildRoot -InstallRoot $script:installRoot -DataRoot $script:dataRoot -SharedHome $SharedHome -UseIsolatedHome:$UseIsolatedHome -Operations $script:ops
         }
     }
 
@@ -62,6 +96,161 @@ Describe 'Official Desktop local side-by-side installer' {
         $result.status|Should -Be 'ready';$result.mutated|Should -BeFalse
         @($calls)|Should -Contain 'build:Check'
         ($calls|ConvertTo-Json -Depth 5)|Should -Not -Match 'installer|write:|atomic:|copy:|shortcut:'
+    }
+
+    It 'selects shared existing data without copying settings sessions or credentials' {
+        $check=Invoke-FixtureInstall -Action Check -SharedHome $sharedRoot
+        $check.status|Should -Be 'ready' -Because ($check.reasons -join ',');$check.sharedProfile.kind|Should -Be 'absent'
+        ($calls|ConvertTo-Json)|Should -Not -Match 'write:|atomic:|copy:|move:'
+        $result=Invoke-FixtureInstall -SharedHome $sharedRoot
+        $result.home.mode|Should -Be 'shared'
+        $result.receipt.home.path|Should -Be $sharedRoot
+        $files[$launcher]|Should -Match ([regex]::Escape('DSH_HOME='+$sharedRoot))
+        $files[$launcher]|Should -Match ([regex]::Escape('--user-data-dir='+$dataRoot+'\electron-user-data'))
+        $result.receipt.launcher.description|Should -Be 'DeepSeek Harness local source build (unsigned; shared DSH home; update channel not configured)'
+        ($calls|ConvertTo-Json)|Should -Not -Match 'copy:.*(settings|credentials|sessions)|move:'
+    }
+
+    It 'upgrades schema1 to shared and retains the mode when arguments are omitted' {
+        $first=Invoke-FixtureInstall
+        $receipt=$first.receipt
+        $receipt.schemaVersion=1;$receipt.PSObject.Properties.Remove('home')
+        InModuleScope Install-DshOfficialDesktopLocal -Parameters @{receipt=$receipt} {param($receipt)$receipt.receiptSha256=Get-LocalReceiptPayloadHash $receipt}
+        $script:files[(Join-Path $dataRoot 'official-desktop-local-install.json')]=$receipt
+        $script:calls.Clear()
+        $shared=Invoke-FixtureInstall -SharedHome $sharedRoot
+        $shared.installerRun|Should -BeFalse
+        $shared.receipt.schemaVersion|Should -Be 2
+        (Invoke-FixtureInstall -Action Check).home.path|Should -Be $sharedRoot
+        $again=Invoke-FixtureInstall
+        $again.home.mode|Should -Be 'shared';$again.installerRun|Should -BeFalse
+        @($calls)|Should -Not -Contain 'build:PackageLocal'
+        InModuleScope Install-DshOfficialDesktopLocal -Parameters @{receipt=$again.receipt} {param($receipt)(Test-LocalReceiptHash $receipt)|Should -BeTrue}
+        $isolated=Invoke-FixtureInstall -UseIsolatedHome
+        $isolated.home.mode|Should -Be 'isolated'
+        $isolated.home.path|Should -Be (Join-Path $dataRoot 'harness-home')
+        $isolated.receipt.launcher.description|Should -Match 'isolated DSH home'
+        $script:exists[$sharedRoot]|Should -BeTrue
+    }
+
+    It 'detects the exact blank legacy collision read-only and moves it intact once on Apply' {
+        New-LegacyProfileFixture
+        $check=Invoke-FixtureInstall -Action Check -SharedHome $sharedRoot
+        $check.status|Should -Be 'ready' -Because ($check.reasons -join ',');$check.sharedProfile.kind|Should -Be 'legacy-blank'
+        ($calls|ConvertTo-Json)|Should -Not -Match 'move:|copy:|atomic:'
+        $result=Invoke-FixtureInstall -SharedHome $sharedRoot
+        $result.home.profileBackup.status|Should -Be 'moved'
+        $result.home.profileBackup.destination|Should -BeLike ($dataRoot+'\install-backups\*\desktop')
+        $script:exists.ContainsKey($sharedProfile)|Should -BeFalse
+        $script:exists[$result.home.profileBackup.destination]|Should -BeTrue
+        $again=Invoke-FixtureInstall
+        $again.home.profileBackup.destination|Should -Be $result.home.profileBackup.destination
+        @($calls|Where-Object{$_ -like 'move:*'}).Count|Should -Be 1
+    }
+
+    It 'fails closed on customized blank profiles without installer or writes' {
+        New-LegacyProfileFixture
+        $script:hashes[(Join-Path $sharedProfile 'cordis.patch.yml')]='custom'
+        $result=Invoke-FixtureInstall -SharedHome $sharedRoot
+        $result.status|Should -Be 'blocked'
+        $result.reasons|Should -Contain 'shared-desktop-profile-unknown'
+        @($calls)|Should -Not -Contain 'build:PackageLocal'
+        ($calls|ConvertTo-Json)|Should -Not -Match 'move:|write:|copy:'
+    }
+
+    It 'blocks unsafe shared boundaries owner mismatches and metadata reparse paths' {
+        foreach($path in @($dataRoot,$installRoot,$buildRoot,(Join-Path $sharedRoot 'profiles'))){
+            $script:exists[$path]=$true
+            (Invoke-FixtureInstall -Action Check -SharedHome $path).status|Should -Be 'blocked'
+        }
+        $ops.IsCurrentUserOwner={param($path)$false}
+        (Invoke-FixtureInstall -SharedHome $sharedRoot).reasons|Should -Contain 'shared-home-owner-mismatch'
+        $ops.IsCurrentUserOwner={param($path)$true}
+        $ops.TestReparse={param($path)$path -eq (Join-Path $script:sharedRoot 'profiles')}
+        (Invoke-FixtureInstall -SharedHome $sharedRoot).status|Should -Be 'blocked'
+        ($calls|ConvertTo-Json)|Should -Not -Match 'move:|write:|copy:'
+    }
+
+    It 'blocks community runtimes and unknown node commands even on the idempotent mode switch path' {
+        $null=Invoke-FixtureInstall -SharedHome $sharedRoot
+        foreach($process in @(
+            [pscustomobject]@{Id=9;Name='DeepSeek Harness.exe';ExecutablePath='C:\Community\DeepSeek Harness.exe';CommandLine='community'},
+            [pscustomobject]@{Id=10;Name='node.exe';ExecutablePath='C:\Runtime\node.exe';CommandLine='node C:\dsh\host.js'},
+            [pscustomobject]@{Id=11;Name='node.exe';ExecutablePath='C:\Runtime\node.exe';CommandLine=$null}
+        )){
+            $script:processes=@($process)
+            (Invoke-FixtureInstall).reasons|Should -Contain 'shared-home-runtime-running'
+            (Invoke-FixtureInstall -UseIsolatedHome).reasons|Should -Contain 'shared-home-runtime-running'
+        }
+    }
+
+    It 'preserves backups and reports partial failure rather than rollback success' {
+        New-LegacyProfileFixture
+        $ops.MoveDirectory={param($source,$destination)throw 'simulated-move-failure'}
+        {Invoke-FixtureInstall -SharedHome $sharedRoot}|Should -Throw '*partial-install-manual-review-required*simulated-move-failure*'
+        $script:exists[$sharedProfile]|Should -BeTrue
+        (Invoke-FixtureInstall -Action Check -SharedHome $sharedRoot).reasons|Should -Contain 'home-change-recovery-required'
+        @($files.Keys|Where-Object{$_ -like '*shared-profile-*\backup.json'}).Count|Should -Be 1
+    }
+
+    It 'does not reset shared mode after an unreadable or altered receipt' {
+        $first=Invoke-FixtureInstall -SharedHome $sharedRoot
+        $path=Join-Path $dataRoot 'official-desktop-local-install.json'
+        $first.receipt.home.path='C:\tampered'
+        $script:files[$path]=$first.receipt
+        (Invoke-FixtureInstall).reasons|Should -Contain 'saved-home-receipt-untrusted'
+        $script:files[$path]='broken-json'
+        (Invoke-FixtureInstall).reasons|Should -Contain 'install-receipt-unreadable'
+    }
+
+    It 'reuses archived install evidence when source and build tools are gone' {
+        $null=Invoke-FixtureInstall
+        $script:exists.Remove($sourceRoot)
+        $ops.InvokeBuild={throw 'build must not be invoked for attested install'}
+        $ops.ValidateBuildReceipt={param($path,$source,$pnpm,$recordedOnly)if(-not $recordedOnly){throw 'recorded mode required'};$true}
+        $result=Invoke-FixtureInstall -SharedHome $sharedRoot
+        $result.installerRun|Should -BeFalse
+        (Invoke-FixtureInstall -Action Check).build.action|Should -Be 'installed-evidence'
+    }
+
+    It 'refuses conflicting options and malformed process enumeration' {
+        {Invoke-FixtureInstall -SharedHome $sharedRoot -UseIsolatedHome}|Should -Throw '*conflicts*'
+        foreach($probe in @(
+            [pscustomobject]@{unavailable=$true;items=@()},
+            [pscustomobject]@{unavailable=$false;items=@([pscustomobject]@{Id=7})}
+        )){
+            $script:probe=$probe;$ops.GetProcesses={$script:probe}
+            (Invoke-FixtureInstall -SharedHome $sharedRoot).status|Should -Be 'blocked'
+        }
+    }
+
+    It 'catches a runtime starting after Check and never moves the legacy profile' {
+        New-LegacyProfileFixture
+        $null=Invoke-FixtureInstall -UseIsolatedHome
+        $script:probeCount=0
+        $ops.GetProcesses={
+            $script:probeCount++
+            [pscustomobject]@{unavailable=$false;items=@(if($script:probeCount -gt 1){[pscustomobject]@{Id=14;Name='dsh.exe';ExecutablePath='C:\runtime\dsh.exe'}})}
+        }
+        {Invoke-FixtureInstall -SharedHome $sharedRoot}|Should -Throw '*shared-home-runtime-running*'
+        @($calls|Where-Object{$_ -like 'move:*'}).Count|Should -Be 0
+        $script:exists[$sharedProfile]|Should -BeTrue
+    }
+
+    It 'does not silently overwrite a modified launcher but can adopt the explicit canonical selection' {
+        $null=Invoke-FixtureInstall
+        $script:hashes[$launcher]='f'*64;$script:files[$launcher]='custom command'
+        {Invoke-FixtureInstall}|Should -Throw '*launcher-modified-review-required*'
+        $script:files[$launcher]="@echo off`r`nsetlocal`r`nset `"DSH_HOME=$sharedRoot`"`r`nstart `"`" `"$installed`" `"--user-data-dir=$dataRoot\electron-user-data`" %*`r`n"
+        (Invoke-FixtureInstall -SharedHome $sharedRoot).home.mode|Should -Be 'shared'
+    }
+
+    It 'retains the pending journal when a shortcut write silently fails' {
+        $null=Invoke-FixtureInstall
+        $ops.WriteShortcut={param($path,$target,$arguments,$description,$icon)}
+        {Invoke-FixtureInstall -SharedHome $sharedRoot}|Should -Throw '*partial-install-manual-review-required*shortcut-write-verification-failed*'
+        (Invoke-FixtureInstall -Action Check).reasons|Should -Contain 'home-change-recovery-required'
+        @($files.Keys|Where-Object{$_ -like '*home-change-*\DeepSeek Harness Local Build.cmd'}).Count|Should -BeGreaterThan 0
     }
 
     It 'requires explicit acknowledgement before PackageLocal' {

@@ -350,6 +350,14 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         Test-DshOfficialDesktopBuildReceipt $package.receiptPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath | Should -BeTrue
         $forged=Get-Content $package.receiptPath -Raw|ConvertFrom-Json;$forged.localPackage.overlayPath=Join-Path $root 'elsewhere.mjs';$forged.PSObject.Properties.Remove('receiptSha256');$forgedPath=Join-Path $TestDrive 'forged-local.json';Write-DshOfficialDesktopBuildReceipt $forged $forgedPath|Out-Null
         Test-DshOfficialDesktopBuildReceipt $forgedPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath | Should -BeFalse
+        Test-DshOfficialDesktopBuildReceipt $package.receiptPath $source -RecordedEvidenceOnly | Should -BeTrue
+        Test-DshOfficialDesktopBuildReceipt $forgedPath $source -RecordedEvidenceOnly | Should -BeFalse
+        $savedSource=Join-Path $root 'source-offline-fixture'
+        Move-Item -LiteralPath $source -Destination $savedSource
+        try{
+            Test-DshOfficialDesktopBuildReceipt $package.receiptPath $source -RecordedEvidenceOnly | Should -BeTrue
+            Test-DshOfficialDesktopBuildReceipt $package.receiptPath $source -PnpmPath $script:pnpmPath | Should -BeFalse
+        }finally{Move-Item -LiteralPath $savedSource -Destination $source}
         $forged=Get-Content $package.receiptPath -Raw|ConvertFrom-Json;$forged.commands[-1].workingDirectory=$source;$forged.PSObject.Properties.Remove('receiptSha256');$forgedPath=Join-Path $TestDrive 'forged-cwd.json';Write-DshOfficialDesktopBuildReceipt $forged $forgedPath|Out-Null
         Test-DshOfficialDesktopBuildReceipt $forgedPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath | Should -BeFalse
     }

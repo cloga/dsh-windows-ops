@@ -8,6 +8,8 @@ param(
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'Programs\DSH Local Build'),
     [string]$DataRoot = (Join-Path $env:LOCALAPPDATA 'DSH Local Build'),
     [string]$CommunityRoot = (Join-Path $HOME '.dsh'),
+    [string]$SharedHome,
+    [switch]$UseIsolatedHome,
     [switch]$AcknowledgeUnsignedLocalBuild,
     [switch]$Migrate,
     [switch]$WriteMigrationPlan,
@@ -22,8 +24,14 @@ if ($Apply) {
     $Action = 'Apply'
 }
 try {
+    if($Migrate -and $SharedHome){throw 'shared-home-cannot-migrate'}
+    $homeOptions=@{SharedHome=$SharedHome;UseIsolatedHome=$UseIsolatedHome}
+    if($Migrate){
+        $modeCheck=Invoke-DshOfficialDesktopLocalInstall -Action Check -BuildRoot $BuildRoot -Registry $Registry -PnpmPath $PnpmPath -InstallRoot $InstallRoot -DataRoot $DataRoot @homeOptions
+        if($modeCheck.home.mode -eq 'shared'){throw 'shared-home-cannot-migrate'}
+    }
     if ($Migrate -and $Action -eq 'Check') {
-        $installCheck = Invoke-DshOfficialDesktopLocalInstall -Action Check -BuildRoot $BuildRoot -Registry $Registry -PnpmPath $PnpmPath -InstallRoot $InstallRoot -DataRoot $DataRoot
+        $installCheck = Invoke-DshOfficialDesktopLocalInstall -Action Check -BuildRoot $BuildRoot -Registry $Registry -PnpmPath $PnpmPath -InstallRoot $InstallRoot -DataRoot $DataRoot @homeOptions
         $migrationPlan = Get-DshOfficialDesktopLocalMigrationPlan -CommunityRoot $CommunityRoot -InstallRoot $InstallRoot -DataRoot $DataRoot -WritePlan:$WriteMigrationPlan
         [pscustomobject]@{ schemaVersion = 1; action = 'migration-plan'; status = $migrationPlan.status; install = $installCheck; migration = $migrationPlan } | ConvertTo-Json -Depth 40
         if ($installCheck.status -eq 'blocked' -or $migrationPlan.status -eq 'blocked') { exit 2 }
@@ -37,7 +45,7 @@ try {
         if ($migrationPreflight.status -ne 'ready') { throw ('migration-target-not-ready-before-install:' + (($migrationPreflight.reasons -join ',') -replace '[\r\n]', '')) }
         if ([string]$migrationPreflight.planHash -cne $AcknowledgeMigrationPlan.ToLowerInvariant()) { throw 'migration-plan-stale-before-install' }
     }
-    $result = Invoke-DshOfficialDesktopLocalInstall -Action $Action -BuildRoot $BuildRoot -Registry $Registry -PnpmPath $PnpmPath -InstallRoot $InstallRoot -DataRoot $DataRoot -AcknowledgeUnsignedLocalBuild:$AcknowledgeUnsignedLocalBuild
+    $result = Invoke-DshOfficialDesktopLocalInstall -Action $Action -BuildRoot $BuildRoot -Registry $Registry -PnpmPath $PnpmPath -InstallRoot $InstallRoot -DataRoot $DataRoot -AcknowledgeUnsignedLocalBuild:$AcknowledgeUnsignedLocalBuild @homeOptions
     if ($Migrate) {
         if ($Action -ne 'Apply') { throw 'migration-requires-apply-or-check' }
         $migration = Invoke-DshOfficialDesktopLocalMigration -Action Apply -CommunityRoot $CommunityRoot -InstallRoot $InstallRoot -DataRoot $DataRoot -AcknowledgeMigrationPlan $AcknowledgeMigrationPlan

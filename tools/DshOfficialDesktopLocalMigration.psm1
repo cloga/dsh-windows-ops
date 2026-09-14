@@ -527,7 +527,13 @@ function Test-MigrationTrustedInstallReceipt {
     )
     try {
         if ($null -eq $Receipt) { return $false }
-        if ([int](Get-MigrationProperty $Receipt 'schemaVersion') -ne 1 -or [string](Get-MigrationProperty $Receipt 'status') -cne 'complete') { return $false }
+        if ([int](Get-MigrationProperty $Receipt 'schemaVersion') -notin @(1,2) -or [string](Get-MigrationProperty $Receipt 'status') -cne 'complete') { return $false }
+        if ([int](Get-MigrationProperty $Receipt 'schemaVersion') -eq 2) {
+            $selection=Get-MigrationProperty $Receipt 'home'
+            if((Get-MigrationProperty $selection 'mode') -cne 'isolated' -or
+                (Get-MigrationProperty $selection 'path') -cne (Join-Path $DataRoot 'harness-home') -or
+                (Get-MigrationProperty $selection 'electronUserData') -cne (Join-Path $DataRoot 'electron-user-data')){return $false}
+        }
         if ((Get-MigrationPath ([string](Get-MigrationProperty $Receipt 'installRoot'))) -cne (Get-MigrationPath $InstallRoot)) { return $false }
         if ((Get-MigrationPath ([string](Get-MigrationProperty $Receipt 'dataRoot'))) -cne (Get-MigrationPath $DataRoot)) { return $false }
         $identity = Get-MigrationProperty $Receipt 'identity'

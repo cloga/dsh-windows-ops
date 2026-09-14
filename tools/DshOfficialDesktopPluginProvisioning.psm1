@@ -239,6 +239,9 @@ function Get-DshOfficialDesktopPluginOperations {
         }
         Download = {
             param($url, $destination, $allowedHosts)
+            if (-not ('System.Net.Http.HttpClientHandler' -as [type])) {
+                Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
+            }
             $handler = [Net.Http.HttpClientHandler]::new()
             $handler.AllowAutoRedirect = $false
             $client = [Net.Http.HttpClient]::new($handler)

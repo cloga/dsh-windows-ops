@@ -86,6 +86,102 @@ Describe 'Official Desktop local managed update channel' {
         (Get-DshOfficialDesktopUpdateChannelCheck -BundleRoot $result.bundleRoot -DataRoot $dataRoot -Operations $ops).updateAvailable|Should -BeFalse
     }
 
+    It 'checks a remote manifest without downloading the installer or mutating the data root' {
+        $result=New-DshOfficialDesktopUpdateBundle -Sequence 20 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
+        $dataRoot=Join-Path $TestDrive 'remote-check-data'
+        $script:downloads=[Collections.Generic.List[string]]::new()
+        $ops.DownloadFile={
+            param($uri,$destination)
+            $script:downloads.Add([string]$uri)
+            New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force|Out-Null
+            Copy-Item -LiteralPath $result.manifestPath -Destination $destination -Force
+        }
+        $check=Get-DshOfficialDesktopRemoteUpdateChannelCheck -ManifestUrl 'https://downloads.example.test/dsh/release.json' -DataRoot $dataRoot -Operations $ops
+        $check.status|Should -Be 'ready'
+        $check.updateAvailable|Should -BeTrue
+        $check.downloadRequired|Should -BeTrue
+        $check.mutated|Should -BeFalse
+        $script:downloads|Should -Be @('https://downloads.example.test/dsh/release.json')
+        Test-Path $dataRoot|Should -BeFalse
+    }
+
+    It 'downloads and revalidates every declared artifact before making the bundle visible' {
+        $result=New-DshOfficialDesktopUpdateBundle -Sequence 21 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
+        $sourceBundle=$result.bundleRoot
+        $dataRoot=Join-Path $TestDrive 'download-data'
+        $ops.DownloadFile={
+            param($uri,$destination)
+            $name=[Uri]::UnescapeDataString(([Uri]$uri).Segments[-1])
+            New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force|Out-Null
+            Copy-Item -LiteralPath (Join-Path $sourceBundle $name) -Destination $destination -Force
+        }
+        $download=Receive-DshOfficialDesktopUpdateBundle -ManifestUrl 'https://downloads.example.test/dsh/release.json' -DataRoot $dataRoot -Operations $ops
+        $download.status|Should -Be 'complete'
+        $verified=Test-DshOfficialDesktopUpdateBundle -BundleRoot $download.bundleRoot -Operations $ops
+        $verified.valid|Should -BeTrue -Because $verified.reason
+        $again=Receive-DshOfficialDesktopUpdateBundle -ManifestUrl 'https://downloads.example.test/dsh/release.json' -DataRoot $dataRoot -Operations $ops
+        $again.status|Should -Be 'verified'
+        $again.idempotent|Should -BeTrue
+    }
+
+    It 'uses one explicit interactive installer launch and then reuses strict completion' {
+        $result=New-DshOfficialDesktopUpdateBundle -Sequence 22 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
+        $dataRoot=Join-Path $TestDrive 'install-data'
+        $installRoot=Join-Path $TestDrive 'Programs\DSH Local Build'
+        $script:startedInstaller=$null
+        $ops.StartInstaller={param($path)$script:startedInstaller=$path;[pscustomobject]@{ExitCode=0}}
+        $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        Mock Get-DshOfficialDesktopLocalCheck {
+            [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@()}
+        } -ModuleName DshOfficialDesktopUpdateChannel
+        Mock Complete-DshOfficialDesktopManualUpdate {
+            [pscustomobject]@{action='complete';status='complete';installerRun=$false}
+        } -ModuleName DshOfficialDesktopUpdateChannel
+        $installed=Invoke-DshOfficialDesktopUpdateInstall -BundleRoot $result.bundleRoot -AcknowledgeManifestSha256 ('sha256:'+$result.manifestSha256) -BuildRoot $buildRoot -InstallRoot $installRoot -DataRoot $dataRoot -Operations $ops -InstallOperations $installOps
+        $installed.status|Should -Be 'complete'
+        $installed.installerRun|Should -BeTrue
+        $installed.silentInstall|Should -BeFalse
+        $installed.windowsInstallerConfirmationPreserved|Should -BeTrue
+        $script:startedInstaller|Should -Be $installed.stage.installerPath
+        Assert-MockCalled Complete-DshOfficialDesktopManualUpdate -ModuleName DshOfficialDesktopUpdateChannel -Times 1 -Exactly
+    }
+
+    It 'reports strict completion as pending after a successful installer exit' {
+        $result=New-DshOfficialDesktopUpdateBundle -Sequence 23 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
+        $dataRoot=Join-Path $TestDrive 'pending-data'
+        $installRoot=Join-Path $TestDrive 'Programs\DSH Local Build'
+        $ops.StartInstaller={param($path)[pscustomobject]@{ExitCode=0}}
+        $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        Mock Get-DshOfficialDesktopLocalCheck {
+            [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@()}
+        } -ModuleName DshOfficialDesktopUpdateChannel
+        Mock Complete-DshOfficialDesktopManualUpdate { throw 'installed-file-version-mismatch' } -ModuleName DshOfficialDesktopUpdateChannel
+        $installed=Invoke-DshOfficialDesktopUpdateInstall -BundleRoot $result.bundleRoot -AcknowledgeManifestSha256 ('sha256:'+$result.manifestSha256) -BuildRoot $buildRoot -InstallRoot $installRoot -DataRoot $dataRoot -Operations $ops -InstallOperations $installOps
+        $installed.status|Should -Be 'blocked'
+        $installed.reason|Should -Be 'update-completion-required:installed-file-version-mismatch'
+        $installed.installerRun|Should -BeTrue
+        $installed.completeOnNextLaunch|Should -BeTrue
+    }
+
+    It 'reports an interactive installer cancellation without claiming completion' {
+        $result=New-DshOfficialDesktopUpdateBundle -Sequence 24 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
+        $dataRoot=Join-Path $TestDrive 'cancel-data'
+        $installRoot=Join-Path $TestDrive 'Programs\DSH Local Build'
+        $ops.StartInstaller={param($path)[pscustomobject]@{ExitCode=2}}
+        $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        Mock Get-DshOfficialDesktopLocalCheck {
+            [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@()}
+        } -ModuleName DshOfficialDesktopUpdateChannel
+        Mock Complete-DshOfficialDesktopManualUpdate {
+            throw 'completion-must-not-run'
+        } -ModuleName DshOfficialDesktopUpdateChannel
+        $installed=Invoke-DshOfficialDesktopUpdateInstall -BundleRoot $result.bundleRoot -AcknowledgeManifestSha256 ('sha256:'+$result.manifestSha256) -BuildRoot $buildRoot -InstallRoot $installRoot -DataRoot $dataRoot -Operations $ops -InstallOperations $installOps
+        $installed.status|Should -Be 'blocked'
+        $installed.reason|Should -Be 'update-installer-exit-2'
+        $installed.installerRun|Should -BeTrue
+        Assert-MockCalled Complete-DshOfficialDesktopManualUpdate -ModuleName DshOfficialDesktopUpdateChannel -Times 0 -Exactly
+    }
+
     It 'completes only after manual installation evidence and records schema-3 metadata without running an installer' {
         $result=New-DshOfficialDesktopUpdateBundle -Sequence 10 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
         $dataRoot=Join-Path $TestDrive 'complete-data'

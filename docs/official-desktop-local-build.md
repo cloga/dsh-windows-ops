@@ -205,12 +205,13 @@ the coordinator only for a packaged application containing `app-update.yml`;
 therefore remain visible without a configured release stream. This installer
 does not add a feed, change signing, or enable automatic downloads.
 
-## dsh-windows-ops managed update channel (unsigned manual apply)
+## dsh-windows-ops managed update channel (explicit one-click install)
 
 The existing `PackageLocal` and one-command install defaults remain unchanged:
 they do not configure an updater. A separate operations-owned workflow can
 prepare and validate an update feed without claiming the vendor identity or
-silently installing unsigned code:
+silently installing unsigned code. The primary user flow is a read-only remote
+manifest check followed by one explicit install trigger:
 
 ```powershell
 # Build one reviewed local package and an unpublished generic-provider bundle.
@@ -219,17 +220,26 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -Sequence 1 `
   -FeedBaseUrl https://github.com/cloga/dsh-windows-ops/releases/download/dsh-local-0.1.5-rc.2.local.1/
 
-# Read-only comparison with the installed schema-3 receipt, if one exists.
+# Read-only remote manifest comparison with the installed schema-3 receipt.
+# This downloads only release.json into a temporary directory.
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\manage-official-desktop-update-channel.ps1 -Action Check `
-  -BundleRoot C:\tmp\dsh-official-desktop-build\work\update-channel\0.1.5-rc.2.local.1
+  -ManifestUrl https://github.com/cloga/dsh-windows-ops/releases/download/dsh-local-0.1.5-rc.2.local.1/release.json
 
-# Copy only the exact reviewed bundle into local staging.
+# One explicit user trigger: download, verify, stage, launch the interactive
+# NSIS installer, wait for it, and perform strict completion readback.
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tools\manage-official-desktop-update-channel.ps1 -Action Stage `
-  -BundleRoot C:\tmp\dsh-official-desktop-build\work\update-channel\0.1.5-rc.2.local.1 `
+  -File tools\manage-official-desktop-update-channel.ps1 -Action Install `
+  -ManifestUrl https://github.com/cloga/dsh-windows-ops/releases/download/dsh-local-0.1.5-rc.2.local.1/release.json `
   -AcknowledgeManifestSha256 sha256:<release.json-manifestSha256>
 ```
+
+`Install` is one-click in the sense that the user performs one explicit update
+action after reviewing `Check`. It is not a silent or unattended update. The
+script passes no `/S` argument, does not request elevation itself, and does not
+use `runAs`; the verified NSIS package and Windows retain their normal installer
+and UAC confirmations. The script never dismisses SmartScreen, certificate,
+publisher, or operating-system warnings.
 
 `Package` still invokes the strict pinned `PackageLocal` pipeline. It then
 creates exactly four channel files below
@@ -247,6 +257,15 @@ manifest hash, copies through a unique temporary directory, revalidates every
 byte, and uses one atomic directory rename. An identical retry is idempotent; a
 conflicting or tampered stage fails closed. No token, authorization header,
 credential, Session content, or DSH home content is written to the bundle.
+
+Remote `Check` validates the manifest schema, identity, self-hash, security
+boundary, credential-free HTTPS feed URL, and monotonically increasing sequence
+without persisting update state. `Install` downloads `release.json`, `rc.yml`,
+the installer, and the strict build receipt into a unique temporary directory,
+then reuses the same bundle verifier for manifest self-hash, installer
+SHA-256/SHA-512/size/signature state, build-receipt hash and provenance, and
+installed-evidence hashes before atomically exposing the download. It then
+calls the existing `Stage` implementation; validation logic is not duplicated.
 
 The operations channel version is
 `0.1.5-rc.2.local.<positive-sequence>`. The immutable upstream package and seed
@@ -283,16 +302,28 @@ hide Windows warnings as a workaround. Native updates may be enabled only after
 an owned Authenticode identity, protected signing service, publisher continuity,
 and end-to-end signed upgrade tests are available.
 
-### Manual apply and schema-3 completion
+### Interactive installer and schema-3 completion
 
-After staging, the user—not this script—reviews and runs the staged unsigned
-installer. Windows warnings must remain visible. Close the local Desktop
-normally first; this workflow never stops or restarts it. The existing app ID,
-package name, and install directory preserve upgrade compatibility, while
-`DSH_HOME` and Electron user-data selection remain those stored by the schema-2
-receipt.
+Close the local Desktop normally before selecting `Install`; this workflow
+never stops or restarts it. After exact manifest acknowledgement, the script
+revalidates the staged installer immediately before launch and starts it with no
+arguments. The user—not the script—accepts or rejects the installer and any
+Windows/UAC confirmation. The existing app ID, package name, and install
+directory preserve upgrade compatibility, while `DSH_HOME` and Electron
+user-data selection remain those stored by the schema-2 receipt.
 
-After the installer exits, complete the transaction:
+After the installer exits successfully, `Install` immediately reuses
+`Complete`. It verifies the actual executable version and identity fields, exact
+executable and seed hashes, seed package versions, uninstall registration,
+absence of `app-update.yml`, prior receipt trust, launcher/shortcut ownership,
+and archived installer/build-receipt/manifest metadata before writing the
+schema-3 receipt.
+
+If Windows has not made the final files observable yet, or another strict
+post-install condition blocks immediate completion, the result is
+`status=blocked`, `installerRun=true`, and
+`reason=update-completion-required:<reason>`. The stage remains intact and the
+caller can run the following command during the next launch:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -310,6 +341,12 @@ receipt to schema 3 with channel owner, sequence, feed, manifest, and
 `nativeUpdaterEnabled=false`. A failure after the user ran the installer is
 manual-review state; it does not claim automatic binary, Core, or data rollback.
 The prior installer archive and community Desktop remain the recovery boundary.
+
+The lower-level local-bundle flow remains available for operations and recovery:
+`Check -BundleRoot ...`, `Stage -BundleRoot ...`, user-reviewed installer
+execution, and `Complete -StageRoot ...`. This does not change the primary
+one-click trigger and does not enable background polling, automatic download,
+silent install, Electron `quitAndInstall`, or native `electron-updater`.
 
 ## One-command side-by-side install
 

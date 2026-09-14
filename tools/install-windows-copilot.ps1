@@ -47,6 +47,17 @@ if ($Action -eq 'RemoveCompanionSuite') {
         ConvertTo-Json -Depth 20
     exit 0
 }
+if ($Action -in @('Check', 'Verify')) {
+    $userPresetConfig = Test-DshUserPresetConfig -DshHome $DshHome -Contract $lock.acceptance.runtimeSchema
+    if (-not $userPresetConfig.valid) {
+        [pscustomobject]@{
+            mode = $Action.ToLowerInvariant()
+            valid = $false
+            checks = [pscustomobject]@{ userPresetConfig = $userPresetConfig }
+        } | ConvertTo-Json -Depth 20
+        exit 2
+    }
+}
 if (-not $NpmGlobalRoot) {
     $NpmGlobalRoot = (& npm root --global).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $NpmGlobalRoot) {
@@ -112,6 +123,7 @@ if ($Action -eq 'Check') {
         -DesktopExecutablePath $DesktopExecutablePath -GatewayExecutablePath $GatewayExecutablePath `
         -SkipRuntimeChecks:$SkipRuntimeChecks -IncludeCompanionSuite:$IncludeCompanionSuite
     $checks = [ordered]@{
+        userPresetConfig = $installation.profile.userPresetConfig
         manifest = Test-WindowsCopilotLock -Lock $lock
         desktopArtifact = if ($DesktopArtifactPath) {
             Test-LockedArtifact -Path $DesktopArtifactPath `
@@ -151,6 +163,7 @@ if ($Action -eq 'Check') {
     }
     [pscustomobject]@{ mode = 'check'; plan = $plan; checks = $checks } |
         ConvertTo-Json -Depth 20
+    if (-not $installation.profile.userPresetConfig.valid) { exit 2 }
     exit 0
 }
 

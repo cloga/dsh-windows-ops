@@ -510,17 +510,20 @@ web plus headless produced `duplicate loader entry id: code-runtime` in the
 observed installation. Check reports `shared-official-profile-conflicting-app-bundles`
 and blocks rather than silently rewriting the manifest.
 
-The reviewed Copilot integration distributes private artifacts only through
-GitHub Releases, not npm. The pinned official Desktop
-`DesktopProjectManager.packageNameFromSpec()` currently rejects URL and `file:`
-specs, while the CLI forbids booting or mutating the reserved `desktop` profile.
-Thus even a compatible, checksum-verified Release tarball has **no supported
-Desktop installation route in this version**. Check explicitly reports
-`copilotDesktopInstall=unsupported-release-tarball-spec`. Supported installation
-requires a future Desktop-owned artifact path or a separately approved
-distribution change; it is not solved by copying `node_modules`, editing profile
-manifests, patching Core, or silently publishing to npm. No credential loss or
-reauthentication requirement should be inferred from this plugin boundary.
+The current Windows operations contracts reference checksum-verified Copilot
+GitHub Release artifacts. Newer plugin releases may also publish to npm, but
+that does not prove that this pinned official Desktop can install or safely
+compose them. Its `DesktopProjectManager.packageNameFromSpec()` currently
+rejects URL and `file:` specs, while the CLI forbids booting or mutating the
+reserved `desktop` profile. Consequently, the reviewed Release tarball still
+has **no supported Desktop installation route in this version**, and no npm
+route has been accepted by this repository for the corporate Desktop.
+Check reports
+`copilotDesktopInstall=unsupported-release-tarball-spec`. A supported route
+requires a Desktop-owned artifact or package-manager flow with exact version,
+registry, dependency, profile-ownership, and runtime acceptance evidence. Do
+not copy `node_modules`, edit profile manifests, patch Core, or infer credential
+loss or reauthentication from this plugin boundary.
 
 An exact existing receipt/install is idempotently reverified and repairs the
 launcher, local shortcuts, and receipt without rerunning the installer. Archived

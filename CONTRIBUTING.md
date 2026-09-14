@@ -6,11 +6,12 @@ Read [AGENTS.md](AGENTS.md) before changing this repository. The deployment lock
 
 1. Create or reuse a tracking issue.
 2. Branch from the resolved default branch using `cloga-<task-slug>` for `cloga`-owned work.
-3. Keep `deployments/windows-copilot.lock.json`, catalog entries, fixtures, tests, and explanatory guides synchronized for every baseline change.
-4. Preserve the official Desktop shell, seven Profile links, non-bundled panel placeholder, and optional-overlay boundary unless the issue explicitly changes them.
+3. Keep `deployments/windows-copilot.lock.json`, catalog entries, fixtures, tests, explanatory guides, and both README entry points synchronized for every baseline change. Important behavior, command, contract, security, compatibility, workflow, or default changes follow the documentation rule in `AGENTS.md`.
+4. Preserve the official Desktop shell, eight Profile links, non-bundled panel placeholder, and optional-overlay boundary unless the issue explicitly changes them.
 5. Run verification in read-only/check modes first. Do not use `-Apply`, stop Desktop, or restart Host merely to validate a repository change.
-6. Commit with the issue reference. Work produced with the Copilot App uses the exact trailer `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>`. Open a pull request with `Fixes #<issue>`.
-7. Merge only after required policy, catalog, and Windows Pester checks pass.
+6. Record Expected vs Actual scope and documentation impact in the pull request. If no guide or README change is needed, explain why the change is generated-only or internal.
+7. Commit with the issue reference. Work produced with the Copilot App uses the exact trailer `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>`. Open a pull request with `Fixes #<issue>`.
+8. Merge only after required policy, catalog, and Windows Pester checks pass.
 
 ## Required verification
 

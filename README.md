@@ -33,7 +33,7 @@ README、插件目录或历史文档中出现一个项目，**不代表它属于
 | 目标 | 从这里开始 |
 |---|---|
 | 检查或安装锁定的 Windows + Copilot 基线 | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
-| 从官方 `dsh-v0.1.5-rc.2` 源码构建并以隔离数据目录并排安装 Electron Desktop 本地构建 | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
+| 从官方 `dsh-v0.1.5-rc.2` 源码构建并并排安装 Electron Desktop 本地构建；选择默认隔离 Home 或显式复用已有 Home，并了解手动更新通道 | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
 | 运行版本、配置、端口、模型和补丁自检 | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | 诊断安装问题并执行定点修复 | [`tools/README.md`](tools/README.md) |
 | 选择或评估社区插件 | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
@@ -65,7 +65,7 @@ node tools\validate-plugin-catalog.mjs
 | 类别 | 主要工具 | 用途 |
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
-| 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装，并配置隔离 launcher/快捷方式；不启动、不重启、不移除社区版；`-Migrate` 默认只生成脱敏计划，需 `-Apply -Migrate -AcknowledgeMigrationPlan sha256:<hash>` 才执行受限配置迁移 |
+| 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装；新安装默认隔离 Home，`-SharedHome <existing-home>` 显式复用已有 Home，`-UseIsolatedHome` 切回隔离模式；Electron user-data 始终隔离；不启动、不重启、不移除社区版 |
 | 本地 Desktop 更新通道 | `tools/manage-official-desktop-update-channel.ps1` | `Check` 只读检查远端 manifest；一次显式 `Install` 自动下载、验证并暂存后启动交互式 NSIS 安装器，保留 Windows/UAC 确认，再严格 `Complete` 回读；不是 silent/automatic update，仍不发布、不嵌入 `app-update.yml`，并保留独立 Package/Stage/Complete 恢复路径 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
 | 可选套件 | `tools/install-optional-companion-suite.ps1` | 依据已安装 Core/Cordis/API 而非 Desktop 补丁版本，单独 Check/Apply/Verify 锁定的 Copilot、Cron 与 Playwright Bundle；不替换 Desktop/Core、全局包或运行中进程 |
@@ -81,6 +81,7 @@ node tools\validate-plugin-catalog.mjs
 ## 文档地图
 
 - **部署与集成**：`local-core-desktop-copilot.md`、`vision-dual-channel.md`（当前为 DSH 原生附件与 `read_image` 架构）
+- **官方源码本地 Desktop**：`official-desktop-local-build.md`（`PackageLocal` 默认无更新通道；另有远端 Check、显式 one-click Install 和 Package/Stage/Complete 恢复流程）
 - **插件治理与可选 overlays**：`docs/plugins/`（包括 `computer-use.md`、`scheduling.md`、`better-sidebar.md`）及 `catalog/`
 - **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
 - **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`

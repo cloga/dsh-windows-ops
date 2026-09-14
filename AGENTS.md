@@ -64,6 +64,14 @@ Before an installation agent emits every `pwsh` tool call:
   check-first installer, repository replay self-check, and exact-marker dry run
   before applying unrelated patches.
 
+## Temporary tooling and cloud synchronization
+
+- Before downloading or extracting tools, identify whether the destination is cloud-synchronized. Do not default to the current repository or a OneDrive workspace. Use an IT-approved non-synchronized tool directory, for example `C:\tmp\dsh-tools\<tool>-<version>`; temporary locations can be cleaned automatically.
+- Keep new portable binaries, tool archives, certificate bundles, browser profiles and download caches out of synchronized workspaces by default. Hidden directory names and `.gitignore` do not prevent OneDrive synchronization.
+- A PEM file may contain public CA certificates rather than a private key. Inspect only necessary markers and verify provenance/checksums without displaying secrets; corporate alerts require security-team classification, not an assumption of harmlessness.
+- Non-synchronized storage is not an exemption from endpoint monitoring or DLP. Never disable TLS verification or monitoring, disguise files, or delete trust bundles blindly to suppress an alert.
+- Relocate existing tools only after approval and coordination with active consumers: verify the copy, update invocation paths, test with TLS verification enabled, then remove only the approved old copy/archive. Do not implicitly move repositories or change global PATH. See [security notes](docs/security-notes.md).
+
 ## Restart and browser verification safety
 
 - Before stopping, killing, replacing, or restarting Desktop or its Host,

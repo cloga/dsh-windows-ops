@@ -33,7 +33,7 @@ A project appearing in a README, catalog, or historical incident does **not** me
 | Goal | Guide |
 |---|---|
 | Check or install the locked Windows + Copilot baseline | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
-| Prepare an isolated local Electron Desktop build from official `dsh-v0.1.5-rc.2` source | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
+| Build and install a side-by-side Electron Desktop from official `dsh-v0.1.5-rc.2` source; choose the isolated default or an explicit existing Harness home, and understand the manual update channel | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
 | Check versions, configuration, services, models, and replay patches | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | Diagnose installation problems and apply targeted repairs | [`tools/README.md`](tools/README.md) |
 | Choose or evaluate a community plugin | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
@@ -65,8 +65,10 @@ Then use an isolated `DSH_HOME` to verify Cordis activation, tool registration, 
 | Category | Primary tool | Purpose |
 |---|---|---|
 | Deployment | `tools/install-windows-copilot.ps1` | Check by default; install the locked baseline only with explicit `-Apply` |
+| Official local source Desktop | `tools/install-official-desktop-local.ps1` | Check by default; explicit `-Apply -AcknowledgeUnsignedLocalBuild` runs the exact `PackageLocal` flow and installs side-by-side. New installs use an isolated Harness home by default; `-SharedHome <existing-home>` opts into an existing home, `-UseIsolatedHome` returns to isolation, and Electron user data always remains separate |
+| Local Desktop update channel | `tools/manage-official-desktop-update-channel.ps1` | Separate Package/Check/Stage/Complete workflow with `rc.yml`, SHA-256/SHA-512 evidence, and schema-3 completion metadata. The user must run the unsigned installer manually; native and automatic updates remain disabled |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1` (historical compatibility name) | Install the direct Copilot plugin, select hosted search, and report UI sign-in requirements; no vision fallback is installed |
-| Optional suite | `tools/install-windows-copilot.ps1 -IncludeCompanionSuite` | Include locked Copilot, Cron, and Playwright bundles in one baseline Apply/rollback transaction; the narrow optional-suite wrapper uses the same lock |
+| Optional suite | `tools/install-optional-companion-suite.ps1` | Check/Apply/Verify the locked Copilot, Cron, and Playwright selection against installed Core/Cordis/API compatibility without replacing Desktop/Core or restarting processes |
 | Replay and acceptance | `tools/dsh-replay.ps1` | Self-check, strict-marker patches, dry-run, backup, and rollback |
 | Plugin compatibility | `tools/dsh-compat-check.mjs` | Static dependency inventory and real host import probe |
 | Plugin catalog | `tools/validate-plugin-catalog.mjs` | Validate catalog constraints, evidence references, and baseline consistency |
@@ -79,6 +81,7 @@ Use each script's header and linked guide for full parameters.
 ## Documentation map
 
 - **Deployment and integration:** `local-core-desktop-copilot.md`, `vision-dual-channel.md` (now the native DSH attachment and `read_image` architecture)
+- **Official local source Desktop:** `official-desktop-local-build.md` (`PackageLocal` has no update channel by default; the separate unsigned flow is Package/Check/Stage/user-run installer/Complete)
 - **Plugin governance and optional overlays:** `docs/plugins/`, including `computer-use.md`, `scheduling.md`, and `better-sidebar.md`, plus `catalog/`
 - **Diagnostics and migration:** `tools/README.md`, `windows-replay-tooling.md`, `session-move-workspace-groups.md`
 - **Incidents and platform issues:** `startup-60s-timeout.md`, `powershell-5.1-pitfalls.md`, `github-network.md`
@@ -120,7 +123,7 @@ unified main-agent model path.
 does **not** mean an embedded gateway: there is no local gateway process, port
 7777, pasted GitHub token, placeholder API key, or separate search plugin.
 
-[`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) is the single status index for ownership, external-upstream status, and validation evidence. Before publishing or upgrading, follow the deployment lock and compatibility matrix rather than mixing versions from README strings.
+[`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) is the single status index for ownership, external-upstream status, and validation evidence. Before publishing or upgrading, follow the deployment lock, plugin catalog, and the guide for the selected deployment lane rather than mixing versions from README strings.
 
 ## Requirements
 

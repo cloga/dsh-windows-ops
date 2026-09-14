@@ -3,7 +3,7 @@
 This catalog tracks completed integration work, where the durable implementation
 is owned, and whether it has reached an external upstream project. Current
 deployment rows use exact pins; retired fork work is kept only as history.
-External statuses are a point-in-time view as of 2026-09-04:
+External statuses are a point-in-time view as of 2026-09-14:
 **Open** does not mean merged or released.
 
 ## Ownership and status
@@ -46,8 +46,11 @@ linked upstream Discussions are not merged code or release commitments.
 | Root cause and validated behavior | Owning change | Status | Validation evidence |
 |---|---|---|---|
 | A service that became ready after the initial window was left in a stale error state, and silent plugin installs lacked actionable diagnostics. The shell now keeps probing, clears delayed-startup errors, remounts the UI, cancels stale probes, and reports missing manifests. | [`dsh-tauri-desk/deepseek-harness-desktop#118`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/pull/118) | **Merged** | ESLint, typecheck, Vitest 9/9, production build, `cargo check`, and Rust tests 226/226 passed. The unrelated full-prebuild dependency 404 was explicitly documented. |
-| Local integrations needed repeatable detection, exact-marker patching, dry-run, backup, rollback, and recovery rather than one-off machine edits. | [`cloga/dsh-windows-ops#13`](https://github.com/cloga/dsh-windows-ops/pull/13) | **Merged** | Pester 10/10, Windows PowerShell 5.1 self-check, and JavaScript syntax checks passed. See the maintained [replay/self-heal guide and compatibility matrix](windows-replay-tooling.md#compatibility-matrix). |
+| Local integrations needed repeatable detection, exact-marker patching, dry-run, backup, rollback, and recovery rather than one-off machine edits. | [`cloga/dsh-windows-ops#13`](https://github.com/cloga/dsh-windows-ops/pull/13) | **Merged** | Pester 10/10, Windows PowerShell 5.1 self-check, and JavaScript syntax checks passed. See the maintained [replay/self-heal guide](windows-replay-tooling.md). |
 | Partial upgrades mixed Desktop, plugin, and gateway routes. The check-first installer now pins official Desktop 0.10.3 and its managed DSH, preserves all eight official 0.6.7 Profile links plus the non-bundled panel placeholder, migrates reviewed gateway/route/reference state with backup, and accepts only the built-in pi-ai grant plus reference-free direct route. Apply never builds, installs, or selects a DSH runtime. | `cloga/dsh-windows-ops#53`, `#72`, `#114` | **Current deployment baseline** | Default check and path-free Verify attest the wrapper/tree/entrypoint and exact active PID owning IPv4 `127.0.0.1:3080`; direct sign-in, model, search, reasoning, fresh-Session schema, and rollback checks complete acceptance. |
+| Organizations unable to retrieve the vendor Desktop release needed a provenance-preserving path from official source. The local lane pins official `dsh-v0.1.5-rc.2`, builds and packages an unsigned local identity, installs it side-by-side, and keeps the locked Desktop integration lane unchanged. | `#143`; delivered by `#148` | **Merged optional local-source lane** | Check-first source, tree, lockfile, package, installer, seed, and receipt attestations; no launch, restart, vendor identity claim, or automatic update. See [official local Desktop](official-desktop-local-build.md). |
+| A local source Desktop needed an explicit choice between isolated data and reuse of one existing Harness home without sharing Electron browser state. Schema-2 receipts persist the selected mode; exact blank legacy profile migration and live consumer/path/ownership checks fail closed. | `#147`; delivered by `#149` | **Merged shared-home option; isolated remains default** | `-SharedHome` and `-UseIsolatedHome` are explicit; shared `.dsh` runtime use was proven while Electron user data remains separate. |
+| Unsigned local builds needed a verifiable update path without pretending to provide silent Electron auto-update. The operations channel packages, checks, stages, and completes a user-run installer with monotonic local versions and schema-3 receipt metadata. | `#143`; delivered by `#150` | **Merged manual update channel** | `rc.yml`, SHA-256/SHA-512 and self-hashed manifest evidence; `nativeUpdaterEnabled=false`, `automaticUpdates=false`, no publication, installer execution, signature bypass, or `quitAndInstall`. |
 
 ### Historical gateway work
 
@@ -70,16 +73,17 @@ migration contract; none is an active component or success criterion.
 
 ## Compatibility and maintenance
 
-- Use the [replay/self-heal compatibility matrix](windows-replay-tooling.md#compatibility-matrix)
-  as the maintained version reference. It records the validated official DSH runtime
-  baselines, provider baseline, component detection, and patch lifecycle.
+- Use the deployment lock for the supported managed baseline, the plugin catalog
+  for plugin evidence levels, and the [replay/self-heal guide](windows-replay-tooling.md)
+  for component detection and patch lifecycle.
 - Before deployment, run `tools\dsh-replay.ps1 -Action SelfCheck`, then
   `-Action Apply -DryRun`. Unknown source markers must remain incompatible rather
   than receiving a guessed patch.
 - Update a row only from the linked PR or Discussion. Record `Open`, `Closed`, or
   `Merged` exactly; never infer merge or release status from a working fork.
 - When a fix ships upstream, record the first verified release and retire the fork
-  or temporary replay path only after the compatibility matrix passes.
+  or temporary replay path only after the relevant lock, catalog, and replay
+  acceptance checks pass.
 - Keep published branch names generic and task-based. Do not include personal,
   employer, device, credential, or local-path identifiers in refs, commits,
   documentation, fixtures, or examples.

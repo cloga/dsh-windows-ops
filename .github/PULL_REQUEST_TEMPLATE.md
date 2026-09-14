@@ -2,6 +2,15 @@
 
 <!-- State the operational problem, affected lock/tool/doc surfaces, and what remains unchanged. -->
 
+## Expected vs Actual
+
+<!--
+Expected: list the intended files/scope before verification.
+Actual: list the resulting files/scope and any discrepancy.
+Documentation impact: name the synchronized guides plus README.md and README.en.md,
+or explain why this generated-only/internal change needs no documentation update.
+-->
+
 ## Verification
 
 - [ ] `node tools\validate-repository-content.mjs`

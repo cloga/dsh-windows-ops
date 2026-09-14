@@ -33,6 +33,7 @@ A project appearing in a README, catalog, or historical incident does **not** me
 | Goal | Guide |
 |---|---|
 | Check or install the locked Windows + Copilot baseline | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
+| Prepare an isolated local Electron Desktop build from official `dsh-v0.1.5-rc.2` source | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
 | Check versions, configuration, services, models, and replay patches | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | Diagnose installation problems and apply targeted repairs | [`tools/README.md`](tools/README.md) |
 | Choose or evaluate a community plugin | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |

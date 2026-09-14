@@ -7,6 +7,7 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Need | Command | Mutation | Evidence / rollback |
 |---|---|---:|---|
 | Review a newer Copilot managed-route migration | `powershell.exe -NoProfile -File tools\migrate-copilot-managed-route.ps1 -Live` | No config writes; no catalog call unless explicitly allowed | Fresh loaded-plugin/live-Agent receipt; passive check remains catalog-unverified. See [maintenance boundaries and explicit Apply](../docs/copilot-managed-route.md). No install/restart/full-baseline attestation |
+| Check, prepare, build, or package an isolated Electron Desktop source build | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\build-official-desktop.ps1 [-Action Prepare|Verify|Build|PackageLocal] [-Registry <https-url>]` | None in default Check; source/build files only for explicit actions | Pins official `dsh-v0.1.5-rc.2` commit/tree, uses frozen pnpm, temporarily routes the two pinned seed registry literals when explicitly requested, and can produce a distinct unsigned/no-update local package without install or launch. See [local build guide](../docs/official-desktop-local-build.md) |
 | Check the locked Desktop/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply`; attests official Desktop 0.10.3, its managed wrapper/tree/entrypoint, web/headless package coherence, and the exact active PID owning IPv4 `127.0.0.1:3080` |
 | Apply the exact locked Desktop and companion selection | Same command with `-Apply`, plugin source/Release paths, Desktop artifact, and optional `-IncludeCompanionSuite`; add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after the user accepts every listed interruption | High | One backup/rollback transaction; Copilot is required, while the switch atomically includes locked Cron 0.4.1 and Playwright Host 0.1.2; never builds, installs, or selects a DSH runtime |
 | Verify the official Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Attests `deepseek-harness-pkg@0.1.2-alpha.5`, inner official `@deepseek-ai/dsh@0.1.2-rc.1`, the 10-file tree and exact entrypoint, and the exact active PID owning IPv4 `127.0.0.1:3080` |
@@ -35,7 +36,7 @@ blocks that cutover.
 
 ## Tool families
 
-- **Deployment:** `install-windows-copilot.ps1`, `WindowsCopilotDeployment.psm1`, `enable-copilot-search-vision.ps1`
+- **Deployment/build:** `install-windows-copilot.ps1`, `WindowsCopilotDeployment.psm1`, `build-official-desktop.ps1`, `DshOfficialDesktopBuild.psm1`, `enable-copilot-search-vision.ps1`
 - **Diagnostics and replay:** `dsh-replay.ps1`, `DshWindowsOps.psm1`, `dsh-replay.patches.json`, `dsh-sandbox-regression-probe.mjs`
 - **Browser verification:** `dsh-playwright-host/` exposes Host-scope MCP tools to every Preset; `dsh-web-smoke.py` is the independent Python fallback (task-specific flows still require explicit interaction assertions)
 - **Diagnostics and targeted repair:** `dsh-doctor.mjs`, `preflight-check.mjs`

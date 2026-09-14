@@ -33,6 +33,7 @@ README、插件目录或历史文档中出现一个项目，**不代表它属于
 | 目标 | 从这里开始 |
 |---|---|
 | 检查或安装锁定的 Windows + Copilot 基线 | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
+| 从官方 `dsh-v0.1.5-rc.2` 源码在隔离目录准备 Electron Desktop 本地构建 | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
 | 运行版本、配置、端口、模型和补丁自检 | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | 诊断安装问题并执行定点修复 | [`tools/README.md`](tools/README.md) |
 | 选择或评估社区插件 | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |

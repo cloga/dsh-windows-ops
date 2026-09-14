@@ -16,8 +16,8 @@ is the machine-readable deployment contract, verified on **2026-09-04**.
 | Desktop-managed runtime | root `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh`; wrapper `deepseek-harness-pkg@0.1.2-alpha.5`; inner official `@deepseek-ai/dsh@0.1.2-rc.1` |
 | Installed Desktop | executable 23,059,456 bytes, SHA-256 `d191cb2729f53c4fa889fab62c48af38979812f5560d0bb8f8ad4cadeff8b5df`; `resources` 1,765 files / 13,008,656 bytes, tree SHA-256 `29323493802cc7d75fd02a762066d7be8f0da1ac86e1fe1f8f44e2ea15d074ef` |
 | Runtime attestation | complete wrapper closure 10,347 files / 134,066,533 bytes, tree SHA-256 `b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d`, zero reparse directories; inner package 10 files, tree SHA-256 `4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea`; entrypoint 8,021 bytes, SHA-256 `dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166` |
-| Copilot plugin | `dsh-github-copilot@0.3.0-cloga.15`, PR #56 source commit `4e095196197570776515423929ddb72e8299c1db`, merge commit `473b8aa174eb47a323b026c098b73bf7d716772c` |
-| Plugin artifact | Immutable Release [`dsh-github-copilot-0.3.0-cloga.15.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz), release commit `473b8aa174eb47a323b026c098b73bf7d716772c`, SHA-256 `7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/SHA256SUMS) |
+| Copilot plugin | `dsh-github-copilot@0.4.0-alpha.18`, PR #120, source/merge/release commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704` |
+| Plugin artifact | Immutable Release [`dsh-github-copilot-0.4.0-alpha.18.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/dsh-github-copilot-0.4.0-alpha.18.tgz), 538,911 bytes, SHA-256 `2ca4f604e89eda3000cf2a51d79871cee3cb721fa6f4324fc9a1197926c359a8`, SHA-512 SRI `sha512-FZdWZbb/K8jmE64Gwb9ZU+UADAqakAfqLXrru/qpLFSS4qC4LMO0uIcU1Kbsw1Cg55xf0q+ZSbn0y3cdyDzLXw==`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/SHA256SUMS), digest `caf7a63a46764b499df15acd6eca020b449ca34bd868f7064712c29df53a5293` |
 | Desktop internal plugins | eight official `0.6.7` Profile links, including `dsh-tauri-panel-scheduler`, plus the non-bundled panel placeholder under `resources\node_modules` |
 
 Do not independently upgrade or substitute a locked component. Update the lock,
@@ -195,13 +195,13 @@ To preflight optional local copies of the exact plugin inputs without applying:
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\install-windows-copilot.ps1 `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
-  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.15.tgz
+  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.4.0-alpha.18.tgz
 ```
 
 ## Apply the locked Desktop and plugin
 
 Use only the plugin source checkout at
-`4e095196197570776515423929ddb72e8299c1db`, the immutable plugin Release
+`08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`, the immutable plugin Release
 tarball, and the official Desktop 0.10.3 artifact:
 
 ```powershell
@@ -209,7 +209,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\install-windows-copilot.ps1 `
   -Apply `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
-  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.3.0-cloga.15.tgz `
+  -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.4.0-alpha.18.tgz `
   -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.10.3_x64-setup.exe `
   -IncludeCompanionSuite `
   -BackupRoot C:\dsh-ops-backups
@@ -239,7 +239,7 @@ The historical wrapper name remains for plugin configuration:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tools\enable-copilot-search-vision.ps1 `
-  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.3.0-cloga.15.tgz
+  -CopilotIntegrationPackage C:\artifacts\dsh-github-copilot-0.4.0-alpha.18.tgz
 ```
 
 The package argument may be the exact locked GitHub Release URL or a local copy

@@ -43,7 +43,7 @@ reasons. Real `Apply` remains exact-marker based and backs up changed files.
 
 ## Direct Copilot markers
 
-The `.14` baseline checks:
+The `0.4.0-alpha.18` baseline checks:
 
 | Component | Evidence |
 |---|---|
@@ -61,11 +61,12 @@ The `.14` baseline checks:
 | Desktop | official 0.10.3 inventory; exact active PID must own IPv4 `127.0.0.1:3080` |
 | Desktop plugins | all eight official 0.6.7 Profile links, including `dsh-tauri-panel-scheduler`, plus the non-bundled panel placeholder |
 
-The authoritative plugin is `dsh-github-copilot@0.3.0-cloga.15`, PR #56
-source commit `4e095196197570776515423929ddb72e8299c1db`. Its immutable
-`v0.3.0-cloga.15` Release remains tied to merge/release commit
-`473b8aa174eb47a323b026c098b73bf7d716772c`; the artifact SHA-256 is
-`7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1`.
+The authoritative plugin is `dsh-github-copilot@0.4.0-alpha.18`, PR #120,
+source/merge/release commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`.
+Its immutable `v0.4.0-alpha.18` Release artifact SHA-256 is
+`2ca4f604e89eda3000cf2a51d79871cee3cb721fa6f4324fc9a1197926c359a8`.
+Local Desktop install/update additionally verifies the SHA-512/SRI contract and
+provisions this artifact through the reserved-profile transaction adapter.
 
 Replay checks package/source markers only. Credential acceptance is performed
 by the deployment/bootstrap modules and reports record key, kind, and status

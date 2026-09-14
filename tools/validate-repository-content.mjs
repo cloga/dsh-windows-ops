@@ -27,20 +27,31 @@ export function validateRepositoryContent(root = defaultRoot) {
   expect(plugin?.source?.pullRequest === source?.pullRequest, 'catalog pull request differs from deployment lock')
   expect(plugin?.source?.reviewedHead === source?.reviewedHead, 'catalog reviewed head differs from deployment lock')
   expect(plugin?.source?.release === version, 'catalog release differs from deployment lock')
-  for (const field of ['name', 'url', 'sha256', 'size', 'releaseTag', 'releaseCommit', 'releaseImmutable']) {
+  for (const field of ['name', 'url', 'sha256', 'sha512', 'integrity', 'size', 'releaseTag', 'releaseCommit', 'releaseImmutable']) {
     expect(plugin?.artifact?.[field] === artifact?.[field], `catalog artifact.${field} differs from deployment lock`)
   }
   expect(plugin?.artifact?.checksumManifestUrl === artifact?.checksumManifest?.url, 'catalog checksum manifest differs from deployment lock')
   expect(plugin?.artifact?.checksumManifestSha256 === artifact?.checksumManifest?.sha256, 'catalog checksum digest differs from deployment lock')
   expect(plugin?.artifact?.checksumManifestSize === artifact?.checksumManifest?.size, 'catalog checksum size differs from deployment lock')
   expect(artifact?.releaseImmutable === true, 'locked Copilot Release must be immutable')
-  expect(artifact?.releaseCommit === '473b8aa174eb47a323b026c098b73bf7d716772c', 'locked Copilot Release commit differs')
+  expect(artifact?.releaseCommit === '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704', 'locked Copilot Release commit differs')
   expect(artifact?.releaseTag === `v${version}`, 'locked Copilot Release tag differs from package version')
   expect(artifact?.name === `dsh-github-copilot-${version}.tgz`, 'locked Copilot artifact name differs from package version')
   expect(artifact?.url === `https://github.com/cloga/dsh-github-copilot/releases/download/v${version}/${artifact?.name}`, 'locked Copilot artifact URL is not canonical')
   expect(artifact?.checksumManifest?.url === `https://github.com/cloga/dsh-github-copilot/releases/download/v${version}/SHA256SUMS`, 'locked checksum URL is not canonical')
   expect(/^[0-9a-f]{64}$/.test(artifact?.sha256 ?? ''), 'locked Copilot artifact SHA-256 is invalid')
+  expect(/^[0-9a-f]{128}$/.test(artifact?.sha512 ?? ''), 'locked Copilot artifact SHA-512 is invalid')
+  expect(/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(artifact?.integrity ?? ''), 'locked Copilot artifact SRI is invalid')
   expect(/^[0-9a-f]{64}$/.test(artifact?.checksumManifest?.sha256 ?? ''), 'locked checksum-manifest SHA-256 is invalid')
+  const provisioning = locked?.desktopProvisioning
+  expect(provisioning?.schemaVersion === 1, 'desktop provisioning schema differs')
+  expect(['windowsOpsVerifiedRelease', 'desktopNativeVerifiedRelease'].includes(provisioning?.mode), 'desktop provisioning mode is invalid')
+  expect(provisioning?.adapter === 'DshOfficialDesktopPluginProvisioning.psm1', 'desktop provisioning adapter differs')
+  expect(provisioning?.registry === 'https://packagefeedproxy.microsoft.io/npm/', 'desktop provisioning registry differs')
+  expect(provisioning?.mode !== 'desktopNativeVerifiedRelease' || provisioning?.nativeCapability?.verified === true,
+    'desktop-native provisioning requires verified native capability evidence')
+  expect(!(provisioning?.mode === 'windowsOpsVerifiedRelease' && provisioning?.nativeCapability?.verified === true),
+    'Windows Ops and Desktop native provisioners cannot both be active')
 
   const suite = lock.companionSuite
   const catalogSuite = catalog.suites?.find(candidate => candidate.id === suite?.id)
@@ -189,6 +200,16 @@ export function validateRepositoryContent(root = defaultRoot) {
   expect(installer.includes('CopilotIntegrationArtifactPath'), 'installer does not require the locked Copilot Release artifact')
   expect(installer.includes('Test-CopilotIntegrationDeploymentContract'), 'installer does not verify Copilot artifact metadata')
   expect(installer.includes('IncludeCompanionSuite'), 'installer does not expose the unified companion suite flow')
+  const localInstaller = read('tools/Install-DshOfficialDesktopLocal.psm1')
+  const localBuild = read('tools/DshOfficialDesktopBuild.psm1')
+  const localUpdate = read('tools/DshOfficialDesktopUpdateChannel.psm1')
+  for (const content of [localInstaller, localBuild, localUpdate]) {
+    expect(content.toLowerCase().includes('pluginprovision'), 'official local Desktop flow is missing the plugin provisioning adapter')
+  }
+  expect(read('tools/sync-official-desktop-plugin-release.ps1').includes('release.immutable'),
+    'immutable Release check-only command is missing')
+  expect(read('docs/official-desktop-plugin-provisioning-removal.md').includes('desktopNativeVerifiedRelease'),
+    'native provisioning removal runbook is missing')
   for (const retired of ['HarnessSourceRoot', 'CoreInstallPrefix', 'controlled-fork']) {
     expect(!installer.includes(retired), `installer reintroduces retired private Core path: ${retired}`)
   }

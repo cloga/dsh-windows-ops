@@ -131,6 +131,7 @@ Describe 'Official Desktop local managed update channel' {
         $script:startedInstaller=$null
         $ops.StartInstaller={param($path)$script:startedInstaller=$path;[pscustomobject]@{ExitCode=0}}
         $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        $installOps.ProvisionPlugin={param($homePath,$install,$data)[pscustomobject]@{status='complete'}}
         Mock Get-DshOfficialDesktopLocalCheck {
             [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@()}
         } -ModuleName DshOfficialDesktopUpdateChannel
@@ -152,6 +153,7 @@ Describe 'Official Desktop local managed update channel' {
         $installRoot=Join-Path $TestDrive 'Programs\DSH Local Build'
         $ops.StartInstaller={param($path)[pscustomobject]@{ExitCode=0}}
         $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        $installOps.ProvisionPlugin={param($homePath,$install,$data)[pscustomobject]@{status='complete'}}
         Mock Get-DshOfficialDesktopLocalCheck {
             [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@()}
         } -ModuleName DshOfficialDesktopUpdateChannel
@@ -169,6 +171,7 @@ Describe 'Official Desktop local managed update channel' {
         $installRoot=Join-Path $TestDrive 'Programs\DSH Local Build'
         $ops.StartInstaller={param($path)[pscustomobject]@{ExitCode=2}}
         $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        $installOps.ProvisionPlugin={param($homePath,$install,$data)[pscustomobject]@{status='complete'}}
         Mock Get-DshOfficialDesktopLocalCheck {
             [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@()}
         } -ModuleName DshOfficialDesktopUpdateChannel
@@ -197,6 +200,7 @@ Describe 'Official Desktop local managed update channel' {
             launcher=[pscustomobject]@{};rollback=[pscustomobject]@{};home=[pscustomobject]@{mode='isolated';path=(Join-Path $dataRoot 'harness-home');electronUserData=(Join-Path $dataRoot 'electron-user-data');profileBackup=$null};receiptSha256='f'*64
         }|ConvertTo-Json -Depth 20|Set-Content $receiptPath
         $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        $installOps.ProvisionPlugin={param($homePath,$install,$data)[pscustomobject]@{status='complete'}}
         $installOps.GetSignature={param($path)'NotSigned'}
         $script:completedReceipt=$null
         Mock Get-DshOfficialDesktopLocalCheck {
@@ -221,5 +225,43 @@ Describe 'Official Desktop local managed update channel' {
         $script:completedReceipt.updateChannel.nativeUpdaterEnabled|Should -BeFalse
         $script:completedReceipt.identity.automaticUpdates|Should -BeFalse
         Assert-MockCalled Write-LocalLauncherAndShortcuts -ModuleName DshOfficialDesktopUpdateChannel -Times 1 -Exactly
+    }
+
+    It 'does not provision the plugin when the existing install receipt is missing' {
+        $result=New-DshOfficialDesktopUpdateBundle -Sequence 25 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
+        $dataRoot=Join-Path $TestDrive 'missing-receipt-data'
+        $stage=Save-DshOfficialDesktopStagedUpdate -BundleRoot $result.bundleRoot -DataRoot $dataRoot -AcknowledgeManifestSha256 ('sha256:'+$result.manifestSha256) -Operations $ops
+        $installRoot=Join-Path $TestDrive 'Programs\DSH Local Build'
+        $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        $script:provisionCalls=0
+        $installOps.ProvisionPlugin={param($homePath,$install,$data)$script:provisionCalls++;[pscustomobject]@{status='complete'}}
+        Mock Get-DshOfficialDesktopLocalCheck {
+            [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@();installRoot=$installRoot;dataRoot=$dataRoot;buildRoot=$buildRoot;home=[pscustomobject]@{path=(Join-Path $dataRoot 'home')}}
+        } -ModuleName DshOfficialDesktopUpdateChannel
+        Mock Assert-InstalledLocalDesktop { [pscustomobject]@{} } -ModuleName DshOfficialDesktopUpdateChannel
+
+        { Complete-DshOfficialDesktopManualUpdate -StageRoot $stage.stageRoot -AcknowledgeManifestSha256 ('sha256:'+$result.manifestSha256) -BuildRoot $buildRoot -InstallRoot $installRoot -DataRoot $dataRoot -Operations $ops -InstallOperations $installOps } |
+            Should -Throw '*update-install-receipt-missing*'
+        $script:provisionCalls | Should -Be 0
+    }
+
+    It 'does not provision the plugin when the existing install receipt is untrusted' {
+        $result=New-DshOfficialDesktopUpdateBundle -Sequence 26 -FeedBaseUrl 'https://downloads.example.test/dsh/' -BuildRoot $buildRoot -Operations $ops
+        $dataRoot=Join-Path $TestDrive 'untrusted-receipt-data'
+        $stage=Save-DshOfficialDesktopStagedUpdate -BundleRoot $result.bundleRoot -DataRoot $dataRoot -AcknowledgeManifestSha256 ('sha256:'+$result.manifestSha256) -Operations $ops
+        '{}'|Set-Content (Join-Path $dataRoot 'official-desktop-local-install.json')
+        $installRoot=Join-Path $TestDrive 'Programs\DSH Local Build'
+        $installOps=InModuleScope DshOfficialDesktopUpdateChannel { Get-DshOfficialDesktopLocalOperations }
+        $script:provisionCalls=0
+        $installOps.ProvisionPlugin={param($homePath,$install,$data)$script:provisionCalls++;[pscustomobject]@{status='complete'}}
+        Mock Get-DshOfficialDesktopLocalCheck {
+            [pscustomobject]@{status='ready';reasons=@();processEnumerationUnavailable=$false;runningLocalProcesses=@();installRoot=$installRoot;dataRoot=$dataRoot;buildRoot=$buildRoot;home=[pscustomobject]@{path=(Join-Path $dataRoot 'home')}}
+        } -ModuleName DshOfficialDesktopUpdateChannel
+        Mock Assert-InstalledLocalDesktop { [pscustomobject]@{} } -ModuleName DshOfficialDesktopUpdateChannel
+        Mock Test-TrustedLocalInstallReceipt { $false } -ModuleName DshOfficialDesktopUpdateChannel
+
+        { Complete-DshOfficialDesktopManualUpdate -StageRoot $stage.stageRoot -AcknowledgeManifestSha256 ('sha256:'+$result.manifestSha256) -BuildRoot $buildRoot -InstallRoot $installRoot -DataRoot $dataRoot -Operations $ops -InstallOperations $installOps } |
+            Should -Throw '*update-existing-install-receipt-untrusted*'
+        $script:provisionCalls | Should -Be 0
     }
 }

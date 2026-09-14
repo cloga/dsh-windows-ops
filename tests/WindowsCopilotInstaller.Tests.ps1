@@ -367,14 +367,14 @@ function New-TestFingerprint {
         $caseRoot = Join-Path $TestDrive 'profile-coherence'
         New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
         $dshHome = Join-Path $caseRoot '.dsh'
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.3.0-cloga.15.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.18.tgz'
         $stage = Join-Path $caseRoot 'stage'
         $package = Join-Path $stage 'package'
         New-Item -ItemType Directory -Path $package -Force | Out-Null
-        @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.15' } |
+        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.18' } |
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package 'package.json') `
                 -Encoding UTF8
-        @{ package = @{ name = 'dsh-github-copilot'; version = '0.3.0-cloga.15' } } |
+        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.18' } } |
             ConvertTo-Json -Depth 5 |
                 Set-Content -LiteralPath (Join-Path $package 'deployment-baseline.json') `
                     -Encoding UTF8
@@ -400,11 +400,11 @@ importers:
     dependencies:
       dsh-github-copilot:
         specifier: $dependency
-        version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.15.tgz
+        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz
 packages:
-  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.3.0-cloga.15.tgz:
-    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.15.tgz}
-    version: 0.3.0-cloga.15
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz}
+    version: 0.4.0-alpha.18
 "@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
         }
 
@@ -413,8 +413,8 @@ packages:
         @($coherent.profiles).Count | Should -Be 2
         (Get-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Raw).
             Replace(
-                'version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.15.tgz',
-                'version: file:../../artifacts/dsh-github-copilot-0.3.0-cloga.10.tgz'
+                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz',
+                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.17.tgz'
             ) |
             Set-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Encoding UTF8
         $drifted = Test-WindowsCopilotProfileCoherence -Lock $coherenceLock -DshHome $dshHome
@@ -701,8 +701,8 @@ packages:
         }
 
         $rejected = @(
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.7/dsh-github-copilot-0.3.0-cloga.15.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/not-dsh-github-copilot-0.3.0-cloga.15.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.17/dsh-github-copilot-0.4.0-alpha.18.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/not-dsh-github-copilot-0.4.0-alpha.18.tgz'
             "file:../../artifacts/wrong-commit/$($lock.components.copilotIntegration.package.artifact.name)"
             "file:../../arbitrary/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
             "https://example.test/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
@@ -1209,12 +1209,12 @@ packages:
         $result.valid | Should -Be $true
         $result.sourceVerified | Should -Be $true
         $result.artifactVerified | Should -Be $false
-        @($result.capabilities).Count | Should -Be 14
+        @($result.capabilities).Count | Should -Be 31
         @($result.capabilities) | Should -Contain 'client-module-loader-handoff'
         @($result.capabilities) | Should -Contain 'copilot-optional-tool-arguments'
         @($result.capabilities) | Should -Contain 'strict-remote-result-codecs'
         @($result.capabilities) | Should -Contain 'strict-json-oauth-grant-normalization'
-        @($result.capabilities) | Should -Contain 'existing-grant-route-self-healing'
+        @($result.capabilities) | Should -Contain 'existing-grant-legacy-profile-repair'
     }
 
     It 'accepts packed provider metadata after pnpm strips packageManager' {
@@ -1481,12 +1481,12 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' {
         $runtimeSchema.behavior.providerCompatibilityOwner | Should -Be 'dsh-github-copilot'
         $runtimeSchema.releaseStatus | Should -Be 'official-desktop-managed'
         $copilot = $lock.components.copilotIntegration
-        $copilot.source.pullRequest | Should -Be 56
-        $copilot.source.commit | Should -Be '4e095196197570776515423929ddb72e8299c1db'
-        $copilot.source.mergeCommit | Should -Be '473b8aa174eb47a323b026c098b73bf7d716772c'
-        $copilot.source.reviewedHead | Should -Be '4e095196197570776515423929ddb72e8299c1db'
+        $copilot.source.pullRequest | Should -Be 120
+        $copilot.source.commit | Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
+        $copilot.source.mergeCommit | Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
+        $copilot.source.reviewedHead | Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
         $copilot.package.artifact.releaseCommit |
-            Should -Be '473b8aa174eb47a323b026c098b73bf7d716772c'
+            Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
         $officialProfileLinks = @(
             'dsh-tauri',
             'dsh-tauri-panel',
@@ -1545,7 +1545,7 @@ It 'rejects tampered runtime and Copilot plugin identity metadata' {
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.source.reviewedHead = ('0' * 40) -join ''
         { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*reviewed PR #56*'
+            Should -Throw '*reviewed PR #120*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.package.artifact.releaseCommit = ('0' * 40) -join ''
@@ -2223,6 +2223,7 @@ It 'stops verified Desktop descendants leaf-first' {
     }
 
 It 'keeps default Check non-mutating and free of fork inputs' {
+        $previousDshCliPath = $env:DSH_CLI_PATH
         $dshHome = Join-Path $TestDrive 'check-only\.dsh'
         $manifest = Join-Path $TestDrive 'official-lock.json'
         $lock | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $manifest -Encoding UTF8
@@ -2235,6 +2236,6 @@ It 'keeps default Check non-mutating and free of fork inputs' {
         $result.mode | Should -Be 'check'
         $result.checks.manifest.valid | Should -Be $true
         Test-Path -LiteralPath $dshHome | Should -Be $false
-        $env:DSH_CLI_PATH | Should -Be $script:previousDshCliPath
+        $env:DSH_CLI_PATH | Should -Be $previousDshCliPath
     }
 }

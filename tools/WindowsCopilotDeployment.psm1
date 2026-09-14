@@ -248,11 +248,11 @@ function Test-WindowsCopilotLock {
     }
     $copilotSource = $Lock.components.copilotIntegration.source
     if ([string]$copilotSource.repository -cne 'https://github.com/cloga/dsh-github-copilot' -or
-        [int]$copilotSource.pullRequest -ne 56 -or
-        [string]$copilotSource.commit -cne '4e095196197570776515423929ddb72e8299c1db' -or
-        [string]$copilotSource.reviewedHead -cne '4e095196197570776515423929ddb72e8299c1db' -or
-        [string]$copilotSource.mergeCommit -cne '473b8aa174eb47a323b026c098b73bf7d716772c') {
-        throw 'Copilot integration source must match reviewed PR #56 and its exact merge identity.'
+        [int]$copilotSource.pullRequest -ne 120 -or
+        [string]$copilotSource.commit -cne '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704' -or
+        [string]$copilotSource.reviewedHead -cne '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704' -or
+        [string]$copilotSource.mergeCommit -cne '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704') {
+        throw 'Copilot integration source must match reviewed PR #120 and its exact merge identity.'
     }
 
     foreach ($commit in @(
@@ -374,7 +374,7 @@ function Test-WindowsCopilotLock {
         [string]$officialSelector.desktopVersion -cne [string]$Lock.components.desktop.version -or
         [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
         [string]$officialSelector.package.version -cne
-            [string]$Lock.components.copilotIntegration.package.deploymentBaseline.dshRelease -or
+            [string]$Lock.components.copilotIntegration.package.deploymentBaseline.dshDevelopmentRelease -or
         [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.2-rc.1' -or
         [string]$officialSelector.package.commit -cne
             'a66e4702047846cdaa10c66c9d3df3951f5ea70d' -or
@@ -414,10 +414,15 @@ function Test-WindowsCopilotLock {
         [string]$providerArtifact.url -cne $expectedProviderArtifactUrl -or
         [string]$providerArtifact.releaseTag -cne $expectedProviderReleaseTag -or
         [string]$providerArtifact.releaseCommit -cne
-            '473b8aa174eb47a323b026c098b73bf7d716772c' -or
+            '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704' -or
         $providerArtifact.releaseImmutable -ne $true -or
         [int]$providerArtifact.size -le 0 -or
         [string]$providerArtifact.sha256 -notmatch '^[0-9a-f]{64}$' -or
+        [string]$providerArtifact.sha512 -notmatch '^[0-9a-f]{128}$' -or
+        [string]$providerArtifact.integrity -cnotmatch '^sha512-[A-Za-z0-9+/]+={0,2}$' -or
+        ([BitConverter]::ToString([Convert]::FromBase64String(
+            ([string]$providerArtifact.integrity).Substring(7))).Replace('-', '').ToLowerInvariant()) -cne
+            [string]$providerArtifact.sha512 -or
         [string]$providerArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
         [string]$providerArtifact.checksumManifest.url -cne $expectedChecksumUrl -or
         [int]$providerArtifact.checksumManifest.size -le 0 -or
@@ -816,24 +821,41 @@ function Test-WindowsCopilotLock {
     }
     $baseline = $Lock.components.copilotIntegration.package.deploymentBaseline
     $expectedCapabilities = @(
+        'readonly-search-composition-preflight',
+        'session-model-search-routing',
+        'explicit-deepseek-search-fallback',
+        'account-driven-provider-metadata',
+        'account-scoped-discovery-snapshot',
+        'public-adapter-account-model-route',
+        'managed-model-generation-and-lifetime',
+        'account-discovery-native-oauth',
+        'responses-public-reasoning-and-safe-replay-delegation',
+        'replay-safe-copilot-reasoning-presentation',
         'client-module-loader-handoff',
         'strict-remote-result-codecs',
         'authorization-service-bootstrap',
         'models-provider-card-authorization',
-        'path-level-account-model-reconciliation',
+        'canonical-owner-preservation',
         'copilot-optional-tool-arguments',
-        'per-model-api-route-materialization',
-        'existing-grant-route-self-healing',
+        'selected-account-route-protocol-facts',
+        'existing-grant-legacy-profile-repair',
+        'read-only-status-and-explicit-discovery',
+        'credential-bound-lazy-search-proof',
+        'legacy-route-conflict-protection',
+        'legacy-global-override-restoration',
         'shared-copilot-credential-refresh',
         'strict-json-oauth-grant-normalization',
         'direct-provider-hosted-search',
+        'hosted-search-file-context-fail-closed',
         'traditional-search-bridge',
         'dsh-supported-baselines-fail-loud-guard',
-        'dsh-rc2-models-settings-fallback'
+        'dsh-models-settings-and-managed-discovery-ui',
+        'single-managed-route-native-oauth',
+        'compact-account-row-and-auth-disclosure'
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly fourteen required capabilities.'
+        throw 'Copilot integration baseline must lock exactly thirty-one required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {
@@ -846,13 +868,16 @@ function Test-WindowsCopilotLock {
         [string]$baseline.sourceCommitPolicy -ne 'exact-external-pin' -or
         @($baseline.platforms) -notcontains 'windows' -or
         @($baseline.platforms) -notcontains 'linux' -or
-        [string]$baseline.node -ne '>=22.0.0' -or
-        [string]$baseline.dshRelease -ne '0.1.2-rc.1' -or
-        [string]$baseline.dshDevelopmentRelease -ne '0.1.1-rc.2' -or
-        [string]$baseline.dshPeerRange -ne '0.1.1-rc.2 || 0.1.2-rc.1' -or
-        [string]$baseline.piAi -ne '^0.84.2' -or
+        [string]$baseline.node -ne '>=22.19.0' -or
+        [string]$baseline.dshRelease -ne '0.1.5-alpha.2' -or
+        [string]$baseline.dshDevelopmentRelease -ne '0.1.2-rc.1' -or
+        [string]$baseline.dshPeerRange -ne
+            '0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2' -or
+        [string]$baseline.piAi -ne '0.85.1' -or
         [string]$baseline.runtimeDependencies.'@deepseek-ai/dsh-authorization' -ne
-            '0.1.1-rc.2 || 0.1.2-rc.1' -or
+            '0.1.2-rc.1' -or
+        [string]$baseline.runtimeDependencies.'@deepseek-ai/schemastery' -ne '^3.18.2' -or
+        [string]$baseline.runtimeDependencies.'@earendil-works/pi-ai' -ne '0.85.1' -or
         [string]$baseline.runtimeDependencies.zod -ne '^4.4.3') {
         throw 'Provider deployment baseline metadata does not match the reviewed contract.'
     }

@@ -496,6 +496,11 @@ function Complete-DshOfficialDesktopManualUpdate {
     if (-not (&$installOps.PathExists $receiptPath 'Leaf')) { throw 'update-install-receipt-missing' }
     $old = &$installOps.ReadJson $receiptPath
     if (-not (Test-TrustedLocalInstallReceipt $old $check.buildRoot $check.installRoot $check.dataRoot $installOps $PnpmPath -AllowInstalledExecutableMismatch)) { throw 'update-existing-install-receipt-untrusted' }
+    $pluginProvisioning = &$installOps.ProvisionPlugin $check.home.path $check.installRoot $check.dataRoot
+    if (-not $pluginProvisioning -or
+        $pluginProvisioning.status -notin @('complete', 'delegated', 'verified')) {
+        throw 'update-plugin-provisioning-incomplete'
+    }
     $artifactRoot = Join-Path $check.dataRoot 'artifacts'
     $archivedInstaller = Join-Path $artifactRoot (([string]$bundle.manifest.installer.sha256) + '-' + [string]$bundle.manifest.installer.file)
     $archivedBuildReceipt = Join-Path (Join-Path $artifactRoot 'build-receipts') (([string]$bundle.manifest.buildReceipt.sha256) + '.json')
@@ -528,7 +533,7 @@ function Complete-DshOfficialDesktopManualUpdate {
     $old.PSObject.Properties.Remove('receiptSha256')
     $written = Write-LocalInstallReceipt $old $receiptPath $installOps
     if (-not (Test-TrustedLocalInstallReceipt $written $check.buildRoot $check.installRoot $check.dataRoot $installOps $PnpmPath)) { throw 'update-completed-receipt-invalid' }
-    return [pscustomobject]@{schemaVersion=1;action='complete';status='complete';channelVersion=$bundle.manifest.channelVersion;sequence=$bundle.manifest.sequence;receipt=$written;postcheck=$post;nativeUpdaterEnabled=$false;installerRun=$false}
+    return [pscustomobject]@{schemaVersion=1;action='complete';status='complete';channelVersion=$bundle.manifest.channelVersion;sequence=$bundle.manifest.sequence;pluginProvisioning=$pluginProvisioning;receipt=$written;postcheck=$post;nativeUpdaterEnabled=$false;installerRun=$false}
 }
 
 function Invoke-DshOfficialDesktopUpdateInstall {

@@ -2,7 +2,7 @@
 param(
     [ValidateSet('Check', 'Prepare', 'Verify', 'Build', 'PackageLocal')][string]$Action = 'Check',
     [string]$BuildRoot = 'C:\tmp\dsh-official-desktop-build\work',
-    [string]$Registry = 'https://registry.npmjs.org/',
+    [string]$Registry = 'https://packagefeedproxy.microsoft.io/npm/',
     [string]$PnpmPath
 )
 Set-StrictMode -Version Latest

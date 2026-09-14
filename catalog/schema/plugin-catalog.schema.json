@@ -189,6 +189,14 @@
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
             },
+            "sha512": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{128}$"
+            },
+            "integrity": {
+              "type": "string",
+              "pattern": "^sha512-[A-Za-z0-9+/]+={0,2}$"
+            },
             "releaseTag": {
               "type": "string",
               "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z]+(\\.[0-9A-Za-z]+)*)?$"

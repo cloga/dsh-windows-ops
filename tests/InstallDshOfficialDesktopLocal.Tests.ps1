@@ -1,7 +1,12 @@
 Import-Module (Join-Path $PSScriptRoot '..\tools\DshOfficialDesktopBuild.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\tools\DshOfficialDesktopPluginProvisioning.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\tools\Install-DshOfficialDesktopLocal.psm1') -Force
 
 Describe 'Official Desktop local side-by-side installer' {
+    BeforeAll {
+        Import-Module (Join-Path $PSScriptRoot '..\tools\DshOfficialDesktopPluginProvisioning.psm1') -Force
+    }
+
     BeforeEach {
         $script:policy=Get-Content (Join-Path $PSScriptRoot 'fixtures\official-desktop-build\policy.json') -Raw|ConvertFrom-Json
         $script:buildRoot=Join-Path $TestDrive 'build'
@@ -24,7 +29,7 @@ Describe 'Official Desktop local side-by-side installer' {
         $script:buildReceipt=[pscustomobject]@{
             action='packagelocal';status='complete';receiptSha256='c'*64
             source=[pscustomobject]@{repository=$policy.repository;tag=$policy.tag;commit=$policy.commit;tree=$policy.tree}
-            registryRouting=[pscustomobject]@{registry=$policy.defaultRegistry}
+            registryRouting=[pscustomobject]@{registry='https://packagefeedproxy.microsoft.io/npm/'}
             releaseBoundary=[pscustomobject]@{officialSignature=$false;updateChannel=$false}
             localPackage=[pscustomobject]@{
                 installerPath=$installer;executablePath=$unpacked;installerSignature='NotSigned';executableSignature='NotSigned';appUpdatePresent=$false
@@ -35,6 +40,8 @@ Describe 'Official Desktop local side-by-side installer' {
         }
         $script:ops=@{
             InvokeBuild={param($action,$root,$registry)$script:calls.Add("build:$action");switch($action){'Check'{[pscustomobject]@{status='ready';action='check'}}'Prepare'{$script:exists[(Join-Path $root 'source')]=$true;[pscustomobject]@{status='complete';action='prepare'}}'Verify'{[pscustomobject]@{status='verified';action='verify'}}default{[pscustomobject]@{status='complete';action='packagelocal';receiptPath=$script:buildReceiptPath;sourceRoot=$script:sourceRoot}}}}
+            GetPluginContract={Get-DshOfficialDesktopPluginRecipe}
+            ProvisionPlugin={param($homePath,$install,$data)[pscustomobject]@{status='complete';profileRoot=(Join-Path $homePath 'profiles\desktop')}}
             ValidateBuildReceipt={param($path,$source,$pnpmPath)$script:calls.Add("validate-pnpm:$pnpmPath");$true}
             GetSignature={param($path)'NotSigned'}
             GetVersionInfo={param($path)[pscustomobject]@{ProductName='DeepSeek Harness';FileDescription='DeepSeek Harness';InternalName='DeepSeek Harness';FileVersion=$(if($script:postMismatch){'9.9.9'}else{'0.1.5-rc.2'})}}

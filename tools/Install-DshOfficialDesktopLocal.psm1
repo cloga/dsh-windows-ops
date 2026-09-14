@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot 'DshOfficialDesktopBuild.psm1')
+Import-Module (Join-Path $PSScriptRoot 'DshOfficialDesktopPluginProvisioning.psm1')
 . (Join-Path $PSScriptRoot 'DshOfficialDesktopSharedHome.ps1')
 
 $script:InstallReceiptName = 'official-desktop-local-install.json'
@@ -20,6 +21,12 @@ function Get-DshOfficialDesktopLocalOperations {
     [CmdletBinding()]param()
     return @{
         InvokeBuild = { param($action,$buildRoot,$registry,$pnpmPath) Invoke-DshOfficialDesktopBuild -Action $action -BuildRoot $buildRoot -Registry $registry -PnpmPath $pnpmPath }
+        GetPluginContract = { Get-DshOfficialDesktopPluginRecipe }
+        ProvisionPlugin = {
+            param($homePath,$installRoot,$dataRoot)
+            Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homePath `
+                -InstallRoot $installRoot -DataRoot $dataRoot
+        }
         ValidateBuildReceipt = { param($path,$sourceRoot,$pnpmPath,$recordedOnly) Test-DshOfficialDesktopBuildReceipt -Path $path -SourceRoot $sourceRoot -PnpmPath $pnpmPath -RecordedEvidenceOnly:$recordedOnly }
         GetSignature = { param($path) (Get-AuthenticodeSignature -LiteralPath $path).Status.ToString() }
         GetVersionInfo = { param($path) (Get-Item -LiteralPath $path).VersionInfo }
@@ -117,7 +124,7 @@ function Get-CommunityState {
 }
 
 function Get-DshOfficialDesktopLocalCheck {
-    [CmdletBinding()]param([string]$BuildRoot='C:\tmp\dsh-official-desktop-build\work',[string]$Registry='https://registry.npmjs.org/',[string]$PnpmPath,[string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'Programs\DSH Local Build'),[string]$DataRoot=(Join-Path $env:LOCALAPPDATA 'DSH Local Build'),[hashtable]$Operations,[string]$SharedHome,[switch]$UseIsolatedHome)
+    [CmdletBinding()]param([string]$BuildRoot='C:\tmp\dsh-official-desktop-build\work',[string]$Registry='https://packagefeedproxy.microsoft.io/npm/',[string]$PnpmPath,[string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'Programs\DSH Local Build'),[string]$DataRoot=(Join-Path $env:LOCALAPPDATA 'DSH Local Build'),[hashtable]$Operations,[string]$SharedHome,[switch]$UseIsolatedHome)
     $ops=Merge-LocalOperations $Operations;$repo=Split-Path $PSScriptRoot -Parent;$install=Assert-DshOfficialDesktopLocalPath $InstallRoot install-root $ops;$data=Assert-DshOfficialDesktopLocalPath $DataRoot data-root $ops;$build=Assert-DshOfficialDesktopBuildRoot $BuildRoot -RepositoryRoot $repo;$registryValue=Assert-DshRegistry $Registry
     foreach($pair in @(@($install,$data),@($install,$build),@($data,$build),@($install,$repo),@($data,$repo))){if((Test-LocalPathAtOrWithin $pair[0] $pair[1])-or(Test-LocalPathAtOrWithin $pair[1] $pair[0])){throw 'local-path-overlap'}}
     foreach($protected in @((Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop'),(Join-Path $HOME '.dsh'))){if($protected-and((Test-LocalPathAtOrWithin $install $protected)-or(Test-LocalPathAtOrWithin $protected $install)-or(Test-LocalPathAtOrWithin $data $protected)-or(Test-LocalPathAtOrWithin $protected $data))){throw 'local-path-overlaps-community-data'}}
@@ -148,7 +155,7 @@ function Get-DshOfficialDesktopLocalCheck {
             if(@(Get-LocalSharedRuntimeBlockers $processProbe $receipt.home.path $install).Count){$reasons.Add('shared-home-runtime-running')}
         }catch{$reasons.Add($_.Exception.Message)}
     }
-    [pscustomobject]@{schemaVersion=2;action='check';status=$(if($buildCheck.status-eq'ready'-and-not$reasons.Count){'ready'}else{'blocked'});reasons=@($reasons);home=$selection;sharedProfile=$profile;sharedHomeExplicit=[bool]$SharedHome;isolatedHomeExplicit=[bool]$UseIsolatedHome;runningSharedProcesses=$sharedProcesses;copilotDesktopInstall='unsupported-release-tarball-spec';build=$buildCheck;buildRoot=$build;registry=$registryValue;installRoot=$install;dataRoot=$data;sourcePresent=[bool](&$ops.PathExists (Join-Path $build 'source') 'Container');installedExecutable=(Join-Path $install 'DeepSeek Harness.exe');installPresent=[bool](&$ops.PathExists (Join-Path $install 'DeepSeek Harness.exe') 'Leaf');installReceipt=$receipt;uninstallEntries=@($entries|Where-Object{[string](Get-LocalLeafValue $_ 'DisplayName')-ceq$script:ExpectedDisplayName});community=(Get-CommunityState $entries $install $ops);shortcuts=$shortcuts;runningLocalProcesses=$processes;processEnumerationUnavailable=$processUnavailable;mutated=$false;launchedGui=$false;stoppedProcesses=$false}
+    [pscustomobject]@{schemaVersion=2;action='check';status=$(if($buildCheck.status-eq'ready'-and-not$reasons.Count){'ready'}else{'blocked'});reasons=@($reasons);home=$selection;sharedProfile=$profile;sharedHomeExplicit=[bool]$SharedHome;isolatedHomeExplicit=[bool]$UseIsolatedHome;runningSharedProcesses=$sharedProcesses;pluginProvisioning=&$ops.GetPluginContract;build=$buildCheck;buildRoot=$build;registry=$registryValue;installRoot=$install;dataRoot=$data;sourcePresent=[bool](&$ops.PathExists (Join-Path $build 'source') 'Container');installedExecutable=(Join-Path $install 'DeepSeek Harness.exe');installPresent=[bool](&$ops.PathExists (Join-Path $install 'DeepSeek Harness.exe') 'Leaf');installReceipt=$receipt;uninstallEntries=@($entries|Where-Object{[string](Get-LocalLeafValue $_ 'DisplayName')-ceq$script:ExpectedDisplayName});community=(Get-CommunityState $entries $install $ops);shortcuts=$shortcuts;runningLocalProcesses=$processes;processEnumerationUnavailable=$processUnavailable;mutated=$false;launchedGui=$false;stoppedProcesses=$false}
 }
 
 function Assert-LocalPackageReceipt {
@@ -270,7 +277,7 @@ function Test-TrustedLocalInstallReceipt {
 }
 
 function Invoke-DshOfficialDesktopLocalInstall {
-    [CmdletBinding()]param([ValidateSet('Check','Apply')][string]$Action='Check',[string]$BuildRoot='C:\tmp\dsh-official-desktop-build\work',[string]$Registry='https://registry.npmjs.org/',[string]$PnpmPath,[string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'Programs\DSH Local Build'),[string]$DataRoot=(Join-Path $env:LOCALAPPDATA 'DSH Local Build'),[switch]$AcknowledgeUnsignedLocalBuild,[hashtable]$Operations,[string]$SharedHome,[switch]$UseIsolatedHome)
+    [CmdletBinding()]param([ValidateSet('Check','Apply')][string]$Action='Check',[string]$BuildRoot='C:\tmp\dsh-official-desktop-build\work',[string]$Registry='https://packagefeedproxy.microsoft.io/npm/',[string]$PnpmPath,[string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'Programs\DSH Local Build'),[string]$DataRoot=(Join-Path $env:LOCALAPPDATA 'DSH Local Build'),[switch]$AcknowledgeUnsignedLocalBuild,[hashtable]$Operations,[string]$SharedHome,[switch]$UseIsolatedHome)
     $ops=Merge-LocalOperations $Operations;$check=Get-DshOfficialDesktopLocalCheck $BuildRoot $Registry $PnpmPath $InstallRoot $DataRoot $ops -SharedHome $SharedHome -UseIsolatedHome:$UseIsolatedHome;if($Action-eq'Check'-or$check.status-ne'ready'){return $check};if(-not$AcknowledgeUnsignedLocalBuild){throw 'acknowledge-unsigned-local-build-required'};if($check.processEnumerationUnavailable){throw 'local-process-enumeration-unavailable'};if(@($check.runningLocalProcesses).Count){throw 'local-build-process-running'};Assert-NoLocalReparseTree $check.installRoot $ops
     $receiptPath=Join-Path $check.dataRoot $script:InstallReceiptName;$artifactDir=Join-Path $check.dataRoot 'artifacts';$snapshotRoot=Join-Path $artifactDir 'build-receipts';$backupDir=Join-Path $check.dataRoot 'install-backups';Assert-NoLocalReparseTree $artifactDir $ops;Assert-NoLocalReparseTree $snapshotRoot $ops;Assert-NoLocalReparseTree $backupDir $ops;Assert-NoLocalReparseTree $receiptPath $ops;$old=$check.installReceipt
     $oldInvalid=$old-and($old.PSObject.Properties.Name-ccontains'invalid')-and[bool]$old.invalid
@@ -280,12 +287,14 @@ function Invoke-DshOfficialDesktopLocalInstall {
         try{
             $pending=Start-LocalHomeTransaction $check $ops
             $check.home.profileBackup=Move-LocalSharedLegacyProfile $check $ops
+            $pluginProvisioning=&$ops.ProvisionPlugin $check.home.path $check.installRoot $check.dataRoot
+            if(-not$pluginProvisioning-or$pluginProvisioning.status-cnotin@('complete','delegated','verified')){throw 'desktop-plugin-provisioning-incomplete'}
             $shell=Write-LocalLauncherAndShortcuts $check.installRoot $check.dataRoot $ops $check.home
             $old.schemaVersion=2;$old.launcher=$shell;$old|Add-Member home $check.home -Force
             $written=Write-LocalInstallReceipt $old $receiptPath $ops
             &$ops.RemoveFile $pending
         }catch{throw ('partial-install-manual-review-required: '+$_.Exception.Message)}
-        return [pscustomobject]@{schemaVersion=2;action='apply';status='verified';idempotent=$true;installerRun=$false;installRoot=$check.installRoot;dataRoot=$check.dataRoot;home=$check.home;receipt=$written;postcheck=$post;launcher=$shell;communityRetained=$check.community.present;launchedGui=$false;stoppedProcesses=$false;rollback='Uninstall only the local binaries. Home data rollback is manual; never merge or overwrite profiles.'}
+        return [pscustomobject]@{schemaVersion=2;action='apply';status='verified';idempotent=$true;installerRun=$false;installRoot=$check.installRoot;dataRoot=$check.dataRoot;home=$check.home;pluginProvisioning=$pluginProvisioning;receipt=$written;postcheck=$post;launcher=$shell;communityRetained=$check.community.present;launchedGui=$false;stoppedProcesses=$false;rollback='Uninstall only the local binaries. Home data rollback is manual; never merge or overwrite profiles.'}
     }
     foreach($shortcut in $check.shortcuts){if($shortcut.value-and$shortcut.value.TargetPath-and-not(Test-LocalPathAtOrWithin $shortcut.value.TargetPath $check.installRoot)){throw 'shortcut-target-outside-local-install'}}
     if($check.sourcePresent){
@@ -314,9 +323,11 @@ function Invoke-DshOfficialDesktopLocalInstall {
         $installReceipt=[pscustomobject][ordered]@{schemaVersion=1;status='complete';createdUtc=[DateTime]::UtcNow.ToString('o');source=[pscustomobject]@{repository=$evidence.receipt.source.repository;tag=$evidence.receipt.source.tag;commit=$evidence.receipt.source.commit;tree=$evidence.receipt.source.tree;buildReceiptPath=$evidence.receiptPath;buildReceiptSha256=$evidence.receipt.receiptSha256;buildReceiptFileSha256=$evidence.receiptFileHash};installerPath=$preservedInstaller;installerSha256=$evidence.installerHash;installedExecutablePath=$post.executablePath;installedExecutableSha256=$post.executableHash;installedSeedSha256=$evidence.seedHash;installRoot=$check.installRoot;dataRoot=$check.dataRoot;identity=[pscustomobject]@{productName='DeepSeek Harness';appId='local.cloga.dsh-official-source-build';packageName='dsh-local-build';unsigned=$true;automaticUpdates=$false};launcher=$shell;rollback=[pscustomobject]@{uninstallString=$post.uninstallString;communityRetained=$afterCommunity.present;automaticCoreRollback=$false;note='Community Desktop is the primary rollback path. Data may be forward-migrated; Core/data rollback is manual.'}}
         $pending=Start-LocalHomeTransaction $check $ops
         $check.home.profileBackup=Move-LocalSharedLegacyProfile $check $ops
+        $pluginProvisioning=&$ops.ProvisionPlugin $check.home.path $check.installRoot $check.dataRoot
+        if(-not$pluginProvisioning-or$pluginProvisioning.status-cnotin@('complete','delegated','verified')){throw 'desktop-plugin-provisioning-incomplete'}
         $shell=Write-LocalLauncherAndShortcuts $check.installRoot $check.dataRoot $ops $check.home
         $installReceipt.schemaVersion=2;$installReceipt.launcher=$shell;$installReceipt|Add-Member home $check.home
-        $written=Write-LocalInstallReceipt $installReceipt $receiptPath $ops;&$ops.RemoveFile $pending;return [pscustomobject]@{schemaVersion=2;action='apply';status='complete';idempotent=$false;installerRun=$true;installRoot=$check.installRoot;dataRoot=$check.dataRoot;home=$check.home;receiptPath=$receiptPath;receipt=$written;postcheck=$post;communityRetained=$afterCommunity.present;launchedGui=$false;stoppedProcesses=$false}
+        $written=Write-LocalInstallReceipt $installReceipt $receiptPath $ops;&$ops.RemoveFile $pending;return [pscustomobject]@{schemaVersion=2;action='apply';status='complete';idempotent=$false;installerRun=$true;installRoot=$check.installRoot;dataRoot=$check.dataRoot;home=$check.home;pluginProvisioning=$pluginProvisioning;receiptPath=$receiptPath;receipt=$written;postcheck=$post;communityRetained=$afterCommunity.present;launchedGui=$false;stoppedProcesses=$false}
     }catch{if($installerStarted){$ex=[InvalidOperationException]::new(('partial-install-manual-review-required: '+$_.Exception.Message),$_.Exception);throw $ex};throw}
 }
 

@@ -22,7 +22,7 @@
 |---|---|
 | DeepSeek Harness Desktop | 官方 0.10.3 |
 | Desktop 管理的 DSH runtime | `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh` 中的 `deepseek-harness-pkg@0.1.2-alpha.5` wrapper + 内层官方 `@deepseek-ai/dsh@0.1.2-rc.1`；完整 10,347 文件 wrapper tree 锁定哈希且禁止 reparse directory |
-| 必需的 `dsh-github-copilot` | 0.3.0-cloga.15 |
+| 必需的 `dsh-github-copilot` | 0.4.0-alpha.18；完整 local Desktop 安装/更新完成后由 Windows Ops 事务化预置到 reserved `desktop` profile |
 | Desktop internal plugins | 官方 8 个 0.6.7 Profile 链接（包括 `dsh-tauri-panel-scheduler`）及 1 个不直接挂载的 panel placeholder，位于 `resources\node_modules` |
 | 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.2`、`dsh-cron@0.4.1` |
 
@@ -65,8 +65,8 @@ node tools\validate-plugin-catalog.mjs
 | 类别 | 主要工具 | 用途 |
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
-| 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装；新安装默认隔离 Home，`-SharedHome <existing-home>` 显式复用已有 Home，`-UseIsolatedHome` 切回隔离模式；Electron user-data 始终隔离；不启动、不重启、不移除社区版 |
-| 本地 Desktop 更新通道 | `tools/manage-official-desktop-update-channel.ps1` | `Check` 只读检查远端 manifest；一次显式 `Install` 自动下载、验证并暂存后启动交互式 NSIS 安装器，保留 Windows/UAC 确认，再严格 `Complete` 回读；不是 silent/automatic update，仍不发布、不嵌入 `app-update.yml`，并保留独立 Package/Stage/Complete 恢复路径 |
+| 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装，然后通过锁定 immutable Release tgz 和公司 registry 事务化 provision Copilot 插件；新安装默认隔离 Home，`-SharedHome <existing-home>` 显式复用已有 Home，`-UseIsolatedHome` 切回隔离模式；Electron user-data 始终隔离；不启动、不重启、不移除社区版 |
+| 本地 Desktop 更新通道 | `tools/manage-official-desktop-update-channel.ps1` | `Check` 只读检查远端 manifest；一次显式 `Install` 自动下载、验证并暂存后启动交互式 NSIS 安装器，保留 Windows/UAC 确认，再严格 `Complete` 回读并运行同一插件 provisioning adapter；不是 silent/automatic update，仍不发布、不嵌入 `app-update.yml`，并保留独立 Package/Stage/Complete 恢复路径 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
 | 可选套件 | `tools/install-optional-companion-suite.ps1` | 依据已安装 Core/Cordis/API 而非 Desktop 补丁版本，单独 Check/Apply/Verify 锁定的 Copilot、Cron 与 Playwright Bundle；不替换 Desktop/Core、全局包或运行中进程 |
 | 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |
@@ -106,7 +106,7 @@ node tools\validate-plugin-catalog.mjs
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
 | [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期、Desktop 管理的官方 DSH，以及 8 个 Profile plugins 和 1 个 shipped placeholder | 当前 lock 使用官方 0.10.3，release/tag commit `113dc8f77095e765f4f55e233d8455e7ad9204ae` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | PR #56 source commit `4e095196197570776515423929ddb72e8299c1db`；merge/immutable Release commit `473b8aa174eb47a323b026c098b73bf7d716772c`；Release `v0.3.0-cloga.15` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | PR #120 source/merge/immutable Release commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`；Release `v0.4.0-alpha.18` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 
 历史 ACP 子代理实践仍保留在

@@ -70,24 +70,26 @@
       ],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.3.0-cloga.15.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/dsh-github-copilot-0.3.0-cloga.15.tgz",
-        "sha256": "7486d2c062c7fcdd5ee36505ff9320eaec634497c1ea2481b335ea67e85a25b1",
-        "releaseTag": "v0.3.0-cloga.15",
-        "releaseCommit": "473b8aa174eb47a323b026c098b73bf7d716772c",
+        "name": "dsh-github-copilot-0.4.0-alpha.18.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/dsh-github-copilot-0.4.0-alpha.18.tgz",
+        "sha256": "2ca4f604e89eda3000cf2a51d79871cee3cb721fa6f4324fc9a1197926c359a8",
+        "sha512": "15975665b6ff2bc8e613ae06c1bf5953e5000c0a9a9007ea2d7aebbbfaa92c5492e2a0b82cc3b4b88714d4a6ecc350a0e79c5fd2af9949b9f4cb771dc83ccb5f",
+        "integrity": "sha512-FZdWZbb/K8jmE64Gwb9ZU+UADAqakAfqLXrru/qpLFSS4qC4LMO0uIcU1Kbsw1Cg55xf0q+ZSbn0y3cdyDzLXw==",
+        "releaseTag": "v0.4.0-alpha.18",
+        "releaseCommit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.3.0-cloga.15/SHA256SUMS",
-        "size": 149632,
-        "checksumManifestSha256": "0788b9f490e29e21c8081b8574f890e6b7400db266351bc0878353a985aaf484",
+        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/SHA256SUMS",
+        "size": 538911,
+        "checksumManifestSha256": "caf7a63a46764b499df15acd6eca020b449ca34bd868f7064712c29df53a5293",
         "checksumManifestSize": 104
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "4e095196197570776515423929ddb72e8299c1db",
-        "reviewedHead": "4e095196197570776515423929ddb72e8299c1db",
-        "mergeCommit": "473b8aa174eb47a323b026c098b73bf7d716772c",
-        "pullRequest": 56,
-        "release": "0.3.0-cloga.15"
+        "commit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
+        "reviewedHead": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
+        "mergeCommit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
+        "pullRequest": 120,
+        "release": "0.4.0-alpha.18"
       },
       "platforms": [
         "cross-platform"
@@ -95,8 +97,8 @@
       "recommendation": "recommended",
       "validation": {
         "level": "baseline",
-        "verifiedAt": "2026-09-04",
-        "dshVersion": "official Desktop-managed 0.1.2-rc.1",
+        "verifiedAt": "2026-09-14",
+        "dshVersion": "official Desktop-managed 0.1.5-rc.2",
         "nodeVersion": "24.19.0",
         "evidence": [
           {

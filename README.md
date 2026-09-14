@@ -66,6 +66,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
 | 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装，并配置隔离 launcher/快捷方式；不启动、不重启、不移除社区版；`-Migrate` 默认只生成脱敏计划，需 `-Apply -Migrate -AcknowledgeMigrationPlan sha256:<hash>` 才执行受限配置迁移 |
+| 本地 Desktop 更新通道 | `tools/manage-official-desktop-update-channel.ps1` | 独立 Package/Check/Stage/Complete：生成 `rc.yml` 与 SHA-256/SHA-512 清单，显式哈希确认后暂存；无签名安装器必须由用户手动运行，工具不发布、不自动安装、不嵌入 `app-update.yml`，完成后仅严格回读并记录 schema-3 更新元数据 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
 | 可选套件 | `tools/install-optional-companion-suite.ps1` | 依据已安装 Core/Cordis/API 而非 Desktop 补丁版本，单独 Check/Apply/Verify 锁定的 Copilot、Cron 与 Playwright Bundle；不替换 Desktop/Core、全局包或运行中进程 |
 | 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |

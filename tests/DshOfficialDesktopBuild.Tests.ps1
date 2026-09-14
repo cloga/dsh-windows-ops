@@ -88,14 +88,14 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
     }
 
     It 'refuses Prepare reuse and Verify rejects wrong origin hooks bare or external git dirs' {
-        {Invoke-DshOfficialDesktopBuild Prepare $root $runner $policy}|Should -Throw '*refuses-existing-source*'
+        {Invoke-DshOfficialDesktopBuild Prepare $root $runner $policy -PnpmPath $script:pnpmPath}|Should -Throw '*refuses-existing-source*'
         foreach($case in @('origin','hooks','bare')) {
             $script:currentCase=$case
             $bad={param($file,$arguments,$cwd,$environment);$a=@($arguments);if($a.Count-ge2-and$a[0]-eq'-c'){$a=$a[2..($a.Count-1)]};$j=$a-join' ';$exit=0;$out=if($j-eq'--version'-and$file-like'*pnpm*'){@('11.7.0')}else{switch -Regex($j){'^--version$'{@('v24.17.0');break}'^ls-remote '{@($script:policy.commit+"`trefs/tags/"+$script:policy.tag);break}'^rev-parse --show-toplevel$'{if($script:currentCase-eq'bare'){@(Join-Path $script:source 'nested')}else{@($script:source)};break}'^rev-parse --absolute-git-dir$'{@((Join-Path $script:source '.git'));break}'^remote get-url origin$'{if($script:currentCase-eq'origin'){@('https://example.invalid/fork.git')}else{@($script:policy.repository)};break}'^config --get core\.hooksPath$'{if($script:currentCase-eq'hooks'){@('hooks')}else{$exit=1;@()};break}default{@()}}};[pscustomobject]@{exitCode=$exit;output=$out}}
-            {Invoke-DshOfficialDesktopBuild Verify $root $bad $policy}|Should -Throw
+            {Invoke-DshOfficialDesktopBuild Verify $root $bad $policy -PnpmPath $script:pnpmPath}|Should -Throw
         }
         'custom'|Set-Content (Join-Path $source '.git\hooks\pre-commit')
-        {Invoke-DshOfficialDesktopBuild Verify $root $runner $policy}|Should -Throw '*custom-hook*'
+        {Invoke-DshOfficialDesktopBuild Verify $root $runner $policy -PnpmPath $script:pnpmPath}|Should -Throw '*custom-hook*'
     }
 
     It 'uses real local Git config inspection without the hooksPath command override' {
@@ -114,7 +114,7 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         $outside=Join-Path $TestDrive 'outside-store';New-Item -ItemType Directory $outside|Out-Null
         $store=Join-Path $root 'tool-state\pnpm-store';New-Item -ItemType Directory $store -Force|Out-Null
         New-Item -ItemType Junction -Path (Join-Path $store 'v3') -Target $outside|Out-Null
-        {Invoke-DshOfficialDesktopBuild Build $root $runner $policy}|Should -Throw '*reparse-point*'
+        {Invoke-DshOfficialDesktopBuild Build $root $runner $policy -PnpmPath $script:pnpmPath}|Should -Throw '*reparse-point*'
         @($calls|Where-Object{($_.arguments-join' ')-match'install --frozen-lockfile|vitest|prepare:desktop|electron-builder'}).Count|Should -Be 0
     }
 
@@ -152,15 +152,15 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
 
     It 'rejects manifest and pinned pnpm version mismatches' {
         $manifest=Get-Content (Join-Path $source 'package.json') -Raw|ConvertFrom-Json;$manifest.packageManager='pnpm@10.0.0';$manifest|ConvertTo-Json|Set-Content (Join-Path $source 'package.json')
-        {Invoke-DshOfficialDesktopBuild Build $root $runner $policy}|Should -Throw '*package-manager-mismatch*'
+        {Invoke-DshOfficialDesktopBuild Build $root $runner $policy -PnpmPath $script:pnpmPath}|Should -Throw '*package-manager-mismatch*'
         $manifest.packageManager=$policy.packageManager;$manifest|ConvertTo-Json|Set-Content (Join-Path $source 'package.json')
         $badPnpm={param($file,$arguments,$cwd,$environment);$a=@($arguments);if(($a-join' ')-eq'--version'-and$file-like'*pnpm*'){return [pscustomobject]@{exitCode=0;output=@('11.6.0')}};&$script:runner $file $arguments $cwd $environment}
-        $blocked=Invoke-DshOfficialDesktopBuild Build $root $badPnpm $policy
+        $blocked=Invoke-DshOfficialDesktopBuild Build $root $badPnpm $policy -PnpmPath $script:pnpmPath
         $blocked.status|Should -Be 'blocked';$blocked.reasons|Should -Contain 'pnpm-version-mismatch'
     }
 
     It 'isolates writable config state while preserving the caller proxy and TLS environment' {
-        $result=Invoke-DshOfficialDesktopBuild Build $root $runner $policy;$install=@($calls|Where-Object{($_.arguments-join' ')-match'install --frozen-lockfile'})[0]
+        $result=Invoke-DshOfficialDesktopBuild Build $root $runner $policy -PnpmPath $script:pnpmPath;$install=@($calls|Where-Object{($_.arguments-join' ')-match'install --frozen-lockfile'})[0]
         foreach($name in @('DSH_HOME','HOME','USERPROFILE','APPDATA','LOCALAPPDATA','COREPACK_HOME','PNPM_HOME','npm_config_cache','npm_config_store_dir','npm_config_userconfig','npm_config_globalconfig','XDG_CONFIG_HOME','XDG_STATE_HOME','XDG_CACHE_HOME','TEMP','TMP')){$install.environment[$name]|Should -Match([regex]::Escape($root))}
         $install.environment.GIT_CONFIG_NOSYSTEM|Should -Be '1';$install.environment.GIT_CONFIG_GLOBAL|Should -Be 'NUL';$install.environment.CI|Should -Be 'true'
         foreach($name in @('NODE_OPTIONS','NODE_PATH','npm_config_script_shell','GIT_DIR','GIT_WORK_TREE','GIT_CONFIG_COUNT','GIT_SSH_COMMAND','GIT_ASKPASS','COREPACK_INTEGRITY_KEYS')){$install.environment[$name]|Should -BeNullOrEmpty}
@@ -169,7 +169,7 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
 
     It 'passes pnpm 11 registry and writable paths using its supported environment prefix' {
         $proxy='https://packages.example.test/npm/'
-        $result=Invoke-DshOfficialDesktopBuild Build $root $runner $policy $proxy
+        $result=Invoke-DshOfficialDesktopBuild Build $root $runner $policy $proxy -PnpmPath $script:pnpmPath
         $install=@($calls|Where-Object{($_.arguments-join' ')-eq'install --frozen-lockfile'})[0]
         $install.environment.PNPM_CONFIG_REGISTRY|Should -Be $proxy
         foreach($name in @('PNPM_CONFIG_STORE_DIR','PNPM_CONFIG_CACHE_DIR','PNPM_CONFIG_STATE_DIR','PNPM_CONFIG_USERCONFIG')){
@@ -219,7 +219,7 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         (Get-FileHash $seed -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $policy.prepareSeedSha256
         $sawPatched=$false
         $proxyRunner={param($file,$arguments,$cwd,$environment);if(($arguments-join' ')-match'run prepare:desktop'){$body=[IO.File]::ReadAllText($seed);$script:sawPatched=(([regex]::Matches($body,[regex]::Escape('https://packages.example.test/npm/'))).Count-eq2)};&$script:runner $file $arguments $cwd $environment}
-        $build=Invoke-DshOfficialDesktopBuild Build $root $proxyRunner $policy 'https://packages.example.test/npm/'
+        $build=Invoke-DshOfficialDesktopBuild Build $root $proxyRunner $policy 'https://packages.example.test/npm/' -PnpmPath $script:pnpmPath
         $script:sawPatched | Should -BeTrue
         (Get-FileHash $seed -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $policy.prepareSeedSha256
         $build.receipt.registryRouting.deviation | Should -BeTrue
@@ -258,35 +258,35 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
     It 'restores original prepare-seed bytes even when official prepare fails' {
         $seed=Join-Path $source ($policy.prepareSeedRelativePath.Replace('/','\'))
         $failed={param($file,$arguments,$cwd,$environment);if(($arguments-join' ')-match'run prepare:desktop'){return [pscustomobject]@{exitCode=9;output=@('failed')}};&$script:runner $file $arguments $cwd $environment}
-        {Invoke-DshOfficialDesktopBuild Build $root $failed $policy 'https://packages.example.test/npm/'} | Should -Throw '*official-desktop-prepare:9*'
+        {Invoke-DshOfficialDesktopBuild Build $root $failed $policy 'https://packages.example.test/npm/' -PnpmPath $script:pnpmPath} | Should -Throw '*official-desktop-prepare:9*'
         (Get-FileHash $seed -Algorithm SHA256).Hash.ToLowerInvariant() | Should -Be $policy.prepareSeedSha256
     }
 
     It 'fails after a command when tracked source or lockfile drifts' {
         $count=0;$postDirty={param($file,$arguments,$cwd,$environment);$r=&$script:runner $file $arguments $cwd $environment;if(($arguments-join' ')-match'install --frozen-lockfile'){$script:dirty=$true};return $r}
-        {Invoke-DshOfficialDesktopBuild Build $root $postDirty $policy}|Should -Throw '*source-dirty*'
+        {Invoke-DshOfficialDesktopBuild Build $root $postDirty $policy -PnpmPath $script:pnpmPath}|Should -Throw '*source-dirty*'
         $script:dirty=$false;$changedLock={param($file,$arguments,$cwd,$environment);$r=&$script:runner $file $arguments $cwd $environment;if(($arguments-join' ')-match'install --frozen-lockfile'){'changed'|Set-Content (Join-Path $script:source 'pnpm-lock.yaml')};return $r}
-        {Invoke-DshOfficialDesktopBuild Build $root $changedLock $policy}|Should -Throw '*lockfile-drift*'
+        {Invoke-DshOfficialDesktopBuild Build $root $changedLock $policy -PnpmPath $script:pnpmPath}|Should -Throw '*lockfile-drift*'
     }
 
     It 'retries only the exact sole macOS signature timeout and records both commands' {
         $primary=$policy.officialCommands.tests[0].args-join' ';$retryArgs=$policy.officialCommands.testRetry.args-join' '
         $retryRunner={param($file,$arguments,$cwd,$environment);$joined=$arguments-join' ';if($joined-eq$primary){return [pscustomobject]@{exitCode=1;output=@('FAIL apps/desktop/tests/macos-signature.spec.ts > desktop macOS release signature > loads release identifiers from the environment and requires code signing','Error: Test timed out in 5000ms.','Tests  1 failed | 81 passed (82)')}};if($joined-eq$retryArgs){return [pscustomobject]@{exitCode=0;output=@('Tests  9 passed (9)')}};&$script:runner $file $arguments $cwd $environment}
-        $build=Invoke-DshOfficialDesktopBuild Build $root $retryRunner $policy
+        $build=Invoke-DshOfficialDesktopBuild Build $root $retryRunner $policy -PnpmPath $script:pnpmPath
         @($build.receipt.commands|ForEach-Object name)|Should -Be @('pnpm-version','frozen-install','official-desktop-test','official-desktop-test-macos-signature-retry','official-desktop-prepare')
         @($build.receipt.commands|Where-Object name -eq 'official-desktop-test')[0].exitCode|Should -Be 1
-        Test-DshOfficialDesktopBuildReceipt $build.receiptPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner|Should -BeTrue
+        Test-DshOfficialDesktopBuildReceipt $build.receiptPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath|Should -BeTrue
     }
 
     It 'fails closed when the test failure is not the exact retryable timeout' {
         $failed={param($file,$arguments,$cwd,$environment);if(($arguments-join' ')-match'vitest run'){return [pscustomobject]@{exitCode=7;output=@('unrelated failure')}};&$script:runner $file $arguments $cwd $environment}
-        {Invoke-DshOfficialDesktopBuild Build $root $failed $policy}|Should -Throw '*official-desktop-test:7*'
+        {Invoke-DshOfficialDesktopBuild Build $root $failed $policy -PnpmPath $script:pnpmPath}|Should -Throw '*official-desktop-test:7*'
     }
 
     It 'fails closed when the exact retry does not report 9 of 9' {
         $primary=$policy.officialCommands.tests[0].args-join' ';$retryArgs=$policy.officialCommands.testRetry.args-join' '
         $failedRetry={param($file,$arguments,$cwd,$environment);$joined=$arguments-join' ';if($joined-eq$primary){return [pscustomobject]@{exitCode=1;output=@('FAIL apps/desktop/tests/macos-signature.spec.ts > loads release identifiers from the environment and requires code signing','Test timed out in 5000ms.','Tests  1 failed | 81 passed (82)')}};if($joined-eq$retryArgs){return [pscustomobject]@{exitCode=0;output=@('Tests  8 passed (9)')}};&$script:runner $file $arguments $cwd $environment}
-        {Invoke-DshOfficialDesktopBuild Build $root $failedRetry $policy}|Should -Throw '*retry-summary-mismatch*'
+        {Invoke-DshOfficialDesktopBuild Build $root $failedRetry $policy -PnpmPath $script:pnpmPath}|Should -Throw '*retry-summary-mismatch*'
     }
 
     It 'creates a strict unsigned PackageLocal receipt with external local identity overlay and scrubbed signing environment' {
@@ -311,7 +311,7 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
             &$script:runner $file $arguments $cwd $environment
         }
         $old=@{};foreach($name in @('DSH_DESKTOP_TARGET','DSH_DESKTOP_WINDOWS_TOKEN_PIN','CSC_LINK','NODE_OPTIONS','GIT_DIR','GIT_CONFIG_COUNT','GIT_CONFIG_KEY_0','GIT_CONFIG_VALUE_0')){$old[$name]=[Environment]::GetEnvironmentVariable($name,'Process');Set-Item -LiteralPath ("Env:"+$name) -Value 'secret'}
-        try{$package=Invoke-DshOfficialDesktopBuild PackageLocal $root $packageRunner $policy}catch{throw}finally{foreach($name in $old.Keys){if($null-eq$old[$name]){Remove-Item -LiteralPath ("Env:"+$name) -ErrorAction SilentlyContinue}else{Set-Item -LiteralPath ("Env:"+$name) -Value $old[$name]}}}
+        try{$package=Invoke-DshOfficialDesktopBuild PackageLocal $root $packageRunner $policy -PnpmPath $script:pnpmPath}catch{throw}finally{foreach($name in $old.Keys){if($null-eq$old[$name]){Remove-Item -LiteralPath ("Env:"+$name) -ErrorAction SilentlyContinue}else{Set-Item -LiteralPath ("Env:"+$name) -Value $old[$name]}}}
         foreach($name in $old.Keys){[Environment]::GetEnvironmentVariable($name,'Process')|Should -Be $old[$name]}
         [IO.Path]::GetFullPath(((& git rev-parse --show-toplevel).Trim()))|Should -Be (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
         $call=@($calls|Where-Object{($_.arguments-join' ')-match'exec electron-builder'})[0]
@@ -347,28 +347,28 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         $package.receipt.releaseBoundary.officialIdentityClaim | Should -BeFalse
         $package.receipt.releaseBoundary.officialSignature | Should -BeFalse
         $package.receipt.releaseBoundary.updateChannel | Should -BeFalse
-        Test-DshOfficialDesktopBuildReceipt $package.receiptPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner | Should -BeTrue
+        Test-DshOfficialDesktopBuildReceipt $package.receiptPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath | Should -BeTrue
         $forged=Get-Content $package.receiptPath -Raw|ConvertFrom-Json;$forged.localPackage.overlayPath=Join-Path $root 'elsewhere.mjs';$forged.PSObject.Properties.Remove('receiptSha256');$forgedPath=Join-Path $TestDrive 'forged-local.json';Write-DshOfficialDesktopBuildReceipt $forged $forgedPath|Out-Null
-        Test-DshOfficialDesktopBuildReceipt $forgedPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner | Should -BeFalse
+        Test-DshOfficialDesktopBuildReceipt $forgedPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath | Should -BeFalse
         $forged=Get-Content $package.receiptPath -Raw|ConvertFrom-Json;$forged.commands[-1].workingDirectory=$source;$forged.PSObject.Properties.Remove('receiptSha256');$forgedPath=Join-Path $TestDrive 'forged-cwd.json';Write-DshOfficialDesktopBuildReceipt $forged $forgedPath|Out-Null
-        Test-DshOfficialDesktopBuildReceipt $forgedPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner | Should -BeFalse
+        Test-DshOfficialDesktopBuildReceipt $forgedPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath | Should -BeFalse
     }
 
     It 'refuses stale artifact cleanup through a reparse point' -Skip:($env:OS -ne 'Windows_NT') {
         $target=Join-Path $source 'apps\desktop\.desktop-build\targets\win-x64';New-Item -ItemType Directory $target -Force|Out-Null
         $outside=Join-Path $TestDrive 'outside-artifacts';New-Item -ItemType Directory $outside|Out-Null;'keep'|Set-Content (Join-Path $outside 'keep.txt')
         New-Item -ItemType Junction -Path (Join-Path $target 'artifacts') -Target $outside|Out-Null
-        {Invoke-DshOfficialDesktopBuild PackageLocal $root $runner $policy}|Should -Throw '*reparse-point*'
+        {Invoke-DshOfficialDesktopBuild PackageLocal $root $runner $policy -PnpmPath $script:pnpmPath}|Should -Throw '*reparse-point*'
         Test-Path (Join-Path $outside 'keep.txt')|Should -BeTrue
     }
 
     It 'creates a strict receipt and Verify validates it without overwrite' {
         $artifact=Join-Path $source 'apps\desktop\.desktop-build\targets\win-x64\artifacts\sample.bin';New-Item -ItemType Directory (Split-Path $artifact) -Force|Out-Null;'original'|Set-Content $artifact
-        $build=Invoke-DshOfficialDesktopBuild Build $root $runner $policy
+        $build=Invoke-DshOfficialDesktopBuild Build $root $runner $policy -PnpmPath $script:pnpmPath
         $before=(Get-FileHash -LiteralPath $build.receiptPath).Hash
         $receiptDirectory=Split-Path -Parent $build.receiptPath
         $count=@(Get-ChildItem -LiteralPath $receiptDirectory).Count
-        $verify=Invoke-DshOfficialDesktopBuild Verify $root $runner $policy
+        $verify=Invoke-DshOfficialDesktopBuild Verify $root $runner $policy -PnpmPath $script:pnpmPath
         $verify.status|Should -Be 'verified'
         (Get-FileHash -LiteralPath $build.receiptPath).Hash|Should -Be $before
         @(Get-ChildItem -LiteralPath $receiptDirectory).Count|Should -Be $count
@@ -377,16 +377,16 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
 
     It 'rejects recomputed forged receipt omitted or extra artifacts and traversal paths' {
         $artifact=Join-Path $source 'apps\desktop\.desktop-build\targets\win-x64\artifacts\sample.bin';New-Item -ItemType Directory (Split-Path $artifact) -Force|Out-Null;'original'|Set-Content $artifact
-        $build=Invoke-DshOfficialDesktopBuild Build $root $runner $policy
+        $build=Invoke-DshOfficialDesktopBuild Build $root $runner $policy -PnpmPath $script:pnpmPath
         function Save-Forged($receipt){$receipt.PSObject.Properties.Remove('receiptSha256');$tmp=Join-Path $TestDrive ([guid]::NewGuid().ToString()+'.json');Write-DshOfficialDesktopBuildReceipt $receipt $tmp|Out-Null;return $tmp}
-        $r=Get-Content $build.receiptPath -Raw|ConvertFrom-Json;$r.source.commit='0'*40;$p=Save-Forged $r;Test-DshOfficialDesktopBuildReceipt $p $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner|Should -BeFalse
-        $r=Get-Content $build.receiptPath -Raw|ConvertFrom-Json;$r.artifacts=@();$p=Save-Forged $r;Test-DshOfficialDesktopBuildReceipt $p $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner|Should -BeFalse
-        $r=Get-Content $build.receiptPath -Raw|ConvertFrom-Json;$r.artifacts[0].path='../escape';$p=Save-Forged $r;Test-DshOfficialDesktopBuildReceipt $p $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner|Should -BeFalse
-        'extra'|Set-Content (Join-Path (Split-Path $artifact) 'extra.bin');Test-DshOfficialDesktopBuildReceipt $build.receiptPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner|Should -BeFalse
+        $r=Get-Content $build.receiptPath -Raw|ConvertFrom-Json;$r.source.commit='0'*40;$p=Save-Forged $r;Test-DshOfficialDesktopBuildReceipt $p $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath|Should -BeFalse
+        $r=Get-Content $build.receiptPath -Raw|ConvertFrom-Json;$r.artifacts=@();$p=Save-Forged $r;Test-DshOfficialDesktopBuildReceipt $p $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath|Should -BeFalse
+        $r=Get-Content $build.receiptPath -Raw|ConvertFrom-Json;$r.artifacts[0].path='../escape';$p=Save-Forged $r;Test-DshOfficialDesktopBuildReceipt $p $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath|Should -BeFalse
+        'extra'|Set-Content (Join-Path (Split-Path $artifact) 'extra.bin');Test-DshOfficialDesktopBuildReceipt $build.receiptPath $source $policy (Get-Command git).Source 'v24.17.0' '11.7.0' $runner -PnpmPath $script:pnpmPath|Should -BeFalse
     }
 
     It 'requires a prior receipt for Verify and never claims package identity or update channel' {
-        {Invoke-DshOfficialDesktopBuild Verify $root $runner $policy}|Should -Throw '*receipt-not-found*'
+        {Invoke-DshOfficialDesktopBuild Verify $root $runner $policy -PnpmPath $script:pnpmPath}|Should -Throw '*receipt-not-found*'
         $policy.releaseBoundary.status|Should -Be 'signed-release-unavailable';$policy.releaseBoundary.officialIdentityClaim|Should -BeFalse;$policy.releaseBoundary.updateChannelConfigured|Should -BeFalse;$policy.releaseBoundary.packageCreated|Should -BeFalse
         $text=(Get-Content (Join-Path $PSScriptRoot '..\tools\DshOfficialDesktopBuild.psm1') -Raw)+(Get-Content (Join-Path $PSScriptRoot '..\tools\build-official-desktop.ps1') -Raw)
         $text|Should -Not -Match 'package:desktop:win:x64';$text|Should -Match 'PackageLocal';$text|Should -Match 'local\.cloga\.dsh-official-source-build';$text|Should -Not -Match '(?i)Stop-Process|Start-Process|taskkill|msiexec|uninstall'

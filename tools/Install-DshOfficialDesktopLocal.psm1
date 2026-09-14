@@ -56,9 +56,10 @@ function Assert-NoLocalReparseTree { param([string]$Path,[hashtable]$Operations)
 
 function Assert-DshOfficialDesktopLocalPath {
     [CmdletBinding()]param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][string]$Name,[Parameter(Mandatory)][hashtable]$Operations)
-    if([string]::IsNullOrWhiteSpace($Path)-or-not[IO.Path]::IsPathRooted($Path)){throw "$Name-must-be-absolute"}
-    if($Path.StartsWith('\\')-or$Path.StartsWith('//')){throw "$Name-must-be-fixed-local-drive"}
+    if([string]::IsNullOrWhiteSpace($Path)){throw "$Name-must-be-absolute"}
     if($Path-match'[\r\n"&|<>^%!`]'){throw "$Name-contains-command-metacharacter"}
+    try { if(-not[IO.Path]::IsPathRooted($Path)){throw "$Name-must-be-absolute"} } catch { if($_.Exception.Message -like "*$Name-must-be-absolute*" -or $_.Exception.Message -like "*$Name-contains-command-metacharacter*"){throw};throw "$Name-invalid-path" }
+    if($Path.StartsWith('\\')-or$Path.StartsWith('//')){throw "$Name-must-be-fixed-local-drive"}
     $root=Get-LocalNormalizedPath $Path
     $driveName=[IO.Path]::GetPathRoot($root).TrimEnd('\').TrimEnd(':');$drive=Get-PSDrive -Name $driveName -PSProvider FileSystem -ErrorAction SilentlyContinue
     if(-not$drive-or$drive.DisplayRoot-or($drive.Root-and$drive.Root.StartsWith('\\'))){throw "$Name-must-be-fixed-local-drive"}

@@ -42,6 +42,10 @@ Describe 'Shared home filesystem fixtures' {
         }.GetEnumerator()){[IO.File]::WriteAllText((Join-Path $profile $entry.Key),$entry.Value,[Text.UTF8Encoding]::new($false))}
         $script:ops=Get-DshOfficialDesktopLocalOperations
         $ops.GetProcesses={ [pscustomobject]@{unavailable=$false;items=@()} }
+        # Elevated Windows runners can create fixtures owned by Administrators.
+        # Model ownership explicitly; all filesystem and path guards remain real.
+        $ownedFixturePaths=@($harness,(Join-Path $harness 'profiles'),$profile)
+        $ops.IsCurrentUserOwner={param($path)$ownedFixturePaths -contains $path}.GetNewClosure()
     }
 
     It 'recognizes the observed exact bytes and renames the scaffold without changing home data' {
@@ -68,6 +72,20 @@ Describe 'Shared home filesystem fixtures' {
         InModuleScope Install-DshOfficialDesktopLocal -Parameters @{harness=$harness;install=$install;ops=$ops} {
             param($harness,$install,$ops)
             {Get-LocalSharedProfile $harness $install $ops}|Should -Throw '*nonempty-dependencies*'
+        }
+
+    }
+
+    It 'blocks an owner mismatch before moving the scaffold or creating backups' {
+        $ops.IsCurrentUserOwner={param($path)$false}
+        InModuleScope Install-DshOfficialDesktopLocal -Parameters @{harness=$harness;install=$install;data=$data;fixture=$fixture;ops=$ops} {
+            param($harness,$install,$data,$fixture,$ops)
+            $selection=Get-LocalHomeSelection -SharedHome $harness -DataRoot $data
+            $profileState=Get-LocalSharedProfile $harness $install $ops
+            $check=[pscustomobject]@{home=$selection;sharedProfile=$profileState;sharedHomeExplicit=$true;installRoot=$install;dataRoot=$data;buildRoot=(Join-Path $fixture 'build')}
+            {Move-LocalSharedLegacyProfile $check $ops}|Should -Throw '*shared-home-owner-mismatch*'
+            Test-Path -LiteralPath $profileState.path|Should -BeTrue
+            Test-Path -LiteralPath $data|Should -BeFalse
         }
     }
 

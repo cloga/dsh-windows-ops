@@ -11,7 +11,12 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         New-Item -ItemType Directory -Path (Join-Path $source 'apps\desktop-host') -Force | Out-Null
         New-Item -ItemType Directory -Path (Join-Path $source '.git\hooks') -Force | Out-Null
         New-Item -ItemType Directory -Path (Join-Path $source 'apps\desktop\scripts') -Force | Out-Null
-        Copy-Item (Join-Path $PSScriptRoot 'fixtures\official-desktop-build\prepare-seed.ts') (Join-Path $source ($policy.prepareSeedRelativePath.Replace('/','\')))
+        $seedFixture = Get-Content (Join-Path $PSScriptRoot 'fixtures\official-desktop-build\prepare-seed.ts') -Raw
+        [IO.File]::WriteAllText(
+            (Join-Path $source ($policy.prepareSeedRelativePath.Replace('/','\'))),
+            $seedFixture.Replace("`r`n", "`n"),
+            [Text.UTF8Encoding]::new($false)
+        )
         @{version=$policy.version;packageManager=$policy.packageManager;engines=@{node=$policy.nodeEngine}}|ConvertTo-Json|Set-Content (Join-Path $source 'package.json')
         @{version=$policy.version;name='@deepseek-ai/dsh-desktop'}|ConvertTo-Json|Set-Content (Join-Path $source 'apps\desktop\package.json')
         @{version=$policy.version;name='@deepseek-ai/dsh-desktop-host'}|ConvertTo-Json|Set-Content (Join-Path $source 'apps\desktop-host\package.json')

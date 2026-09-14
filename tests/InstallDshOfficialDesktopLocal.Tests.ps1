@@ -111,6 +111,29 @@ Describe 'Official Desktop local side-by-side installer' {
         ($calls|ConvertTo-Json)|Should -Not -Match 'copy:.*(settings|credentials|sessions)|move:'
     }
 
+    It 'records schema-3 manual channel metadata without advertising native automatic updates' {
+        $result=Invoke-FixtureInstall
+        $receipt=$result.receipt
+        $files[$receipt.source.buildReceiptPath].localPackage.executablePath=Join-Path $sourceRoot 'apps\desktop\.desktop-build\targets\win-x64\artifacts\win-unpacked\DeepSeek Harness.exe'
+        $receipt.schemaVersion=3
+        $receipt|Add-Member updateChannel ([pscustomobject][ordered]@{
+            mode='unsigned-manual';owner='cloga/dsh-windows-ops';channel='rc'
+            channelVersion='0.1.5-rc.2.local.4';sequence=4
+            manifestPath=(Join-Path $dataRoot 'updates\manifests\manifest.json');manifestSha256='f'*64
+            feedBaseUrl='https://downloads.example.test/dsh/';nativeUpdaterEnabled=$false
+            signatureRequiredForNativeUpdater=$true;completedUtc='2026-09-14T00:00:00Z'
+        }) -Force
+        $script:exists[$receipt.updateChannel.manifestPath]=$true
+        $script:files[$receipt.updateChannel.manifestPath]=[pscustomobject]@{manifestSha256='f'*64;owner='cloga/dsh-windows-ops';sequence=4;channelVersion='0.1.5-rc.2.local.4'}
+        $receipt.PSObject.Properties.Remove('receiptSha256')
+        InModuleScope Install-DshOfficialDesktopLocal -Parameters @{receipt=$receipt} {param($receipt)$receipt|Add-Member receiptSha256 (Get-LocalReceiptPayloadHash $receipt)}
+        Test-TrustedLocalInstallReceipt $receipt $buildRoot $installRoot $dataRoot $ops | Should -BeTrue
+        $shell=Write-LocalLauncherAndShortcuts $installRoot $dataRoot $ops $result.home $receipt.updateChannel
+        $shell.description|Should -Match 'manual managed update channel'
+        $shell.description|Should -Match 'native updater disabled'
+        $receipt.identity.automaticUpdates|Should -BeFalse
+    }
+
     It 'upgrades schema1 to shared and retains the mode when arguments are omitted' {
         $first=Invoke-FixtureInstall
         $receipt=$first.receipt

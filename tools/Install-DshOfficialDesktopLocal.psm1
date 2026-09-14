@@ -196,7 +196,7 @@ function Assert-InstalledLocalDesktop {
 }
 
 function Write-LocalLauncherAndShortcuts {
-    param([string]$InstallRoot,[string]$DataRoot,[hashtable]$Operations,$Selection)
+    param([string]$InstallRoot,[string]$DataRoot,[hashtable]$Operations,$Selection,$UpdateChannel)
     Assert-NoLocalReparseTree $InstallRoot $Operations
     if(-not $Selection){$Selection=Get-LocalHomeSelection -DataRoot $DataRoot}
     $launcher=Join-Path $InstallRoot $script:LauncherName;$exe=Join-Path $InstallRoot 'DeepSeek Harness.exe'
@@ -204,7 +204,8 @@ function Write-LocalLauncherAndShortcuts {
     $shortcutPaths=@(Get-LocalShortcutPaths $Operations)
     foreach($path in $shortcutPaths){$old=&$Operations.ReadShortcut $path;if($old-and$old.TargetPath-and-not(Test-LocalPathAtOrWithin $old.TargetPath $InstallRoot)){throw 'shortcut-target-outside-local-install'}}
     &$Operations.WriteText $launcher $body
-    $description='DeepSeek Harness local source build (unsigned; '+$(if($Selection.mode-eq'shared'){'shared DSH home'}else{'isolated DSH home'})+'; update channel not configured)'
+    $channelDescription=if($UpdateChannel){'manual managed update channel; native updater disabled'}else{'update channel not configured'}
+    $description='DeepSeek Harness local source build (unsigned; '+$(if($Selection.mode-eq'shared'){'shared DSH home'}else{'isolated DSH home'})+'; '+$channelDescription+')'
     foreach($path in $shortcutPaths){&$Operations.WriteShortcut $path $launcher '' $description $exe}
     if((&$Operations.ReadText $launcher) -cne $body){throw 'launcher-write-verification-failed'}
     foreach($path in $shortcutPaths){$actual=&$Operations.ReadShortcut $path;if(-not $actual -or $actual.TargetPath -cne $launcher -or $actual.Arguments -cne '' -or $actual.Description -cne $description){throw 'shortcut-write-verification-failed'}}
@@ -220,25 +221,50 @@ function Write-LocalInstallReceipt {
 }
 function Test-ExactLocalKeys { param($Object,[string[]]$Names);if($null-eq$Object){return $false};return (ConvertTo-LocalCanonicalJson @($Object.PSObject.Properties.Name|Sort-Object))-ceq(ConvertTo-LocalCanonicalJson @($Names|Sort-Object)) }
 function Test-TrustedLocalInstallReceipt {
-    param($Receipt,[string]$BuildRoot,[string]$InstallRoot,[string]$DataRoot,[hashtable]$Operations,[string]$PnpmPath)
+    param($Receipt,[string]$BuildRoot,[string]$InstallRoot,[string]$DataRoot,[hashtable]$Operations,[string]$PnpmPath,[switch]$AllowInstalledExecutableMismatch)
     try {
         $keys=@('schemaVersion','status','createdUtc','source','installerPath','installerSha256','installedExecutablePath','installedExecutableSha256','installedSeedSha256','installRoot','dataRoot','identity','launcher','rollback','receiptSha256')
-        if($Receipt.schemaVersion -eq 2){$keys+= 'home';if(-not(Test-ExactLocalKeys $Receipt.home @('mode','path','electronUserData','profileBackup'))){return $false};if($Receipt.home.mode -notin @('shared','isolated') -or $Receipt.home.electronUserData -cne (Join-Path $DataRoot 'electron-user-data')){return $false}}
+        if($Receipt.schemaVersion -in @(2,3)){$keys+= 'home';if(-not(Test-ExactLocalKeys $Receipt.home @('mode','path','electronUserData','profileBackup'))){return $false};if($Receipt.home.mode -notin @('shared','isolated') -or $Receipt.home.electronUserData -cne (Join-Path $DataRoot 'electron-user-data')){return $false}}
+        if($Receipt.schemaVersion -eq 3){
+            $keys+='updateChannel'
+            if(-not(Test-ExactLocalKeys $Receipt.updateChannel @('mode','owner','channel','channelVersion','sequence','manifestPath','manifestSha256','feedBaseUrl','nativeUpdaterEnabled','signatureRequiredForNativeUpdater','completedUtc'))){return $false}
+            if($Receipt.updateChannel.mode-cne'unsigned-manual' -or $Receipt.updateChannel.owner-cne'cloga/dsh-windows-ops' -or
+               $Receipt.updateChannel.channel-cne'rc' -or [int]$Receipt.updateChannel.sequence-lt1 -or
+               $Receipt.updateChannel.channelVersion-cnotmatch'^0\.1\.5-rc\.2\.local\.[1-9][0-9]*$' -or
+               $Receipt.updateChannel.manifestSha256-cnotmatch'^[0-9a-f]{64}$' -or
+               $Receipt.updateChannel.nativeUpdaterEnabled-ne$false -or $Receipt.updateChannel.signatureRequiredForNativeUpdater-ne$true){return $false}
+            $manifestPath=Get-LocalNormalizedPath ([string]$Receipt.updateChannel.manifestPath)
+            if(-not(Test-LocalPathAtOrWithin $manifestPath (Join-Path $DataRoot 'updates\manifests'))-or-not(&$Operations.PathExists $manifestPath 'Leaf')){return $false}
+            $manifest=&$Operations.ReadJson $manifestPath
+            if([string](Get-LocalLeafValue $manifest 'manifestSha256')-cne[string]$Receipt.updateChannel.manifestSha256-or
+               [string](Get-LocalLeafValue $manifest 'owner')-cne[string]$Receipt.updateChannel.owner-or
+               [int](Get-LocalLeafValue $manifest 'sequence')-ne[int]$Receipt.updateChannel.sequence-or
+               [string](Get-LocalLeafValue $manifest 'channelVersion')-cne[string]$Receipt.updateChannel.channelVersion){return $false}
+        }
         if(-not(Test-ExactLocalKeys $Receipt $keys)){return $false}
         if(-not(Test-ExactLocalKeys $Receipt.source @('repository','tag','commit','tree','buildReceiptPath','buildReceiptSha256','buildReceiptFileSha256'))-or-not(Test-ExactLocalKeys $Receipt.identity @('productName','appId','packageName','unsigned','automaticUpdates'))){return $false}
         $policy=Get-DshOfficialDesktopBuildPolicy
-        if($Receipt.schemaVersion-notin@(1,2)-or$Receipt.status-cne'complete'-or-not(Test-LocalReceiptHash $Receipt)-or$Receipt.installRoot-cne$InstallRoot-or$Receipt.dataRoot-cne$DataRoot){return $false}
+        if($Receipt.schemaVersion-notin@(1,2,3)-or$Receipt.status-cne'complete'-or-not(Test-LocalReceiptHash $Receipt)-or$Receipt.installRoot-cne$InstallRoot-or$Receipt.dataRoot-cne$DataRoot){return $false}
         if($Receipt.source.repository-cne$policy.repository-or$Receipt.source.tag-cne$policy.tag-or$Receipt.source.commit-cne$policy.commit-or$Receipt.source.tree-cne$policy.tree){return $false}
         if($Receipt.identity.productName-cne$policy.localPackage.productName-or$Receipt.identity.appId-cne$policy.localPackage.appId-or$Receipt.identity.packageName-cne$policy.localPackage.packageName-or$Receipt.identity.unsigned-ne$true-or$Receipt.identity.automaticUpdates-ne$false){return $false}
         $sourceRoot=Join-Path $BuildRoot $policy.sourceDirectory;$buildReceipt=Get-LocalNormalizedPath $Receipt.source.buildReceiptPath;$archive=Get-LocalNormalizedPath $Receipt.installerPath
         if(-not(Test-LocalPathAtOrWithin $buildReceipt (Join-Path $DataRoot 'artifacts\build-receipts'))-or-not(Test-LocalPathAtOrWithin $archive (Join-Path $DataRoot 'artifacts'))){return $false}
         if((-not(&$Operations.PathExists $buildReceipt 'Leaf'))-or(-not(&$Operations.PathExists $archive 'Leaf'))){return $false}
         Assert-NoLocalReparseTree (Join-Path $DataRoot 'artifacts') $Operations
-        $buildHashBefore=&$Operations.GetHash $buildReceipt;if($buildHashBefore-cne$Receipt.source.buildReceiptFileSha256-or-not(&$Operations.ValidateBuildReceipt $buildReceipt $sourceRoot $PnpmPath $true)){return $false};$buildEvidence=&$Operations.ReadJson $buildReceipt
+        $buildHashBefore=&$Operations.GetHash $buildReceipt;if($buildHashBefore-cne$Receipt.source.buildReceiptFileSha256){return $false};$buildEvidence=&$Operations.ReadJson $buildReceipt
+        if($Receipt.schemaVersion-eq3){
+            $recordedExecutable=Get-LocalNormalizedPath ([string]$buildEvidence.localPackage.executablePath)
+            $recordedSuffix='\apps\desktop\.desktop-build\targets\win-x64\artifacts\win-unpacked\DeepSeek Harness.exe'
+            if(-not$recordedExecutable.EndsWith($recordedSuffix,[StringComparison]::OrdinalIgnoreCase)){return $false}
+            $sourceRoot=$recordedExecutable.Substring(0,$recordedExecutable.Length-$recordedSuffix.Length)
+        }
+        if(-not(&$Operations.ValidateBuildReceipt $buildReceipt $sourceRoot $PnpmPath $true)){return $false}
         if((&$Operations.GetHash $buildReceipt)-cne$buildHashBefore-or$buildEvidence.receiptSha256-cne$Receipt.source.buildReceiptSha256){return $false}
         if(-not(Test-LocalPathAtOrWithin (Get-LocalNormalizedPath $buildEvidence.localPackage.installerPath) $BuildRoot)-or$buildEvidence.localPackage.hashes.installer-cne$Receipt.installerSha256-or$buildEvidence.localPackage.hashes.executable-cne$Receipt.installedExecutableSha256){return $false}
         if((&$Operations.GetHash $archive)-cne$buildEvidence.localPackage.hashes.installer-or(&$Operations.GetSignature $archive)-cne'NotSigned'){return $false}
-        if((Get-LocalNormalizedPath $Receipt.installedExecutablePath)-cne(Get-LocalNormalizedPath (Join-Path $InstallRoot 'DeepSeek Harness.exe'))-or(&$Operations.GetHash $Receipt.installedExecutablePath)-cne$buildEvidence.localPackage.hashes.executable-or$Receipt.installedSeedSha256-cne$buildEvidence.localPackage.hashes.seed){return $false}
+        if((Get-LocalNormalizedPath $Receipt.installedExecutablePath)-cne(Get-LocalNormalizedPath (Join-Path $InstallRoot 'DeepSeek Harness.exe'))-or
+           ((-not $AllowInstalledExecutableMismatch)-and(&$Operations.GetHash $Receipt.installedExecutablePath)-cne$buildEvidence.localPackage.hashes.executable)-or
+           $Receipt.installedSeedSha256-cne$buildEvidence.localPackage.hashes.seed){return $false}
         return $true
     } catch { return $false }
 }
@@ -294,4 +320,4 @@ function Invoke-DshOfficialDesktopLocalInstall {
     }catch{if($installerStarted){$ex=[InvalidOperationException]::new(('partial-install-manual-review-required: '+$_.Exception.Message),$_.Exception);throw $ex};throw}
 }
 
-Export-ModuleMember -Function Get-DshOfficialDesktopLocalOperations,Assert-DshOfficialDesktopLocalPath,Get-DshOfficialDesktopLocalCheck,Assert-LocalPackageReceipt,Assert-InstalledLocalDesktop,Write-LocalLauncherAndShortcuts,Invoke-DshOfficialDesktopLocalInstall
+Export-ModuleMember -Function Get-DshOfficialDesktopLocalOperations,Assert-DshOfficialDesktopLocalPath,Get-DshOfficialDesktopLocalCheck,Assert-LocalPackageReceipt,Assert-InstalledLocalDesktop,Write-LocalLauncherAndShortcuts,Write-LocalInstallReceipt,Test-TrustedLocalInstallReceipt,Invoke-DshOfficialDesktopLocalInstall

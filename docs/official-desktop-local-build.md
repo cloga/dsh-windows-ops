@@ -205,6 +205,112 @@ the coordinator only for a packaged application containing `app-update.yml`;
 therefore remain visible without a configured release stream. This installer
 does not add a feed, change signing, or enable automatic downloads.
 
+## dsh-windows-ops managed update channel (unsigned manual apply)
+
+The existing `PackageLocal` and one-command install defaults remain unchanged:
+they do not configure an updater. A separate operations-owned workflow can
+prepare and validate an update feed without claiming the vendor identity or
+silently installing unsigned code:
+
+```powershell
+# Build one reviewed local package and an unpublished generic-provider bundle.
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\manage-official-desktop-update-channel.ps1 -Action Package `
+  -Sequence 1 `
+  -FeedBaseUrl https://github.com/cloga/dsh-windows-ops/releases/download/dsh-local-0.1.5-rc.2.local.1/
+
+# Read-only comparison with the installed schema-3 receipt, if one exists.
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\manage-official-desktop-update-channel.ps1 -Action Check `
+  -BundleRoot C:\tmp\dsh-official-desktop-build\work\update-channel\0.1.5-rc.2.local.1
+
+# Copy only the exact reviewed bundle into local staging.
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\manage-official-desktop-update-channel.ps1 -Action Stage `
+  -BundleRoot C:\tmp\dsh-official-desktop-build\work\update-channel\0.1.5-rc.2.local.1 `
+  -AcknowledgeManifestSha256 sha256:<release.json-manifestSha256>
+```
+
+`Package` still invokes the strict pinned `PackageLocal` pipeline. It then
+creates exactly four channel files below
+`BuildRoot\update-channel\<channel-version>`:
+
+- `release.json`, the self-hashed operations manifest;
+- `rc.yml`, the electron-updater generic-provider metadata shape;
+- the hash-preserving installer copy named with the channel version; and
+- `build-receipt.json`, the original strict PackageLocal receipt.
+
+The manifest records the immutable upstream commit/tree through the build
+receipt, installer size, SHA-256 and base64 SHA-512, installed executable and
+seed SHA-256 values, feed URL, and security mode. `Stage` requires the exact
+manifest hash, copies through a unique temporary directory, revalidates every
+byte, and uses one atomic directory rename. An identical retry is idempotent; a
+conflicting or tampered stage fails closed. No token, authorization header,
+credential, Session content, or DSH home content is written to the bundle.
+
+The operations channel version is
+`0.1.5-rc.2.local.<positive-sequence>`. The immutable upstream package and seed
+version remains `0.1.5-rc.2`; the suffix identifies monotonically ordered local
+rebuilds without claiming that DeepSeek published another upstream version.
+Sequences must increase for each published candidate. Publishing is deliberately
+not performed by these tools. A reviewer must create an immutable GitHub Release
+or approved static HTTPS feed separately, upload the four exact files, and
+confirm that names and hashes match the verified bundle. Concurrent publication
+runs should serialize by release tag; an existing tag or differing bundle is a
+conflict, not an overwrite.
+
+### Why this does not enable Electron's native Windows updater
+
+The pinned Desktop coordinator enables `electron-updater` only when packaged
+resources contain `app-update.yml`, and leaves automatic download and automatic
+install disabled
+([upstream `update-coordinator.ts`](https://github.com/deepseek-ai/deepseek-harness/blob/fb2c4b9e698e30edb738bca4cf0618587db7d203/apps/desktop/src/update-coordinator.ts)).
+The official builder emits a generic provider and requires Windows code signing
+([upstream `electron-builder.config.mjs`](https://github.com/deepseek-ai/deepseek-harness/blob/fb2c4b9e698e30edb738bca4cf0618587db7d203/apps/desktop/electron-builder.config.mjs)).
+The pinned package uses `electron-updater` 6.8.9
+([upstream `package.json`](https://github.com/deepseek-ai/deepseek-harness/blob/fb2c4b9e698e30edb738bca4cf0618587db7d203/apps/desktop/package.json)).
+In that version, `NsisUpdater.verifySignature()` returns success without checking
+Authenticode when `publisherName` is absent, while a configured publisher name
+causes the downloaded installer signature to be checked
+([electron-updater 6.8.9 `NsisUpdater.js`](https://unpkg.com/electron-updater@6.8.9/out/NsisUpdater.js)).
+
+Because the local package is intentionally unsigned, embedding a feed without a
+usable signing identity would make the manifest SHA-512 an integrity check, not
+an application-owner authenticity proof. This workflow therefore preserves
+`appUpdatePresent=false`, records `nativeUpdaterEnabled=false`, and never calls
+`quitAndInstall`. Do not add `publisherName`, disable signature verification, or
+hide Windows warnings as a workaround. Native updates may be enabled only after
+an owned Authenticode identity, protected signing service, publisher continuity,
+and end-to-end signed upgrade tests are available.
+
+### Manual apply and schema-3 completion
+
+After staging, the user—not this script—reviews and runs the staged unsigned
+installer. Windows warnings must remain visible. Close the local Desktop
+normally first; this workflow never stops or restarts it. The existing app ID,
+package name, and install directory preserve upgrade compatibility, while
+`DSH_HOME` and Electron user-data selection remain those stored by the schema-2
+receipt.
+
+After the installer exits, complete the transaction:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\manage-official-desktop-update-channel.ps1 -Action Complete `
+  -StageRoot <DataRoot>\updates\staged\0.1.5-rc.2.local.1 `
+  -AcknowledgeManifestSha256 sha256:<release.json-manifestSha256>
+```
+
+`Complete` never runs the installer. It rechecks paths and processes, requires
+the installed executable and complete seed tree to match the staged manifest,
+revalidates the prior receipt and strict build receipt, archives the exact
+installer/build receipt/manifest, preserves the recorded shared or isolated
+home, rewrites only the owned launcher and shortcuts, and upgrades the install
+receipt to schema 3 with channel owner, sequence, feed, manifest, and
+`nativeUpdaterEnabled=false`. A failure after the user ran the installer is
+manual-review state; it does not claim automatic binary, Core, or data rollback.
+The prior installer archive and community Desktop remain the recovery boundary.
+
 ## One-command side-by-side install
 
 The supported installation entry point is check-first:

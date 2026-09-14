@@ -75,7 +75,7 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
     }
 
     It 'performs Check without writes installs process control or source operations' {
-        $checkRoot=Join-Path $TestDrive 'check-only';$result=Get-DshOfficialDesktopBuildCheck $checkRoot $runner $policy
+        $checkRoot=Join-Path $TestDrive 'check-only';$result=Get-DshOfficialDesktopBuildCheck $checkRoot $runner $policy -PnpmPath $script:pnpmPath
         $result.status|Should -Be 'ready';$result.tools.pnpmMode|Should -Be 'direct';Test-Path $checkRoot|Should -BeFalse
         ($calls|ConvertTo-Json -Depth 8)|Should -Not -Match '(?i)clone|install|checkout|start-process|stop-process|taskkill|msiexec'
     }

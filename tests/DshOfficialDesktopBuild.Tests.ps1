@@ -11,6 +11,8 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         New-Item -ItemType Directory -Path (Join-Path $source 'apps\desktop-host') -Force | Out-Null
         New-Item -ItemType Directory -Path (Join-Path $source '.git\hooks') -Force | Out-Null
         New-Item -ItemType Directory -Path (Join-Path $source 'apps\desktop\scripts') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $source 'apps\web\public') -Force | Out-Null
+        '<svg xmlns="http://www.w3.org/2000/svg" />'|Set-Content (Join-Path $source 'apps\web\public\favicon.svg')
         $seedFixture = Get-Content (Join-Path $PSScriptRoot 'fixtures\official-desktop-build\prepare-seed.ts') -Raw
         [IO.File]::WriteAllText(
             (Join-Path $source ($policy.prepareSeedRelativePath.Replace('/','\'))),
@@ -152,7 +154,9 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         InModuleScope DshOfficialDesktopBuild -Parameters @{specialRoot=$specialRoot;specialSource=$specialSource;policy=$policy} {
             param($specialRoot,$specialSource,$policy)
             New-Item -ItemType Directory (Join-Path $specialRoot 'tool-state') -Force|Out-Null
-            $overlay=New-LocalOverlay $specialRoot $specialSource $policy
+            New-Item -ItemType Directory (Join-Path $specialSource 'apps\web\public') -Force|Out-Null
+            $icon=Join-Path $specialSource 'apps\web\public\favicon.svg';'<svg />'|Set-Content $icon
+            $overlay=New-LocalOverlay $specialRoot $specialSource $policy $icon
             $text=Get-Content $overlay.path -Raw
             $text|Should -Match 'file:///'
             $text|Should -Match '%23|%25|%27'
@@ -191,7 +195,7 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
 
     It 'creates a strict unsigned PackageLocal receipt with external local identity overlay and scrubbed signing environment' {
         Mock Get-AuthenticodeSignature { [pscustomobject]@{Status='NotSigned'} } -ModuleName DshOfficialDesktopBuild
-        Mock Get-LocalExecutableVersionInfo { [pscustomobject]@{ProductName='DSH Local Build';FileDescription='DSH Local Build';InternalName='DSH Local Build'} } -ModuleName DshOfficialDesktopBuild
+        Mock Get-LocalExecutableVersionInfo { [pscustomobject]@{ProductName='DeepSeek Harness';FileDescription='DeepSeek Harness';InternalName='DeepSeek Harness'} } -ModuleName DshOfficialDesktopBuild
         $target=Join-Path $source 'apps\desktop\.desktop-build\targets\win-x64'
         $packageRunner={
             param($file,$arguments,$cwd,$environment)
@@ -205,7 +209,7 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
             if($joined-match'exec electron-builder'){
                 $out=Join-Path $target 'artifacts';$unpacked=Join-Path $out 'win-unpacked';New-Item -ItemType Directory (Join-Path $unpacked 'resources') -Force|Out-Null
                 [IO.File]::WriteAllBytes((Join-Path $out 'dsh-local-build-0.1.5-rc.2-win-x64.exe'),[byte[]](1,2,3))
-                [IO.File]::WriteAllBytes((Join-Path $unpacked 'DSH Local Build.exe'),[byte[]](4,5,6))
+                [IO.File]::WriteAllBytes((Join-Path $unpacked 'DeepSeek Harness.exe'),[byte[]](4,5,6))
                 [IO.File]::WriteAllBytes((Join-Path $unpacked 'resources\app.asar'),[byte[]](7,8,9))
             }
             &$script:runner $file $arguments $cwd $environment
@@ -236,12 +240,13 @@ Describe 'Official deepseek-harness Electron Desktop local build' {
         $call.environment.GIT_CONFIG_VALUE_0 | Should -BeNullOrEmpty
         $overlay=Get-Content $package.receipt.localPackage.overlayPath -Raw
         $overlay | Should -Match "appId: 'local\.cloga\.dsh-official-source-build'"
-        $overlay | Should -Match "productName: 'DSH Local Build'"
+        $overlay | Should -Match "productName: 'DeepSeek Harness'"
         $overlay | Should -Match "name: 'dsh-local-build'"
+        $overlay | Should -Match 'favicon\.svg'
         $overlay | Should -Match 'publish: null'
         $overlay | Should -Match 'forceCodeSigning: false'
         $overlay | Should -Match 'signtoolOptions: undefined'
-        $overlay | Should -Not -Match 'DeepSeek Harness|download\.deepseek\.com'
+        $overlay | Should -Not -Match 'download\.deepseek\.com|@deepseek-ai/dsh-desktop'
         $package.receipt.releaseBoundary.status | Should -Be 'local-build-complete'
         $package.receipt.releaseBoundary.officialIdentityClaim | Should -BeFalse
         $package.receipt.releaseBoundary.officialSignature | Should -BeFalse

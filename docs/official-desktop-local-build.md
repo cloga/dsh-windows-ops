@@ -161,8 +161,9 @@ configuration below `tool-state` which imports upstream
 `apps/desktop/electron-builder.config.mjs`, then overrides only:
 
 - app ID `local.cloga.dsh-official-source-build`;
-- product name `DSH Local Build`;
-- packaged metadata name `dsh-local-build` and product name `DSH Local Build`, preventing Electron user-data identity from falling back to `@deepseek-ai/dsh-desktop`;
+- visible product/executable/window branding `DeepSeek Harness`;
+- packaged metadata name `dsh-local-build`, preserving local provenance and preventing Electron identity from falling back to `@deepseek-ai/dsh-desktop`;
+- the official `apps/web/public/favicon.svg` as the Windows package icon;
 - artifact name `dsh-local-build-${version}-win-${arch}.${ext}`;
 - `publish: null`;
 - `win.forceCodeSigning: false`; and
@@ -184,9 +185,15 @@ flags state `officialIdentityClaim=false`, `officialSignature=false`, and
 `updateChannel=false`. `Verify` validates this receipt strictly and never
 overwrites it.
 
-This is a local derivative package from official source, not a vendor-signed or
-officially branded release. The tool does not install or launch it, touch a live
-DSH home, or write outside the isolated build root.
+This is a local derivative package from official source, not a vendor-signed
+release. Its local app ID, package name, artifact name, and receipt retain that
+provenance even though its visible branding and icon match DeepSeek Harness.
+The tool does not install or launch it, touch a live DSH home, or write outside
+the isolated build root. Do not launch the packaged executable directly: because
+the visible product name is `DeepSeek Harness`, a later approved installation
+phase must launch it through a wrapper that supplies
+`--user-data-dir=%LOCALAPPDATA%\DSH Local Build\electron-user-data` and sets
+`DSH_HOME=%LOCALAPPDATA%\DSH Local Build\harness-home`.
 
 ## Later reviewed phases (not implemented here)
 

@@ -64,6 +64,19 @@ Before an installation agent emits every `pwsh` tool call:
   check-first installer, repository replay self-check, and exact-marker dry run
   before applying unrelated patches.
 
+## Documentation synchronization
+
+- Important pull requests must update the relevant operational guide and both
+  `README.md` and `README.en.md` entry points in the same pull request when they
+  change supported behavior, install/update/recovery commands, deployment
+  contracts or locks, security boundaries, plugin/Core/Desktop compatibility,
+  user-visible workflows, or authoritative defaults.
+- In the pull request's **Expected vs Actual** section, list the documentation
+  impact and the files synchronized. If no documentation or README change is
+  required, state why the change is generated-only, internal, or otherwise has
+  no user-facing or operational effect. Do not create artificial documentation
+  churn for generated-only changes or internal refactors.
+
 ## Temporary tooling and cloud synchronization
 
 - Before downloading or extracting tools, identify whether the destination is cloud-synchronized. Do not default to the current repository or a OneDrive workspace. Use an IT-approved non-synchronized tool directory, for example `C:\tmp\dsh-tools\<tool>-<version>`; temporary locations can be cleaned automatically.

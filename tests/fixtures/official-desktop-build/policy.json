@@ -27,10 +27,30 @@
           "vitest",
           "run",
           "apps/desktop",
-          "apps/desktop-host"
+          "apps/desktop-host",
+          "--maxWorkers=1"
         ]
       }
     ],
+    "testRetry": {
+      "name": "official-desktop-test-macos-signature-retry",
+      "trigger": {
+        "exitCode": 1,
+        "file": "apps/desktop/tests/macos-signature.spec.ts",
+        "test": "loads release identifiers from the environment and requires code signing",
+        "timeoutMilliseconds": 5000,
+        "passed": 81,
+        "total": 82
+      },
+      "args": [
+        "exec",
+        "vitest",
+        "run",
+        "apps/desktop/tests/macos-signature.spec.ts",
+        "--maxWorkers=1"
+      ],
+      "expectedPassed": 9
+    },
     "build": [
       "run",
       "prepare:desktop"

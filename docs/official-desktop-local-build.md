@@ -18,7 +18,7 @@ application, stop a process, or touch an existing DSH profile.
 | Commit | `fb2c4b9e698e30edb738bca4cf0618587db7d203` |
 | Tree | `bd7dd6d90010a35d3d6ff9f12c1f6207d5b6fe38` |
 | Root/Desktop/Desktop Host version | `0.1.5-rc.2` |
-| Package manager | `pnpm@11.7.0` through Corepack |
+| Package manager | exact direct `pnpm@11.7.0`, auto-resolved or selected with `-PnpmPath` |
 | Node engine | `^22.19.0 || >=24.0.0` |
 
 The commit and tree were resolved from the official GitHub tag/ref and commit
@@ -37,7 +37,8 @@ C:\tmp\dsh-official-desktop-build\work
 ```
 
 The tool rejects relative paths, UNC/network or non-fixed drives, a root equal
-to, inside, or containing this operations repository, known
+to, inside, or containing this operations repository, the community Desktop
+AppData tree, `$HOME\.dsh`, an active `DSH_HOME`, known
 OneDrive/Dropbox/Google Drive environment roots, and path segments that look
 cloud synchronized. It walks existing ancestors plus the root, source,
 tool-state, and receipt paths and rejects reparse points. A newly created root
@@ -54,7 +55,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```
 
 Check validates the embedded manifest and policy, safe build root, Git, Node,
-Corepack, Node engine, and the official remote tag-to-commit mapping. It reports
+the selected direct pnpm runner, exact pnpm 11.7.0, Node engine, and the official remote tag-to-commit mapping. It uses an explicitly supplied absolute `-PnpmPath` or auto-resolves `pnpm`; if no direct executable is available it reports `exact-pnpm-unavailable` without invoking Corepack. It reports
 only whether the existing community Desktop data directory is present; it does
 not enumerate private data, inspect or stop live processes, clone, install,
 build, launch, or write the build root.
@@ -71,11 +72,12 @@ Prepare requires a new source directory, clones/fetches the exact tag with the
 resolved system/community-bundled Git executable, disables system/global Git
 configuration and hooks for each Git command, checks out the pinned commit
 detached, verifies the canonical worktree/Git directory and exact origin, and
-invokes the exact package manager through Corepack with:
-
-```text
-pnpm@11.7.0 install --frozen-lockfile
-```
+invokes the exact direct package manager reported by Check as `pnpm.cmd install --frozen-lockfile`.
+Every pnpm 11 operation receives the approved `-Registry` through
+`PNPM_CONFIG_REGISTRY`; `npm_config_registry` alone is ignored by this pnpm
+version. Store, cache, state, and user-config paths also use the supported
+`PNPM_CONFIG_*` names. The npm-compatible variables are retained for child tools,
+while the pinned seed source routing remains temporary and separately attested.
 
 No portable Git/Node/pnpm download is introduced by this repository. Writable
 home, AppData, Corepack, pnpm store/home, npm cache/config, XDG state/cache, and
@@ -122,7 +124,11 @@ preparation boundary: it does not launch Electron or
 install/restart/uninstall anything. On the reviewed corporate machine, the
 unmodified frozen install and full repository build passed; the focused Desktop
 run initially passed 81 of 82 tests with one five-second macOS-signature timing
-failure, and an exact retry passed 9 of 9.
+failure. The tool permits one bounded retry only when the captured output proves
+that exact test is the sole failure and the summary is exactly 81/82; it then
+runs only `apps/desktop/tests/macos-signature.spec.ts --maxWorkers=1`, records
+both commands, and requires the focused summary to be exactly 9/9. Every other
+failure, or a failed/malformed retry, remains fatal.
 
 The seed preparation routes npm through two exact source literals: the pnpm CLI
 `--config.registry` argument and `NPM_CONFIG_REGISTRY`. The default is
@@ -171,8 +177,7 @@ configuration below `tool-state` which imports upstream
 
 The command sets the local app ID and a non-routable test origin so upstream's
 default import can evaluate, clears target and signing variables, and invokes
-exactly `corepack pnpm@11.7.0 exec electron-builder --config <overlay> --win
---x64 --publish never`. It never calls an official package wrapper or signer.
+exactly `pnpm.cmd exec electron-builder --config <overlay> --win --x64 --publish never` using the direct executable pinned in the receipt. It never calls an official package wrapper or signer.
 The expected installer is
 `dsh-local-build-0.1.5-rc.2-win-x64.exe`.
 
@@ -188,19 +193,121 @@ overwrites it.
 This is a local derivative package from official source, not a vendor-signed
 release. Its local app ID, package name, artifact name, and receipt retain that
 provenance even though its visible branding and icon match DeepSeek Harness.
-The tool does not install or launch it, touch a live DSH home, or write outside
-the isolated build root. Do not launch the packaged executable directly: because
-the visible product name is `DeepSeek Harness`, a later approved installation
-phase must launch it through a wrapper that supplies
-`--user-data-dir=%LOCALAPPDATA%\DSH Local Build\electron-user-data` and sets
-`DSH_HOME=%LOCALAPPDATA%\DSH Local Build\harness-home`.
+The packaging command itself does not install or launch it, touch a live DSH
+home, or write outside the isolated build root.
 
-## Later reviewed phases (not implemented here)
+## One-command side-by-side install
+
+The supported installation entry point is check-first:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-official-desktop-local.ps1
+```
+
+Default `Check` calls the build tool's own `Check` and only inspects the selected
+paths, existing local install receipt, uninstall registry entries, local
+shortcuts, and processes whose executable is below the local install root. It
+creates no directory, performs no build or install, and stops no process.
+
+Apply is explicit and acknowledges the unsigned local package:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-official-desktop-local.ps1 -Apply `
+  -AcknowledgeUnsignedLocalBuild `
+  -BuildRoot C:\tmp\dsh-official-desktop-build\work `
+  -Registry https://registry.npmjs.org/
+```
+
+Defaults are `%LOCALAPPDATA%\Programs\DSH Local Build` for the application and
+`%LOCALAPPDATA%\DSH Local Build` for isolated data. Apply refuses relative,
+network, cloud-synchronized, reparse, overlapping, command-metacharacter, live
+community-data, or repository paths. It also refuses any running executable
+below the local install root; it never stops, restarts, or launches a process.
+
+Apply invokes a fresh `PackageLocal`, validates its receipt again, then reads the
+installer path and hashes only from that receipt. It rechecks the exact pinned
+source identity, registry, unsigned/no-update local app identity, seed protocol
+and Node/pnpm versions, and current installer/unpacked executable bytes. It
+preserves a versioned installer copy below `DataRoot\artifacts`, invokes NSIS
+with argument array `/S`, `/D=<InstallRoot>` (destination last), and requires
+exit code zero. A successful postcheck requires:
+
+- installed `DeepSeek Harness.exe`, unsigned, with ProductName,
+  FileDescription, and InternalName `DeepSeek Harness` and FileVersion
+  `0.1.5-rc.2`;
+- its SHA-256 exactly equal to the packaged `win-unpacked` executable;
+- embedded `desktop-release.json` at protocol 3 with Node 24.17.0 and pnpm
+  11.7.0, and no `app-update.yml`;
+- one or more identical local NSIS entries named `DeepSeek Harness 0.1.5-rc.2`,
+  all sharing one uninstall command rooted in the local install directory; and
+- any pre-existing community Desktop registration still present.
+
+The tool writes `DeepSeek Harness Local Build.cmd` in the install directory. It
+sets `DSH_HOME=<DataRoot>\harness-home` and passes
+`--user-data-dir=<DataRoot>\electron-user-data`, but does not launch it. It
+replaces only installer-created Desktop/Start Menu shortcuts whose existing
+target is already below the local install root, and identifies them as an
+unsigned local source build. The atomic install receipt records source/build
+receipt identity, installer and installed hashes, roots, local app identity,
+unsigned/no-update status, uninstall command, community retention, and its own
+hash; it contains no credentials or Session contents.
+
+An exact existing receipt/install is idempotently reverified and repairs only
+the launcher and local shortcuts without rerunning the installer. Owned DataRoot
+and InstallRoot trees are recursively checked for reparse points before this
+fast path and again before writes. Repeated hashes and owned receipt snapshots
+detect ordinary concurrent changes. An adversarial same-user process capable of
+precisely replacing files between checks (an ABA race) is outside this local
+workflow's supported threat model. Any failure
+after NSIS reports success returns `partial-manual-review`: the tool does not
+uninstall, retry, or roll back automatically. The retained community Desktop is
+the primary rollback path. Data may have been forward-migrated, so the receipt
+deliberately makes no automatic Core or data rollback claim.
+
+## Optional configuration migration (plan first)
+
+Migration is a separate opt-in phase of the same Windows Ops entry point. It is
+never implied by `-Apply` and never copies the community profile or `node_modules`.
+
+```powershell
+# Read-only install check plus a redacted migration plan
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-official-desktop-local.ps1 -Migrate
+
+# After reviewing the returned plan hash, apply only that exact plan
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-official-desktop-local.ps1 -Apply -Migrate `
+  -AcknowledgeUnsignedLocalBuild `
+  -AcknowledgeMigrationPlan sha256:<reviewed-plan-hash>
+```
+
+The plan uses recursively sorted canonical JSON and binds the community settings
+fingerprint, target settings/release/install evidence, action set and schema
+fingerprint. A changed source, target, receipt, release or process/session state
+refuses the apply before a write. `-WriteMigrationPlan` explicitly stores the
+redacted plan under the isolated data root; the default plan stays in stdout.
+
+The first migration stage may transform only schema-validated non-secret settings
+leaves such as theme, existing permission preset, exact default provider/model and
+non-secret provider route metadata. API-key environment-variable names may be
+listed, but key values, headers, OAuth/browser credentials and `.credentials.yaml`
+secrets are not copied; they require interactive reauthorization. Plugin entries
+are exact-version manual install intents only and are not copied into the Desktop
+profile. Sessions, workspaces, attachments, cron state, feedback, projection
+caches, anonymous identity, stores, caches, staging, rollback, lockfiles and all
+`node_modules` remain untouched. Apply takes a target backup and keeps it when a
+post-write verification fails; it never stops or restarts either Desktop and never
+changes the community source.
+
+## Other reviewed phases
 
 1. A human reviewer may run `dev:desktop` with an isolated source-owned
    `DSH_HOME` and verify startup without using any live user profile.
 2. DeepSeek's release owner may run the unmodified official Windows package
    command with the vendor EV signing environment and qualify signed artifacts.
-3. Installation, restart, uninstall, profile migration, and live-data acceptance
-   require a separate approved phase with the repository's live-Session safety
-   rules. The existing community Tauri Desktop remains untouched.
+3. Restart, community removal, Session/workspace migration, and shared/live-data
+   acceptance remain outside this workflow. The optional migration stage above
+   is limited to the explicitly listed settings and manual plugin intents and
+   still follows the repository's live-Session safety rules.

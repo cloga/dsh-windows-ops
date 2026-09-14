@@ -33,7 +33,7 @@ README、插件目录或历史文档中出现一个项目，**不代表它属于
 | 目标 | 从这里开始 |
 |---|---|
 | 检查或安装锁定的 Windows + Copilot 基线 | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
-| 从官方 `dsh-v0.1.5-rc.2` 源码在隔离目录准备 Electron Desktop 本地构建 | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
+| 从官方 `dsh-v0.1.5-rc.2` 源码构建并以隔离数据目录并排安装 Electron Desktop 本地构建 | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
 | 运行版本、配置、端口、模型和补丁自检 | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | 诊断安装问题并执行定点修复 | [`tools/README.md`](tools/README.md) |
 | 选择或评估社区插件 | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
@@ -65,6 +65,7 @@ node tools\validate-plugin-catalog.mjs
 | 类别 | 主要工具 | 用途 |
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
+| 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装，并配置隔离 launcher/快捷方式；不启动、不重启、不移除社区版；`-Migrate` 默认只生成脱敏计划，需 `-Apply -Migrate -AcknowledgeMigrationPlan sha256:<hash>` 才执行受限配置迁移 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
 | 可选套件 | `tools/install-optional-companion-suite.ps1` | 依据已安装 Core/Cordis/API 而非 Desktop 补丁版本，单独 Check/Apply/Verify 锁定的 Copilot、Cron 与 Playwright Bundle；不替换 Desktop/Core、全局包或运行中进程 |
 | 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |

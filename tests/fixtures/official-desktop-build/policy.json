@@ -39,7 +39,7 @@
   "localPackage": {
     "appId": "local.cloga.dsh-official-source-build",
     "packageName": "dsh-local-build",
-    "productName": "DSH Local Build",
+    "productName": "DeepSeek Harness",
     "artifactName": "dsh-local-build-${version}-win-${arch}.${ext}",
     "installerName": "dsh-local-build-0.1.5-rc.2-win-x64.exe",
     "testOrigin": "https://invalid.invalid",

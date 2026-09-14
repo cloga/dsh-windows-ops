@@ -1,9 +1,10 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Check','Package','Stage','Complete')][string]$Action='Check',
+    [ValidateSet('Check','Package','Stage','Install','Complete')][string]$Action='Check',
     [ValidateRange(1,2147483647)][int]$Sequence=1,
     [string]$FeedBaseUrl,
     [string]$BundleRoot,
+    [string]$ManifestUrl,
     [string]$StageRoot,
     [string]$AcknowledgeManifestSha256,
     [string]$BuildRoot='C:\tmp\dsh-official-desktop-build\work',
@@ -25,13 +26,21 @@ try {
             New-DshOfficialDesktopUpdateBundle -Sequence $Sequence -FeedBaseUrl $FeedBaseUrl -BuildRoot $BuildRoot -Registry $Registry -PnpmPath $PnpmPath
         }
         'Check' {
-            if ([string]::IsNullOrWhiteSpace($BundleRoot)) { throw 'bundle-root-required' }
-            Get-DshOfficialDesktopUpdateChannelCheck -BundleRoot $BundleRoot -DataRoot $DataRoot
+            if ([string]::IsNullOrWhiteSpace($BundleRoot) -eq [string]::IsNullOrWhiteSpace($ManifestUrl)) { throw 'exactly-one-update-source-required' }
+            if ($ManifestUrl) {
+                Get-DshOfficialDesktopRemoteUpdateChannelCheck -ManifestUrl $ManifestUrl -DataRoot $DataRoot
+            } else {
+                Get-DshOfficialDesktopUpdateChannelCheck -BundleRoot $BundleRoot -DataRoot $DataRoot
+            }
         }
         'Stage' {
             if ([string]::IsNullOrWhiteSpace($BundleRoot)) { throw 'bundle-root-required' }
             if ([string]::IsNullOrWhiteSpace($AcknowledgeManifestSha256)) { throw 'manifest-acknowledgment-required' }
             Save-DshOfficialDesktopStagedUpdate -BundleRoot $BundleRoot -DataRoot $DataRoot -AcknowledgeManifestSha256 $AcknowledgeManifestSha256
+        }
+        'Install' {
+            if ([string]::IsNullOrWhiteSpace($AcknowledgeManifestSha256)) { throw 'manifest-acknowledgment-required' }
+            Invoke-DshOfficialDesktopUpdateInstall -BundleRoot $BundleRoot -ManifestUrl $ManifestUrl -DataRoot $DataRoot -AcknowledgeManifestSha256 $AcknowledgeManifestSha256 -BuildRoot $BuildRoot -InstallRoot $InstallRoot -SharedHome $SharedHome -UseIsolatedHome:$UseIsolatedHome -PnpmPath $PnpmPath
         }
         'Complete' {
             if ([string]::IsNullOrWhiteSpace($StageRoot)) { throw 'stage-root-required' }

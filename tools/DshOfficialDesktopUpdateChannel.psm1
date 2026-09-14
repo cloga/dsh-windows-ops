@@ -99,6 +99,17 @@ function Get-DshOfficialDesktopUpdateChannelOperations {
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
             Copy-Item -LiteralPath $source -Destination $destination -Force
         }
+        DownloadFile = {
+            param($uri, $destination)
+            $parent = Split-Path -Parent $destination
+            if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+            Invoke-WebRequest -Uri $uri -OutFile $destination -UseBasicParsing
+        }
+        StartInstaller = {
+            param($path)
+            $process = Start-Process -FilePath $path -Wait -PassThru
+            [pscustomobject]@{ ExitCode = $process.ExitCode }
+        }
         PathExists = { param($path, $type) if ($type -eq 'Leaf') { Test-Path -LiteralPath $path -PathType Leaf } elseif ($type -eq 'Container') { Test-Path -LiteralPath $path -PathType Container } else { Test-Path -LiteralPath $path } }
         MoveDirectory = { param($source, $destination) [IO.Directory]::Move($source, $destination) }
         RemoveDirectory = { param($path) Remove-Item -LiteralPath $path -Recurse -Force }
@@ -111,6 +122,52 @@ function Merge-UpdateOperations {
     $all = Get-DshOfficialDesktopUpdateChannelOperations
     if ($Operations) { foreach ($key in $Operations.Keys) { $all[$key] = $Operations[$key] } }
     return $all
+}
+
+function Assert-UpdateArtifactUrl {
+    param([Parameter(Mandatory)][string]$Url, [Parameter(Mandatory)][string]$ExpectedFile)
+    try { $uri = [Uri]$Url } catch { throw 'update-artifact-url-invalid' }
+    if (-not $uri.IsAbsoluteUri -or $uri.Scheme -cne 'https' -or -not [string]::IsNullOrEmpty($uri.UserInfo) -or
+        -not [string]::IsNullOrEmpty($uri.Query) -or -not [string]::IsNullOrEmpty($uri.Fragment) -or
+        [Uri]::UnescapeDataString($uri.Segments[-1]).TrimEnd('/') -cne $ExpectedFile) {
+        throw 'update-artifact-url-must-be-credential-free-https'
+    }
+    return $uri.AbsoluteUri
+}
+
+function Assert-UpdateBundleFileName {
+    param([Parameter(Mandatory)][string]$Name)
+    if ([string]::IsNullOrWhiteSpace($Name) -or [IO.Path]::GetFileName($Name) -cne $Name -or
+        $Name.IndexOfAny([IO.Path]::GetInvalidFileNameChars()) -ge 0) {
+        throw 'update-bundle-file-name-invalid'
+    }
+    return $Name
+}
+
+function Test-DshOfficialDesktopUpdateManifest {
+    param($Manifest)
+    try {
+        if (-not (Test-ExactUpdateKeys $Manifest @('schemaVersion','owner','mode','channel','channelVersion','upstreamVersion','sequence','createdUtc','feedBaseUrl','feedFile','installer','buildReceipt','installedEvidence','security','manifestSha256'))) { throw 'manifest-schema' }
+        if ((Get-UpdatePayloadHash $Manifest) -cne [string]$Manifest.manifestSha256) { throw 'manifest-self-hash' }
+        if ($Manifest.schemaVersion -ne 1 -or $Manifest.owner -cne $script:ChannelOwner -or $Manifest.mode -cne $script:ChannelMode -or
+            $Manifest.channel -cne $script:ChannelName -or [int]$Manifest.sequence -lt 1 -or
+            $Manifest.channelVersion -cne (Get-DshOfficialDesktopLocalChannelVersion ([int]$Manifest.sequence)) -or
+            $Manifest.upstreamVersion -cne [string](Get-DshOfficialDesktopBuildPolicy).version) { throw 'manifest-identity' }
+        $null = Assert-UpdateFeedBaseUrl ([string]$Manifest.feedBaseUrl)
+        if ($Manifest.feedFile -cne $script:FeedName -or $Manifest.security.nativeUpdaterEnabled -ne $false -or
+            $Manifest.security.appUpdateYmlPresent -ne $false -or $Manifest.security.signatureRequiredForNativeUpdater -ne $true -or
+            $Manifest.security.applyMode -cne 'manual') { throw 'manifest-security' }
+        $null = Assert-UpdateBundleFileName ([string]$Manifest.feedFile)
+        $null = Assert-UpdateBundleFileName ([string]$Manifest.installer.file)
+        $null = Assert-UpdateBundleFileName ([string]$Manifest.buildReceipt.file)
+        foreach ($hash in @($Manifest.installer.sha256,$Manifest.buildReceipt.sha256,$Manifest.buildReceipt.receiptSha256,$Manifest.installedEvidence.executableSha256,$Manifest.installedEvidence.seedSha256)) {
+            if ([string]$hash -cnotmatch '^[0-9a-f]{64}$') { throw 'manifest-hash-shape' }
+        }
+        if ([string]$Manifest.installer.sha512 -cnotmatch '^[A-Za-z0-9+/]{86}==$') { throw 'manifest-sha512-shape' }
+        return [pscustomobject]@{valid=$true;reason=$null;manifest=$Manifest}
+    } catch {
+        return [pscustomobject]@{valid=$false;reason=$_.Exception.Message;manifest=$null}
+    }
 }
 
 function New-DshOfficialDesktopUpdateBundle {
@@ -230,20 +287,8 @@ function Test-DshOfficialDesktopUpdateBundle {
         $manifestPath = Join-Path $root $script:ManifestName
         if (-not (&$ops.PathExists $manifestPath 'Leaf')) { throw 'manifest-missing' }
         $manifest = &$ops.ReadJson $manifestPath
-        if (-not (Test-ExactUpdateKeys $manifest @('schemaVersion','owner','mode','channel','channelVersion','upstreamVersion','sequence','createdUtc','feedBaseUrl','feedFile','installer','buildReceipt','installedEvidence','security','manifestSha256'))) { throw 'manifest-schema' }
-        if ((Get-UpdatePayloadHash $manifest) -cne [string]$manifest.manifestSha256) { throw 'manifest-self-hash' }
-        if ($manifest.schemaVersion -ne 1 -or $manifest.owner -cne $script:ChannelOwner -or $manifest.mode -cne $script:ChannelMode -or
-            $manifest.channel -cne $script:ChannelName -or [int]$manifest.sequence -lt 1 -or
-            $manifest.channelVersion -cne (Get-DshOfficialDesktopLocalChannelVersion ([int]$manifest.sequence)) -or
-            $manifest.upstreamVersion -cne [string](Get-DshOfficialDesktopBuildPolicy).version) { throw 'manifest-identity' }
-        $null = Assert-UpdateFeedBaseUrl ([string]$manifest.feedBaseUrl)
-        if ($manifest.feedFile -cne $script:FeedName -or $manifest.security.nativeUpdaterEnabled -ne $false -or
-            $manifest.security.appUpdateYmlPresent -ne $false -or $manifest.security.signatureRequiredForNativeUpdater -ne $true -or
-            $manifest.security.applyMode -cne 'manual') { throw 'manifest-security' }
-        foreach ($hash in @($manifest.installer.sha256,$manifest.buildReceipt.sha256,$manifest.buildReceipt.receiptSha256,$manifest.installedEvidence.executableSha256,$manifest.installedEvidence.seedSha256)) {
-            if ([string]$hash -cnotmatch '^[0-9a-f]{64}$') { throw 'manifest-hash-shape' }
-        }
-        if ([string]$manifest.installer.sha512 -cnotmatch '^[A-Za-z0-9+/]{86}==$') { throw 'manifest-sha512-shape' }
+        $manifestCheck = Test-DshOfficialDesktopUpdateManifest $manifest
+        if (-not $manifestCheck.valid) { throw $manifestCheck.reason }
         $installerPath = Join-Path $root ([string]$manifest.installer.file)
         $buildReceiptPath = Join-Path $root ([string]$manifest.buildReceipt.file)
         $feedPath = Join-Path $root ([string]$manifest.feedFile)
@@ -251,6 +296,7 @@ function Test-DshOfficialDesktopUpdateBundle {
             if (-not (&$ops.PathExists $path 'Leaf')) { throw 'bundle-file-missing' }
             if (-not ([IO.Path]::GetFullPath($path).StartsWith($root + '\',[StringComparison]::OrdinalIgnoreCase))) { throw 'bundle-file-outside-root' }
         }
+
         if ((&$ops.GetHash $installerPath) -cne [string]$manifest.installer.sha256 -or
             (Get-FileSha512Base64 $installerPath) -cne [string]$manifest.installer.sha512 -or
             [long](&$ops.GetLength $installerPath) -ne [long]$manifest.installer.size -or
@@ -270,6 +316,91 @@ function Test-DshOfficialDesktopUpdateBundle {
         return [pscustomobject]@{valid=$true;reason=$null;manifest=$manifest;manifestPath=$manifestPath;installerPath=$installerPath;buildReceiptPath=$buildReceiptPath;feedPath=$feedPath}
     } catch {
         return [pscustomobject]@{valid=$false;reason=$_.Exception.Message;manifest=$null}
+    }
+}
+
+function Receive-DshOfficialDesktopUpdateBundle {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$ManifestUrl,
+        [string]$DataRoot=(Join-Path $env:LOCALAPPDATA 'DSH Local Build'),
+        [hashtable]$Operations
+    )
+    $ops = Merge-UpdateOperations $Operations
+    $DataRoot=Assert-DshOfficialDesktopLocalPath $DataRoot 'data-root' (Get-DshOfficialDesktopLocalOperations)
+    $manifestUri = Assert-UpdateArtifactUrl $ManifestUrl $script:ManifestName
+    $downloadRoot = Join-Path $DataRoot 'updates\downloaded'
+    $probeRoot = Join-Path $downloadRoot ('.manifest-' + [guid]::NewGuid().ToString('N'))
+    $probePath = Join-Path $probeRoot $script:ManifestName
+    $tempRoot = $null
+    try {
+        &$ops.DownloadFile $manifestUri $probePath
+        $manifest = &$ops.ReadJson $probePath
+        $manifestCheck = Test-DshOfficialDesktopUpdateManifest $manifest
+        if (-not $manifestCheck.valid) { throw "update-manifest-invalid:$($manifestCheck.reason)" }
+        $expectedManifestUri = ([Uri]::new([Uri](Assert-UpdateFeedBaseUrl ([string]$manifest.feedBaseUrl)), $script:ManifestName)).AbsoluteUri
+        if ($manifestUri -cne $expectedManifestUri) { throw 'update-manifest-feed-url-mismatch' }
+        $bundleRoot = Join-Path $downloadRoot ([string]$manifest.channelVersion)
+        if (&$ops.PathExists $bundleRoot 'Container') {
+            $existing = Test-DshOfficialDesktopUpdateBundle -BundleRoot $bundleRoot -Operations $ops
+            if ($existing.valid -and $existing.manifest.manifestSha256 -ceq $manifest.manifestSha256) {
+                return [pscustomobject]@{schemaVersion=1;action='download';status='verified';idempotent=$true;bundleRoot=$bundleRoot;manifestSha256=$manifest.manifestSha256}
+            }
+            throw 'update-download-conflict'
+        }
+        $tempRoot = $bundleRoot + '.tmp-' + [guid]::NewGuid().ToString('N')
+        &$ops.CopyFile $probePath (Join-Path $tempRoot $script:ManifestName)
+        foreach ($name in @([string]$manifest.feedFile,[string]$manifest.installer.file,[string]$manifest.buildReceipt.file)) {
+            $artifactUri = ([Uri]::new([Uri][string]$manifest.feedBaseUrl, $name)).AbsoluteUri
+            &$ops.DownloadFile $artifactUri (Join-Path $tempRoot $name)
+        }
+        $verified = Test-DshOfficialDesktopUpdateBundle -BundleRoot $tempRoot -Operations $ops
+        if (-not $verified.valid -or $verified.manifest.manifestSha256 -cne $manifest.manifestSha256) { throw "update-download-verification-failed:$($verified.reason)" }
+        &$ops.MoveDirectory $tempRoot $bundleRoot
+        return [pscustomobject]@{schemaVersion=1;action='download';status='complete';idempotent=$false;bundleRoot=$bundleRoot;manifestSha256=$manifest.manifestSha256}
+    } finally {
+        if (&$ops.PathExists $probeRoot 'Container') { &$ops.RemoveDirectory $probeRoot }
+        if ($tempRoot -and (&$ops.PathExists $tempRoot 'Container')) { &$ops.RemoveDirectory $tempRoot }
+    }
+}
+
+function Get-DshOfficialDesktopRemoteUpdateChannelCheck {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$ManifestUrl,
+        [string]$DataRoot=(Join-Path $env:LOCALAPPDATA 'DSH Local Build'),
+        [hashtable]$Operations
+    )
+    $ops = Merge-UpdateOperations $Operations
+    $DataRoot=Assert-DshOfficialDesktopLocalPath $DataRoot 'data-root' (Get-DshOfficialDesktopLocalOperations)
+    $manifestUri = Assert-UpdateArtifactUrl $ManifestUrl $script:ManifestName
+    $probeRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-update-check-' + [guid]::NewGuid().ToString('N'))
+    $probePath = Join-Path $probeRoot $script:ManifestName
+    try {
+        &$ops.DownloadFile $manifestUri $probePath
+        $manifest = &$ops.ReadJson $probePath
+        $manifestCheck = Test-DshOfficialDesktopUpdateManifest $manifest
+        if (-not $manifestCheck.valid) { throw $manifestCheck.reason }
+        $expectedManifestUri = ([Uri]::new([Uri](Assert-UpdateFeedBaseUrl ([string]$manifest.feedBaseUrl)), $script:ManifestName)).AbsoluteUri
+        if ($manifestUri -cne $expectedManifestUri) { throw 'update-manifest-feed-url-mismatch' }
+        $receiptPath = Join-Path $DataRoot 'official-desktop-local-install.json'
+        $installedSequence = 0
+        if (&$ops.PathExists $receiptPath 'Leaf') {
+            $receipt = &$ops.ReadJson $receiptPath
+            if ($receipt.schemaVersion -eq 3 -and $receipt.updateChannel.owner -ceq $script:ChannelOwner) { $installedSequence = [int]$receipt.updateChannel.sequence }
+        }
+        return [pscustomobject]@{
+            schemaVersion=1;action='check';status='ready';reasons=@()
+            updateAvailable=([int]$manifest.sequence -gt $installedSequence)
+            installedSequence=$installedSequence;availableSequence=[int]$manifest.sequence
+            channelVersion=$manifest.channelVersion;manifestSha256=$manifest.manifestSha256
+            manifestUrl=$manifestUri;downloadRequired=$true
+            nativeUpdaterEnabled=$false;applyMode='explicit-interactive-installer';mutated=$false
+        }
+    } catch {
+        return [pscustomobject]@{schemaVersion=1;action='check';status='blocked';reasons=@($_.Exception.Message);updateAvailable=$false;mutated=$false;nativeUpdaterEnabled=$false}
+    } finally {
+        if (&$ops.PathExists $probeRoot 'Container') { &$ops.RemoveDirectory $probeRoot }
     }
 }
 
@@ -400,4 +531,50 @@ function Complete-DshOfficialDesktopManualUpdate {
     return [pscustomobject]@{schemaVersion=1;action='complete';status='complete';channelVersion=$bundle.manifest.channelVersion;sequence=$bundle.manifest.sequence;receipt=$written;postcheck=$post;nativeUpdaterEnabled=$false;installerRun=$false}
 }
 
-Export-ModuleMember -Function Get-DshOfficialDesktopLocalChannelVersion,Get-DshOfficialDesktopUpdateChannelOperations,New-DshOfficialDesktopUpdateBundle,Test-DshOfficialDesktopUpdateBundle,Get-DshOfficialDesktopUpdateChannelCheck,Save-DshOfficialDesktopStagedUpdate,Complete-DshOfficialDesktopManualUpdate
+function Invoke-DshOfficialDesktopUpdateInstall {
+    [CmdletBinding()]
+    param(
+        [string]$BundleRoot,
+        [string]$ManifestUrl,
+        [Parameter(Mandatory)][string]$AcknowledgeManifestSha256,
+        [string]$BuildRoot='C:\tmp\dsh-official-desktop-build\work',
+        [string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'Programs\DSH Local Build'),
+        [string]$DataRoot=(Join-Path $env:LOCALAPPDATA 'DSH Local Build'),
+        [string]$SharedHome,
+        [switch]$UseIsolatedHome,
+        [string]$PnpmPath,
+        [hashtable]$Operations,
+        [hashtable]$InstallOperations
+    )
+    if ([string]::IsNullOrWhiteSpace($BundleRoot) -eq [string]::IsNullOrWhiteSpace($ManifestUrl)) { throw 'exactly-one-update-source-required' }
+    $ops = Merge-UpdateOperations $Operations
+    if ($ManifestUrl) {
+        $download = Receive-DshOfficialDesktopUpdateBundle -ManifestUrl $ManifestUrl -DataRoot $DataRoot -Operations $ops
+        $BundleRoot = $download.bundleRoot
+    }
+    $check = Get-DshOfficialDesktopUpdateChannelCheck -BundleRoot $BundleRoot -DataRoot $DataRoot -Operations $ops
+    if ($check.status -ne 'ready') { throw ('update-check-blocked:' + ($check.reasons -join ',')) }
+    if (-not $check.updateAvailable) {
+        return [pscustomobject]@{schemaVersion=1;action='install';status='verified';updateAvailable=$false;installerRun=$false;silentInstall=$false;nativeUpdaterEnabled=$false}
+    }
+    $stage = Save-DshOfficialDesktopStagedUpdate -BundleRoot $BundleRoot -DataRoot $DataRoot -AcknowledgeManifestSha256 $AcknowledgeManifestSha256 -Operations $ops
+    $installOps = if ($InstallOperations) { $InstallOperations } else { Get-DshOfficialDesktopLocalOperations }
+    $preflight = Get-DshOfficialDesktopLocalCheck -BuildRoot $BuildRoot -InstallRoot $InstallRoot -DataRoot $DataRoot -PnpmPath $PnpmPath -Operations $installOps -SharedHome $SharedHome -UseIsolatedHome:$UseIsolatedHome
+    if ($preflight.processEnumerationUnavailable -or @($preflight.runningLocalProcesses).Count) { throw 'update-local-process-running-or-unavailable' }
+    if ($preflight.status -ne 'ready') { throw ('update-install-preflight-blocked:' + ($preflight.reasons -join ',')) }
+    $staged = Test-DshOfficialDesktopUpdateBundle -BundleRoot $stage.stageRoot -Operations $ops
+    if (-not $staged.valid -or $staged.manifest.manifestSha256 -cne $check.manifestSha256) { throw "update-stage-invalid-before-launch:$($staged.reason)" }
+    $run = &$ops.StartInstaller $staged.installerPath
+    if ($null -eq $run) { throw 'update-installer-result-missing' }
+    if ([int]$run.ExitCode -ne 0) {
+        return [pscustomobject]@{schemaVersion=1;action='install';status='blocked';reason=('update-installer-exit-' + $run.ExitCode);updateAvailable=$true;installerRun=$true;silentInstall=$false;windowsInstallerConfirmationPreserved=$true;nativeUpdaterEnabled=$false;stageRoot=$stage.stageRoot;manifestSha256=$check.manifestSha256}
+    }
+    try {
+        $complete = Complete-DshOfficialDesktopManualUpdate -StageRoot $stage.stageRoot -AcknowledgeManifestSha256 $AcknowledgeManifestSha256 -BuildRoot $BuildRoot -InstallRoot $InstallRoot -DataRoot $DataRoot -SharedHome $SharedHome -UseIsolatedHome:$UseIsolatedHome -PnpmPath $PnpmPath -Operations $ops -InstallOperations $installOps
+        return [pscustomobject]@{schemaVersion=1;action='install';status='complete';updateAvailable=$true;installerRun=$true;silentInstall=$false;windowsInstallerConfirmationPreserved=$true;nativeUpdaterEnabled=$false;stage=$stage;completion=$complete}
+    } catch {
+        return [pscustomobject]@{schemaVersion=1;action='install';status='blocked';reason=('update-completion-required:' + $_.Exception.Message);updateAvailable=$true;installerRun=$true;silentInstall=$false;windowsInstallerConfirmationPreserved=$true;nativeUpdaterEnabled=$false;stageRoot=$stage.stageRoot;manifestSha256=$check.manifestSha256;completeOnNextLaunch=$true}
+    }
+}
+
+Export-ModuleMember -Function Get-DshOfficialDesktopLocalChannelVersion,Get-DshOfficialDesktopUpdateChannelOperations,New-DshOfficialDesktopUpdateBundle,Test-DshOfficialDesktopUpdateManifest,Test-DshOfficialDesktopUpdateBundle,Receive-DshOfficialDesktopUpdateBundle,Get-DshOfficialDesktopUpdateChannelCheck,Get-DshOfficialDesktopRemoteUpdateChannelCheck,Save-DshOfficialDesktopStagedUpdate,Complete-DshOfficialDesktopManualUpdate,Invoke-DshOfficialDesktopUpdateInstall

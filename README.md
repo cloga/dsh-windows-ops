@@ -66,7 +66,7 @@ node tools\validate-plugin-catalog.mjs
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
 | 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装；新安装默认隔离 Home，`-SharedHome <existing-home>` 显式复用已有 Home，`-UseIsolatedHome` 切回隔离模式；Electron user-data 始终隔离；不启动、不重启、不移除社区版 |
-| 本地 Desktop 更新通道 | `tools/manage-official-desktop-update-channel.ps1` | 独立 Package/Check/Stage/Complete：生成 `rc.yml` 与 SHA-256/SHA-512 清单，显式哈希确认后暂存；无签名安装器必须由用户手动运行，工具不发布、不自动安装、不嵌入 `app-update.yml`，完成后仅严格回读并记录 schema-3 更新元数据 |
+| 本地 Desktop 更新通道 | `tools/manage-official-desktop-update-channel.ps1` | `Check` 只读检查远端 manifest；一次显式 `Install` 自动下载、验证并暂存后启动交互式 NSIS 安装器，保留 Windows/UAC 确认，再严格 `Complete` 回读；不是 silent/automatic update，仍不发布、不嵌入 `app-update.yml`，并保留独立 Package/Stage/Complete 恢复路径 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
 | 可选套件 | `tools/install-optional-companion-suite.ps1` | 依据已安装 Core/Cordis/API 而非 Desktop 补丁版本，单独 Check/Apply/Verify 锁定的 Copilot、Cron 与 Playwright Bundle；不替换 Desktop/Core、全局包或运行中进程 |
 | 重放与验收 | `tools/dsh-replay.ps1` | 自检、严格标记补丁、dry-run、备份和回滚 |
@@ -81,7 +81,7 @@ node tools\validate-plugin-catalog.mjs
 ## 文档地图
 
 - **部署与集成**：`local-core-desktop-copilot.md`、`vision-dual-channel.md`（当前为 DSH 原生附件与 `read_image` 架构）
-- **官方源码本地 Desktop**：`official-desktop-local-build.md`（`PackageLocal` 默认无更新通道；另有 Package/Check/Stage/用户手动安装/Complete 的未签名更新流程）
+- **官方源码本地 Desktop**：`official-desktop-local-build.md`（`PackageLocal` 默认无更新通道；另有远端 Check、显式 one-click Install 和 Package/Stage/Complete 恢复流程）
 - **插件治理与可选 overlays**：`docs/plugins/`（包括 `computer-use.md`、`scheduling.md`、`better-sidebar.md`）及 `catalog/`
 - **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
 - **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`

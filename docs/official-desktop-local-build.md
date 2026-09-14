@@ -150,7 +150,7 @@ corruption, not malicious authenticity; Verify independently enforces the pinned
 policy, exact command schema, current source state, and complete artifact
 inventory.
 
-## PackageLocal (unsigned, local identity, no updater)
+## PackageLocal (unsigned, local identity, update channel not configured)
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -196,6 +196,15 @@ provenance even though its visible branding and icon match DeepSeek Harness.
 The packaging command itself does not install or launch it, touch a live DSH
 home, or write outside the isolated build root.
 
+This packaging choice does **not** mean the official product lacks updates.
+At the pinned commit, `apps/desktop/src/main.ts` exposes **Check for Updates**.
+`DesktopUpdateCoordinator` in `apps/desktop/src/update-coordinator.ts` enables
+the coordinator only for a packaged application containing `app-update.yml`;
+`autoDownload` and `autoInstallOnAppQuit` are both false. This local overlay uses
+`publish: null` and deliberately contains no `app-update.yml`. The menu can
+therefore remain visible without a configured release stream. This installer
+does not add a feed, change signing, or enable automatic downloads.
+
 ## One-command side-by-side install
 
 The supported installation entry point is check-first:
@@ -209,6 +218,10 @@ Default `Check` calls the build tool's own `Check` and only inspects the selecte
 paths, existing local install receipt, uninstall registry entries, local
 shortcuts, and processes whose executable is below the local install root. It
 creates no directory, performs no build or install, and stops no process.
+For an already attested installation, Check instead verifies the archived build
+receipt and installed evidence; it does not require the old source checkout,
+pnpm executable, or a network tag lookup. Its build action is `installed-evidence`
+with `sourceRevalidated=false`, not a claim that the source was revalidated.
 
 Apply is explicit and acknowledges the unsigned local package:
 
@@ -254,8 +267,123 @@ receipt identity, installer and installed hashes, roots, local app identity,
 unsigned/no-update status, uninstall command, community retention, and its own
 hash; it contains no credentials or Session contents.
 
-An exact existing receipt/install is idempotently reverified and repairs only
-the launcher and local shortcuts without rerunning the installer. Owned DataRoot
+### Opt in to one existing shared Harness home
+
+The follow-up to #147 / #148 adds `-SharedHome <absolute-existing-path>`.
+New installations still default to isolated data. To reuse the current
+user's existing home without copying data or forcing reauthentication:
+
+```powershell
+# Read-only classification and process/path preflight
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-official-desktop-local.ps1 -SharedHome "$HOME\.dsh"
+
+# Only after closing all DSH consumers normally and reviewing Check
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tools\install-official-desktop-local.ps1 -Apply `
+  -AcknowledgeUnsignedLocalBuild -SharedHome "$HOME\.dsh"
+```
+
+| Boundary | Isolated default | Explicit shared mode |
+|---|---|---|
+| Application binaries (`InstallRoot`) | `%LOCALAPPDATA%\Programs\DSH Local Build` | Unchanged, separate from community binaries |
+| Harness data (`DSH_HOME`) | `<DataRoot>\harness-home` | Exact existing `-SharedHome` |
+| Electron browser/shell data | `<DataRoot>\electron-user-data` | Still isolated; never the community Electron directory |
+| Receipts and backups | `<DataRoot>` | Still outside the shared home |
+
+Shared mode reuses Sessions, workspaces, `settings.yaml`, and
+`.credentials.yaml` in place. The installer neither reads their contents nor
+copies, translates, deletes, or merges either home. A supported home must already
+contain `settings.yaml` and a `sessions` directory. Its root and existing
+Desktop-owned ancestors must belong to the current Windows user, be on a fixed
+local non-synchronized drive, and not be reparse points. The build, binary,
+receipt/Electron-data, repository, and community Electron roots remain disjoint.
+Backups require the same volume as the shared home for an intact directory
+rename, not a recursive copy. Unrelated shared profiles are never traversed.
+
+Schema-2 receipts persist the selected home and isolated Electron path alongside
+the launcher hash and updated shortcut description. **Later Check/Apply calls
+without a home option retain the recorded mode**. Schema-1 isolated receipts can
+be upgraded without rerunning NSIS. `-UseIsolatedHome` explicitly switches the
+launcher back to `<DataRoot>\harness-home`; it does not copy or remove shared
+data. It conflicts with `-SharedHome`. Shared mode and `-Migrate` are mutually
+exclusive, including when shared mode is inherited from the receipt.
+
+### Reserved `desktop` profile collision and recovery
+
+At the pinned official commit, `DesktopProjectManager.applyRelease()` calls
+`releaseVersion()` whenever `profiles\desktop` exists. An ordinary CLI-created
+profile named `dsh-profile-desktop` has no `desktop-release.json` and can cause
+ENOENT. Do not fabricate that file or run CLI mutations against the reserved
+profile. The official app owns its initialization from the packaged seed.
+
+Check distinguishes absent, unchanged official, exact known blank legacy, and
+unsupported profiles. Official reuse requires seed-matching manifests, release,
+workspace and lock metadata, the packaged Core tarball tree, and installed
+Core/Host `0.1.5-rc.2` identities. Custom plugin graphs, changed patches, corrupt
+metadata, or unavailable matching seed evidence fail closed for manual review.
+
+The only automatic collision handling is the observed blank legacy scaffold:
+the exact reviewed hashes of `package.json`, `cordis.yml`, `cordis.patch.yml`,
+and `pnpm-workspace.yaml`, plus empty `node_modules` and
+`.dsh-module-fallback\node_modules`. Extra files, nonempty dependency trees,
+reparse points, different ownership, or an unfinished official activation
+journal/rollback profile block it. Sizes or package names alone are not proof.
+Check is read-only. Apply requires an explicit `-SharedHome` on that invocation,
+rechecks state, and moves the **entire** scaffold to
+`<DataRoot>\install-backups\shared-profile-<id>\desktop`. No dependencies are
+copied and no profile is synthesized. The app initializes from its seed only
+when the user later launches it; this installer never auto-launches or restarts.
+
+All possible DSH Desktop/Core/Host consumers must be stopped, including community
+Desktop. Unavailable process enumeration or an uninspectable possible Node
+consumer blocks shared Apply. The guard is repeated immediately before changes,
+including the idempotent path; nothing is killed and no live-session override is
+provided. Concurrent applications must remain closed throughout Apply.
+
+Launcher and prior receipt copies are retained under
+`install-backups\home-change-<id>`. A `home-change.pending.json` journal blocks
+subsequent Apply after an incomplete operation; a profile `backup.json` records
+the source, destination, inventory fingerprint and move status. Failures are
+`partial-manual-review`, never successful rollback. After closing all consumers,
+review those journals and hashes. If restoring the legacy scaffold is intended,
+move it back **only if `profiles\desktop` is absent**; if the official app has
+already initialized it, preserve that new profile separately and obtain explicit
+approval before changing it. Never overwrite or merge profiles. Restore the
+recorded launcher/receipt pair and matching shortcut target/description only
+after verifying their backup hashes. Preserve the journals for diagnosis; clear
+the exact pending file manually only after recovery has been verified.
+
+### Shared settings do not imply shared plugin registrations
+
+Core-wide settings and credentials can be reused in one home, but
+`profiles\web`, `profiles\headless`, and Electron's reserved `profiles\desktop`
+have distinct plugin dependency/registration graphs. Existing Copilot on
+web/headless is **not** installed into Desktop by this operation.
+Installed Core packages are not all additive plugin bundles. Adding
+`dsh-acp-app`, `dsh-headless`, `dsh-sdk-app`, or `dsh-sdk-minimal` to Desktop's
+base/web bundle list can compose mutually exclusive application surfaces;
+web plus headless produced `duplicate loader entry id: code-runtime` in the
+observed installation. Check reports `shared-official-profile-conflicting-app-bundles`
+and blocks rather than silently rewriting the manifest.
+
+The reviewed Copilot integration distributes private artifacts only through
+GitHub Releases, not npm. The pinned official Desktop
+`DesktopProjectManager.packageNameFromSpec()` currently rejects URL and `file:`
+specs, while the CLI forbids booting or mutating the reserved `desktop` profile.
+Thus even a compatible, checksum-verified Release tarball has **no supported
+Desktop installation route in this version**. Check explicitly reports
+`copilotDesktopInstall=unsupported-release-tarball-spec`. Supported installation
+requires a future Desktop-owned artifact path or a separately approved
+distribution change; it is not solved by copying `node_modules`, editing profile
+manifests, patching Core, or silently publishing to npm. No credential loss or
+reauthentication requirement should be inferred from this plugin boundary.
+
+An exact existing receipt/install is idempotently reverified and repairs the
+launcher, local shortcuts, and receipt without rerunning the installer. Archived
+build evidence is structurally/policy validated separately from live source
+verification; archived installer and installed executable/seed hashes are still
+checked against it. Owned DataRoot
 and InstallRoot trees are recursively checked for reparse points before this
 fast path and again before writes. Repeated hashes and owned receipt snapshots
 detect ordinary concurrent changes. An adversarial same-user process capable of
@@ -307,7 +435,7 @@ changes the community source.
    `DSH_HOME` and verify startup without using any live user profile.
 2. DeepSeek's release owner may run the unmodified official Windows package
    command with the vendor EV signing environment and qualify signed artifacts.
-3. Restart, community removal, Session/workspace migration, and shared/live-data
-   acceptance remain outside this workflow. The optional migration stage above
+3. Restart, community removal, and Session/workspace copying remain outside this
+   workflow. Shared-home reuse is only the explicit guarded mode above. The optional migration stage
    is limited to the explicitly listed settings and manual plugin intents and
    still follows the repository's live-Session safety rules.

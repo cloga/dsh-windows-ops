@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { runInNewContext } from 'node:vm'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const pluginRoot = path.join(repoRoot, 'tools', 'dsh-dev-tools')
@@ -20,8 +21,8 @@ const patchesFile = path.join(updater, 'patches.json')
 await mkdir(updater, { recursive: true })
 await mkdir(runtime, { recursive: true })
 await mkdir(sourceTree, { recursive: true })
-await writeFile(path.join(runtime, 'package.json'), JSON.stringify({ version: '0.1.2-rc.1' }))
-await writeFile(path.join(sourceTree, 'package.json'), JSON.stringify({ version: '0.1.2-rc.1' }))
+await writeFile(path.join(runtime, 'package.json'), JSON.stringify({ version: '0.1.6-alpha.1' }))
+await writeFile(path.join(sourceTree, 'package.json'), JSON.stringify({ version: '0.1.6-alpha.1' }))
 await writeFile(insideFile, 'before')
 await writeFile(outsideFile, 'outside')
 await writeFile(path.join(home, 'tools', 'dsh-compat-check.mjs'), '')
@@ -41,6 +42,7 @@ process.env.DSH_NODE_BIN = process.execPath
 const spawnSpecs = []
 const resolutionCalls = []
 const quiescence = []
+const lossyStreams = new Set()
 
 function outputFor(argv) {
   const joined = argv.join(' ')
@@ -77,9 +79,10 @@ const subprocess = {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
+      control: undefined,
       collected: {
-        stdout: { readFrom: () => ({ text: stdout, nextOffset: Buffer.byteLength(stdout), lossy: false }) },
-        stderr: { readFrom: () => ({ text: '', nextOffset: 0, lossy: false }) },
+        stdout: { readFrom: () => ({ text: stdout, nextOffset: Buffer.byteLength(stdout), lossy: lossyStreams.has('stdout') }) },
+        stderr: { readFrom: () => ({ text: '', nextOffset: 0, lossy: lossyStreams.has('stderr') }) },
       },
       done,
       terminate() {},
@@ -131,7 +134,7 @@ function assertCanonicalJson(value) {
   assert.deepEqual(JSON.parse(JSON.stringify(value)), value)
 }
 
-test('registers five tools directly and declares the required rc1 services', () => {
+test('registers five tools directly and declares the required 0.1.6 services', () => {
   assert.deepEqual(plugin.inject, ['tools', 'subprocess'])
   assert.deepEqual([...definitions.keys()].sort(), [
     'dsh_build',
@@ -143,7 +146,7 @@ test('registers five tools directly and declares the required rc1 services', () 
   for (const definition of definitions.values()) assert.equal(definition.execute.length, 2)
 })
 
-test('uses rc1 lossless JSON snapshot semantics and rejects every lossy root', () => {
+test('uses 0.1.6 lossless JSON snapshot semantics and rejects every lossy root', () => {
   const canonical = { nested: [null, true, 'text', 2.5], object: { ok: true } }
   const detached = plugin.normalizeToolOutput(canonical)
   assert.deepEqual(detached, canonical)
@@ -154,6 +157,27 @@ test('uses rc1 lossless JSON snapshot semantics and rejects every lossy root', (
     assert.equal(snapshotJsonValue(value), undefined)
     assert.throws(() => plugin.normalizeToolOutput(value), /not losslessly JSON-serializable/)
   }
+})
+
+test('accepts cross-realm JSON, reads properties once, and avoids recursive stack exhaustion', () => {
+  const crossRealm = runInNewContext('({ nested: [1, { ok: true }] })')
+  assert.deepEqual(plugin.normalizeToolOutput(crossRealm), { nested: [1, { ok: true }] })
+
+  let reads = 0
+  const dynamic = {}
+  Object.defineProperty(dynamic, 'value', {
+    enumerable: true,
+    get() {
+      reads += 1
+      return { read: reads }
+    },
+  })
+  assert.deepEqual(plugin.normalizeToolOutput(dynamic), { value: { read: 1 } })
+  assert.equal(reads, 1)
+
+  let deep = null
+  for (let index = 0; index < 20_000; index++) deep = { next: deep }
+  assert.doesNotThrow(() => plugin.normalizeToolOutput(deep))
 })
 
 test('spawns only through the subprocess service with explicit bounded policy', async () => {
@@ -173,6 +197,18 @@ test('spawns only through the subprocess service with explicit bounded policy', 
     assert.ok(spec.signal instanceof AbortSignal)
   }
   assert.ok(resolutionCalls.every((call) => call.signal instanceof AbortSignal))
+})
+
+test('fails explicitly instead of presenting truncated collected output as complete', async () => {
+  lossyStreams.add('stdout')
+  try {
+    const result = await definitions.get('dsh_doctor').execute({}, execution())
+    assertCanonicalJson(result)
+    assert.equal(result.ok, false)
+    assert.match(result.error, /stdout exceeded the 8388608-byte collection limit/)
+  } finally {
+    lossyStreams.clear()
+  }
 })
 
 test('waits for descendant quiescence before surfacing cancellation', async () => {
@@ -202,6 +238,29 @@ test('rejects traversal, absolute paths, empty find, and never mutates outside t
   }
 })
 
+test('rejects canonical symlink or junction escapes from the source tree', async (t) => {
+  const outsideDir = path.join(sandbox, 'outside-dir')
+  const outsideTarget = path.join(outsideDir, 'target.txt')
+  const escapeLink = path.join(sourceTree, 'escape')
+  await mkdir(outsideDir, { recursive: true })
+  await writeFile(outsideTarget, 'outside')
+  await rm(escapeLink, { recursive: true, force: true })
+  try {
+    await symlink(outsideDir, escapeLink, process.platform === 'win32' ? 'junction' : 'dir')
+  } catch (error) {
+    if (error?.code === 'EPERM' || error?.code === 'EACCES') {
+      t.skip(`link creation is unavailable: ${error.code}`)
+      return
+    }
+    throw error
+  }
+  await setPatches([{ id: 'escape', file: path.join('escape', 'target.txt'), find: 'outside', replace: 'changed' }])
+  const result = await definitions.get('dsh_patch').execute({ action: 'apply' }, execution())
+  assertCanonicalJson(result)
+  assert.equal(result.applied, 0)
+  assert.equal(await readFile(outsideTarget, 'utf8'), 'outside')
+})
+
 test('already-aborted apply and rollback perform zero writes', async () => {
   await writeFile(insideFile, 'before')
   const backup = `${insideFile}.dshpatch-bak`
@@ -220,49 +279,119 @@ test('already-aborted apply and rollback perform zero writes', async () => {
 })
 
 test('retired upgrade apply returns canonical locked migration guidance', async () => {
-  const result = await definitions.get('dsh_upgrade').execute({ action: 'apply', version: '0.1.2-rc.1' }, execution())
+  const result = await definitions.get('dsh_upgrade').execute({ action: 'apply', version: '0.1.6-alpha.1' }, execution())
   assertCanonicalJson(result)
   assert.equal(result.ok, false)
-  assert.equal(result.requestedVersion, '0.1.2-rc.1')
+  assert.equal(result.requestedVersion, '0.1.6-alpha.1')
   assert.match(result.reason, /locked installer or the Desktop core manager/)
 })
 
-test('exact rc1 source and real Cordis ToolRuntime prove Fiber-owned disposal', async () => {
+test('exact 0.1.6 source and real Cordis ToolRuntime prove compatibility and Fiber-owned disposal', async () => {
   const manifest = JSON.parse(await readFile(path.join(pluginRoot, 'package.json'), 'utf8'))
-  assert.equal(manifest.version, '0.2.0')
+  assert.equal(manifest.version, '0.3.0')
   assert.equal(manifest.engines.node, '^22.19.0 || >=24.0.0')
   assert.equal(manifest.peerDependencies['@deepseek-ai/cordis'], '4.0.2')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-subprocess'], '0.1.2-rc.1')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-tools'], '0.1.2-rc.1')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-subprocess'], '0.1.6-alpha.1')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-tools'], '0.1.6-alpha.1')
   assert.ok(manifest.files.includes('snapshot-json.js'))
 
-  const rc1Root = process.env.DSH_RC1_ROOT
-    ? path.resolve(process.env.DSH_RC1_ROOT)
-    : path.resolve(repoRoot, '..', '.tmp-dsh-rc1')
-  const head = execFileSync('git', ['-C', rc1Root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-  assert.equal(head, 'a66e4702047846cdaa10c66c9d3df3951f5ea70d')
+  const alphaRoot = process.env.DSH_016_ROOT
+    ? path.resolve(process.env.DSH_016_ROOT)
+    : path.resolve(repoRoot, '..', '.tmp-dsh-0.1.6')
+  const head = execFileSync('git', ['-C', alphaRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+  assert.equal(head, '0a15e36e7f82b6ed45af6fa9759f29b40dcd965d')
   for (const [relative, expected] of [
-    ['package.json', ['0.1.2-rc.1']],
-    ['packages/core/tools/package.json', ['@deepseek-ai/dsh-tools', '0.1.2-rc.1']],
-    ['packages/subprocess/subprocess/package.json', ['@deepseek-ai/dsh-subprocess', '0.1.2-rc.1']],
-    ['packages/util/values/package.json', ['@deepseek-ai/dsh-util-values', '0.1.2-rc.1']],
+    ['package.json', ['0.1.6-alpha.1']],
+    ['packages/core/tools/package.json', ['@deepseek-ai/dsh-tools', '0.1.6-alpha.1']],
+    ['packages/subprocess/subprocess/package.json', ['@deepseek-ai/dsh-subprocess', '0.1.6-alpha.1']],
+    ['packages/subprocess/subprocess-local/package.json', ['@deepseek-ai/dsh-subprocess-local', '0.1.6-alpha.1']],
+    ['packages/util/values/package.json', ['@deepseek-ai/dsh-util-values', '0.1.6-alpha.1']],
+    ['packages/ptc-runtime/ptc-runtime-node/package.json', ['@deepseek-ai/dsh-ptc-runtime-node', '0.1.6-alpha.1']],
+    ['packages/workflow/workflow-ptc/package.json', ['@deepseek-ai/dsh-workflow-ptc', '0.1.6-alpha.1']],
   ]) {
-    const text = await readFile(path.join(rc1Root, ...relative.split('/')), 'utf8')
+    const text = await readFile(path.join(alphaRoot, ...relative.split('/')), 'utf8')
     for (const marker of expected) assert.ok(text.includes(marker), `${relative} is missing ${marker}`)
   }
-  const subprocessSource = await readFile(path.join(rc1Root, 'packages', 'subprocess', 'subprocess', 'src', 'types.ts'), 'utf8')
-  for (const marker of ['argv: readonly string[]', 'stdio: SubprocessStdio', 'graceMs: number', 'signal?: AbortSignal', 'waitForExit(signal?: AbortSignal): Promise<boolean>']) {
-    assert.ok(subprocessSource.includes(marker), `rc1 subprocess seam is missing ${marker}`)
+
+  const subprocessService = await readFile(path.join(alphaRoot, 'packages', 'subprocess', 'subprocess', 'src', 'index.ts'), 'utf8')
+  for (const marker of [
+    "super(ctx, 'subprocess')",
+    'abstract terminalEnvironment(signal?: AbortSignal): Promise<SubprocessTerminalEnvironment>',
+    'abstract spawn(spec: SubprocessSpawnSpec): SubprocessHandle',
+  ]) {
+    assert.ok(subprocessService.includes(marker), `0.1.6 subprocess service seam is missing ${marker}`)
   }
-  const valuesSource = await readFile(path.join(rc1Root, 'packages', 'util', 'values', 'src', 'index.ts'), 'utf8')
-  for (const marker of ['export function snapshotJsonValue', 'Object.is(current, -0)', 'Reflect.ownKeys(current).length !== length + 1']) {
-    assert.ok(valuesSource.includes(marker), `rc1 JSON snapshot seam is missing ${marker}`)
+  const subprocessTypes = await readFile(path.join(alphaRoot, 'packages', 'subprocess', 'subprocess', 'src', 'types.ts'), 'utf8')
+  for (const marker of [
+    'argv: readonly string[]',
+    'stdio: SubprocessStdio',
+    "control?: 'pipe'",
+    'readonly control: Duplex | undefined',
+    'waitForExit(signal?: AbortSignal): Promise<boolean>',
+  ]) {
+    assert.ok(subprocessTypes.includes(marker), `0.1.6 subprocess type seam is missing ${marker}`)
   }
 
-  const fixture = path.join(repoRoot, 'tests', 'fixtures', 'dsh-dev-tools-rc1-lifecycle.mjs')
+  const sandboxSource = await readFile(path.join(alphaRoot, 'packages', 'sandbox', 'sandbox', 'src', 'index.ts'), 'utf8')
+  assert.ok(sandboxSource.includes('abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>'))
+  const shellSource = await readFile(path.join(alphaRoot, 'packages', 'shell', 'shell', 'src', 'index.ts'), 'utf8')
+  assert.ok(shellSource.includes('abstract start(spec: ShellExecSpec): Promise<ShellProcess>'))
+
+  const toolsSource = await readFile(path.join(alphaRoot, 'packages', 'core', 'tools', 'src', 'index.ts'), 'utf8')
+  for (const marker of [
+    'readonly schema?: ToolSchema',
+    'export interface ToolRunContext extends ToolExecution',
+    'deferContext(context: UserMessage): void',
+    'concludeTurn(): void',
+    "throw new Error(`dsh-tools: mode \"${mode}\" requires a PTC runtime",
+  ]) {
+    assert.ok(toolsSource.includes(marker), `0.1.6 ToolRunContext/PTC seam is missing ${marker}`)
+  }
+  const toolsPtcSource = await readFile(path.join(alphaRoot, 'packages', 'core', 'tools', 'src', 'ptc.ts'), 'utf8')
+  for (const marker of [
+    'const standingPolicy = runtime.sandboxMode === undefined ? undefined : options.resolveSandboxPolicy(exec)',
+    'const approvedMode = await approveEscalation({',
+    'effectiveMode: standingPolicy.mode',
+    'toolName: RUN_CODE_NAME, signal: exec.signal',
+    'this.flight = scheduler.dispatch(prepared.exec)',
+  ]) {
+    assert.ok(toolsPtcSource.includes(marker), `0.1.6 Host-grant PTC seam is missing ${marker}`)
+  }
+
+  const ptcSource = await readFile(path.join(alphaRoot, 'packages', 'ptc-runtime', 'ptc-runtime-node', 'src', 'index.ts'), 'utf8')
+  for (const marker of [
+    'process.env starts empty',
+    'await this.ctx.sandbox.confine(argv, { ...policy, mode: policy.mode }, signal)',
+    '.filter(key => !STARTUP_ENVIRONMENT_NAMES.has(key.toUpperCase()))',
+    'const value = snapshotJsonValue(await fn(args))',
+  ]) {
+    assert.ok(ptcSource.includes(marker), `0.1.6 Node PTC seam is missing ${marker}`)
+  }
+  const ptcBootstrapSource = await readFile(path.join(alphaRoot, 'packages', 'ptc-runtime', 'ptc-runtime-node', 'src', 'bootstrap.ts'), 'utf8')
+  assert.ok(ptcBootstrapSource.includes('The program body is strict-mode.'))
+  const workflowSource = await readFile(path.join(alphaRoot, 'packages', 'workflow', 'workflow-ptc', 'src', 'host.ts'), 'utf8')
+  for (const marker of [
+    "this.controller.abort('workflow settled')",
+    'while (this.pending.size > 0) await Promise.allSettled([...this.pending])',
+    'await Promise.all([...this.children.values()].map(record => this.disposeChild(record)))',
+  ]) {
+    assert.ok(workflowSource.includes(marker), `0.1.6 workflow PTC lifecycle seam is missing ${marker}`)
+  }
+
+  const valuesSource = await readFile(path.join(alphaRoot, 'packages', 'util', 'values', 'src', 'index.ts'), 'utf8')
+  for (const marker of [
+    'function hasIntrinsicConstructor',
+    'const tasks: JsonWalkTask[]',
+    'Object.is(current, -0)',
+    'Reflect.ownKeys(current).length !== length + 1',
+  ]) {
+    assert.ok(valuesSource.includes(marker), `0.1.6 JSON snapshot seam is missing ${marker}`)
+  }
+
+  const fixture = path.join(repoRoot, 'tests', 'fixtures', 'dsh-dev-tools-0.1.6-lifecycle.mjs')
   execFileSync(process.execPath, ['--import', 'tsx/esm', fixture], {
-    cwd: rc1Root,
-    env: { ...process.env, DSH_RC1_ROOT: rc1Root, DSH_DEV_TOOLS_ROOT: pluginRoot },
+    cwd: alphaRoot,
+    env: { ...process.env, DSH_016_ROOT: alphaRoot, DSH_DEV_TOOLS_ROOT: pluginRoot },
     stdio: 'inherit',
   })
 })

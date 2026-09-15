@@ -56,13 +56,14 @@ test('dsh-vision-any is retained only as superseded history', () => {
   assert.ok(plugin.notes.some(note => /image-capable model/.test(note)))
 })
 
-test('dsh-dev-tools records rc1 evidence and deployment-owned approval policy', () => {
+test('dsh-dev-tools records 0.1.6 evidence and deployment-owned approval policy', () => {
   const plugin = pluginById(read(sourceCatalog), 'dsh-dev-tools')
-  assert.equal(plugin.source.release, '0.2.0')
+  assert.equal(plugin.source.release, '0.3.0')
   assert.equal(plugin.validation.level, 'L2')
-  assert.equal(plugin.validation.dshVersion, '0.1.2-rc.1')
+  assert.equal(plugin.validation.dshVersion, '0.1.6-alpha.1')
   assert.equal(plugin.security.approvalGate, null)
-  assert.ok(plugin.security.notes.some(note => /deployment policy/.test(note)))
+  assert.ok(plugin.security.notes.some(note => /ToolRuntime\/PTC deployment policy/.test(note)))
+  assert.ok(plugin.validation.evidence.some(evidence => /0a15e36e7f82b6ed45af6fa9759f29b40dcd965d/.test(evidence.description)))
   assert.ok(plugin.validation.evidence.some(evidence => evidence.path === 'tests/dsh-dev-tools.test.mjs'))
 })
 

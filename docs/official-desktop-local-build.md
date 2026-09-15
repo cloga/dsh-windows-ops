@@ -548,11 +548,25 @@ and blocks rather than silently rewriting the manifest.
 The fork-owned Desktop release now advertises `desktopNativeVerifiedRelease`.
 Windows Ops still validates the single `desktopProvisioning` contract and keeps
 the historical adapter callable for compatibility, but Check/Apply delegate to
-Desktop native capability and no longer mutate the reserved profile through the
-external workaround. Every PackageLocal, first install, idempotent install, and
-managed update completion consumes the same lock contract. Check is read-only;
-native-delegated Apply reports the delegation instead of downloading or
-materializing the Copilot plugin from Windows Ops.
+Desktop native capability and no longer use the external workaround. Every
+PackageLocal, first install, idempotent install, and managed update completion
+consumes the same lock contract. Check is read-only; Apply installs the locked
+`dsh-github-copilot` artifact into both the session profile (`profiles\web`) and
+the Desktop UI profile (`profiles\desktop`) so the provider is available to new
+sessions and visible in Desktop after restart. Optional overlays remain
+explicitly selected and are not pulled from `latest`.
+
+NSIS per-user installs can choose a package-derived directory rather than the
+historical fallback directory recorded in older prose. For the cloga fork this
+may be `%LOCALAPPDATA%\Programs\cloga-deepseek-harness\cloga-deepseek-harness.exe`
+instead of `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\cloga-deepseek-harness.exe`.
+Check mode discovers both locations, selects the byte-identical locked
+executable, derives the runtime descriptor from that selected executable root,
+and accepts Windows' normalized numeric `ProductVersion` when the EXE hash and
+runtime descriptor hash match the lock. Operators should pass
+`-DesktopExecutablePath` when they know the actual location, but a successful
+fork install must not require re-running the installer solely because the
+fallback path is empty.
 
 For isolated Home, a new install creates only the Desktop-owned profile and
 private pnpm state below `<DataRoot>\harness-home`. For an existing isolated or

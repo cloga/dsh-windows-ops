@@ -1849,6 +1849,171 @@ It 'rejects modified same-version Desktop executables by exact bytes metadata an
         }
     }
 
+It 'discovers the fork Desktop package root and accepts normalized Windows file versions' {
+        $caseRoot = Join-Path $TestDrive 'fork-desktop-discovery'
+        $localAppData = Join-Path $caseRoot 'LocalAppData'
+        $packageRoot = Join-Path $localAppData 'Programs\cloga-deepseek-harness'
+        $executable = Join-Path $packageRoot ([string]$lock.components.desktop.installedExecutable.relativePath)
+        $descriptor = Join-Path $packageRoot ([string]$lock.components.desktop.installedRuntimeDescriptor.relativePath)
+        New-Item -ItemType Directory -Path (Split-Path -Parent $descriptor) -Force | Out-Null
+        Set-Content -LiteralPath $executable -Value 'fixture' -Encoding UTF8
+        Set-Content -LiteralPath $descriptor -Value '{}' -Encoding UTF8
+
+        InModuleScope WindowsCopilotDeployment -Parameters @{
+            FixtureLock = $lock
+            LocalAppData = $localAppData
+            PackageRoot = $packageRoot
+            Executable = $executable
+            Descriptor = $descriptor
+        } {
+            $originalLocalAppData = $env:LOCALAPPDATA
+            $script:ObservedProductVersion = '0.1.5.0'
+            try {
+                $env:LOCALAPPDATA = $LocalAppData
+                Mock Get-Item {
+                    [pscustomobject]@{
+                        FullName = $Executable
+                        Length = if ($FixtureLock.components.desktop.installedExecutable.PSObject.Properties['size']) {
+                            [int64]$FixtureLock.components.desktop.installedExecutable.size
+                        } else {
+                            7
+                        }
+                        Attributes = [IO.FileAttributes]::Normal
+                        VersionInfo = [pscustomobject]@{
+                            ProductName = [string]$FixtureLock.components.desktop.installedExecutable.productName
+                            FileDescription = [string]$FixtureLock.components.desktop.installedExecutable.fileDescription
+                            CompanyName = [string]$FixtureLock.components.desktop.installedExecutable.companyName
+                            ProductVersion = $script:ObservedProductVersion
+                        }
+                    }
+                } -ParameterFilter { $LiteralPath -eq $Executable }
+                Mock Get-FileHash {
+                    [pscustomobject]@{ Hash = [string]$FixtureLock.components.desktop.installedExecutable.sha256 }
+                } -ParameterFilter { $LiteralPath -eq $Executable }
+                Mock Get-FileHash {
+                    [pscustomobject]@{ Hash = [string]$FixtureLock.components.desktop.installedRuntimeDescriptor.sha256 }
+                } -ParameterFilter { $LiteralPath -eq $Descriptor }
+                Mock Get-AuthenticodeSignature {
+                    [pscustomobject]@{ Status = 'NotSigned' }
+                } -ParameterFilter { $FilePath -eq $Executable }
+
+                $state = Get-WindowsCopilotDesktopState -Lock $FixtureLock
+                $state.valid | Should -Be $true
+                $state.status | Should -Be 'locked'
+                $state.path | Should -Be ([IO.Path]::GetFullPath($Executable))
+                $state.discoveries[0].source | Should -Be 'installer-package-root'
+                $state.discoveries[0].metadataValid | Should -Be $true
+                $state.discoveries[0].lockedVersionValid | Should -Be $true
+
+                $runtime = Get-WindowsCopilotOfficialRuntimeState -Lock $FixtureLock `
+                    -DesktopExecutablePath ([string]$state.path)
+                $runtime.valid | Should -Be $true
+                $runtime.status | Should -Be 'runtime-descriptor-verified'
+                $runtime.root | Should -Be ([IO.Path]::GetFullPath((Join-Path $packageRoot 'resources\dsh')))
+                $runtime.entryPath | Should -Be ([IO.Path]::GetFullPath($Descriptor))
+
+                $script:ObservedProductVersion = '0.1.6.0'
+                $newer = Get-WindowsCopilotDesktopState -Lock $FixtureLock
+                $newer.valid | Should -Be $false
+                $newer.status | Should -Be 'newer-than-lock'
+                $newer.newerThanLock | Should -Be $true
+            } finally {
+                $env:LOCALAPPDATA = $originalLocalAppData
+            }
+        }
+    }
+
+    It 'reports web and Desktop UI profile plugin visibility separately' {
+        $dshHome = Join-Path $TestDrive 'profile-visibility\.dsh'
+        $webRoot = Join-Path $dshHome 'profiles\web'
+        $desktopRoot = Join-Path $dshHome 'profiles\desktop'
+        foreach ($root in @($webRoot, $desktopRoot)) {
+            New-Item -ItemType Directory -Path (Join-Path $root 'node_modules\dsh-github-copilot') -Force |
+                Out-Null
+            [pscustomobject]@{
+                name = if ($root -eq $webRoot) { 'dsh-profile-web' } else { '@deepseek-ai/dsh-desktop-runtime' }
+                private = $true
+                dependencies = [pscustomobject]@{
+                    'dsh-github-copilot' = 'file:../../artifacts/fixture/dsh-github-copilot.tgz'
+                }
+                dsh = [pscustomobject]@{
+                    profile = [pscustomobject]@{
+                        bundles = @('@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-github-copilot')
+                    }
+                }
+            } | ConvertTo-Json -Depth 8 |
+                Set-Content -LiteralPath (Join-Path $root 'package.json') -Encoding UTF8
+            [pscustomobject]@{
+                name = 'dsh-github-copilot'
+                version = [string]$lock.components.copilotIntegration.package.version
+            } | ConvertTo-Json -Depth 4 |
+                Set-Content -LiteralPath (Join-Path $root 'node_modules\dsh-github-copilot\package.json') -Encoding UTF8
+        }
+
+        $module = Get-Module WindowsCopilotDeployment
+        $visibility = & $module {
+            param($Lock, $DshHome)
+            Get-WindowsCopilotProfileVisibilityState -Lock $Lock -DshHome $DshHome
+        } $lock $dshHome
+
+        @($visibility).Count | Should -Be 2
+        ($visibility | Where-Object name -EQ 'web').role | Should -Be 'locked-session-profile'
+        ($visibility | Where-Object name -EQ 'desktop').role | Should -Be 'desktop-ui-profile'
+        (($visibility | Where-Object name -EQ 'desktop').plugins |
+            Where-Object name -EQ 'dsh-github-copilot').visibleAfterRestart | Should -Be $true
+    }
+
+    It 'synchronizes dsh-github-copilot into session and Desktop UI profiles during Apply' {
+        $caseRoot = Join-Path $TestDrive 'copilot-dual-profile-apply'
+        $dshHome = Join-Path $caseRoot '.dsh'
+        $webRoot = Join-Path $dshHome 'profiles\web'
+        $desktopRoot = Join-Path $dshHome 'profiles\desktop'
+        $globalRoot = Join-Path $caseRoot 'global'
+        $desktopPath = Join-Path $caseRoot 'desktop\cloga-deepseek-harness.exe'
+        New-Item -ItemType Directory -Path $webRoot, $desktopRoot, $globalRoot, (Split-Path -Parent $desktopPath) `
+            -Force | Out-Null
+        Set-Content -LiteralPath $desktopPath -Value 'fixture'
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\package.json') -Destination $webRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'profile\pnpm-workspace.yaml') -Destination $webRoot
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'settings.yaml') -Destination (Join-Path $dshHome 'settings.yaml')
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'credentials.yaml') -Destination (Join-Path $dshHome '.credentials.yaml')
+        Copy-Item -Path (Join-Path $fixtureRoot 'global\*') -Destination $globalRoot -Recurse
+        [pscustomobject]@{
+            name = '@deepseek-ai/dsh-desktop-runtime'
+            private = $true
+            dependencies = [pscustomobject]@{}
+            dsh = [pscustomobject]@{
+                profile = [pscustomobject]@{
+                    bundles = @('@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app')
+                }
+            }
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $desktopRoot 'package.json') -Encoding UTF8
+        $providerRelease = New-ProviderReleaseFixture -Root $caseRoot
+        $artifact = $providerRelease.path
+
+        $receipt = Set-WindowsCopilotProfile -Lock $providerRelease.lock -DshHome $dshHome `
+            -NpmGlobalRoot $globalRoot -ProviderArtifactPath $artifact -Catalog $catalog `
+            -BackupRoot (Join-Path $caseRoot 'backups') -DesktopExecutablePath $desktopPath `
+            -SkipPackageInstall
+
+        foreach ($root in @($webRoot, $desktopRoot)) {
+            $profile = Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw -Encoding UTF8 |
+                ConvertFrom-Json
+            $profile.dependencies.'dsh-github-copilot' |
+                Should -Be "file:../../artifacts/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
+            @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-github-copilot' }).Count |
+                Should -Be 1
+            $metadata = Get-Content -LiteralPath (Join-Path $root 'node_modules\dsh-github-copilot\package.json') `
+                -Raw -Encoding UTF8 | ConvertFrom-Json
+            $metadata.name | Should -Be 'dsh-github-copilot'
+            $metadata.version | Should -Be ([string]$lock.components.copilotIntegration.package.version)
+        }
+        @($receipt.copilotIntegrationProfiles).Count | Should -Be 2
+        @($receipt.copilotIntegrationProfiles.role) |
+            Should -Contain 'desktop-ui-profile'
+    }
+
 It 'accepts only an official Desktop descendant owning exact IPv4 127.0.0.1:3080' -Skip:$script:SkipOfficialDesktopLinkTests {
         $fixture = New-OfficialRuntimeFixture -AppData $env:APPDATA -Lock $lock
         $desktopPath = Join-Path $TestDrive 'desktop\deepseek-harness-desktop.exe'

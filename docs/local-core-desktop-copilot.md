@@ -289,16 +289,17 @@ optional-overlay removal. See
 Desktop native releases use two profile surfaces. The locked Windows Ops
 baseline validates `profiles\web`, which is the session/runtime profile used for
 the required Copilot provider and optional Web overlays. The Desktop app's
-settings and plugin UI are backed by `profiles\desktop`; installing
-`dsh-github-copilot` only into `profiles\web` makes new sessions healthy but
-keeps the Desktop UI unaware of the provider. Apply now installs the same locked
-Copilot artifact into both `profiles\web` and `profiles\desktop`, adds the
-provider bundle to both manifests, and records both profile roots in the
-deployment receipt. Check and verify reports include a read-only
+settings and plugin UI are backed by the reserved `profiles\desktop` profile.
+Do not install ordinary plugin dependencies into that profile with profile-local
+`pnpm install`: it can hoist reserved host packages such as
+`@deepseek-ai/cordis` into `profiles\desktop\node_modules` and make Desktop
+reject the profile at startup. Apply installs the locked Copilot artifact only
+into `profiles\web`; Desktop UI visibility must come from a Desktop-native plugin
+provisioning path, not from mutating the reserved profile as an ordinary DSH
+profile. Check and verify reports include a read-only
 `profile.visibility` summary for both profiles so operators can confirm
 `dependencyPresent`, `bundlePresent`, `installed`, and `visibleAfterRestart`
-without manually inspecting live profile manifests. Restart Desktop after Apply
-so the UI composes the updated `profiles\desktop` bundle list.
+without manually inspecting live profile manifests.
 
 ## Legacy migration and rollback
 

@@ -26,7 +26,7 @@ Describe 'Optional companion suite compatibility wrapper' {
                 $name | Set-Content -LiteralPath (Join-Path $target 'payload.txt') -Encoding UTF8
             }
             $officialLinks = [ordered]@{}
-            foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
+            foreach ($name in @($lock.components.desktop.internalPlugins | ForEach-Object { [string]$_.name } | Where-Object { $_ })) {
                 $source = Join-Path $DshHome (Join-Path 'desktop-resources' $name)
                 $target = Join-Path $nodeModules $name
                 New-Item -ItemType Directory -Path $source -Force | Out-Null
@@ -271,7 +271,7 @@ Describe 'Optional companion suite compatibility wrapper' {
         $beforeProfile = Get-Content -LiteralPath $profilePath -Raw
         $beforeWorkspace = Get-Content -LiteralPath $workspacePath -Raw
         $officialTargets = @{}
-        foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
+        foreach ($name in @($lock.components.desktop.internalPlugins | ForEach-Object { [string]$_.name } | Where-Object { $_ })) {
             $source = Join-Path $dshHome "desktop-resources\$name"
             $target = Join-Path $nodeModules $name
             New-Item -ItemType Directory -Path $source -Force | Out-Null
@@ -390,7 +390,7 @@ Describe 'Optional companion suite compatibility wrapper' {
         $profilePath = Join-Path $profileRoot 'package.json'
         '{"name":"snapshot-value"}' |
             Set-Content -LiteralPath $profilePath -Encoding UTF8
-        foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
+        foreach ($name in @($lock.components.desktop.internalPlugins | ForEach-Object { [string]$_.name } | Where-Object { $_ })) {
             $source = Join-Path $dshHome "desktop-resources\$name"
             New-Item -ItemType Directory -Path $source -Force | Out-Null
             New-Item -ItemType Junction -Path (Join-Path $nodeModules $name) `
@@ -462,7 +462,7 @@ Describe 'Optional companion suite compatibility wrapper' {
         'preserved' | Set-Content -LiteralPath (
             Join-Path $nodeModules 'unrelated\payload.txt'
         )
-        foreach ($name in @($lock.components.desktop.internalPlugins.name)) {
+        foreach ($name in @($lock.components.desktop.internalPlugins | ForEach-Object { [string]$_.name } | Where-Object { $_ })) {
             $source = Join-Path $dshHome "desktop-resources\$name"
             New-Item -ItemType Directory -Path $source -Force | Out-Null
             New-Item -ItemType Junction -Path (Join-Path $nodeModules $name) `
@@ -656,7 +656,7 @@ Describe 'Optional companion suite compatibility wrapper' {
             Join-Path $profileRoot 'pnpm-lock.yaml'
         ) -Encoding UTF8
         foreach ($name in @(
-            $fixtureLock.components.desktop.internalPlugins.name
+            $fixtureLock.components.desktop.internalPlugins | ForEach-Object { [string]$_.name } | Where-Object { $_ }
         )) {
             $source = Join-Path $dshHome "desktop-resources\$name"
             New-Item -ItemType Directory -Path $source -Force | Out-Null

@@ -95,7 +95,7 @@ test('rejects invalid checksum evidence and canonical URL drift', () => {
   assert.match(messages(result), /checksum-manifest SHA-256 is invalid/)
 })
 
-test('rejects official Desktop runtime byte and selector drift', () => {
+test('rejects Desktop runtime byte and selector drift', () => {
   const target = copyFixture()
   const lock = readJson(target, 'deployments/windows-copilot.lock.json')
   lock.components.desktop.runtimeSelectors.push({
@@ -103,16 +103,31 @@ test('rejects official Desktop runtime byte and selector drift', () => {
     source: 'controlled-core-receipt',
   })
   lock.components.desktop.installedExecutable.sha256 = '1'.repeat(64)
-  lock.components.desktop.installedResources.treeSha256 = '2'.repeat(64)
-  lock.components.desktop.runtimeSelectors[0].rootPackage.treeSha256 = '3'.repeat(64)
-  lock.acceptance.runtimeSchema.package.entrypointSha256 = '0'.repeat(64)
+  if (lock.components.desktop.installedResources) {
+    lock.components.desktop.installedResources.treeSha256 = '2'.repeat(64)
+  } else {
+    lock.components.desktop.installedRuntimeDescriptor.sha256 = '2'.repeat(64)
+  }
+  if (lock.components.desktop.runtimeSelectors[0].rootPackage) {
+    lock.components.desktop.runtimeSelectors[0].rootPackage.treeSha256 = '3'.repeat(64)
+    lock.acceptance.runtimeSchema.package.entrypointSha256 = '0'.repeat(64)
+  } else {
+    lock.components.desktop.runtimeSelectors[0].descriptor.sha256 = '3'.repeat(64)
+    lock.acceptance.runtimeSchema.source.releaseTag = 'dsh-v0.1.2'
+  }
   writeJson(target, 'deployments/windows-copilot.lock.json', lock)
   const result = validateRepositoryContent(target)
-  assert.match(messages(result), /only the official runtime selector/)
-  assert.match(messages(result), /installed Desktop executable digest differs/)
-  assert.match(messages(result), /installed Desktop resource digest differs/)
-  assert.match(messages(result), /complete wrapper digest differs/)
-  assert.match(messages(result), /runtime schema entrypoint digest differs/)
+  assert.match(messages(result), /only the reviewed runtime selector/)
+  assert.match(messages(result), /installed Desktop .*executable digest differs/)
+  if (lock.components.desktop.installedResources) {
+    assert.match(messages(result), /installed Desktop resource digest differs/)
+    assert.match(messages(result), /complete wrapper digest differs/)
+    assert.match(messages(result), /runtime schema entrypoint digest differs/)
+  } else {
+    assert.match(messages(result), /installed Desktop runtime descriptor digest differs/)
+    assert.match(messages(result), /Desktop fork runtime descriptor differs/)
+    assert.match(messages(result), /runtime schema Desktop release tag differs/)
+  }
 })
 
 test('rejects plugin policy drift', () => {

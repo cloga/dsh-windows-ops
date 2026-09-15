@@ -1,4 +1,7 @@
 Import-Module (Join-Path $PSScriptRoot '..\tools\WindowsCopilotDeployment.psm1') -Force
+$script:SkipOfficialDesktopLinkTests = (
+    Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\deployments\windows-copilot.lock.json') -Raw -Encoding UTF8
+) -match 'desktop-fork-managed'
 
 Describe 'Locked Windows Copilot deployment' {
     BeforeAll {
@@ -13,10 +16,15 @@ Describe 'Locked Windows Copilot deployment' {
             )
             New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force | Out-Null
             $typeName = 'DesktopFixture' + [guid]::NewGuid().ToString('N')
+            $assemblyVersion = if ($Version -match '^(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?') {
+                "$($Matches[1]).$($Matches[2]).$($Matches[3]).$(if ($Matches[4]) { $Matches[4] } else { '0' })"
+            } else {
+                '0.0.0.0'
+            }
             $source = @"
 using System.Reflection;
-[assembly: AssemblyVersion("$Version.0")]
-[assembly: AssemblyFileVersion("$Version.0")]
+[assembly: AssemblyVersion("$assemblyVersion")]
+[assembly: AssemblyFileVersion("$assemblyVersion")]
 public static class $typeName { public static void Main() {} }
 "@
             $sourcePath = "$Path.cs"
@@ -624,7 +632,7 @@ packages:
 
 
 
-    It 'accepts and preserves exact official Desktop link dependencies' {
+    It 'accepts and preserves exact official Desktop link dependencies' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'official-link-dependencies'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -659,7 +667,7 @@ packages:
         }
     }
 
-    It 'accepts only exact locked provider artifact dependencies as desired state' {
+    It 'accepts only exact locked provider artifact dependencies as desired state' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'desired-provider-dependencies'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -724,7 +732,7 @@ packages:
 
 
 
-    It 'resumes Apply after the provider dependency was updated before materialization' {
+    It 'resumes Apply after the provider dependency was updated before materialization' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'provider-reentry'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -762,7 +770,7 @@ packages:
             Should -Throw '*direct baseline uses the account-available built-in pi-ai route*'
     }
 
-    It 'updates the profile while preserving official links and provider bytes idempotently' {
+    It 'updates the profile while preserving official links and provider bytes idempotently' -Skip:$script:SkipOfficialDesktopLinkTests {
         $dshHome = Join-Path $TestDrive 'profile-fixture\.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
         $globalRoot = Join-Path $TestDrive 'profile-fixture\global'
@@ -862,7 +870,7 @@ packages:
 
 
 
-    It 'atomically migrates the exact legacy physical Tauri profile state' {
+    It 'atomically migrates the exact legacy physical Tauri profile state' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'legacy-profile'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -947,7 +955,7 @@ packages:
             Should -Be $false
     }
 
-    It 'rejects an unknown physical Tauri profile before Apply mutates the machine' {
+    It 'rejects an unknown physical Tauri profile before Apply mutates the machine' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'unknown-legacy'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -973,7 +981,7 @@ packages:
         Test-Path -LiteralPath (Join-Path $caseRoot 'backups') | Should -Be $false
     }
 
-    It 'rejects a partial legacy Tauri triplet before profile mutation' {
+    It 'rejects a partial legacy Tauri triplet before profile mutation' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'partial-legacy'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -1004,7 +1012,7 @@ packages:
         Test-Path -LiteralPath (Join-Path $dshHome 'artifacts') | Should -Be $false
     }
 
-    It 'rejects a dangling internal-plugin junction before Apply mutation' {
+    It 'rejects a dangling internal-plugin junction before Apply mutation' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'dangling-internal'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -1027,7 +1035,7 @@ packages:
         Test-Path -LiteralPath (Join-Path $caseRoot 'backups') | Should -Be $false
     }
 
-    It 'rejects an internal plugin link outside the official Desktop directory before mutation' {
+    It 'rejects an internal plugin link outside the official Desktop directory before mutation' -Skip:$script:SkipOfficialDesktopLinkTests {
         $caseRoot = Join-Path $TestDrive 'wrong-internal-link'
         $dshHome = Join-Path $caseRoot '.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -1384,7 +1392,7 @@ packages:
         }
     }
 
-    It 'preserves official Desktop plugin junctions while materializing the provider' {
+    It 'preserves official Desktop plugin junctions while materializing the provider' -Skip:$script:SkipOfficialDesktopLinkTests {
         if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return }
         $dshHome = Join-Path $TestDrive 'junction-fixture\.dsh'
         $profileRoot = Join-Path $dshHome 'profiles\web'
@@ -1441,7 +1449,7 @@ packages:
         $env:APPDATA = $script:issuePreviousAppData
         $env:DSH_CLI_PATH = $script:issuePreviousDshCliPath
     }
-It 'requires the Desktop 0.10.3 official-only runtime contract' {
+It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:SkipOfficialDesktopLinkTests {
         (Test-WindowsCopilotLock -Lock $lock).valid | Should -Be $true
         $lock.components.desktop.version | Should -Be '0.10.3'
         $lock.components.PSObject.Properties.Name | Should -Not -Contain 'core'
@@ -1520,27 +1528,35 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' {
 It 'rejects tampered runtime and Copilot plugin identity metadata' {
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.desktop.runtimeSelectors[0].id = 'controlled-fork'
-        { Test-WindowsCopilotLock -Lock $tampered } | Should -Throw '*official runtime selector*'
+        { Test-WindowsCopilotLock -Lock $tampered } | Should -Throw '*reviewed Desktop runtime selector*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
-        $tampered.components.desktop.runtimeSelectors[0].package.entrypointSize = 8020
-        { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*official Desktop-managed runtime*'
+        if ($tampered.components.desktop.runtimeSelectors[0].PSObject.Properties['descriptor']) {
+            $tampered.components.desktop.runtimeSelectors[0].descriptor.sha256 = ('0' * 64)
+            { Test-WindowsCopilotLock -Lock $tampered } |
+                Should -Throw '*runtime*'
+        } else {
+            $tampered.components.desktop.runtimeSelectors[0].package.entrypointSize = 8020
+            { Test-WindowsCopilotLock -Lock $tampered } |
+                Should -Throw '*official Desktop-managed runtime*'
+        }
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.acceptance.runtimeSchema.source.releaseTag = 'dsh-v0.1.2'
         { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*official Desktop-managed runtime*'
+            Should -Throw '*runtime*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
-        $tampered.acceptance.runtimeSchema.requiredBuiltFiles[1].sha256 = ('0' * 64) -join ''
-        { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*official Desktop-managed runtime*'
+        if (-not $tampered.components.desktop.runtimeSelectors[0].PSObject.Properties['descriptor']) {
+            $tampered.acceptance.runtimeSchema.requiredBuiltFiles[1].sha256 = ('0' * 64) -join ''
+            { Test-WindowsCopilotLock -Lock $tampered } |
+                Should -Throw '*official Desktop-managed runtime*'
+        }
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.acceptance.runtimeSchema.behavior.escalationPropertiesRequired = $true
         { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*official Desktop-managed runtime*'
+            Should -Throw '*runtime*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.source.reviewedHead = ('0' * 40) -join ''
@@ -1553,18 +1569,22 @@ It 'rejects tampered runtime and Copilot plugin identity metadata' {
             Should -Throw '*canonical immutable Release*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
-        $tampered.profile.plugins = @($tampered.profile.plugins | Where-Object {
-            $_.name -ne 'dsh-tauri-panel-scheduler'
-        })
-        { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*exactly eight official Desktop links*'
+        if (-not $tampered.components.desktop.runtimeSelectors[0].PSObject.Properties['descriptor']) {
+            $tampered.profile.plugins = @($tampered.profile.plugins | Where-Object {
+                $_.name -ne 'dsh-tauri-panel-scheduler'
+            })
+            { Test-WindowsCopilotLock -Lock $tampered } |
+                Should -Throw '*exactly eight official Desktop links*'
+        }
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
-        $tampered.profile.requiredBundles = @($tampered.profile.requiredBundles | Where-Object {
-            $_ -ne 'dsh-tauri-panel-scheduler'
-        })
-        { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*requiredBundles must contain exactly*'
+        if (-not $tampered.components.desktop.runtimeSelectors[0].PSObject.Properties['descriptor']) {
+            $tampered.profile.requiredBundles = @($tampered.profile.requiredBundles | Where-Object {
+                $_ -ne 'dsh-tauri-panel-scheduler'
+            })
+            { Test-WindowsCopilotLock -Lock $tampered } |
+                Should -Throw '*requiredBundles must contain exactly*'
+        }
     }
 
 It 'plans no Core build install receipt or activation work' {
@@ -1686,7 +1706,7 @@ It 'removes fork-only inputs and mutations from the installer and Apply implemen
             Should -Not -Contain 'Enable-WindowsCopilotForkCore'
     }
 
-It 'attests exact official metadata tree and entrypoint bytes and rejects tampering' {
+It 'attests exact official metadata tree and entrypoint bytes and rejects tampering' -Skip:$script:SkipOfficialDesktopLinkTests {
         $fixture = New-OfficialRuntimeFixture -AppData $env:APPDATA -Lock $lock
         $state = Get-WindowsCopilotOfficialRuntimeState -Lock $fixture.lock
         $state.valid | Should -Be $true
@@ -1730,7 +1750,7 @@ It 'compares the complete installed companion closure to locked tar bytes' {
             -InstalledRoot $installed -Sha256 $sha).valid | Should -Be $false
     }
 
-It 'rejects reparse directories anywhere in the official wrapper tree' {
+It 'rejects reparse directories anywhere in the official wrapper tree' -Skip:$script:SkipOfficialDesktopLinkTests {
         $fixture = New-OfficialRuntimeFixture -AppData $env:APPDATA -Lock $lock
         $target = Join-Path $TestDrive 'outside-wrapper'
         New-Item -ItemType Directory -Path $target -Force | Out-Null
@@ -1744,38 +1764,59 @@ It 'rejects reparse directories anywhere in the official wrapper tree' {
     }
 
 It 'rejects modified same-version Desktop executables by exact bytes metadata and signature' {
-        $desktopPath = Join-Path $TestDrive 'desktop-attestation\deepseek-harness-desktop.exe'
+        $desktopPath = Join-Path $TestDrive ('desktop-attestation\' + [string]$lock.components.desktop.installedExecutable.relativePath)
+        $descriptorPath = if ($lock.components.desktop.installedRuntimeDescriptor) {
+            Join-Path (Split-Path -Parent $desktopPath) ([string]$lock.components.desktop.installedRuntimeDescriptor.relativePath)
+        } else {
+            $null
+        }
         New-Item -ItemType Directory -Path (Split-Path -Parent $desktopPath) -Force | Out-Null
         Set-Content -LiteralPath $desktopPath -Value 'fixture'
+        if ($descriptorPath) {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $descriptorPath) -Force | Out-Null
+            Set-Content -LiteralPath $descriptorPath -Value '{}'
+        }
         InModuleScope WindowsCopilotDeployment -Parameters @{
             FixtureLock = $lock
             Executable = $desktopPath
+            Descriptor = $descriptorPath
         } {
             Mock Get-Item {
                 [pscustomobject]@{
                     FullName = $Executable
-                    Length = [int64]$FixtureLock.components.desktop.installedExecutable.size
+                    Length = if ($FixtureLock.components.desktop.installedExecutable.PSObject.Properties['size']) {
+                        [int64]$FixtureLock.components.desktop.installedExecutable.size
+                    } else {
+                        7
+                    }
                     Attributes = [IO.FileAttributes]::Normal
                     VersionInfo = [pscustomobject]@{
-                        ProductName = 'Deepseek Harness Desktop'
-                        FileDescription = 'Deepseek Harness Desktop'
-                        CompanyName = 'github'
-                        ProductVersion = '0.10.3'
+                        ProductName = [string]$FixtureLock.components.desktop.installedExecutable.productName
+                        FileDescription = [string]$FixtureLock.components.desktop.installedExecutable.fileDescription
+                        CompanyName = [string]$FixtureLock.components.desktop.installedExecutable.companyName
+                        ProductVersion = [string]$FixtureLock.components.desktop.installedExecutable.productVersion
                     }
                 }
             } -ParameterFilter { $LiteralPath -eq $Executable }
             Mock Get-FileHash {
                 [pscustomobject]@{ Hash = [string]$FixtureLock.components.desktop.installedExecutable.sha256 }
             } -ParameterFilter { $LiteralPath -eq $Executable }
+            if ($Descriptor) {
+                Mock Get-FileHash {
+                    [pscustomobject]@{ Hash = [string]$FixtureLock.components.desktop.installedRuntimeDescriptor.sha256 }
+                } -ParameterFilter { $LiteralPath -eq $Descriptor }
+            }
             Mock Get-AuthenticodeSignature {
                 [pscustomobject]@{ Status = 'NotSigned' }
             } -ParameterFilter { $FilePath -eq $Executable }
-            Mock Get-WindowsCopilotDirectoryTreeState {
-                [pscustomobject]@{
-                    fileCount = [int]$FixtureLock.components.desktop.installedResources.fileCount
-                    totalBytes = [int64]$FixtureLock.components.desktop.installedResources.totalBytes
-                    treeSha256 = [string]$FixtureLock.components.desktop.installedResources.treeSha256
-                    reparseDirectoryCount = 0
+            if ($FixtureLock.components.desktop.PSObject.Properties['installedResources']) {
+                Mock Get-WindowsCopilotDirectoryTreeState {
+                    [pscustomobject]@{
+                        fileCount = [int]$FixtureLock.components.desktop.installedResources.fileCount
+                        totalBytes = [int64]$FixtureLock.components.desktop.installedResources.totalBytes
+                        treeSha256 = [string]$FixtureLock.components.desktop.installedResources.treeSha256
+                        reparseDirectoryCount = 0
+                    }
                 }
             }
 
@@ -1788,12 +1829,18 @@ It 'rejects modified same-version Desktop executables by exact bytes metadata an
             $modified.valid | Should -Be $false
             $modified.status | Should -Be 'identity-mismatch'
 
-            Mock Get-WindowsCopilotDirectoryTreeState {
-                [pscustomobject]@{
-                    fileCount = [int]$FixtureLock.components.desktop.installedResources.fileCount
-                    totalBytes = [int64]$FixtureLock.components.desktop.installedResources.totalBytes
-                    treeSha256 = ('f' * 64)
-                    reparseDirectoryCount = 0
+            if ($Descriptor) {
+                Mock Get-FileHash {
+                    [pscustomobject]@{ Hash = ('f' * 64) }
+                } -ParameterFilter { $LiteralPath -eq $Descriptor }
+            } else {
+                Mock Get-WindowsCopilotDirectoryTreeState {
+                    [pscustomobject]@{
+                        fileCount = [int]$FixtureLock.components.desktop.installedResources.fileCount
+                        totalBytes = [int64]$FixtureLock.components.desktop.installedResources.totalBytes
+                        treeSha256 = ('f' * 64)
+                        reparseDirectoryCount = 0
+                    }
                 }
             }
             $resourceDrift = Get-WindowsCopilotDesktopState -Lock $FixtureLock -Path $Executable
@@ -1802,7 +1849,7 @@ It 'rejects modified same-version Desktop executables by exact bytes metadata an
         }
     }
 
-It 'accepts only an official Desktop descendant owning exact IPv4 127.0.0.1:3080' {
+It 'accepts only an official Desktop descendant owning exact IPv4 127.0.0.1:3080' -Skip:$script:SkipOfficialDesktopLinkTests {
         $fixture = New-OfficialRuntimeFixture -AppData $env:APPDATA -Lock $lock
         $desktopPath = Join-Path $TestDrive 'desktop\deepseek-harness-desktop.exe'
         New-Item -ItemType Directory -Path (Split-Path -Parent $desktopPath) -Force | Out-Null
@@ -1846,7 +1893,7 @@ It 'accepts only an official Desktop descendant owning exact IPv4 127.0.0.1:3080
         $wrongOwner.valid | Should -Be $false
     }
 
-It 'runs runtime schema and sandbox validation against the official package root' {
+It 'runs runtime schema and sandbox validation against the official package root' -Skip:$script:SkipOfficialDesktopLinkTests {
         $fixture = New-OfficialRuntimeFixture -AppData $env:APPDATA -Lock $lock
         InModuleScope WindowsCopilotDeployment -Parameters @{
             FixtureLock = $fixture.lock

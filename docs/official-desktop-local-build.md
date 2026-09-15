@@ -545,13 +545,14 @@ web plus headless produced `duplicate loader entry id: code-runtime` in the
 observed installation. Check reports `shared-official-profile-conflicting-app-bundles`
 and blocks rather than silently rewriting the manifest.
 
-The pinned upstream `DesktopProjectManager` rejects URL and `file:` plugin specs
-and hard-codes the public npm registry. Windows Ops therefore owns the current
-`windowsOpsVerifiedRelease` adapter without changing DSH Core. Every
-PackageLocal, first install, idempotent install, and managed update completion
-consumes the same lock contract and adapter. Check is read-only and does not
-download; Apply alone may acquire the immutable Release and mutate the reserved
-profile while Desktop/Host are closed.
+The fork-owned Desktop release now advertises `desktopNativeVerifiedRelease`.
+Windows Ops still validates the single `desktopProvisioning` contract and keeps
+the historical adapter callable for compatibility, but Check/Apply delegate to
+Desktop native capability and no longer mutate the reserved profile through the
+external workaround. Every PackageLocal, first install, idempotent install, and
+managed update completion consumes the same lock contract. Check is read-only;
+native-delegated Apply reports the delegation instead of downloading or
+materializing the Copilot plugin from Windows Ops.
 
 For isolated Home, a new install creates only the Desktop-owned profile and
 private pnpm state below `<DataRoot>\harness-home`. For an existing isolated or

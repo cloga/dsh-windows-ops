@@ -16,14 +16,14 @@
 
 ## 当前正式基线
 
-机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-09-04**：
+机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-09-15**：
 
 | 组件 | 锁定版本 |
 |---|---|
-| DeepSeek Harness Desktop | 官方 0.10.3 |
-| Desktop 管理的 DSH runtime | `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh` 中的 `deepseek-harness-pkg@0.1.2-alpha.5` wrapper + 内层官方 `@deepseek-ai/dsh@0.1.2-rc.1`；完整 10,347 文件 wrapper tree 锁定哈希且禁止 reparse directory |
-| 必需的 `dsh-github-copilot` | 0.4.0-alpha.18；完整 local Desktop 安装/更新完成后由 Windows Ops 事务化预置到 reserved `desktop` profile |
-| Desktop internal plugins | 官方 8 个 0.6.7 Profile 链接（包括 `dsh-tauri-panel-scheduler`）及 1 个不直接挂载的 panel placeholder，位于 `resources\node_modules` |
+| DeepSeek Harness Desktop | fork-owned `0.1.5-rc.3.cloga.1`，release tag `dsh-desktop-v0.1.5-rc.3.cloga.1`，commit `87506730d5f511316bac5ea623610e124908c657` |
+| Desktop 管理的 DSH runtime | installer 内置 `@deepseek-ai/dsh@0.1.5-rc.2`，由安装后的 `resources\dsh\desktop-runtime.json` 证明，descriptor SHA-256 `210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836`；默认 per-user root 是 `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`，但 Windows Ops 以实际安装 EXE 路径为准 |
+| 必需的 `dsh-github-copilot` | 0.4.0-alpha.18；在 `desktopNativeVerifiedRelease` 下由 Desktop native capability 保留/接管，不再由 Windows Ops 外部事务物化 |
+| Desktop native capability | `desktopNativeVerifiedRelease`，manifest self SHA-256 `753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc`，generic plugin compatibility `automaticProvisioning=false` |
 | 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.2`、`dsh-cron@0.4.1` |
 
 README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。默认分支和 deployment lock 是本仓库的发布渠道；本仓库不另行分发 Desktop/DSH/plugin 二进制。Lock 更新表示经过评审的目标基线，不代表某台机器已经执行 `-Apply`；默认 check mode 会如实报告尚未应用的 drift。
@@ -96,18 +96,18 @@ node tools\validate-plugin-catalog.mjs
 - Computer Use、真实浏览器控制和视觉插件可能接触屏幕、Cookie、聊天、密码和本机应用；推荐状态必须与功能验证等级分开。
 - 所有 runtime/配置改动先备份，补丁必须幂等并提供回滚。
 - 重启 Desktop/Host 前必须查询 live Sessions；存在 running Session 时必须先取得用户对中断列表的明确确认。
-- 保留并校验 Desktop 的 8 个官方 0.6.7 Profile 链接（包括 `dsh-tauri-panel-scheduler`）及不直接挂载的 panel placeholder，不用猜测的 registry 包替换。
+- 保留并校验 active lock mode 声明的 Desktop plugin surface；在 `desktopNativeVerifiedRelease` 下，Windows Ops 只做 native delegation，不再物化 reserved Desktop profile。
 - 插件分三层治理：locked managed baseline 继续严格失败；用户自行安装的插件只进入 inventory/warning，不能贡献 baseline 健康；仅精确命中目标 Core denylist 且处于活动或状态不明时阻断 cutover。
 
 详见 [`docs/security-notes.md`](docs/security-notes.md)。
 
 ## 项目关系与维护状态
 
-本仓库不分发 Desktop、DSH 或 Copilot 插件；它锁定经过验证的版本和 commit，编排安装、迁移、验收与回滚。以下描述当前官方 Desktop 与受控 Copilot 插件的职责和精确 pin。
+本仓库不分发 Desktop、DSH 或 Copilot 插件；它锁定经过验证的版本和 commit，编排安装、迁移、验收与回滚。以下描述当前 fork-owned Desktop release 与受控 Copilot 插件的职责和精确 pin。
 
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
-| [`dsh-tauri-desk/deepseek-harness-desktop`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop) | 官方 Windows 壳、生命周期、Desktop 管理的官方 DSH，以及 8 个 Profile plugins 和 1 个 shipped placeholder | 当前 lock 使用官方 0.10.3，release/tag commit `113dc8f77095e765f4f55e233d8455e7ad9204ae` |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | fork-owned Windows Desktop release channel、生命周期、Desktop-managed bundled DSH runtime，以及 `desktopNativeVerifiedRelease` generic plugin capability | 当前 lock 使用 `dsh-desktop-v0.1.5-rc.3.cloga.1`，commit `87506730d5f511316bac5ea623610e124908c657` |
 | [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | PR #120 source/merge/immutable Release commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`；Release `v0.4.0-alpha.18` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 

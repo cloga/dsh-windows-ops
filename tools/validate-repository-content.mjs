@@ -47,7 +47,9 @@ export function validateRepositoryContent(root = defaultRoot) {
   expect(provisioning?.schemaVersion === 1, 'desktop provisioning schema differs')
   expect(['windowsOpsVerifiedRelease', 'desktopNativeVerifiedRelease'].includes(provisioning?.mode), 'desktop provisioning mode is invalid')
   expect(provisioning?.adapter === 'DshOfficialDesktopPluginProvisioning.psm1', 'desktop provisioning adapter differs')
-  expect(provisioning?.registry === 'https://packagefeedproxy.microsoft.io/npm/', 'desktop provisioning registry differs')
+  expect(provisioning?.mode === 'desktopNativeVerifiedRelease'
+    ? provisioning?.registry == null
+    : provisioning?.registry === 'https://packagefeedproxy.microsoft.io/npm/', 'desktop provisioning registry differs')
   expect(provisioning?.mode !== 'desktopNativeVerifiedRelease' || provisioning?.nativeCapability?.verified === true,
     'desktop-native provisioning requires verified native capability evidence')
   expect(!(provisioning?.mode === 'windowsOpsVerifiedRelease' && provisioning?.nativeCapability?.verified === true),
@@ -79,36 +81,67 @@ export function validateRepositoryContent(root = defaultRoot) {
   const desktop = lock.components?.desktop
   const selectors = desktop?.runtimeSelectors ?? []
   const official = selectors.find(candidate => candidate.id === 'desktop-official')
-  expect(desktop?.version === '0.10.3', 'Desktop version must be 0.10.3')
-  expect(desktop?.source?.commit === '113dc8f77095e765f4f55e233d8455e7ad9204ae', 'Desktop source commit differs')
-  expect(desktop?.artifact?.sha256 === 'ce4328448a948e6df904548455a32b81f9905908f3b8562f8e8fdfdbac3bfb90', 'Desktop setup digest differs')
-  expect(desktop?.artifact?.size === 6213496, 'Desktop setup size differs')
-  expect(desktop?.installedExecutable?.sha256 === 'd191cb2729f53c4fa889fab62c48af38979812f5560d0bb8f8ad4cadeff8b5df', 'installed Desktop executable digest differs')
-  expect(desktop?.installedExecutable?.size === 23059456, 'installed Desktop executable size differs')
-  expect(desktop?.installedExecutable?.authenticodeStatus === 'NotSigned', 'installed Desktop signature status differs')
-  expect(desktop?.installedResources?.fileCount === 1765, 'installed Desktop resource file count differs')
-  expect(desktop?.installedResources?.totalBytes === 13008656, 'installed Desktop resource size differs')
-  expect(desktop?.installedResources?.treeSha256 === '29323493802cc7d75fd02a762066d7be8f0da1ac86e1fe1f8f44e2ea15d074ef', 'installed Desktop resource digest differs')
+  const fork = selectors.find(candidate => candidate.id === 'desktop-fork-managed')
+  const forkDesktop = desktop?.source?.repository === 'https://github.com/cloga/deepseek-harness'
+  if (forkDesktop) {
+    expect(desktop?.version === '0.1.5-rc.3.cloga.1', 'Desktop fork version differs')
+    expect(desktop?.source?.releaseTag === 'dsh-desktop-v0.1.5-rc.3.cloga.1', 'Desktop fork release tag differs')
+    expect(desktop?.source?.commit === '87506730d5f511316bac5ea623610e124908c657', 'Desktop fork source commit differs')
+    expect(desktop?.source?.reviewedHead === '679110798316e8e455d95535a4f25a90315b652d', 'Desktop fork reviewed head differs')
+    expect(desktop?.artifact?.sha256 === '432fdc5f438ce4e9d984ff36546c42d4a43bb571f15230bfa127b133623e8367', 'Desktop fork installer digest differs')
+    expect(desktop?.artifact?.size === 180145810, 'Desktop fork installer size differs')
+    expect(desktop?.artifact?.releaseImmutable === true, 'Desktop fork release must be immutable')
+    expect(desktop?.installedExecutable?.relativePath === 'cloga-deepseek-harness.exe', 'installed Desktop fork executable path differs')
+    expect(desktop?.installedExecutable?.sha256 === 'f77b28611cba6210f6441318db7453d32ff7b2c4cf58fd58ce0b44e743f25434', 'installed Desktop fork executable digest differs')
+    expect(desktop?.installedExecutable?.authenticodeStatus === 'NotSigned', 'installed Desktop fork signature status differs')
+    expect(desktop?.installedRuntimeDescriptor?.relativePath === 'resources\\dsh\\desktop-runtime.json', 'installed Desktop runtime descriptor path differs')
+    expect(desktop?.installedRuntimeDescriptor?.sha256 === '210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836', 'installed Desktop runtime descriptor digest differs')
+    expect(desktop?.releaseChannel?.schemaVersion === 3, 'Desktop fork release manifest schema differs')
+    expect(desktop?.releaseChannel?.owner === 'cloga/deepseek-harness', 'Desktop fork release owner differs')
+    expect(desktop?.releaseChannel?.manifestRawSha256 === '234caae905de71144e4dc4b6ecdfebf567c6cfdf7dad546c0d766fa7dd2937b3', 'Desktop fork manifest raw digest differs')
+    expect(desktop?.releaseChannel?.manifestSha256 === '753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc', 'Desktop fork manifest self digest differs')
+  } else {
+    expect(desktop?.version === '0.10.3', 'Desktop version must be 0.10.3')
+    expect(desktop?.source?.commit === '113dc8f77095e765f4f55e233d8455e7ad9204ae', 'Desktop source commit differs')
+    expect(desktop?.artifact?.sha256 === 'ce4328448a948e6df904548455a32b81f9905908f3b8562f8e8fdfdbac3bfb90', 'Desktop setup digest differs')
+    expect(desktop?.artifact?.size === 6213496, 'Desktop setup size differs')
+    expect(desktop?.installedExecutable?.sha256 === 'd191cb2729f53c4fa889fab62c48af38979812f5560d0bb8f8ad4cadeff8b5df', 'installed Desktop executable digest differs')
+    expect(desktop?.installedExecutable?.size === 23059456, 'installed Desktop executable size differs')
+    expect(desktop?.installedExecutable?.authenticodeStatus === 'NotSigned', 'installed Desktop signature status differs')
+    expect(desktop?.installedResources?.fileCount === 1765, 'installed Desktop resource file count differs')
+    expect(desktop?.installedResources?.totalBytes === 13008656, 'installed Desktop resource size differs')
+    expect(desktop?.installedResources?.treeSha256 === '29323493802cc7d75fd02a762066d7be8f0da1ac86e1fe1f8f44e2ea15d074ef', 'installed Desktop resource digest differs')
+  }
   expect(lock.components?.core === undefined, 'private Core must not appear in the active deployment lock')
-  expect(desktop?.defaultRuntimeSelector === 'desktop-official', 'Desktop official runtime must be the default selector')
-  expect(selectors.length === 1 && official !== undefined, 'Desktop must expose only the official runtime selector')
-  expect(official?.rootPackage?.version === '0.1.2-alpha.5', 'Desktop wrapper version must be 0.1.2-alpha.5')
-  expect(official?.rootPackage?.fileCount === 10347, 'Desktop complete wrapper file count differs')
-  expect(official?.rootPackage?.totalBytes === 134066533, 'Desktop complete wrapper size differs')
-  expect(official?.rootPackage?.treeSha256 === 'b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d', 'Desktop complete wrapper digest differs')
-  expect(official?.rootPackage?.manifestSha256 === 'bcfbd3f14511fa9470ea748303a8f9c6307121d2741990823089c5677291e8ba', 'Desktop wrapper manifest digest differs')
-  expect(official?.rootPackage?.reparseDirectoryCount === 0, 'Desktop complete wrapper must forbid reparse directories')
-  expect(official?.package?.version === '0.1.2-rc.1', 'Desktop nested CLI must be 0.1.2-rc.1')
-  expect(official?.package?.releaseTag === 'dsh-v0.1.2-rc.1', 'Desktop nested CLI tag differs')
-  expect(official?.package?.commit === 'a66e4702047846cdaa10c66c9d3df3951f5ea70d', 'Desktop nested CLI commit differs')
-  expect(official?.package?.fileCount === 10, 'Desktop nested CLI file count differs')
-  expect(official?.package?.treeSha256 === '4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea', 'Desktop nested CLI tree digest differs')
-  expect(official?.package?.entrypointSize === 8021, 'Desktop nested CLI entrypoint size differs')
-  expect(official?.package?.entrypointSha256 === 'dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166', 'Desktop nested CLI entrypoint digest differs')
-  expect(desktop?.internalPlugins?.length === 8, 'Desktop must lock all eight official Profile links')
-  expect(desktop?.internalPlugins?.some(entry => entry.name === 'dsh-tauri-panel-scheduler' && entry.version === '0.6.7'), 'Desktop scheduler Profile link is missing')
-  expect(lock.profile?.requiredBundles?.includes('dsh-tauri-panel-scheduler'), 'Desktop scheduler bundle is missing')
-  expect(lock.profile?.plugins?.some(entry => entry.name === 'dsh-tauri-panel-scheduler' && entry.source === 'desktop-internal'), 'Desktop scheduler plugin contract is missing')
+  const selector = forkDesktop ? fork : official
+  expect(desktop?.defaultRuntimeSelector === selector?.id, 'Desktop runtime selector must be the default selector')
+  expect(selectors.length === 1 && selector !== undefined, 'Desktop must expose only the reviewed runtime selector')
+  if (forkDesktop) {
+    expect(fork?.source === 'desktop-managed-release', 'Desktop fork selector source differs')
+    expect(fork?.package?.version === '0.1.5-rc.2', 'Desktop fork nested CLI version differs')
+    expect(fork?.descriptor?.sha256 === desktop?.installedRuntimeDescriptor?.sha256, 'Desktop fork runtime descriptor differs')
+    expect(desktop?.internalPlugins?.length === 0, 'Desktop fork must not lock legacy official internal plugins')
+    expect(desktop?.shippedDependencies?.length === 0, 'Desktop fork must not lock legacy official shipped dependencies')
+    expect(!lock.profile?.plugins?.some(entry => entry.source === 'desktop-internal'), 'Profile must not preserve legacy Desktop internal plugins in native mode')
+  } else {
+    expect(official?.rootPackage?.version === '0.1.2-alpha.5', 'Desktop wrapper version must be 0.1.2-alpha.5')
+    expect(official?.rootPackage?.fileCount === 10347, 'Desktop complete wrapper file count differs')
+    expect(official?.rootPackage?.totalBytes === 134066533, 'Desktop complete wrapper size differs')
+    expect(official?.rootPackage?.treeSha256 === 'b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d', 'Desktop complete wrapper digest differs')
+    expect(official?.rootPackage?.manifestSha256 === 'bcfbd3f14511fa9470ea748303a8f9c6307121d2741990823089c5677291e8ba', 'Desktop wrapper manifest digest differs')
+    expect(official?.rootPackage?.reparseDirectoryCount === 0, 'Desktop complete wrapper must forbid reparse directories')
+    expect(official?.package?.version === '0.1.2-rc.1', 'Desktop nested CLI must be 0.1.2-rc.1')
+    expect(official?.package?.releaseTag === 'dsh-v0.1.2-rc.1', 'Desktop nested CLI tag differs')
+    expect(official?.package?.commit === 'a66e4702047846cdaa10c66c9d3df3951f5ea70d', 'Desktop nested CLI commit differs')
+    expect(official?.package?.fileCount === 10, 'Desktop nested CLI file count differs')
+    expect(official?.package?.treeSha256 === '4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea', 'Desktop nested CLI tree digest differs')
+    expect(official?.package?.entrypointSize === 8021, 'Desktop nested CLI entrypoint size differs')
+    expect(official?.package?.entrypointSha256 === 'dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166', 'Desktop nested CLI entrypoint digest differs')
+    expect(desktop?.internalPlugins?.length === 8, 'Desktop must lock all eight official Profile links')
+    expect(desktop?.internalPlugins?.some(entry => entry.name === 'dsh-tauri-panel-scheduler' && entry.version === '0.6.7'), 'Desktop scheduler Profile link is missing')
+    expect(lock.profile?.requiredBundles?.includes('dsh-tauri-panel-scheduler'), 'Desktop scheduler bundle is missing')
+    expect(lock.profile?.plugins?.some(entry => entry.name === 'dsh-tauri-panel-scheduler' && entry.source === 'desktop-internal'), 'Desktop scheduler plugin contract is missing')
+  }
   const pluginPolicy = lock.profile?.pluginPolicy
   expect(pluginPolicy?.unmanagedDisposition === 'warning', 'unmanaged plugins must be inventory warnings')
   const alphaPolicy = pluginPolicy?.targets?.find(entry => entry.core?.name === '@deepseek-ai/dsh'
@@ -130,19 +163,25 @@ export function validateRepositoryContent(root = defaultRoot) {
     expect(Array.isArray(rule?.entryIds) && rule.entryIds.length > 0, `${name} policy entryIds are missing`)
   }
   const runtimeSchema = lock.acceptance?.runtimeSchema
-  expect(runtimeSchema?.scope === 'desktop-official', 'runtime schema must attest the official Desktop runtime')
-  expect(runtimeSchema?.root === official?.root, 'runtime schema root differs from the Desktop selector')
-  expect(runtimeSchema?.source?.repository === 'github.com/deepseek-ai/deepseek-harness', 'runtime schema source must be upstream')
-  expect(runtimeSchema?.source?.commit === official?.package?.commit, 'runtime schema source commit differs from the Desktop selector')
-  expect(runtimeSchema?.wrapper?.version === official?.rootPackage?.version, 'runtime schema wrapper differs from the Desktop selector')
-  expect(runtimeSchema?.wrapper?.fileCount === official?.rootPackage?.fileCount, 'runtime schema wrapper file count differs from the Desktop selector')
-  expect(runtimeSchema?.wrapper?.totalBytes === official?.rootPackage?.totalBytes, 'runtime schema wrapper size differs from the Desktop selector')
-  expect(runtimeSchema?.wrapper?.treeSha256 === official?.rootPackage?.treeSha256, 'runtime schema wrapper digest differs from the Desktop selector')
-  expect(runtimeSchema?.package?.version === official?.package?.version, 'runtime schema package differs from the Desktop selector')
-  expect(runtimeSchema?.package?.entrypointSize === official?.package?.entrypointSize, 'runtime schema entrypoint size differs from the Desktop selector')
-  expect(runtimeSchema?.package?.entrypointSha256 === official?.package?.entrypointSha256, 'runtime schema entrypoint digest differs from the Desktop selector')
-  expect(runtimeSchema?.requiredBuiltFiles?.length === 3, 'runtime schema must attest the three reviewed official modules')
-  expect(!JSON.stringify(lock).includes('cloga/deepseek-harness'), 'active lock reintroduces the private Core repository')
+  expect(runtimeSchema?.scope === selector?.id, 'runtime schema must attest the reviewed Desktop runtime')
+  expect(runtimeSchema?.root === selector?.root, 'runtime schema root differs from the Desktop selector')
+  expect(runtimeSchema?.source?.commit === selector?.package?.commit, 'runtime schema source commit differs from the Desktop selector')
+  if (forkDesktop) {
+    expect(runtimeSchema?.releaseStatus === 'fork-desktop-managed-release', 'runtime schema release status must attest the fork Desktop runtime')
+    expect(runtimeSchema?.source?.repository === 'github.com/cloga/deepseek-harness', 'runtime schema source must be the fork release owner')
+    expect(runtimeSchema?.source?.releaseTag === desktop?.source?.releaseTag, 'runtime schema Desktop release tag differs')
+  } else {
+    expect(runtimeSchema?.source?.repository === 'github.com/deepseek-ai/deepseek-harness', 'runtime schema source must be upstream')
+    expect(runtimeSchema?.wrapper?.version === official?.rootPackage?.version, 'runtime schema wrapper differs from the Desktop selector')
+    expect(runtimeSchema?.wrapper?.fileCount === official?.rootPackage?.fileCount, 'runtime schema wrapper file count differs from the Desktop selector')
+    expect(runtimeSchema?.wrapper?.totalBytes === official?.rootPackage?.totalBytes, 'runtime schema wrapper size differs from the Desktop selector')
+    expect(runtimeSchema?.wrapper?.treeSha256 === official?.rootPackage?.treeSha256, 'runtime schema wrapper digest differs from the Desktop selector')
+    expect(runtimeSchema?.package?.version === official?.package?.version, 'runtime schema package differs from the Desktop selector')
+    expect(runtimeSchema?.package?.entrypointSize === official?.package?.entrypointSize, 'runtime schema entrypoint size differs from the Desktop selector')
+    expect(runtimeSchema?.package?.entrypointSha256 === official?.package?.entrypointSha256, 'runtime schema entrypoint digest differs from the Desktop selector')
+    expect(runtimeSchema?.requiredBuiltFiles?.length === 3, 'runtime schema must attest the three reviewed official modules')
+    expect(!JSON.stringify(lock).includes('cloga/deepseek-harness'), 'active lock reintroduces the private Core repository')
+  }
 
   for (const id of ['dsh-playwright-host', 'dsh-cron']) {
     const overlay = lock.profile?.optionalOverlays?.find(candidate => candidate.name === id)
@@ -186,9 +225,14 @@ export function validateRepositoryContent(root = defaultRoot) {
   expect(read('docs/local-core-desktop-copilot.md').includes(artifact.sha256), 'deployment guide is missing the locked artifact SHA-256')
   expect(read('docs/local-core-desktop-copilot.md').includes(desktop.artifact.sha256), 'deployment guide is missing the locked Desktop artifact SHA-256')
   expect(read('docs/local-core-desktop-copilot.md').includes(desktop.installedExecutable.sha256), 'deployment guide is missing the installed Desktop executable SHA-256')
-  expect(read('docs/local-core-desktop-copilot.md').includes(desktop.installedResources.treeSha256), 'deployment guide is missing the installed Desktop resources digest')
-  expect(read('docs/local-core-desktop-copilot.md').includes(official.rootPackage.treeSha256), 'deployment guide is missing the complete wrapper digest')
-  expect(read('docs/local-core-desktop-copilot.md').includes(official.package.entrypointSha256), 'deployment guide is missing the locked runtime entrypoint SHA-256')
+  if (forkDesktop) {
+    expect(read('docs/local-core-desktop-copilot.md').includes(desktop.installedRuntimeDescriptor.sha256), 'deployment guide is missing the installed runtime descriptor digest')
+    expect(read('docs/local-core-desktop-copilot.md').includes(desktop.releaseChannel.manifestSha256), 'deployment guide is missing the fork release manifest digest')
+  } else {
+    expect(read('docs/local-core-desktop-copilot.md').includes(desktop.installedResources.treeSha256), 'deployment guide is missing the installed Desktop resources digest')
+    expect(read('docs/local-core-desktop-copilot.md').includes(official.rootPackage.treeSha256), 'deployment guide is missing the complete wrapper digest')
+    expect(read('docs/local-core-desktop-copilot.md').includes(official.package.entrypointSha256), 'deployment guide is missing the locked runtime entrypoint SHA-256')
+  }
   expect(read('docs/windows-replay-tooling.md').includes(source.commit), 'replay guide is missing the locked source commit')
   expect(read('docs/windows-replay-tooling.md').includes(artifact.sha256), 'replay guide is missing the locked artifact SHA-256')
   const installer = read('tools/install-windows-copilot.ps1')
@@ -218,7 +262,10 @@ export function validateRepositoryContent(root = defaultRoot) {
     ['tools/DshCopilotBootstrap.psm1', bootstrapModule],
     ['tools/enable-copilot-search-vision.ps1', bootstrap],
   ]) {
-    for (const retired of ['controlled-fork', 'cloga/deepseek-harness', 'DSH_CLI_PATH']) {
+    const retiredPaths = file === 'tools/WindowsCopilotDeployment.psm1'
+      ? ['controlled-fork', 'DSH_CLI_PATH']
+      : ['controlled-fork', 'cloga/deepseek-harness', 'DSH_CLI_PATH']
+    for (const retired of retiredPaths) {
       expect(!content.includes(retired), `${file} reintroduces retired private Core path: ${retired}`)
     }
   }
@@ -257,14 +304,17 @@ export function validateRepositoryContent(root = defaultRoot) {
   ]
   for (const currentPath of activeDeploymentDocs) {
     const current = read(currentPath)
-    for (const retired of [
+    const retiredTerms = [
       'HarnessSourceRoot',
       'CoreInstallPrefix',
       'controlled-fork',
-      'cloga/deepseek-harness',
       'dsh-local-core',
       'DSH_CORE_ROOT',
-    ]) {
+    ]
+    if (!['README.md', 'README.en.md', 'docs/local-core-desktop-copilot.md'].includes(currentPath)) {
+      retiredTerms.push('cloga/deepseek-harness')
+    }
+    for (const retired of retiredTerms) {
       expect(!current.includes(retired), `${currentPath} reintroduces retired private Core path: ${retired}`)
     }
   }

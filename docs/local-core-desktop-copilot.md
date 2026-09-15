@@ -286,6 +286,20 @@ optional-overlay removal. See
 [`computer-use.md`](plugins/computer-use.md) and
 [`scheduling.md`](plugins/scheduling.md).
 
+Desktop native releases use two profile surfaces. The locked Windows Ops
+baseline validates `profiles\web`, which is the session/runtime profile used for
+the required Copilot provider and optional Web overlays. The Desktop app's
+settings and plugin UI are backed by `profiles\desktop`; installing
+`dsh-github-copilot` only into `profiles\web` makes new sessions healthy but
+keeps the Desktop UI unaware of the provider. Apply now installs the same locked
+Copilot artifact into both `profiles\web` and `profiles\desktop`, adds the
+provider bundle to both manifests, and records both profile roots in the
+deployment receipt. Check and verify reports include a read-only
+`profile.visibility` summary for both profiles so operators can confirm
+`dependencyPresent`, `bundlePresent`, `installed`, and `visibleAfterRestart`
+without manually inspecting live profile manifests. Restart Desktop after Apply
+so the UI composes the updated `profiles\desktop` bundle list.
+
 ## Legacy migration and rollback
 
 Legacy gateway facts remain migration signatures only, never active components

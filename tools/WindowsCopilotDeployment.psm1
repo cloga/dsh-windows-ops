@@ -2224,7 +2224,14 @@ function Restore-DeploymentSnapshots {
         }
         if (Get-DeploymentPathItem -Path $target) {
             if ([bool]$snapshot.pluginTarget) {
-                Remove-ProfilePluginTarget -Target $target -NodeModulesRoot $NodeModulesRoot
+                $snapshotNodeModulesRoot = [string](
+                    Get-LockProperty -InputObject $snapshot -Name 'nodeModulesRoot'
+                )
+                if ([string]::IsNullOrWhiteSpace($snapshotNodeModulesRoot)) {
+                    $snapshotNodeModulesRoot = $NodeModulesRoot
+                }
+                Remove-ProfilePluginTarget -Target $target `
+                    -NodeModulesRoot $snapshotNodeModulesRoot
             } else {
                 Remove-Item -LiteralPath $target -Recurse -Force
             }
@@ -2646,6 +2653,11 @@ function Set-WindowsCopilotProfile {
     $credentialsPath = Join-Path $home '.credentials.yaml'
     $profilePatchPath = Join-Path $profileRoot 'cordis.patch.yml'
     $nodeModules = Join-Path $profileRoot 'node_modules'
+    $desktopProfileRoot = Join-Path $home 'profiles\desktop'
+    $desktopPackagePath = Join-Path $desktopProfileRoot ([string]$Lock.profile.packageManifest)
+    $desktopWorkspacePath = Join-Path $desktopProfileRoot ([string]$Lock.profile.workspaceManifest)
+    $desktopLockPath = Join-Path $desktopProfileRoot ([string]$Lock.profile.lockManifest)
+    $desktopNodeModules = Join-Path $desktopProfileRoot 'node_modules'
     if (-not $DesktopExecutablePath) {
         $DesktopExecutablePath = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
     }
@@ -2677,6 +2689,8 @@ function Set-WindowsCopilotProfile {
         @()
     }
     $snapshots = [Collections.Generic.List[object]]::new()
+    $providerTarget = Join-Path $nodeModules ([string]$Lock.components.copilotIntegration.package.name)
+    $desktopProviderTarget = Join-Path $desktopNodeModules ([string]$Lock.components.copilotIntegration.package.name)
     foreach ($snapshot in @(
         [pscustomobject]@{ path = $packagePath; relativePath = 'profile\package.json'; pluginTarget = $false },
         [pscustomobject]@{ path = $workspacePath; relativePath = 'profile\pnpm-workspace.yaml'; pluginTarget = $false },
@@ -2684,7 +2698,22 @@ function Set-WindowsCopilotProfile {
         [pscustomobject]@{ path = $settingsPath; relativePath = 'config\settings.yaml'; pluginTarget = $false },
         [pscustomobject]@{ path = $credentialsPath; relativePath = 'config\credentials.yaml'; pluginTarget = $false },
         [pscustomobject]@{ path = $profilePatchPath; relativePath = 'profile\cordis.patch.yml'; pluginTarget = $false },
-        [pscustomobject]@{ path = $lockedArtifact; relativePath = 'artifacts\provider.tgz'; pluginTarget = $false }
+        [pscustomobject]@{ path = $lockedArtifact; relativePath = 'artifacts\provider.tgz'; pluginTarget = $false },
+        [pscustomobject]@{ path = $desktopPackagePath; relativePath = 'desktop-profile\package.json'; pluginTarget = $false },
+        [pscustomobject]@{ path = $desktopWorkspacePath; relativePath = 'desktop-profile\pnpm-workspace.yaml'; pluginTarget = $false },
+        [pscustomobject]@{ path = $desktopLockPath; relativePath = 'desktop-profile\pnpm-lock.yaml'; pluginTarget = $false },
+        [pscustomobject]@{
+            path = $providerTarget
+            relativePath = 'plugins\dsh-github-copilot'
+            pluginTarget = $true
+            nodeModulesRoot = $nodeModules
+        },
+        [pscustomobject]@{
+            path = $desktopProviderTarget
+            relativePath = 'desktop-profile\plugins\dsh-github-copilot'
+            pluginTarget = $true
+            nodeModulesRoot = $desktopNodeModules
+        }
     )) {
         $snapshot | Add-Member -NotePropertyName existed -NotePropertyValue (Test-Path -LiteralPath $snapshot.path)
         $snapshots.Add($snapshot)
@@ -2711,7 +2740,10 @@ function Set-WindowsCopilotProfile {
                 -OperationRoot $OperationRoot
         }
     }
-    foreach ($plugin in @($Lock.profile.plugins | Where-Object { $_.materialize -eq $true })) {
+    foreach ($plugin in @($Lock.profile.plugins | Where-Object {
+        $_.materialize -eq $true -and
+        [string]$_.name -cne [string]$Lock.components.copilotIntegration.package.name
+    })) {
         $target = Join-Path $nodeModules ([string]$plugin.name)
         $relativePath = Join-Path 'plugins' ([string]$plugin.name)
         $snapshots.Add([pscustomobject]@{
@@ -2805,7 +2837,35 @@ function Set-WindowsCopilotProfile {
     Set-ObjectProperty -Object $profile.dsh.profile -Name 'bundles' -Value $bundles
     $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
 
+    New-Item -ItemType Directory -Path $desktopProfileRoot, $desktopNodeModules -Force | Out-Null
+    $desktopProfile = if (Test-Path -LiteralPath $desktopPackagePath -PathType Leaf) {
+        Get-Content -LiteralPath $desktopPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    } else {
+        [pscustomobject]@{ name = '@deepseek-ai/dsh-desktop-runtime'; private = $true }
+    }
+    if (-not (Get-LockProperty -InputObject $desktopProfile -Name 'dependencies')) {
+        Set-ObjectProperty -Object $desktopProfile -Name 'dependencies' -Value ([pscustomobject]@{})
+    }
+    Set-ObjectProperty -Object $desktopProfile.dependencies `
+        -Name ([string]$Lock.components.copilotIntegration.package.name) `
+        -Value $dependencyPath
+    if (-not (Get-LockProperty -InputObject $desktopProfile -Name 'dsh')) {
+        Set-ObjectProperty -Object $desktopProfile -Name 'dsh' -Value ([pscustomobject]@{})
+    }
+    if (-not (Get-LockProperty -InputObject $desktopProfile.dsh -Name 'profile')) {
+        Set-ObjectProperty -Object $desktopProfile.dsh -Name 'profile' -Value ([pscustomobject]@{})
+    }
+    $desktopBundles = @((Get-LockProperty -InputObject $desktopProfile.dsh.profile -Name 'bundles'))
+    foreach ($requiredBundle in @($Lock.profile.requiredBundles)) {
+        $desktopBundles = @($desktopBundles | Where-Object { $_ -ne [string]$requiredBundle })
+        $desktopBundles += [string]$requiredBundle
+    }
+    Set-ObjectProperty -Object $desktopProfile.dsh.profile -Name 'bundles' -Value $desktopBundles
+    $desktopProfile | ConvertTo-Json -Depth 12 |
+        Set-Content -LiteralPath $desktopPackagePath -Encoding UTF8
+
     Set-PnpmAllowBuilds -Path $workspacePath -Packages @($Lock.profile.allowBuilds)
+    Set-PnpmAllowBuilds -Path $desktopWorkspacePath -Packages @($Lock.profile.allowBuilds)
     Remove-DshLegacyCopilotSettings -Path $settingsPath | Out-Null
     Remove-DshLegacyCopilotCredentialReference -Path $credentialsPath | Out-Null
     Set-DshCopilotProfilePatch -Path $profilePatchPath | Out-Null
@@ -2813,9 +2873,31 @@ function Set-WindowsCopilotProfile {
     if (-not $SkipPackageInstall) {
         Invoke-PinnedPnpmCommands -PackageManager ([string]$Lock.components.copilotIntegration.package.packageManager) `
             -Commands @(, @('install', '--no-frozen-lockfile')) -WorkingDirectory $profileRoot
+        Invoke-PinnedPnpmCommands -PackageManager ([string]$Lock.components.copilotIntegration.package.packageManager) `
+            -Commands @(, @('install', '--no-frozen-lockfile')) -WorkingDirectory $desktopProfileRoot
     }
 
-    foreach ($plugin in @($Lock.profile.plugins | Where-Object { $_.materialize -eq $true })) {
+    $providerInstall = Install-WindowsCopilotLockedPackage `
+        -ArtifactPath $CopilotIntegrationArtifactPath -Target $providerTarget `
+        -NodeModulesRoot $nodeModules `
+        -Name ([string]$Lock.components.copilotIntegration.package.name) `
+        -Version ([string]$Lock.components.copilotIntegration.package.version) `
+        -Sha256 ([string]$Lock.components.copilotIntegration.package.artifact.sha256) `
+        -ExpectedName ([string]$Lock.components.copilotIntegration.package.artifact.name) `
+        -ExpectedSize ([long]$Lock.components.copilotIntegration.package.artifact.size)
+    $desktopProviderInstall = Install-WindowsCopilotLockedPackage `
+        -ArtifactPath $CopilotIntegrationArtifactPath -Target $desktopProviderTarget `
+        -NodeModulesRoot $desktopNodeModules `
+        -Name ([string]$Lock.components.copilotIntegration.package.name) `
+        -Version ([string]$Lock.components.copilotIntegration.package.version) `
+        -Sha256 ([string]$Lock.components.copilotIntegration.package.artifact.sha256) `
+        -ExpectedName ([string]$Lock.components.copilotIntegration.package.artifact.name) `
+        -ExpectedSize ([long]$Lock.components.copilotIntegration.package.artifact.size)
+
+    foreach ($plugin in @($Lock.profile.plugins | Where-Object {
+        $_.materialize -eq $true -and
+        [string]$_.name -cne [string]$Lock.components.copilotIntegration.package.name
+    })) {
         $target = Join-Path $nodeModules ([string]$plugin.name)
         Install-WindowsCopilotLockedPackage `
             -ArtifactPath $CopilotIntegrationArtifactPath -Target $target `
@@ -2880,6 +2962,22 @@ function Set-WindowsCopilotProfile {
         backupRoot = $OperationRoot
         nodeModulesRoot = $nodeModules
         snapshots = @($snapshots)
+        profileRoots = [pscustomobject]@{
+            session = $profileRoot
+            desktopUi = $desktopProfileRoot
+        }
+        copilotIntegrationProfiles = @(
+            [pscustomobject]@{
+                profile = 'web'
+                role = 'locked-session-profile'
+                install = $providerInstall
+            },
+            [pscustomobject]@{
+                profile = 'desktop'
+                role = 'desktop-ui-profile'
+                install = $desktopProviderInstall
+            }
+        )
         includeCompanionSuite = [bool]$IncludeCompanionSuite
         companionSuite = @($companionStates)
     }
@@ -3404,8 +3502,38 @@ function Get-WindowsCopilotDesktopState {
     } else {
         $null
     }
+    $installerIdentity = Get-LockProperty -InputObject $Lock.components.desktop.releaseChannel -Name 'identity'
+    $packageRootPath = if ($env:LOCALAPPDATA -and $installerIdentity) {
+        $executableName = [string](Get-LockProperty -InputObject $installerIdentity -Name 'executableName')
+        if ($executableName) {
+            Join-Path (Join-Path $env:LOCALAPPDATA (Join-Path 'Programs' $executableName)) (
+                [string]$identity.relativePath
+            )
+        } else {
+            $null
+        }
+    } else {
+        $null
+    }
+    $lockedProductVersionPrefix = if ([string]$identity.productVersion -match '^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$') {
+        "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+    } else {
+        $null
+    }
+    $expectedComparableVersion = $null
+    foreach ($candidateExpected in @($expected, $lockedProductVersionPrefix)) {
+        if (-not $candidateExpected) { continue }
+        try {
+            $expectedComparableVersion = [version]$candidateExpected
+            break
+        } catch { }
+    }
     $discoveries = [Collections.Generic.List[object]]::new()
-    $candidatePaths = if ($Path) { @($Path) } else { @($canonicalPath) }
+    $candidatePaths = if ($Path) {
+        @($Path)
+    } else {
+        @($canonicalPath, $packageRootPath)
+    }
     foreach ($candidatePath in $candidatePaths) {
         if (-not $candidatePath -or -not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) { continue }
         $fullPath = [IO.Path]::GetFullPath($candidatePath)
@@ -3425,7 +3553,10 @@ function Get-WindowsCopilotDesktopState {
                 [string]$versionInfo.ProductName -ceq [string]$identity.productName -and
                 [string]$versionInfo.FileDescription -ceq [string]$identity.fileDescription -and
                 [string]$versionInfo.CompanyName -ceq [string]$identity.companyName -and
-                $version -ceq [string]$identity.productVersion
+                (
+                    $version -ceq [string]$identity.productVersion -or
+                    ($lockedProductVersionPrefix -and $version -ceq $lockedProductVersionPrefix)
+                )
             )
             $authenticodeValid = $signatureStatus -ceq [string]$identity.authenticodeStatus
             $resourcesPath = $null
@@ -3463,8 +3594,20 @@ function Get-WindowsCopilotDesktopState {
             }
             $discoveries.Add([pscustomobject]@{
                 path = $fullPath
-                source = if ($fullPath -ieq $canonicalPath) { 'canonical-official-path' } else { 'explicit-path' }
+                source = if ($Path) {
+                    'explicit-path'
+                } elseif ($fullPath -ieq $canonicalPath) {
+                    'canonical-official-path'
+                } elseif ($fullPath -ieq $packageRootPath) {
+                    'installer-package-root'
+                } else {
+                    'discovered-path'
+                }
                 version = $version
+                lockedVersionValid = [bool](
+                    $version -ceq $expected -or
+                    ($lockedProductVersionPrefix -and $version -ceq $lockedProductVersionPrefix)
+                )
                 size = [int64]$item.Length
                 sha256 = $sha256
                 authenticodeStatus = $signatureStatus
@@ -3487,15 +3630,26 @@ function Get-WindowsCopilotDesktopState {
         } catch {
             $discoveries.Add([pscustomobject]@{
                 path = $fullPath
-                source = if ($fullPath -ieq $canonicalPath) { 'canonical-official-path' } else { 'explicit-path' }
+                source = if ($Path) {
+                    'explicit-path'
+                } elseif ($fullPath -ieq $canonicalPath) {
+                    'canonical-official-path'
+                } elseif ($fullPath -ieq $packageRootPath) {
+                    'installer-package-root'
+                } else {
+                    'discovered-path'
+                }
                 version = $null
+                lockedVersionValid = $false
                 identityValid = $false
                 error = $_.Exception.Message
             })
         }
     }
     $newer = @($discoveries | Where-Object {
-        try { [version]$_.version -gt [version]$expected } catch { $false }
+        try {
+            $expectedComparableVersion -and [version]$_.version -gt $expectedComparableVersion
+        } catch { $false }
     })
     $selected = @($discoveries | Where-Object identityValid | Select-Object -First 1)
     if ($selected.Count -eq 0) {
@@ -3507,7 +3661,7 @@ function Get-WindowsCopilotDesktopState {
     $state = if ($selected.Count -gt 0) { $selected[0] } else { $null }
     $valid = [bool](
         $state -and $state.identityValid -and
-        [string]$state.version -ceq $expected -and
+        $state.lockedVersionValid -and
         $newer.Count -eq 0
     )
     return [pscustomobject]@{
@@ -3523,7 +3677,7 @@ function Get-WindowsCopilotDesktopState {
             'newer-than-lock'
         } elseif ($valid) {
             'locked'
-        } elseif ($state.version -ceq $expected) {
+        } elseif ($state.lockedVersionValid) {
             'identity-mismatch'
         } else {
             'version-mismatch'
@@ -3606,13 +3760,25 @@ function Get-WindowsCopilotCommandScriptPath {
 
 function Get-WindowsCopilotOfficialRuntimeState {
     [CmdletBinding()]
-    param([Parameter(Mandatory)]$Lock)
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [string]$DesktopExecutablePath
+    )
 
     $selector = Get-WindowsCopilotRuntimeSelector -Lock $Lock
     $root = [IO.Path]::GetFullPath(
         [Environment]::ExpandEnvironmentVariables([string]$selector.root)
     )
     if ([string]$selector.id -ceq 'desktop-fork-managed') {
+        if ($DesktopExecutablePath) {
+            $descriptorIdentity = Get-LockProperty -InputObject $Lock.components.desktop `
+                -Name 'installedRuntimeDescriptor'
+            if ($descriptorIdentity) {
+                $root = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $DesktopExecutablePath) (
+                    Split-Path -Parent ([string]$descriptorIdentity.relativePath)
+                )))
+            }
+        }
         $descriptorPath = [IO.Path]::GetFullPath((Join-Path $root ([string]$selector.descriptor.manifest)))
         $state = [ordered]@{
             valid = $false
@@ -3789,7 +3955,8 @@ function Get-WindowsCopilotDesktopRuntimeState {
         $_.CommandLine
     })
 
-    $official = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock
+    $official = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock `
+        -DesktopExecutablePath $DesktopExecutablePath
     $officialEntry = [string]$official.entryPath
     $candidates = @([pscustomobject]@{
         id = 'desktop-official'
@@ -3887,7 +4054,8 @@ function Test-WindowsCopilotOfficialRuntime {
         [switch]$SkipActiveCheck,
         [switch]$SkipRuntimeChecks
     )
-    $package = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock
+    $package = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock `
+        -DesktopExecutablePath $DesktopExecutablePath
     $active = if ($SkipRuntimeChecks -or $SkipActiveCheck) {
         [pscustomobject]@{ valid = $true; status = 'skipped'; packageRoot = $package.packageRoot }
     } elseif (-not $DesktopExecutablePath) {
@@ -5103,6 +5271,81 @@ function Test-WindowsCopilotVerificationAcceptance {
     }
 }
 
+function Get-WindowsCopilotProfileVisibilityState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DshHome,
+        [string[]]$ProfileNames = @('web', 'desktop')
+    )
+    $home = Resolve-DeploymentPath $DshHome
+    $expectedPluginNames = @(
+        @($Lock.profile.plugins | ForEach-Object { [string]$_.name }) +
+        @($Lock.profile.optionalOverlays | ForEach-Object { [string]$_.name }) |
+            Select-Object -Unique
+    )
+    $lockProfileName = [string]$Lock.profile.name
+    return @($ProfileNames | ForEach-Object {
+        $profileName = [string]$_
+        $profileRoot = Join-Path $home (Join-Path 'profiles' $profileName)
+        $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
+        $profile = $null
+        $status = 'missing'
+        try {
+            if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
+                $profile = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 |
+                    ConvertFrom-Json
+                $status = 'readable'
+            }
+        } catch {
+            $status = 'invalid'
+        }
+        $dependencies = if ($profile) { Get-LockProperty -InputObject $profile -Name 'dependencies' } else { $null }
+        $dependencyNames = if ($dependencies) {
+            @($dependencies.PSObject.Properties | ForEach-Object { [string]$_.Name })
+        } else { @() }
+        $dsh = if ($profile) { Get-LockProperty -InputObject $profile -Name 'dsh' } else { $null }
+        $profileSpec = if ($dsh) { Get-LockProperty -InputObject $dsh -Name 'profile' } else { $null }
+        $bundleNames = if ($profileSpec) { @(Get-LockProperty -InputObject $profileSpec -Name 'bundles') } else { @() }
+        $plugins = @($expectedPluginNames | ForEach-Object {
+            $name = [string]$_
+            $manifestPath = Join-Path $profileRoot (
+                'node_modules\' + $name.Replace('/', '\') + '\package.json'
+            )
+            $installedVersion = $null
+            if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+                try {
+                    $installedVersion = [string](
+                        Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 |
+                            ConvertFrom-Json
+                    ).version
+                } catch { }
+            }
+            [pscustomobject]@{
+                name = $name
+                dependencyPresent = [bool]($dependencyNames -contains $name)
+                bundlePresent = [bool]($bundleNames -contains $name)
+                installed = [bool]$installedVersion
+                installedVersion = $installedVersion
+                visibleAfterRestart = [bool]($bundleNames -contains $name -and $installedVersion)
+            }
+        })
+        [pscustomobject]@{
+            name = $profileName
+            root = $profileRoot
+            role = if ($profileName -ceq $lockProfileName) {
+                'locked-session-profile'
+            } elseif ($profileName -ceq 'desktop') {
+                'desktop-ui-profile'
+            } else {
+                'auxiliary-profile'
+            }
+            status = $status
+            plugins = @($plugins)
+        }
+    })
+}
+
 function Get-WindowsCopilotCompanionSuitePlan {
     [CmdletBinding()]
     param(
@@ -5913,7 +6156,8 @@ function Test-WindowsCopilotInstallation {
     $desktop = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
     $legacyGateway = Get-WindowsCopilotLegacyGatewayState -Lock $Lock `
         -Path $GatewayExecutablePath
-    $officialRuntime = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock
+    $officialRuntime = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock `
+        -DesktopExecutablePath ([string]$desktop.path)
     $credential = Test-DshCopilotCredentialRecord -DshHome $home
     $providerRoute = Get-DshCopilotRouteState -SettingsPath $settingsPath
     $profileCoherence = Test-WindowsCopilotProfileCoherence -Lock $Lock -DshHome $home
@@ -6286,6 +6530,7 @@ function Test-WindowsCopilotInstallation {
         -TargetCoreVersion $(if ($runtimeSelector.Count -eq 1) { [string]$runtimeSelector[0].package.version } else { '' }) `
         -TargetCoreCommit $(if ($runtimeSelector.Count -eq 1) { [string]$runtimeSelector[0].package.commit } else { '' }) `
         -ComposedConfigContent $composedContent
+    $profileVisibility = @(Get-WindowsCopilotProfileVisibilityState -Lock $Lock -DshHome $home)
 
     try {
         $searchCheck = if ($SearchSmokeResponsePath) {
@@ -6465,6 +6710,7 @@ function Test-WindowsCopilotInstallation {
             pluginInventory = @($pluginPolicy.inventory)
             pluginWarnings = @($pluginPolicy.warnings)
             pluginBlocks = @($pluginPolicy.blocking)
+            visibility = @($profileVisibility)
             pluginPolicy = [pscustomobject]@{
                 unmanagedDisposition = $pluginPolicy.unmanagedDisposition
                 target = $pluginPolicy.target
@@ -6844,6 +7090,7 @@ Export-ModuleMember -Function @(
     'Test-WindowsCopilotProfileCoherence',
     'Get-WindowsCopilotOptionalOverlayStates',
     'Get-WindowsCopilotProfilePluginPolicyState',
+    'Get-WindowsCopilotProfileVisibilityState',
     'Get-WindowsCopilotDesktopState',
     'Get-WindowsCopilotOfficialRuntimeState',
     'Get-WindowsCopilotDesktopRuntimeState',

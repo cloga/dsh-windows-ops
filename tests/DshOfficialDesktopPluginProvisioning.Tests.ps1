@@ -9,8 +9,11 @@ Describe 'Official Desktop plugin provisioning contract' {
 
     It 'loads one complete immutable Release contract and keeps Windows Ops/native modes exclusive' {
         $contract = Get-DshOfficialDesktopPluginContract -LockPath $lockPath
-        $contract.mode | Should -Be 'windowsOpsVerifiedRelease'
-        $contract.registry | Should -Be 'https://packagefeedproxy.microsoft.io/npm/'
+        $contract.mode | Should -Be 'desktopNativeVerifiedRelease'
+        $contract.registry | Should -BeNullOrEmpty
+        $contract.nativeCapability.verified | Should -BeTrue
+        $contract.nativeCapability.capability.id | Should -Be 'desktopNativeVerifiedRelease'
+        $contract.nativeCapability.capability.automaticProvisioning | Should -BeFalse
         $contract.package.version | Should -Be '0.4.0-alpha.18'
         $contract.artifact.releaseImmutable | Should -BeTrue
         $contract.artifact.releaseTag | Should -Be 'v0.4.0-alpha.18'
@@ -20,6 +23,10 @@ Describe 'Official Desktop plugin provisioning contract' {
         $contract.artifact.integrity | Should -Be 'sha512-FZdWZbb/K8jmE64Gwb9ZU+UADAqakAfqLXrru/qpLFSS4qC4LMO0uIcU1Kbsw1Cg55xf0q+ZSbn0y3cdyDzLXw=='
 
         $forged = Get-Content $lockPath -Raw | ConvertFrom-Json
+        $forged.components.copilotIntegration.desktopProvisioning.mode = 'windowsOpsVerifiedRelease'
+        $forged.components.copilotIntegration.desktopProvisioning.registry = 'https://packagefeedproxy.microsoft.io/npm/'
+        $forged.components.copilotIntegration.desktopProvisioning.allowedRedirectHosts =
+            @('github.com','release-assets.githubusercontent.com')
         $forged.components.copilotIntegration.desktopProvisioning.nativeCapability.verified = $true
         $path = Join-Path $TestDrive 'both-active.json'
         $forged | ConvertTo-Json -Depth 60 | Set-Content $path
@@ -27,6 +34,9 @@ Describe 'Official Desktop plugin provisioning contract' {
             Should -Throw '*native-capability-mode-mismatch*'
 
         $forged.components.copilotIntegration.desktopProvisioning.mode = 'desktopNativeVerifiedRelease'
+        $forged.components.copilotIntegration.desktopProvisioning.registry = $null
+        $forged.components.copilotIntegration.desktopProvisioning.allowedRedirectHosts =
+            @('github.com','objects.githubusercontent.com','release-assets.githubusercontent.com')
         $forged.components.copilotIntegration.desktopProvisioning.nativeCapability.verified = $false
         $forged | ConvertTo-Json -Depth 60 | Set-Content $path
         { Get-DshOfficialDesktopPluginContract -LockPath $path } |
@@ -190,7 +200,7 @@ Describe 'Official Desktop plugin artifact and transaction' {
             Should -Throw '*download-host-not-allowed*'
     }
 
-    It 'builds staging through pnpm, health checks, atomically activates, and writes a receipt' {
+    It 'delegates Apply to the native Desktop capability without mutating the profile' {
         $sharedHome = Join-Path $root 'shared-default-home'
         New-Item -ItemType Directory -Path $sharedHome -Force | Out-Null
         'preserve' | Set-Content (Join-Path $sharedHome 'sentinel.txt')
@@ -205,38 +215,23 @@ Describe 'Official Desktop plugin artifact and transaction' {
             $env:DSH_HOME=$oldDshHome;$env:HOME=$oldHome;$env:USERPROFILE=$oldUserProfile
             $env:APPDATA=$oldAppData;$env:LOCALAPPDATA=$oldLocalAppData
         }
-        $result.status | Should -Be 'complete'
-        $result.receipt.registry | Should -Be 'https://packagefeedproxy.microsoft.io/npm/'
-        $result.receipt.sharedHomeContentRead | Should -BeFalse
+        $result.status | Should -Be 'delegated'
+        $result.delegatedToDesktop | Should -BeTrue
+        $result.mutated | Should -BeFalse
         $pnpmRuns = @($runs | Where-Object { $_.arguments[0] -like '*pnpm.mjs' })
-        $pnpmRuns.Count | Should -BeGreaterOrEqual 2
-        @($pnpmRuns | Where-Object { $_.arguments -contains '--offline' }).Count | Should -Be 0
-        @($pnpmRuns | Where-Object {
-            $_.environment.NPM_CONFIG_REGISTRY -cne 'https://packagefeedproxy.microsoft.io/npm/' -or
-            $_.arguments -notcontains '--config.registry=https://packagefeedproxy.microsoft.io/npm/'
-        }).Count | Should -Be 0
+        $pnpmRuns.Count | Should -Be 0
         $profile = Join-Path $homeRoot 'profiles\desktop'
-        (Get-Content (Join-Path $profile 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles |
-            Should -Be @('@deepseek-ai/dsh-base','@deepseek-ai/dsh-web-app','dsh-github-copilot')
-        Test-Path (Join-Path $profile 'node_modules\dsh-github-copilot\package.json') | Should -BeTrue
+        Test-Path (Join-Path $profile 'package.json') | Should -BeFalse
+        Test-Path (Join-Path $profile 'node_modules\dsh-github-copilot\package.json') | Should -BeFalse
         Test-Path (Join-Path $homeRoot 'desktop\pending.json') | Should -BeFalse
         Test-Path (Join-Path $homeRoot 'desktop\rollback\profile') | Should -BeFalse
         Get-Content (Join-Path $sharedHome 'sentinel.txt') | Should -Be 'preserve'
         @(Get-ChildItem $sharedHome -Force).Count | Should -Be 1
         $healthRuns = @($runs | Where-Object { $_.arguments[0] -like '*dsh-official-desktop-plugin-health.mjs' })
-        $healthRuns.Count | Should -Be 2
-        foreach ($run in $healthRuns) {
-            $run.environment.DSH_HOME | Should -Not -Be $sharedHome
-            $run.environment.HOME | Should -Be $run.environment.DSH_HOME
-            $run.environment.USERPROFILE | Should -Be $run.environment.DSH_HOME
-            $healthRoot = Split-Path $run.environment.DSH_HOME -Parent
-            $run.environment.APPDATA | Should -Be (Join-Path $healthRoot 'appdata\Roaming')
-            $run.environment.LOCALAPPDATA | Should -Be (Join-Path $healthRoot 'appdata\Local')
-            Test-Path (Split-Path $run.environment.DSH_HOME -Parent) | Should -BeFalse
-        }
+        $healthRuns.Count | Should -Be 0
     }
 
-    It 'leaves the active profile unchanged when staging dependency installation fails' {
+    It 'does not enter the legacy pnpm failure path in native delegated mode' {
         $profile = Join-Path $homeRoot 'profiles\desktop'
         New-Item -ItemType Directory -Path (Join-Path $profile 'desktop-packages') -Force | Out-Null
         Copy-Item (Join-Path $seed '*') $profile -Recurse -Force
@@ -250,14 +245,15 @@ Describe 'Official Desktop plugin artifact and transaction' {
             }
             &$baseRun $file $arguments $workingDirectory $environment
         }.GetNewClosure()
-        { Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
-            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops } |
-            Should -Throw '*desktop-plugin-pnpm-failed:1*'
+        $result = Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
+            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops
+        $result.status | Should -Be 'delegated'
+        $result.mutated | Should -BeFalse
         Get-Content (Join-Path $profile 'original.txt') | Should -Be 'original'
         Test-Path (Join-Path $homeRoot 'desktop\pending.json') | Should -BeFalse
     }
 
-    It 'restores the previous profile when active health fails' {
+    It 'does not enter the legacy active-health rollback path in native delegated mode' {
         $profile = Join-Path $homeRoot 'profiles\desktop'
         New-Item -ItemType Directory -Path (Join-Path $profile 'desktop-packages'),(Join-Path $profile 'node_modules\old-plugin') -Force|Out-Null
         Copy-Item (Join-Path $seed '*') $profile -Recurse -Force
@@ -283,15 +279,16 @@ Describe 'Official Desktop plugin artifact and transaction' {
             }
             &$baseRun $file $arguments $workingDirectory $environment
         }.GetNewClosure()
-        {Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
-            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops} |
-            Should -Throw '*active-health-failed*'
+        $result = Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
+            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops
+        $result.status | Should -Be 'delegated'
+        $result.mutated | Should -BeFalse
         Get-Content (Join-Path $profile 'original.txt') | Should -Be 'original'
         Test-Path (Join-Path $homeRoot 'desktop\pending.json') | Should -BeFalse
         Test-Path (Join-Path $homeRoot 'desktop\rollback\profile') | Should -BeFalse
     }
 
-    It 'restores the previous profile and receipt when receipt commit fails' {
+    It 'does not write legacy receipts in native delegated mode' {
         $profile = Join-Path $homeRoot 'profiles\desktop'
         New-Item -ItemType Directory -Path (Join-Path $profile 'desktop-packages') -Force | Out-Null
         Copy-Item (Join-Path $seed '*') $profile -Recurse -Force
@@ -306,16 +303,17 @@ Describe 'Official Desktop plugin artifact and transaction' {
             &$baseWrite $path $value
         }.GetNewClosure()
 
-        { Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
-            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops } |
-            Should -Throw '*simulated-receipt-write-failure*'
+        $result = Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
+            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops
+        $result.status | Should -Be 'delegated'
+        $result.mutated | Should -BeFalse
         Get-Content (Join-Path $profile 'original.txt') | Should -Be 'original'
         (Get-Content $receiptPath -Raw | ConvertFrom-Json).status | Should -Be 'previous'
         Test-Path (Join-Path $homeRoot 'desktop\pending.json') | Should -BeFalse
         Test-Path (Join-Path $homeRoot 'desktop\rollback\profile') | Should -BeFalse
     }
 
-    It 'retains a receipt-committed journal when finalization cannot remove it' {
+    It 'does not create a legacy provisioning journal in native delegated mode' {
         $profile = Join-Path $homeRoot 'profiles\desktop'
         New-Item -ItemType Directory -Path (Join-Path $profile 'desktop-packages') -Force | Out-Null
         Copy-Item (Join-Path $seed '*') $profile -Recurse -Force
@@ -328,14 +326,13 @@ Describe 'Official Desktop plugin artifact and transaction' {
             &$baseRemoveFile $path
         }.GetNewClosure()
 
-        { Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
-            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops } |
-            Should -Throw '*finalization-recovery-required*'
-        Test-Path $pendingPath | Should -BeTrue
-        (Get-Content $pendingPath -Raw | ConvertFrom-Json).step | Should -Be 'receipt-committed'
-        Test-Path (Join-Path $profile 'original.txt') | Should -BeFalse
+        $result = Invoke-DshOfficialDesktopPluginProvisioning -Action Apply -DshHome $homeRoot `
+            -InstallRoot $install -DataRoot $data -ArtifactPath $artifact -Operations $ops
+        $result.status | Should -Be 'delegated'
+        $result.mutated | Should -BeFalse
+        Test-Path $pendingPath | Should -BeFalse
+        Test-Path (Join-Path $profile 'original.txt') | Should -BeTrue
         Test-Path (Join-Path $homeRoot 'desktop\rollback\profile') | Should -BeFalse
-        (Get-Content (Join-Path $data 'official-desktop-plugin-provisioning.json') -Raw | ConvertFrom-Json).status |
-            Should -Be 'complete'
+        Test-Path (Join-Path $data 'official-desktop-plugin-provisioning.json') | Should -BeFalse
     }
 }

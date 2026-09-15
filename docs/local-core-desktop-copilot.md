@@ -7,18 +7,18 @@ For the V3 account/Session model separation and removal of an existing extra nat
 ## Authoritative baseline
 
 [`deployments/windows-copilot.lock.json`](../deployments/windows-copilot.lock.json)
-is the machine-readable deployment contract, verified on **2026-09-04**.
+is the machine-readable deployment contract, verified on **2026-09-15**.
 
 | Component | Locked identity |
 |---|---|
-| Desktop | official `0.10.3`, release tag `v0.10.3`, commit `113dc8f77095e765f4f55e233d8455e7ad9204ae` |
-| Desktop artifact | [`Deepseek.Harness.Desktop_0.10.3_x64-setup.exe`](https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v0.10.3/Deepseek.Harness.Desktop_0.10.3_x64-setup.exe), SHA-256 `ce4328448a948e6df904548455a32b81f9905908f3b8562f8e8fdfdbac3bfb90` |
-| Desktop-managed runtime | root `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh`; wrapper `deepseek-harness-pkg@0.1.2-alpha.5`; inner official `@deepseek-ai/dsh@0.1.2-rc.1` |
-| Installed Desktop | executable 23,059,456 bytes, SHA-256 `d191cb2729f53c4fa889fab62c48af38979812f5560d0bb8f8ad4cadeff8b5df`; `resources` 1,765 files / 13,008,656 bytes, tree SHA-256 `29323493802cc7d75fd02a762066d7be8f0da1ac86e1fe1f8f44e2ea15d074ef` |
-| Runtime attestation | complete wrapper closure 10,347 files / 134,066,533 bytes, tree SHA-256 `b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d`, zero reparse directories; inner package 10 files, tree SHA-256 `4f5b21b9a7f0aee7908e8ebf915903f39cb85b755d6cb2ef200fc0afd6d602ea`; entrypoint 8,021 bytes, SHA-256 `dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166` |
+| Desktop | fork-owned `0.1.5-rc.3.cloga.1`, release tag `dsh-desktop-v0.1.5-rc.3.cloga.1`, commit `87506730d5f511316bac5ea623610e124908c657` |
+| Desktop artifact | [`cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.1/cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe), SHA-256 `432fdc5f438ce4e9d984ff36546c42d4a43bb571f15230bfa127b133623e8367` |
+| Desktop-managed runtime | default root `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`, but the installer is interactive and may use a different `$INSTDIR`; Windows Ops follows the actual installed `cloga-deepseek-harness.exe` path |
+| Installed Desktop | executable SHA-256 `f77b28611cba6210f6441318db7453d32ff7b2c4cf58fd58ce0b44e743f25434`; runtime descriptor `resources\dsh\desktop-runtime.json` SHA-256 `210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836` |
+| Runtime attestation | fork release manifest schema 3, self SHA-256 `753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc`, raw SHA-256 `234caae905de71144e4dc4b6ecdfebf567c6cfdf7dad546c0d766fa7dd2937b3`; bundled CLI baseline `@deepseek-ai/dsh@0.1.5-rc.2` |
 | Copilot plugin | `dsh-github-copilot@0.4.0-alpha.18`, PR #120, source/merge/release commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704` |
 | Plugin artifact | Immutable Release [`dsh-github-copilot-0.4.0-alpha.18.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/dsh-github-copilot-0.4.0-alpha.18.tgz), 538,911 bytes, SHA-256 `2ca4f604e89eda3000cf2a51d79871cee3cb721fa6f4324fc9a1197926c359a8`, SHA-512 SRI `sha512-FZdWZbb/K8jmE64Gwb9ZU+UADAqakAfqLXrru/qpLFSS4qC4LMO0uIcU1Kbsw1Cg55xf0q+ZSbn0y3cdyDzLXw==`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/SHA256SUMS), digest `caf7a63a46764b499df15acd6eca020b449ca34bd868f7064712c29df53a5293` |
-| Desktop internal plugins | eight official `0.6.7` Profile links, including `dsh-tauri-panel-scheduler`, plus the non-bundled panel placeholder under `resources\node_modules` |
+| Desktop native capability | `desktopNativeVerifiedRelease`; generic plugin compatibility evidence is present, `automaticProvisioning=false`, and Windows Ops no longer mutates the Desktop profile through the external workaround |
 
 Do not independently upgrade or substitute a locked component. Update the lock,
 catalog, fixtures, tests, and explanatory guides together only after a new
@@ -172,10 +172,10 @@ The one-command check is read-only:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1
 ```
 
-Check mode validates the lock, official Desktop, Desktop-managed wrapper/tree/
-entrypoint, all eight official Profile links and the non-bundled placeholder,
-the direct Copilot package and composed profiles, credential-record metadata,
-the reference-free route, and the exact active Desktop PID owning IPv4
+Check mode validates the lock, fork-owned Desktop release, installed executable
+hash, Desktop-managed runtime descriptor, native provisioning capability, the
+direct Copilot package and composed profiles, credential-record metadata, the
+reference-free route, and the exact active Desktop PID owning IPv4
 `127.0.0.1:3080`. An absent managed runtime, managed identity/payload drift,
 wrong path, stale process, non-owning PID, IPv6-only listener, or legacy gateway
 fails closed. User-installed plugins are reported separately as unmanaged
@@ -202,7 +202,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 Use only the plugin source checkout at
 `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`, the immutable plugin Release
-tarball, and the official Desktop 0.10.3 artifact:
+tarball, and the fork-owned Desktop artifact:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -210,7 +210,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -Apply `
   -CopilotIntegrationSourceRoot C:\src\dsh-github-copilot `
   -CopilotIntegrationArtifactPath C:\artifacts\dsh-github-copilot-0.4.0-alpha.18.tgz `
-  -DesktopArtifactPath C:\artifacts\Deepseek.Harness.Desktop_0.10.3_x64-setup.exe `
+  -DesktopArtifactPath C:\artifacts\cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe `
   -IncludeCompanionSuite `
   -BackupRoot C:\dsh-ops-backups
 ```
@@ -220,9 +220,9 @@ Playwright Host overlays into the same Copilot Apply plan, backup operation, and
 rollback receipt. Exact identities come from the deployment lock; the installer
 does not invoke a second opaque installer. Without the switch, the base remains
 Copilot-only. Apply verifies source metadata and immutable Release bytes,
-installs Desktop and the selected companions, preserves the eight official
-Profile links and non-bundled placeholder, and attests the official
-Desktop-managed runtime. It never builds, installs, or selects a DSH runtime.
+installs Desktop and the selected companions, preserves native Desktop
+delegation, and attests the fork-owned Desktop-managed runtime descriptor. It
+never builds, installs, or selects a second DSH runtime.
 
 Add `-RestartDesktop` only when a restart is intended. Before stopping any
 process, the installer queries the live `session/list` API. Every running
@@ -343,8 +343,8 @@ python tools\dsh-web-smoke.py --expect-text "New Session" `
   --fail-on-console-error --fail-on-request-failure --fail-on-http-error
 ```
 
-Verify attests official Desktop 0.10.3, its managed wrapper/tree/entrypoint, the
-plugin and Profile contract, and the exact active PID owning IPv4
+Verify attests fork-owned Desktop `0.1.5-rc.3.cloga.1`, its managed runtime
+descriptor, the plugin/native delegation contract, and the exact active PID owning IPv4
 `127.0.0.1:3080`. It does not install or select another runtime. Check or Verify
 may report drift or `sign-in-required` on an unprepared machine; that is
 expected fail-closed behavior, not a success-shaped fallback.

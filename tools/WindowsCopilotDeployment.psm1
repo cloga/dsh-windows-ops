@@ -19,9 +19,9 @@ function Get-WindowsCopilotRuntimeSelector {
     param([Parameter(Mandatory)]$Lock)
     $selectors = @($Lock.components.desktop.runtimeSelectors)
     if ($selectors.Count -ne 1 -or
-        [string]$Lock.components.desktop.defaultRuntimeSelector -cne 'desktop-official' -or
-        [string]$selectors[0].id -cne 'desktop-official') {
-        throw 'The deployment lock must define only the desktop-official runtime selector.'
+        [string]$Lock.components.desktop.defaultRuntimeSelector -cne [string]$selectors[0].id -or
+        [string]$selectors[0].id -notin @('desktop-official', 'desktop-fork-managed')) {
+        throw 'The deployment lock must define one reviewed Desktop runtime selector.'
     }
     return $selectors[0]
 }
@@ -83,18 +83,11 @@ function Test-WindowsCopilotLock {
         'components.desktop.artifact.size',
         'components.desktop.installedExecutable.relativePath',
         'components.desktop.installedExecutable.sha256',
-        'components.desktop.installedExecutable.size',
         'components.desktop.installedExecutable.productName',
         'components.desktop.installedExecutable.fileDescription',
         'components.desktop.installedExecutable.companyName',
         'components.desktop.installedExecutable.productVersion',
         'components.desktop.installedExecutable.authenticodeStatus',
-        'components.desktop.installedResources.relativePath',
-        'components.desktop.installedResources.fileCount',
-        'components.desktop.installedResources.totalBytes',
-        'components.desktop.installedResources.treeSha256',
-        'components.desktop.installedResources.reparseDirectoryCount',
-        'components.desktop.install.arguments',
         'components.desktop.install.acceptedExitCodes',
         'components.desktop.install.sideEffects.registryKeys',
         'components.desktop.install.sideEffects.shortcuts',
@@ -119,7 +112,6 @@ function Test-WindowsCopilotLock {
         'platform.verifiedWith.npm',
         'platform.verifiedWith.pnpm',
         'platform.observedCompatible.node',
-        'components.desktop.shippedDependencies',
         'components.copilotIntegration.package.artifact.sha256',
         'components.copilotIntegration.package.artifact.releaseTag',
         'components.copilotIntegration.package.artifact.releaseCommit',
@@ -224,18 +216,44 @@ function Test-WindowsCopilotLock {
         [string]$Lock.platform.observedCompatible.pnpm -cne '11.7.0') {
         throw 'Platform contract must separate runtime compatibility from exact build-tool evidence.'
     }
-    $desktopVersion = [string]$Lock.components.desktop.version
-    $expectedDesktopArtifactName = "Deepseek.Harness.Desktop_${desktopVersion}_x64-setup.exe"
-    $expectedDesktopArtifactUrl =
-        "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v${desktopVersion}/${expectedDesktopArtifactName}"
-    if ($desktopVersion -cne '0.10.3' -or
-        [string]$Lock.components.desktop.source.releaseTag -cne 'v0.10.3' -or
-        [string]$Lock.components.desktop.artifact.name -cne $expectedDesktopArtifactName -or
-        [string]$Lock.components.desktop.artifact.url -cne $expectedDesktopArtifactUrl) {
-        throw 'Desktop identity must match the official 0.10.3 Release.'
+    $desktop = $Lock.components.desktop
+    $desktopVersion = [string]$desktop.version
+    $desktopSourceRepository = [string]$desktop.source.repository
+    if ($desktopSourceRepository -ceq 'https://github.com/dsh-tauri-desk/deepseek-harness-desktop') {
+        $expectedDesktopArtifactName = "Deepseek.Harness.Desktop_${desktopVersion}_x64-setup.exe"
+        $expectedDesktopArtifactUrl =
+            "https://github.com/dsh-tauri-desk/deepseek-harness-desktop/releases/download/v${desktopVersion}/${expectedDesktopArtifactName}"
+        if ($desktopVersion -cne '0.10.3' -or
+            [string]$desktop.source.releaseTag -cne 'v0.10.3' -or
+            [string]$desktop.artifact.name -cne $expectedDesktopArtifactName -or
+            [string]$desktop.artifact.url -cne $expectedDesktopArtifactUrl) {
+            throw 'Desktop identity must match the official 0.10.3 Release.'
+        }
+    } elseif ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness') {
+        $channel = $desktop.releaseChannel
+        if ($desktopVersion -cne '0.1.5-rc.3.cloga.1' -or
+            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.1' -or
+            [string]$desktop.source.commit -cne '87506730d5f511316bac5ea623610e124908c657' -or
+            [string]$desktop.source.reviewedHead -cne '679110798316e8e455d95535a4f25a90315b652d' -or
+            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe' -or
+            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.1/cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe' -or
+            [string]$desktop.artifact.sha256 -cne '432fdc5f438ce4e9d984ff36546c42d4a43bb571f15230bfa127b133623e8367' -or
+            [long]$desktop.artifact.size -ne 180145810 -or
+            $desktop.artifact.releaseImmutable -ne $true -or
+            [int]$channel.schemaVersion -ne 3 -or
+            [string]$channel.owner -cne 'cloga/deepseek-harness' -or
+            [string]$channel.mode -cne 'interactive-windows-installer' -or
+            [int]$channel.sequence -ne 2 -or
+            [string]$channel.manifestRawSha256 -cne '234caae905de71144e4dc4b6ecdfebf567c6cfdf7dad546c0d766fa7dd2937b3' -or
+            [string]$channel.manifestSha256 -cne '753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc') {
+            throw 'Desktop identity must match the immutable cloga fork-owned 0.1.5 release.'
+        }
+    } else {
+        throw 'Desktop source repository is not reviewed.'
     }
     $installedDesktop = $Lock.components.desktop.installedExecutable
-    if ([string]$installedDesktop.relativePath -cne 'deepseek-harness-desktop.exe' -or
+    if ($desktopSourceRepository -ceq 'https://github.com/dsh-tauri-desk/deepseek-harness-desktop' -and (
+        [string]$installedDesktop.relativePath -cne 'deepseek-harness-desktop.exe' -or
         [string]$installedDesktop.sha256 -cne
             'd191cb2729f53c4fa889fab62c48af38979812f5560d0bb8f8ad4cadeff8b5df' -or
         [int64]$installedDesktop.size -ne 23059456 -or
@@ -243,8 +261,20 @@ function Test-WindowsCopilotLock {
         [string]$installedDesktop.fileDescription -cne 'Deepseek Harness Desktop' -or
         [string]$installedDesktop.companyName -cne 'github' -or
         [string]$installedDesktop.productVersion -cne '0.10.3' -or
-        [string]$installedDesktop.authenticodeStatus -cne 'NotSigned') {
+        [string]$installedDesktop.authenticodeStatus -cne 'NotSigned')) {
         throw 'Installed Desktop executable identity must match the reviewed official 0.10.3 bytes.'
+    }
+    if ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness' -and (
+        [string]$installedDesktop.relativePath -cne 'cloga-deepseek-harness.exe' -or
+        [string]$installedDesktop.sha256 -cne
+            'f77b28611cba6210f6441318db7453d32ff7b2c4cf58fd58ce0b44e743f25434' -or
+        [string]$installedDesktop.productName -cne 'DeepSeek Harness (cloga)' -or
+        [string]$installedDesktop.productVersion -cne '0.1.5-rc.3.cloga.1' -or
+        [string]$installedDesktop.authenticodeStatus -cne 'NotSigned' -or
+        [string]$desktop.installedRuntimeDescriptor.relativePath -cne 'resources\dsh\desktop-runtime.json' -or
+        [string]$desktop.installedRuntimeDescriptor.sha256 -cne
+            '210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836')) {
+        throw 'Installed Desktop executable identity must match the reviewed cloga fork release evidence.'
     }
     $copilotSource = $Lock.components.copilotIntegration.source
     if ([string]$copilotSource.repository -cne 'https://github.com/cloga/dsh-github-copilot' -or
@@ -296,12 +326,14 @@ function Test-WindowsCopilotLock {
     $runtimeEscalationProperties = @(
         $runtimeSchema.behavior.escalationProperties | ForEach-Object { [string]$_ }
     )
-    if ([string]$runtimeSchema.scope -cne 'desktop-official' -or
-        [string]$runtimeSchema.releaseStatus -cne 'official-desktop-managed' -or
+    $forkRuntime = [string]$runtimeSchema.releaseStatus -ceq 'fork-desktop-managed-release'
+    if ([string]$runtimeSchema.scope -cne [string]$runtimeSelector.id -or
         [string]$runtimeSchema.root -cne [string]$runtimeSelector.root -or
-        [string]$runtimeSchema.source.repository -cne 'github.com/deepseek-ai/deepseek-harness' -or
-        [string]$runtimeSchema.source.releaseTag -cne [string]$runtimeSelector.package.releaseTag -or
         [string]$runtimeSchema.source.commit -cne [string]$runtimeSelector.package.commit -or
+        (-not $forkRuntime -and (
+        [string]$runtimeSchema.source.releaseTag -cne [string]$runtimeSelector.package.releaseTag -or
+        [string]$runtimeSchema.releaseStatus -cne 'official-desktop-managed' -or
+        [string]$runtimeSchema.source.repository -cne 'github.com/deepseek-ai/deepseek-harness' -or
         [string]$runtimeSchema.wrapper.name -cne [string]$runtimeSelector.rootPackage.name -or
         [string]$runtimeSchema.wrapper.version -cne [string]$runtimeSelector.rootPackage.version -or
         [string]$runtimeSchema.wrapper.manifest -cne [string]$runtimeSelector.rootPackage.manifest -or
@@ -328,7 +360,13 @@ function Test-WindowsCopilotLock {
                 [int64]$_.size -eq [int64]$expected.size -and
                 [string]$_.sha256 -ceq [string]$expected.sha256
             }).Count -ne 1
-        }).Count -gt 0 -or
+        }).Count -gt 0)) -or
+        ($forkRuntime -and (
+            [string]$runtimeSchema.source.repository -cne 'github.com/cloga/deepseek-harness' -or
+            [string]$runtimeSchema.source.releaseTag -cne [string]$Lock.components.desktop.source.releaseTag -or
+            [string]$runtimeSelector.descriptor.manifest -cne 'desktop-runtime.json' -or
+            [string]$runtimeSelector.descriptor.sha256 -cne
+                [string]$Lock.components.desktop.installedRuntimeDescriptor.sha256)) -or
         $runtimeEscalationProperties.Count -ne 2 -or
         $runtimeEscalationProperties -cnotcontains 'sandbox_permissions' -or
         $runtimeEscalationProperties -cnotcontains 'justification' -or
@@ -369,37 +407,51 @@ function Test-WindowsCopilotLock {
         throw 'The deployment lock must not define a separately managed Core.'
     }
     $officialSelector = Get-WindowsCopilotRuntimeSelector -Lock $Lock
-    if ([string]$officialSelector.id -cne 'desktop-official' -or
-        [string]$officialSelector.source -cne 'desktop-managed-download' -or
-        [string]$officialSelector.desktopVersion -cne [string]$Lock.components.desktop.version -or
-        [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
-        [string]$officialSelector.package.version -cne
-            [string]$Lock.components.copilotIntegration.package.deploymentBaseline.dshDevelopmentRelease -or
-        [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.2-rc.1' -or
-        [string]$officialSelector.package.commit -cne
-            'a66e4702047846cdaa10c66c9d3df3951f5ea70d' -or
-        [string]$officialSelector.root -cne
-            '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh' -or
-        [string]$officialSelector.rootPackage.name -cne 'deepseek-harness-pkg' -or
-        [string]$officialSelector.rootPackage.version -cne '0.1.2-alpha.5' -or
-        [string]$officialSelector.rootPackage.manifest -cne 'package.json' -or
-        [string]$officialSelector.rootPackage.manifestSha256 -cne
-            'bcfbd3f14511fa9470ea748303a8f9c6307121d2741990823089c5677291e8ba' -or
-        [int]$officialSelector.rootPackage.fileCount -ne 10347 -or
-        [int64]$officialSelector.rootPackage.totalBytes -ne 134066533 -or
-        [string]$officialSelector.rootPackage.treeSha256 -cne
-            'b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d' -or
-        [int]$officialSelector.rootPackage.reparseDirectoryCount -ne 0 -or
-        [string]$officialSelector.package.manifest -cne
-            'node_modules\@deepseek-ai\dsh\package.json' -or
-        [string]$officialSelector.package.entrypoint -cne
-            'node_modules\@deepseek-ai\dsh\lib\bin.js' -or
-        [int]$officialSelector.package.fileCount -le 0 -or
-        [string]$officialSelector.package.treeSha256 -notmatch '^[0-9a-f]{64}$' -or
-        [int]$officialSelector.package.entrypointSize -ne 8021 -or
-        [string]$officialSelector.package.entrypointSha256 -cne
-            'dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166') {
-        throw 'The Desktop official runtime selector does not match the reviewed Desktop 0.10.3 dependency contract.'
+    if ([string]$officialSelector.id -ceq 'desktop-official') {
+        if ([string]$officialSelector.source -cne 'desktop-managed-download' -or
+            [string]$officialSelector.desktopVersion -cne [string]$Lock.components.desktop.version -or
+            [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
+            [string]$officialSelector.package.version -cne
+                [string]$Lock.components.copilotIntegration.package.deploymentBaseline.dshDevelopmentRelease -or
+            [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.2-rc.1' -or
+            [string]$officialSelector.package.commit -cne
+                'a66e4702047846cdaa10c66c9d3df3951f5ea70d' -or
+            [string]$officialSelector.root -cne
+                '%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh' -or
+            [string]$officialSelector.rootPackage.name -cne 'deepseek-harness-pkg' -or
+            [string]$officialSelector.rootPackage.version -cne '0.1.2-alpha.5' -or
+            [string]$officialSelector.rootPackage.manifest -cne 'package.json' -or
+            [string]$officialSelector.rootPackage.manifestSha256 -cne
+                'bcfbd3f14511fa9470ea748303a8f9c6307121d2741990823089c5677291e8ba' -or
+            [int]$officialSelector.rootPackage.fileCount -ne 10347 -or
+            [int64]$officialSelector.rootPackage.totalBytes -ne 134066533 -or
+            [string]$officialSelector.rootPackage.treeSha256 -cne
+                'b0f32889536e1bce92a6bc032b11a6865e946015b44de5db4397f080e309c86d' -or
+            [int]$officialSelector.rootPackage.reparseDirectoryCount -ne 0 -or
+            [string]$officialSelector.package.manifest -cne
+                'node_modules\@deepseek-ai\dsh\package.json' -or
+            [string]$officialSelector.package.entrypoint -cne
+                'node_modules\@deepseek-ai\dsh\lib\bin.js' -or
+            [int]$officialSelector.package.fileCount -le 0 -or
+            [string]$officialSelector.package.treeSha256 -notmatch '^[0-9a-f]{64}$' -or
+            [int]$officialSelector.package.entrypointSize -ne 8021 -or
+            [string]$officialSelector.package.entrypointSha256 -cne
+                'dc23f6c5dd7df8834e3e38bdb9609d77b459834681ae9b7133b417b0c35f3166') {
+            throw 'The Desktop official runtime selector does not match the reviewed Desktop 0.10.3 dependency contract.'
+        }
+    } elseif ([string]$officialSelector.id -ceq 'desktop-fork-managed') {
+        if ([string]$officialSelector.source -cne 'desktop-managed-release' -or
+            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.1' -or
+            [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
+            [string]$officialSelector.package.version -cne '0.1.5-rc.2' -or
+            [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.5-rc.2' -or
+            [string]$officialSelector.descriptor.manifest -cne 'desktop-runtime.json' -or
+            [string]$officialSelector.descriptor.sha256 -cne
+                [string]$Lock.components.desktop.installedRuntimeDescriptor.sha256) {
+            throw 'The Desktop fork runtime selector does not match the reviewed fork release contract.'
+        }
+    } else {
+        throw 'The deployment lock uses an unreviewed Desktop runtime selector.'
     }
     $expectedProviderArtifactUrl = 'https://github.com/cloga/dsh-github-copilot/releases/download/v' +
         [string]$Lock.components.copilotIntegration.package.version + '/' +
@@ -457,18 +509,23 @@ function Test-WindowsCopilotLock {
             throw 'Provider build contract must run the complete plugin verification gate before packing.'
         }
     }
-    if (@($Lock.components.desktop.install.arguments).Count -eq 0 -or
+    $forkDesktop = [string]$Lock.components.desktop.source.repository -ceq 'https://github.com/cloga/deepseek-harness'
+    if ((-not $forkDesktop -and @($Lock.components.desktop.install.arguments).Count -eq 0) -or
         @($Lock.components.desktop.install.acceptedExitCodes).Count -eq 0) {
         throw 'Desktop install arguments and accepted exit codes must be locked.'
     }
+    $expectedUninstallKey = if ($forkDesktop) {
+        'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\cloga-deepseek-harness-desktop'
+    } else {
+        'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Deepseek Harness Desktop'
+    }
+    $expectedShortcutCount = if ($forkDesktop) { 1 } else { 2 }
     if (@($Lock.components.desktop.install.sideEffects.registryKeys).Count -ne 1 -or
-        [string]$Lock.components.desktop.install.sideEffects.registryKeys[0] -cne
-            'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Deepseek Harness Desktop' -or
-        @($Lock.components.desktop.install.sideEffects.shortcuts).Count -ne 2 -or
-        @($Lock.components.desktop.install.sideEffects.shortcuts.specialFolder) -cnotcontains
-            'Desktop' -or
-        @($Lock.components.desktop.install.sideEffects.shortcuts.specialFolder) -cnotcontains
-            'Programs') {
+        [string]$Lock.components.desktop.install.sideEffects.registryKeys[0] -cne $expectedUninstallKey -or
+        @($Lock.components.desktop.install.sideEffects.shortcuts).Count -ne $expectedShortcutCount -or
+        @($Lock.components.desktop.install.sideEffects.shortcuts.specialFolder) -cnotcontains 'Programs' -or
+        ((-not $forkDesktop) -and
+            @($Lock.components.desktop.install.sideEffects.shortcuts.specialFolder) -cnotcontains 'Desktop')) {
         throw 'Desktop installer side effects must lock its uninstall key and shortcuts.'
     }
 
@@ -525,39 +582,48 @@ function Test-WindowsCopilotLock {
         'dsh-tauri-worktree'
     )
     $internalPlugins = @($Lock.components.desktop.internalPlugins)
-    if ($internalPlugins.Count -ne $internalPluginNames.Count) {
-        throw 'Desktop must lock exactly eight official profile plugins.'
-    }
-    foreach ($name in $internalPluginNames) {
-        $matches = @($internalPlugins | Where-Object {
-            [string]$_.name -ceq $name -and [string]$_.version -ceq '0.6.7' -and
-            [string]$_.relativePath -ceq "resources\node_modules\$name"
-        })
-        if ($matches.Count -ne 1) { throw "Desktop internal-plugin contract omits '$name@0.6.7'." }
-    }
     $shippedDependencies = @($Lock.components.desktop.shippedDependencies)
-    if ($shippedDependencies.Count -ne 1 -or
-        [string]$shippedDependencies[0].name -cne 'dsh-tauri-panel-placeholder' -or
-        [string]$shippedDependencies[0].version -cne '0.6.7' -or
-        [string]$shippedDependencies[0].relativePath -cne
-            'resources\node_modules\dsh-tauri-panel-placeholder' -or
-        $shippedDependencies[0].profileBundle -ne $false) {
-        throw 'Desktop shipped-dependency contract must attest the non-bundled panel placeholder.'
+    $forkDesktop = [string]$Lock.components.desktop.source.repository -ceq 'https://github.com/cloga/deepseek-harness'
+    if ($forkDesktop) {
+        if ($internalPlugins.Count -ne 0 -or $shippedDependencies.Count -ne 0) {
+            throw 'Fork-owned Desktop native release must not reuse the legacy official internal-plugin lock.'
+        }
+    } else {
+        if ($internalPlugins.Count -ne $internalPluginNames.Count) {
+            throw 'Desktop must lock exactly eight official profile plugins.'
+        }
+        foreach ($name in $internalPluginNames) {
+            $matches = @($internalPlugins | Where-Object {
+                [string]$_.name -ceq $name -and [string]$_.version -ceq '0.6.7' -and
+                [string]$_.relativePath -ceq "resources\node_modules\$name"
+            })
+            if ($matches.Count -ne 1) { throw "Desktop internal-plugin contract omits '$name@0.6.7'." }
+        }
+        if ($shippedDependencies.Count -ne 1 -or
+            [string]$shippedDependencies[0].name -cne 'dsh-tauri-panel-placeholder' -or
+            [string]$shippedDependencies[0].version -cne '0.6.7' -or
+            [string]$shippedDependencies[0].relativePath -cne
+                'resources\node_modules\dsh-tauri-panel-placeholder' -or
+            $shippedDependencies[0].profileBundle -ne $false) {
+            throw 'Desktop shipped-dependency contract must attest the non-bundled panel placeholder.'
+        }
     }
 
     $copilotPackageName = [string]$Lock.components.copilotIntegration.package.name
-    $requiredPlugins = @($internalPluginNames + $copilotPackageName)
+    $requiredPlugins = @(if ($forkDesktop) { $copilotPackageName } else { $internalPluginNames + $copilotPackageName })
     $plugins = @($Lock.profile.plugins)
     if ($plugins.Count -ne $requiredPlugins.Count) {
-        throw 'Profile must define exactly eight official Desktop links and the Copilot plugin.'
+        throw 'Profile must define the reviewed Desktop plugin surface.'
     }
-    foreach ($name in $internalPluginNames) {
-        $matches = @($plugins | Where-Object {
-            [string]$_.name -ceq $name -and [string]$_.version -ceq '0.6.7' -and
-            [string]$_.source -ceq 'desktop-internal' -and $_.materialize -eq $false -and
-            $_.preserve -eq $true
-        })
-        if ($matches.Count -ne 1) { throw "Profile must preserve official Desktop plugin '$name' exactly once." }
+    if (-not $forkDesktop) {
+        foreach ($name in $internalPluginNames) {
+            $matches = @($plugins | Where-Object {
+                [string]$_.name -ceq $name -and [string]$_.version -ceq '0.6.7' -and
+                [string]$_.source -ceq 'desktop-internal' -and $_.materialize -eq $false -and
+                $_.preserve -eq $true
+            })
+            if ($matches.Count -ne 1) { throw "Profile must preserve official Desktop plugin '$name' exactly once." }
+        }
     }
     $expectedLegacyPlugins = [ordered]@{
         'dsh-tauri' = '0.2.0'
@@ -576,11 +642,13 @@ function Test-WindowsCopilotLock {
         }
     }
     $providerPlugins = @($plugins | Where-Object {
-        [string]$_.name -ceq $copilotPackageName -and
-        [string]$_.source -ceq 'built-artifact' -and $_.materialize -eq $true
+        [string]$_.name -ceq $copilotPackageName -and (
+            ((-not $forkDesktop) -and [string]$_.source -ceq 'built-artifact' -and $_.materialize -eq $true) -or
+            ($forkDesktop -and [string]$_.source -ceq 'desktop-native-verified-release' -and $_.materialize -eq $false -and $_.preserve -eq $true)
+        )
     })
     if ($providerPlugins.Count -ne 1) {
-        throw "Profile must physically materialize $copilotPackageName exactly once."
+        throw "Profile must define $copilotPackageName exactly once for the active Desktop provisioning mode."
     }
     $legacyCopilotIntegrations = @($Lock.profile.legacyCopilotIntegrations)
     $expectedLegacyIdentities = @(
@@ -3325,9 +3393,14 @@ function Get-WindowsCopilotDesktopState {
     )
     $expected = [string]$Lock.components.desktop.version
     $identity = $Lock.components.desktop.installedExecutable
-    $resourcesIdentity = $Lock.components.desktop.installedResources
+    $resourcesIdentity = Get-LockProperty -InputObject $Lock.components.desktop -Name 'installedResources'
+    $runtimeDescriptorIdentity = Get-LockProperty -InputObject $Lock.components.desktop -Name 'installedRuntimeDescriptor'
     $canonicalPath = if ($env:LOCALAPPDATA) {
-        Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+        if ([string]$identity.relativePath -ceq 'cloga-deepseek-harness.exe') {
+            Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness (cloga)\cloga-deepseek-harness.exe'
+        } else {
+            Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
+        }
     } else {
         $null
     }
@@ -3344,10 +3417,10 @@ function Get-WindowsCopilotDesktopState {
             $sha256 = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
             $signatureStatus = [string](Get-AuthenticodeSignature -FilePath $fullPath -ErrorAction Stop).Status
             $version = [string]$versionInfo.ProductVersion
-            $bytesValid = [bool](
-                [int64]$item.Length -eq [int64]$identity.size -and
-                $sha256 -ceq [string]$identity.sha256
-            )
+            $expectedSize = Get-LockProperty -InputObject $identity -Name 'size'
+            $bytesValid = [bool]($sha256 -ceq [string]$identity.sha256 -and (
+                $null -eq $expectedSize -or [int64]$item.Length -eq [int64]$expectedSize
+            ))
             $metadataValid = [bool](
                 [string]$versionInfo.ProductName -ceq [string]$identity.productName -and
                 [string]$versionInfo.FileDescription -ceq [string]$identity.fileDescription -and
@@ -3355,17 +3428,39 @@ function Get-WindowsCopilotDesktopState {
                 $version -ceq [string]$identity.productVersion
             )
             $authenticodeValid = $signatureStatus -ceq [string]$identity.authenticodeStatus
-            $resourcesPath = Join-Path (Split-Path -Parent $fullPath) (
-                [string]$resourcesIdentity.relativePath
-            )
-            $resourcesTree = Get-WindowsCopilotDirectoryTreeState -Path $resourcesPath
-            $resourcesValid = [bool](
-                [int]$resourcesTree.fileCount -eq [int]$resourcesIdentity.fileCount -and
-                [int64]$resourcesTree.totalBytes -eq [int64]$resourcesIdentity.totalBytes -and
-                [string]$resourcesTree.treeSha256 -ceq [string]$resourcesIdentity.treeSha256 -and
-                [int]$resourcesTree.reparseDirectoryCount -eq
-                    [int]$resourcesIdentity.reparseDirectoryCount
-            )
+            $resourcesPath = $null
+            $resourcesTree = $null
+            $resourcesValid = $true
+            $runtimeDescriptorPath = $null
+            $runtimeDescriptorSha256 = $null
+            $runtimeDescriptorValid = $true
+            if ($resourcesIdentity) {
+                $resourcesPath = Join-Path (Split-Path -Parent $fullPath) (
+                    [string]$resourcesIdentity.relativePath
+                )
+                $resourcesTree = Get-WindowsCopilotDirectoryTreeState -Path $resourcesPath
+                $resourcesValid = [bool](
+                    [int]$resourcesTree.fileCount -eq [int]$resourcesIdentity.fileCount -and
+                    [int64]$resourcesTree.totalBytes -eq [int64]$resourcesIdentity.totalBytes -and
+                    [string]$resourcesTree.treeSha256 -ceq [string]$resourcesIdentity.treeSha256 -and
+                    [int]$resourcesTree.reparseDirectoryCount -eq
+                        [int]$resourcesIdentity.reparseDirectoryCount
+                )
+            }
+            if ($runtimeDescriptorIdentity) {
+                $runtimeDescriptorPath = Join-Path (Split-Path -Parent $fullPath) (
+                    [string]$runtimeDescriptorIdentity.relativePath
+                )
+                if (Test-Path -LiteralPath $runtimeDescriptorPath -PathType Leaf) {
+                    $runtimeDescriptorSha256 = (
+                        Get-FileHash -LiteralPath $runtimeDescriptorPath -Algorithm SHA256 -ErrorAction Stop
+                    ).Hash.ToLowerInvariant()
+                    $runtimeDescriptorValid =
+                        $runtimeDescriptorSha256 -ceq [string]$runtimeDescriptorIdentity.sha256
+                } else {
+                    $runtimeDescriptorValid = $false
+                }
+            }
             $discoveries.Add([pscustomobject]@{
                 path = $fullPath
                 source = if ($fullPath -ieq $canonicalPath) { 'canonical-official-path' } else { 'explicit-path' }
@@ -3377,13 +3472,16 @@ function Get-WindowsCopilotDesktopState {
                 metadataValid = $metadataValid
                 authenticodeValid = $authenticodeValid
                 resourcesPath = $resourcesPath
-                resourcesFileCount = [int]$resourcesTree.fileCount
-                resourcesTotalBytes = [int64]$resourcesTree.totalBytes
-                resourcesTreeSha256 = [string]$resourcesTree.treeSha256
+                resourcesFileCount = if ($resourcesTree) { [int]$resourcesTree.fileCount } else { $null }
+                resourcesTotalBytes = if ($resourcesTree) { [int64]$resourcesTree.totalBytes } else { $null }
+                resourcesTreeSha256 = if ($resourcesTree) { [string]$resourcesTree.treeSha256 } else { $null }
                 resourcesValid = $resourcesValid
+                runtimeDescriptorPath = $runtimeDescriptorPath
+                runtimeDescriptorSha256 = $runtimeDescriptorSha256
+                runtimeDescriptorValid = $runtimeDescriptorValid
                 identityValid = [bool](
                     $bytesValid -and $metadataValid -and $authenticodeValid -and
-                    $resourcesValid
+                    $resourcesValid -and $runtimeDescriptorValid
                 )
             })
         } catch {
@@ -3514,6 +3612,47 @@ function Get-WindowsCopilotOfficialRuntimeState {
     $root = [IO.Path]::GetFullPath(
         [Environment]::ExpandEnvironmentVariables([string]$selector.root)
     )
+    if ([string]$selector.id -ceq 'desktop-fork-managed') {
+        $descriptorPath = [IO.Path]::GetFullPath((Join-Path $root ([string]$selector.descriptor.manifest)))
+        $state = [ordered]@{
+            valid = $false
+            status = 'runtime-descriptor-not-found'
+            selector = 'desktop-fork-managed'
+            source = 'desktop-managed-release'
+            version = [string]$selector.package.version
+            root = $root
+            packageRoot = $root
+            entryPath = $descriptorPath
+            wrapperFileCount = $null
+            wrapperTotalBytes = $null
+            wrapperTreeSha256 = $null
+            wrapperReparseDirectoryCount = $null
+            fileCount = $null
+            treeSha256 = $null
+            entrypointSize = $null
+            entrypointSha256 = $null
+            reason = $null
+        }
+        try {
+            Assert-NoReparsePointAncestor -Path $descriptorPath
+            if (-not (Test-Path -LiteralPath $descriptorPath -PathType Leaf)) {
+                return [pscustomobject]$state
+            }
+            $descriptorSha256 = (Get-FileHash -LiteralPath $descriptorPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $state.entrypointSize = [long](Get-Item -LiteralPath $descriptorPath -Force).Length
+            $state.entrypointSha256 = $descriptorSha256
+            $state.valid = $descriptorSha256 -ceq [string]$selector.descriptor.sha256
+            $state.status = if ($state.valid) { 'runtime-descriptor-verified' } else { 'runtime-descriptor-mismatch' }
+        } catch {
+            $state.status = if ($_.Exception.Message -like '*reparse*') {
+                'reparse-point-path'
+            } else {
+                'runtime-descriptor-invalid'
+            }
+            $state.reason = $_.Exception.Message
+        }
+        return [pscustomobject]$state
+    }
     $packageRoot = [IO.Path]::GetFullPath((Join-Path $root 'node_modules\@deepseek-ai\dsh'))
     $rootManifest = [IO.Path]::GetFullPath(
         (Join-Path $root ([string]$selector.rootPackage.manifest))

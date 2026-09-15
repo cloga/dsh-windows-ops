@@ -353,6 +353,7 @@ test('exact 0.1.6 source and real Cordis ToolRuntime prove compatibility and Fib
     'const approvedMode = await approveEscalation({',
     'effectiveMode: standingPolicy.mode',
     'toolName: RUN_CODE_NAME, signal: exec.signal',
+    'this.flight = scheduler.dispatch(prepared.exec)',
   ]) {
     assert.ok(toolsPtcSource.includes(marker), `0.1.6 Host-grant PTC seam is missing ${marker}`)
   }
@@ -362,6 +363,7 @@ test('exact 0.1.6 source and real Cordis ToolRuntime prove compatibility and Fib
     'process.env starts empty',
     'await this.ctx.sandbox.confine(argv, { ...policy, mode: policy.mode }, signal)',
     '.filter(key => !STARTUP_ENVIRONMENT_NAMES.has(key.toUpperCase()))',
+    'const value = snapshotJsonValue(await fn(args))',
   ]) {
     assert.ok(ptcSource.includes(marker), `0.1.6 Node PTC seam is missing ${marker}`)
   }

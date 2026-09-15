@@ -527,7 +527,7 @@
         "evidence": [
           {
             "kind": "source-review",
-            "description": "The exact 0.1.6 subprocess range, async Sandbox/Shell, ToolRunContext/PTC authority, Node PTC empty-environment, workflow cleanup, lossless JSON, canonical-path, and Fiber-owned lifecycle findings are documented with the source.",
+            "description": "The exact 0.1.6 subprocess range, async Sandbox/Shell, Host-side ToolRuntime/PTC binding authority, Node PTC empty-environment boundary, workflow cleanup, lossless JSON, canonical-path, and Fiber-owned lifecycle findings are documented with the source.",
             "path": "tools/dsh-dev-tools/README.md"
           },
           {
@@ -537,7 +537,7 @@
           },
           {
             "kind": "compat-check",
-            "description": "Official commit 0a15e36e7f82b6ed45af6fa9759f29b40dcd965d and its ToolRunContext, subprocess, Sandbox, Shell, PTC, workflow, and JSON source seams are checked before compatibility is claimed.",
+            "description": "Official commit 0a15e36e7f82b6ed45af6fa9759f29b40dcd965d and its ToolRunContext, subprocess, Sandbox, Shell, Host PTC binding dispatch, isolated worker environment, workflow, and JSON source seams are checked before compatibility is claimed.",
             "path": "tests/dsh-dev-tools.test.mjs"
           }
         ]

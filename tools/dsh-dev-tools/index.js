@@ -59,8 +59,22 @@ async function run(ctx, cmd, args, opts = {}, signal) {
     if (!exited) throw new Error('managed subprocess tree did not reach quiescence')
   }
   signal?.throwIfAborted()
-  const stdout = (handle.collected.stdout?.readFrom(0).text || '').trim()
-  const stderr = (handle.collected.stderr?.readFrom(0).text || '').trim()
+  const stdoutRead = handle.collected.stdout?.readFrom(0)
+  const stderrRead = handle.collected.stderr?.readFrom(0)
+  const stdout = (stdoutRead?.text || '').trim()
+  const stderr = (stderrRead?.text || '').trim()
+  const truncated = [
+    stdoutRead?.lossy ? 'stdout' : null,
+    stderrRead?.lossy ? 'stderr' : null,
+  ].filter(Boolean)
+  if (truncated.length > 0) {
+    return {
+      ok: false,
+      error: `process ${truncated.join(' and ')} exceeded the ${MAX_OUTPUT_BYTES}-byte collection limit`,
+      stdout,
+      stderr,
+    }
+  }
   if (failure) return { ok: false, error: failure.message || String(failure), stdout, stderr }
   const ok = outcome.exitCode === 0 && outcome.signal === null
   return ok

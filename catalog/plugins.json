@@ -513,7 +513,7 @@
       "integration": "cordis",
       "source": {
         "repository": "https://github.com/cloga/dsh-windows-ops",
-        "release": "0.2.0"
+        "release": "0.3.0"
       },
       "platforms": [
         "windows"
@@ -521,23 +521,23 @@
       "recommendation": "conditional",
       "validation": {
         "level": "L2",
-        "verifiedAt": "2026-09-03",
-        "dshVersion": "0.1.2-rc.1",
+        "verifiedAt": "2026-09-15",
+        "dshVersion": "0.1.6-alpha.1",
         "nodeVersion": "^22.19.0 || >=24.0.0",
         "evidence": [
           {
             "kind": "source-review",
-            "description": "The rc.1 subprocess, cancellation, lossless JSON, canonical-path, consequential-operation, and Fiber-owned lifecycle requirements are documented with the source.",
+            "description": "The exact 0.1.6 subprocess range, async Sandbox/Shell, ToolRunContext/PTC authority, Node PTC empty-environment, workflow cleanup, lossless JSON, canonical-path, and Fiber-owned lifecycle findings are documented with the source.",
             "path": "tools/dsh-dev-tools/README.md"
           },
           {
             "kind": "import-probe",
-            "description": "The plugin registers five tools in a real rc.1 Cordis/ToolRuntime harness, uses the subprocess service with whole-tree quiescence, returns only lossless JSON values, and unregisters every contribution on Fiber disposal.",
+            "description": "The plugin registers five tools in a real 0.1.6 Cordis/ToolRuntime harness, uses the subprocess service with managed-range quiescence and explicit truncation failure, returns only lossless JSON values, and unregisters every contribution on Fiber disposal.",
             "path": "tests/dsh-dev-tools.test.mjs"
           },
           {
             "kind": "compat-check",
-            "description": "The exact official rc.1 ToolRunContext source and commit are checked before compatibility is claimed.",
+            "description": "Official commit 0a15e36e7f82b6ed45af6fa9759f29b40dcd965d and its ToolRunContext, subprocess, Sandbox, Shell, PTC, workflow, and JSON source seams are checked before compatibility is claimed.",
             "path": "tests/dsh-dev-tools.test.mjs"
           }
         ]
@@ -550,7 +550,7 @@
         "approvalGate": null,
         "notes": [
           "Provides development, patching, build, upgrade, and doctor operations; use only in trusted maintenance sessions.",
-          "Approval behavior is deployment policy rather than a guarantee of this plugin; configure standing permissions before consequential calls.",
+          "Strict sandbox escalation and Host grants are ToolRuntime/PTC deployment policy rather than a guarantee of this plugin; configure standing permissions before consequential calls.",
           "The dsh_upgrade check operation queries the configured Git remote; other managed subprocesses act on local operator-selected paths."
         ]
       },

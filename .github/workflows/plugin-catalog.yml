@@ -22,8 +22,8 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: deepseek-ai/deepseek-harness
-          ref: a66e4702047846cdaa10c66c9d3df3951f5ea70d
-          path: dsh-rc1
+          ref: 0a15e36e7f82b6ed45af6fa9759f29b40dcd965d
+          path: dsh-0.1.6
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -32,13 +32,13 @@ jobs:
       - name: Install exact package manager
         shell: powershell
         run: npm install --global pnpm@11.7.0
-      - name: Install exact rc.1 test closure
-        working-directory: dsh-rc1
-        run: pnpm install --frozen-lockfile --filter '@deepseek-ai/dsh-tools...' --filter '@deepseek-ai/dsh-subprocess...'
+      - name: Install exact 0.1.6 test closure
+        working-directory: dsh-0.1.6
+        run: pnpm install --frozen-lockfile --filter '@deepseek-ai/dsh-root' --filter '@deepseek-ai/dsh-tools...' --filter '@deepseek-ai/dsh-subprocess...'
       - name: Validate repository, catalog, plugin, and scripts
         shell: powershell
         run: |
-          $env:DSH_RC1_ROOT = Join-Path $PWD 'dsh-rc1'
+          $env:DSH_016_ROOT = Join-Path $PWD 'dsh-0.1.6'
           node tools\validate-repository-content.mjs
           node tools\validate-plugin-catalog.mjs
           node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs

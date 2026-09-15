@@ -1,6 +1,6 @@
 # dsh-dev-tools
 
-Agent-native development tools for a trusted Windows DeepSeek Harness maintenance Session. Version `0.2.0` is certified against official DSH `0.1.2-rc.1` at commit `a66e4702047846cdaa10c66c9d3df3951f5ea70d`, `@deepseek-ai/dsh-tools@0.1.2-rc.1`, and `@deepseek-ai/cordis@4.0.2`.
+Agent-native development tools for a trusted Windows DeepSeek Harness maintenance Session. Version `0.3.0` is certified against official DSH `0.1.6-alpha.1` at commit `0a15e36e7f82b6ed45af6fa9759f29b40dcd965d`, `@deepseek-ai/dsh-tools@0.1.6-alpha.1`, `@deepseek-ai/dsh-subprocess@0.1.6-alpha.1`, and `@deepseek-ai/cordis@4.0.2`.
 
 The plugin registers five tools:
 
@@ -14,16 +14,20 @@ The plugin registers five tools:
 
 ## Compatibility and lifecycle
 
-DSH rc.1 requires every asynchronous `ToolDefinition.execute(args, exec)` implementation to observe or forward `exec.signal` and settle after owned work reaches quiescence. The plugin delegates every process to the required `ctx.subprocess` service with explicit argv, working directory, ignored stdin, bounded stdout/stderr collection, termination grace, and cancellation signal. It awaits both the direct outcome and whole-tree `waitForExit()` before settling, then rethrows cancellation instead of reporting success.
+DSH 0.1.6 keeps the service and package names `ctx.subprocess` and `@deepseek-ai/dsh-subprocess`; the local provider remains the separate `@deepseek-ai/dsh-subprocess-local` package. The seam now describes provider-managed process ranges, removes the ordinary handle's public `pid`, adds an optional control pipe and terminal-environment API, and allows `done`/`waitForExit()` to report provider failures. This plugin uses only the stable collected-output subset. It delegates every process to `ctx.subprocess` with explicit argv, working directory, ignored stdin, bounded stdout/stderr collection, termination grace, and the caller's cancellation signal. It awaits both the direct outcome and unbounded managed-range `waitForExit()` before settling, rethrows cancellation only after quiescence, and fails explicitly if collected output became lossy.
 
-Tool results use lossless JSON snapshot semantics aligned with `@deepseek-ai/dsh-util-values@0.1.2-rc.1`. Undefined roots or properties, sparse arrays, `-0`, non-finite numbers, symbols, exotic objects, and cycles fail loudly rather than being silently changed. Valid outputs are detached canonical JSON values.
+Tool results use lossless JSON snapshot semantics aligned with `@deepseek-ai/dsh-util-values@0.1.6-alpha.1`. Undefined roots or properties, sparse arrays, `-0`, non-finite numbers, symbols, exotic objects, and cycles fail loudly rather than being silently changed. Valid cross-realm plain JSON is accepted, every property is read once, and the iterative walk handles deep values without recursive stack exhaustion.
 
-`ctx.tools.register(...)` is already Fiber-owned by the rc.1 ToolRuntime, so registrations are direct and no redundant `ctx.effect` wrapper is added. A real Cordis/ToolRuntime lifecycle test proves all five tools disappear on Fiber disposal. These maintenance tools can modify source files, backups, staging directories, and installation state; use them only in a trusted operator Session.
+`ToolRunContext` still carries `exec.signal`, `deferContext(...)`, and `concludeTurn()`. DSH 0.1.6 adds PTC binding-time schema identity and replaces the old `codeRuntime` transport with `ctx.ptcRuntime`; strict sandbox escalation and one-call Host approval are owned by the PTC transport and deployment policy, not by individual tools. The plugin therefore does not add `sandbox_permissions`, Host-grant, PTC, Sandbox, Shell, or workflow dependencies. Calls dispatched through native, PTC, or `workflow-ptc` surfaces retain the same ToolRuntime cancellation signal.
+
+Sandbox `confine(...)` and Shell background `start(...)` are now asynchronous and cancellable. `dsh-dev-tools` does not call either seam: foreground maintenance commands continue to use the lower-level subprocess capability, avoiding an accidental second policy layer. Node PTC's model-visible `process.env` starts empty while native startup paths remain available to the worker; that isolation does not erase the Host environment used by this plugin's ToolRuntime body. Child maintenance commands receive the subprocess provider's credential- and `DSH_*`-scrubbed Host environment unless this plugin explicitly supplies an override.
+
+`ctx.tools.register(...)` remains Fiber-owned by the 0.1.6 ToolRuntime, so registrations are direct and no redundant `ctx.effect` wrapper is added. A real Cordis/ToolRuntime lifecycle test proves all five tools disappear on Fiber disposal. The source-seam test also pins `workflow-ptc` cleanup: cancellation aborts the program, waits for pending child startup/disposal, and settles only after every admitted child is disposed. These maintenance tools can modify source files, backups, staging directories, and installation state; use them only in a trusted operator Session.
 
 Requirements:
 
 - Node.js `^22.19.0 || >=24.0.0`.
-- DSH `0.1.2-rc.1` with `@deepseek-ai/dsh-tools@0.1.2-rc.1` and `@deepseek-ai/dsh-subprocess@0.1.2-rc.1`.
+- DSH `0.1.6-alpha.1` with `@deepseek-ai/dsh-tools@0.1.6-alpha.1` and `@deepseek-ai/dsh-subprocess@0.1.6-alpha.1`.
 - `@deepseek-ai/cordis@4.0.2`.
 
 ## Configuration
@@ -70,12 +74,12 @@ Run `dsh-compat-check.mjs --probe=dsh-dev-tools` and inspect the composed config
 From the Windows Ops repository root:
 
 ```powershell
-$env:DSH_RC1_ROOT = 'C:\path\to\deepseek-harness-rc1'
+$env:DSH_016_ROOT = 'C:\path\to\deepseek-harness-0.1.6-alpha.1'
 node --test tests\dsh-dev-tools.test.mjs
 node --check tools\dsh-dev-tools\index.js
 ```
 
-The compatibility test requires the exact official rc.1 commit, checks ToolRuntime and subprocess service contracts, boots a real rc.1 Cordis/ToolRuntime lifecycle harness, verifies whole-tree cancellation quiescence, exercises path containment and already-aborted zero-write behavior, and rejects lossy JSON values. The plugin does not require a Host restart for these source-level tests.
+The compatibility test requires exact official commit `0a15e36e7f82b6ed45af6fa9759f29b40dcd965d`. It checks ToolRuntime, subprocess, async Sandbox/Shell, Node PTC empty-environment, workflow cleanup, and lossless JSON source contracts; boots a real 0.1.6 Cordis/ToolRuntime lifecycle harness; verifies managed-range cancellation quiescence; exercises path containment and already-aborted zero-write behavior; and rejects lossy JSON or collected subprocess output. The plugin does not require a Host restart for these source-level tests.
 
 ## Upgrade safety
 

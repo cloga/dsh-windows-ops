@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-04",
+  "updatedAt": "2026-09-15",
   "validationLevels": [
     {
       "id": "L0",
@@ -276,6 +276,75 @@
         "checksumManifestSha256": "ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf",
         "checksumManifestSize": 85
       }
+    },
+    {
+      "id": "dsh-memory-evolve",
+      "displayName": "DSH Memory Evolve",
+      "package": "dsh-memory-evolve",
+      "categories": [
+        "operations",
+        "automation"
+      ],
+      "integration": "cordis",
+      "source": {
+        "repository": "https://github.com/csyangwen/dsh-memory-evolve",
+        "commit": "c337dc1af7b5c8a5578e03150bf5c4d6133f66f9",
+        "reviewedHead": "c337dc1af7b5c8a5578e03150bf5c4d6133f66f9",
+        "release": "v26091501"
+      },
+      "platforms": [
+        "cross-platform"
+      ],
+      "recommendation": "experimental",
+      "validation": {
+        "level": "L1",
+        "verifiedAt": "2026-09-15",
+        "dshVersion": null,
+        "nodeVersion": null,
+        "evidence": [
+          {
+            "kind": "source-review",
+            "description": "The exact package manifest is private dsh-memory-evolve 0.1.0, exposes lib/index.js and lib/client.js, declares no dependencies or DSH peer range, and has no install lifecycle script.",
+            "url": "https://github.com/csyangwen/dsh-memory-evolve/blob/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9/package.json"
+          },
+          {
+            "kind": "source-review",
+            "description": "The exact Host source was reviewed for injected DSH services, default and optional tool surfaces, filesystem locations, background features, and runtime disposal paths.",
+            "url": "https://github.com/csyangwen/dsh-memory-evolve/blob/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9/lib/index.js"
+          },
+          {
+            "kind": "source-review",
+            "description": "The updater performs a background origin tag check and offers an explicit Git fetch plus detached-checkout self-update path; the reviewed Release has no packaged assets or checksum manifest.",
+            "url": "https://github.com/csyangwen/dsh-memory-evolve/blob/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9/lib/update.js"
+          },
+          {
+            "kind": "source-review",
+            "description": "The reviewed commit contains an MIT license.",
+            "url": "https://github.com/csyangwen/dsh-memory-evolve/blob/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9/LICENSE"
+          }
+        ]
+      },
+      "security": {
+        "controlsDesktop": false,
+        "capturesScreen": false,
+        "usesExistingBrowserProfile": false,
+        "sendsDataExternally": true,
+        "approvalGate": false,
+        "notes": [
+          "The default data root is DSH_HOME/memories, while managed skills default to ~/.agents/skills; disabling or uninstalling the plugin unregisters runtime surfaces but intentionally retains data and skill files.",
+          "The memory and skill-management tools are always registered; todos and direct channel sending are enabled by default. Optional switches can add prompt injection and editing, background review, local file and Codex-session search, external CLI dispatch, DSH Session creation or wake, Git-backed memory synchronization, and channel notifications.",
+          "Startup performs a cached background git ls-remote check against the plugin origin. A user-triggered Web update can fetch a tag and replace the plugin worktree with a detached checkout after repository and ancestry checks.",
+          "No immutable Release asset, checksum manifest, declared DSH compatibility range, isolated composition mount, or functional smoke is recorded. First use should remain in an isolated Profile while data retention, automatic writes, self-update, external execution, and messaging boundaries are reviewed."
+        ]
+      },
+      "summary": "A high-privilege cross-session memory, skill, prompt, task, synchronization, and orchestration plugin whose exact source was reviewed but not mounted or functionally validated by this repository.",
+      "notes": [
+        "User-reported useful for cross-session memory/evolution workflows.",
+        "Release v26091501 points to the reviewed commit but publishes no assets; do not infer an artifact hash or repository-endorsed installation command.",
+        "A bare ESM source import succeeded on the review host, but this is not a DSH compatibility probe and does not raise the entry above L1.",
+        "The upstream Windows test run did not pass completely, so no functional or security certification is implied.",
+        "Not part of the Windows locked baseline, Desktop required plugins, default automatic installation, or windows-companion-suite."
+      ]
     },
     {
       "id": "dsh-better-sidebar",

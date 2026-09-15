@@ -66,6 +66,19 @@ test('dsh-dev-tools records rc1 evidence and deployment-owned approval policy', 
   assert.ok(plugin.validation.evidence.some(evidence => evidence.path === 'tests/dsh-dev-tools.test.mjs'))
 })
 
+test('dsh-memory-evolve keeps user experience separate from repository validation', () => {
+  const catalog = read(sourceCatalog)
+  const plugin = pluginById(catalog, 'dsh-memory-evolve')
+  assert.equal(plugin.source.commit, 'c337dc1af7b5c8a5578e03150bf5c4d6133f66f9')
+  assert.equal(plugin.source.release, 'v26091501')
+  assert.equal(plugin.validation.level, 'L1')
+  assert.equal(plugin.recommendation, 'experimental')
+  assert.equal(plugin.artifact, undefined)
+  assert.ok(plugin.notes.some(note => note === 'User-reported useful for cross-session memory/evolution workflows.'))
+  assert.ok(plugin.security.notes.some(note => /isolated Profile/.test(note)))
+  assert.equal(catalog.suites.some(suite => suite.members.some(member => member.plugin === plugin.id)), false)
+})
+
 test('requires exactly one dsh-github-copilot locked baseline entry', () => {
   for (const mutate of [
     catalog => { catalog.plugins = catalog.plugins.filter(plugin => plugin.id !== 'dsh-github-copilot') },

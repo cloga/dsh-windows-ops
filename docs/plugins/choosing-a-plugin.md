@@ -20,6 +20,16 @@ Use both:
 
 A `baseline` component is supported by a maintained deployment lock. An `L0` or `L1` candidate may still be worth testing, but it should not be installed into a production Profile.
 
+## User-reported high-privilege candidates
+
+| Plugin | User experience signal | Repository evidence | Recommendation |
+|---|---|---|---|
+| [`csyangwen/dsh-memory-evolve`](https://github.com/csyangwen/dsh-memory-evolve/tree/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9) | User-reported useful for cross-session memory/evolution workflows. | `L1` source review at commit `c337dc1af7b5c8a5578e03150bf5c4d6133f66f9` / tag `v26091501`; MIT license; private package with no declared DSH peer range; Release has no assets or checksum manifest; no isolated DSH mount or functional smoke. | `experimental`. Do not treat the user report as repository functional or security validation. |
+
+This plugin can persist long-term memory, manage or modify skills and prompts, write tasks, inject context, check for and apply source updates, and optionally dispatch external CLIs, search local/session data, create or wake Sessions, synchronize memory through Git, and send channel messages. Its runtime data defaults to `DSH_HOME/memories`, while skill writes can reach `~/.agents/skills`; uninstalling retains those files. Evaluate it in an isolated Profile, inspect the data-retention and automatic-modification boundaries, and enable optional capabilities individually. It is not in the Windows locked baseline, the Desktop required plugin set, default automatic installation, or the optional companion suite.
+
+Because the reviewed Release contains no immutable package asset, this repository does not publish an artifact hash or installation command for it. A source import alone is not the `L2` host-entry probe defined by this catalog.
+
 ## Safe evaluation path
 
 1. unpack and source-review the exact artifact;

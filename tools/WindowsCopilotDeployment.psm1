@@ -2653,11 +2653,6 @@ function Set-WindowsCopilotProfile {
     $credentialsPath = Join-Path $home '.credentials.yaml'
     $profilePatchPath = Join-Path $profileRoot 'cordis.patch.yml'
     $nodeModules = Join-Path $profileRoot 'node_modules'
-    $desktopProfileRoot = Join-Path $home 'profiles\desktop'
-    $desktopPackagePath = Join-Path $desktopProfileRoot ([string]$Lock.profile.packageManifest)
-    $desktopWorkspacePath = Join-Path $desktopProfileRoot ([string]$Lock.profile.workspaceManifest)
-    $desktopLockPath = Join-Path $desktopProfileRoot ([string]$Lock.profile.lockManifest)
-    $desktopNodeModules = Join-Path $desktopProfileRoot 'node_modules'
     if (-not $DesktopExecutablePath) {
         $DesktopExecutablePath = Join-Path $env:LOCALAPPDATA 'Deepseek Harness Desktop\deepseek-harness-desktop.exe'
     }
@@ -2690,7 +2685,6 @@ function Set-WindowsCopilotProfile {
     }
     $snapshots = [Collections.Generic.List[object]]::new()
     $providerTarget = Join-Path $nodeModules ([string]$Lock.components.copilotIntegration.package.name)
-    $desktopProviderTarget = Join-Path $desktopNodeModules ([string]$Lock.components.copilotIntegration.package.name)
     foreach ($snapshot in @(
         [pscustomobject]@{ path = $packagePath; relativePath = 'profile\package.json'; pluginTarget = $false },
         [pscustomobject]@{ path = $workspacePath; relativePath = 'profile\pnpm-workspace.yaml'; pluginTarget = $false },
@@ -2699,20 +2693,11 @@ function Set-WindowsCopilotProfile {
         [pscustomobject]@{ path = $credentialsPath; relativePath = 'config\credentials.yaml'; pluginTarget = $false },
         [pscustomobject]@{ path = $profilePatchPath; relativePath = 'profile\cordis.patch.yml'; pluginTarget = $false },
         [pscustomobject]@{ path = $lockedArtifact; relativePath = 'artifacts\provider.tgz'; pluginTarget = $false },
-        [pscustomobject]@{ path = $desktopPackagePath; relativePath = 'desktop-profile\package.json'; pluginTarget = $false },
-        [pscustomobject]@{ path = $desktopWorkspacePath; relativePath = 'desktop-profile\pnpm-workspace.yaml'; pluginTarget = $false },
-        [pscustomobject]@{ path = $desktopLockPath; relativePath = 'desktop-profile\pnpm-lock.yaml'; pluginTarget = $false },
         [pscustomobject]@{
             path = $providerTarget
             relativePath = 'plugins\dsh-github-copilot'
             pluginTarget = $true
             nodeModulesRoot = $nodeModules
-        },
-        [pscustomobject]@{
-            path = $desktopProviderTarget
-            relativePath = 'desktop-profile\plugins\dsh-github-copilot'
-            pluginTarget = $true
-            nodeModulesRoot = $desktopNodeModules
         }
     )) {
         $snapshot | Add-Member -NotePropertyName existed -NotePropertyValue (Test-Path -LiteralPath $snapshot.path)
@@ -2837,35 +2822,7 @@ function Set-WindowsCopilotProfile {
     Set-ObjectProperty -Object $profile.dsh.profile -Name 'bundles' -Value $bundles
     $profile | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
 
-    New-Item -ItemType Directory -Path $desktopProfileRoot, $desktopNodeModules -Force | Out-Null
-    $desktopProfile = if (Test-Path -LiteralPath $desktopPackagePath -PathType Leaf) {
-        Get-Content -LiteralPath $desktopPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
-    } else {
-        [pscustomobject]@{ name = '@deepseek-ai/dsh-desktop-runtime'; private = $true }
-    }
-    if (-not (Get-LockProperty -InputObject $desktopProfile -Name 'dependencies')) {
-        Set-ObjectProperty -Object $desktopProfile -Name 'dependencies' -Value ([pscustomobject]@{})
-    }
-    Set-ObjectProperty -Object $desktopProfile.dependencies `
-        -Name ([string]$Lock.components.copilotIntegration.package.name) `
-        -Value $dependencyPath
-    if (-not (Get-LockProperty -InputObject $desktopProfile -Name 'dsh')) {
-        Set-ObjectProperty -Object $desktopProfile -Name 'dsh' -Value ([pscustomobject]@{})
-    }
-    if (-not (Get-LockProperty -InputObject $desktopProfile.dsh -Name 'profile')) {
-        Set-ObjectProperty -Object $desktopProfile.dsh -Name 'profile' -Value ([pscustomobject]@{})
-    }
-    $desktopBundles = @((Get-LockProperty -InputObject $desktopProfile.dsh.profile -Name 'bundles'))
-    foreach ($requiredBundle in @($Lock.profile.requiredBundles)) {
-        $desktopBundles = @($desktopBundles | Where-Object { $_ -ne [string]$requiredBundle })
-        $desktopBundles += [string]$requiredBundle
-    }
-    Set-ObjectProperty -Object $desktopProfile.dsh.profile -Name 'bundles' -Value $desktopBundles
-    $desktopProfile | ConvertTo-Json -Depth 12 |
-        Set-Content -LiteralPath $desktopPackagePath -Encoding UTF8
-
     Set-PnpmAllowBuilds -Path $workspacePath -Packages @($Lock.profile.allowBuilds)
-    Set-PnpmAllowBuilds -Path $desktopWorkspacePath -Packages @($Lock.profile.allowBuilds)
     Remove-DshLegacyCopilotSettings -Path $settingsPath | Out-Null
     Remove-DshLegacyCopilotCredentialReference -Path $credentialsPath | Out-Null
     Set-DshCopilotProfilePatch -Path $profilePatchPath | Out-Null
@@ -2873,21 +2830,11 @@ function Set-WindowsCopilotProfile {
     if (-not $SkipPackageInstall) {
         Invoke-PinnedPnpmCommands -PackageManager ([string]$Lock.components.copilotIntegration.package.packageManager) `
             -Commands @(, @('install', '--no-frozen-lockfile')) -WorkingDirectory $profileRoot
-        Invoke-PinnedPnpmCommands -PackageManager ([string]$Lock.components.copilotIntegration.package.packageManager) `
-            -Commands @(, @('install', '--no-frozen-lockfile')) -WorkingDirectory $desktopProfileRoot
     }
 
     $providerInstall = Install-WindowsCopilotLockedPackage `
         -ArtifactPath $CopilotIntegrationArtifactPath -Target $providerTarget `
         -NodeModulesRoot $nodeModules `
-        -Name ([string]$Lock.components.copilotIntegration.package.name) `
-        -Version ([string]$Lock.components.copilotIntegration.package.version) `
-        -Sha256 ([string]$Lock.components.copilotIntegration.package.artifact.sha256) `
-        -ExpectedName ([string]$Lock.components.copilotIntegration.package.artifact.name) `
-        -ExpectedSize ([long]$Lock.components.copilotIntegration.package.artifact.size)
-    $desktopProviderInstall = Install-WindowsCopilotLockedPackage `
-        -ArtifactPath $CopilotIntegrationArtifactPath -Target $desktopProviderTarget `
-        -NodeModulesRoot $desktopNodeModules `
         -Name ([string]$Lock.components.copilotIntegration.package.name) `
         -Version ([string]$Lock.components.copilotIntegration.package.version) `
         -Sha256 ([string]$Lock.components.copilotIntegration.package.artifact.sha256) `
@@ -2964,18 +2911,12 @@ function Set-WindowsCopilotProfile {
         snapshots = @($snapshots)
         profileRoots = [pscustomobject]@{
             session = $profileRoot
-            desktopUi = $desktopProfileRoot
         }
         copilotIntegrationProfiles = @(
             [pscustomobject]@{
                 profile = 'web'
                 role = 'locked-session-profile'
                 install = $providerInstall
-            },
-            [pscustomobject]@{
-                profile = 'desktop'
-                role = 'desktop-ui-profile'
-                install = $desktopProviderInstall
             }
         )
         includeCompanionSuite = [bool]$IncludeCompanionSuite

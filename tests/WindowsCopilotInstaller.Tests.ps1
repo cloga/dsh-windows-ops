@@ -1963,8 +1963,8 @@ It 'discovers the fork Desktop package root and accepts normalized Windows file 
             Where-Object name -EQ 'dsh-github-copilot').visibleAfterRestart | Should -Be $true
     }
 
-    It 'synchronizes dsh-github-copilot into session and Desktop UI profiles during Apply' {
-        $caseRoot = Join-Path $TestDrive 'copilot-dual-profile-apply'
+    It 'keeps Apply out of the reserved Desktop UI profile' {
+        $caseRoot = Join-Path $TestDrive 'copilot-reserved-desktop-profile'
         $dshHome = Join-Path $caseRoot '.dsh'
         $webRoot = Join-Path $dshHome 'profiles\web'
         $desktopRoot = Join-Path $dshHome 'profiles\desktop'
@@ -1989,6 +1989,7 @@ It 'discovers the fork Desktop package root and accepts normalized Windows file 
             }
         } | ConvertTo-Json -Depth 8 |
             Set-Content -LiteralPath (Join-Path $desktopRoot 'package.json') -Encoding UTF8
+        $desktopBefore = Get-Content -LiteralPath (Join-Path $desktopRoot 'package.json') -Raw -Encoding UTF8
         $providerRelease = New-ProviderReleaseFixture -Root $caseRoot
         $artifact = $providerRelease.path
 
@@ -1997,21 +1998,25 @@ It 'discovers the fork Desktop package root and accepts normalized Windows file 
             -BackupRoot (Join-Path $caseRoot 'backups') -DesktopExecutablePath $desktopPath `
             -SkipPackageInstall
 
-        foreach ($root in @($webRoot, $desktopRoot)) {
-            $profile = Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw -Encoding UTF8 |
-                ConvertFrom-Json
-            $profile.dependencies.'dsh-github-copilot' |
-                Should -Be "file:../../artifacts/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
-            @($profile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-github-copilot' }).Count |
-                Should -Be 1
-            $metadata = Get-Content -LiteralPath (Join-Path $root 'node_modules\dsh-github-copilot\package.json') `
-                -Raw -Encoding UTF8 | ConvertFrom-Json
-            $metadata.name | Should -Be 'dsh-github-copilot'
-            $metadata.version | Should -Be ([string]$lock.components.copilotIntegration.package.version)
-        }
-        @($receipt.copilotIntegrationProfiles).Count | Should -Be 2
+        $webProfile = Get-Content -LiteralPath (Join-Path $webRoot 'package.json') -Raw -Encoding UTF8 |
+            ConvertFrom-Json
+        $webProfile.dependencies.'dsh-github-copilot' |
+            Should -Be "file:../../artifacts/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
+        @($webProfile.dsh.profile.bundles | Where-Object { $_ -eq 'dsh-github-copilot' }).Count |
+            Should -Be 1
+        $metadata = Get-Content -LiteralPath (Join-Path $webRoot 'node_modules\dsh-github-copilot\package.json') `
+            -Raw -Encoding UTF8 | ConvertFrom-Json
+        $metadata.version | Should -Be ([string]$lock.components.copilotIntegration.package.version)
+
+        Get-Content -LiteralPath (Join-Path $desktopRoot 'package.json') -Raw -Encoding UTF8 |
+            Should -Be $desktopBefore
+        Test-Path -LiteralPath (Join-Path $desktopRoot 'node_modules\dsh-github-copilot') |
+            Should -Be $false
+        Test-Path -LiteralPath (Join-Path $desktopRoot 'node_modules\@deepseek-ai\cordis') |
+            Should -Be $false
+        @($receipt.copilotIntegrationProfiles).Count | Should -Be 1
         @($receipt.copilotIntegrationProfiles.role) |
-            Should -Contain 'desktop-ui-profile'
+            Should -Not -Contain 'desktop-ui-profile'
     }
 
 It 'accepts only an official Desktop descendant owning exact IPv4 127.0.0.1:3080' -Skip:$script:SkipOfficialDesktopLinkTests {

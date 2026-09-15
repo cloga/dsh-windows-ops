@@ -551,10 +551,13 @@ the historical adapter callable for compatibility, but Check/Apply delegate to
 Desktop native capability and no longer use the external workaround. Every
 PackageLocal, first install, idempotent install, and managed update completion
 consumes the same lock contract. Check is read-only; Apply installs the locked
-`dsh-github-copilot` artifact into both the session profile (`profiles\web`) and
-the Desktop UI profile (`profiles\desktop`) so the provider is available to new
-sessions and visible in Desktop after restart. Optional overlays remain
-explicitly selected and are not pulled from `latest`.
+`dsh-github-copilot` artifact into the session profile (`profiles\web`) so the
+provider is available to new sessions. It deliberately leaves the reserved
+Desktop UI profile (`profiles\desktop`) to Desktop-native provisioning; ordinary
+profile-local `pnpm install` in that profile can install reserved host packages
+such as `@deepseek-ai/cordis` as if they were third-party plugin dependencies and
+make Desktop reject the profile at startup. Optional overlays remain explicitly
+selected and are not pulled from `latest`.
 
 NSIS per-user installs can choose a package-derived directory rather than the
 historical fallback directory recorded in older prose. For the cloga fork this
@@ -574,7 +577,7 @@ explicit shared Home, upgrade replaces only the validated reserved
 `profiles\desktop` transaction and Desktop's private package state. Sessions,
 settings, credentials, workspaces, and unrelated profiles are neither read nor
 modified. Existing web/headless Copilot registration is not treated as Desktop
-registration and is not copied.
+registration and is not copied by Windows Ops.
 
 Use the read-only Release drift command before changing a pin:
 

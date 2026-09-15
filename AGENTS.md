@@ -55,16 +55,17 @@ Before an installation agent emits every `pwsh` tool call:
   `desktopNativeVerifiedRelease` are mutually exclusive; native mode requires
   committed capability evidence and the removal runbook. Never run ordinary
   `pnpm add` against the live reserved profile or copy `node_modules`.
-- Keep the official DSH Desktop shell unless the task specifically changes the
-  shell.
-- The supported runtime is only Desktop's managed official wrapper and bundled
+- Keep the official or fork-owned DSH Desktop shell named by the deployment
+  lock; do not switch shells unless the task specifically changes the shell.
+- The supported runtime is only Desktop's managed, lock-attested bundled
   `@deepseek-ai/dsh`. Do not build, install, select, or document a private Core
   fork as part of the Windows baseline, and do not persist `DSH_CLI_PATH`.
-- Treat plugins and the core as separate compatibility layers. Preserve and
-  attest Desktop's eight official Profile links plus its non-bundled panel
-  placeholder; never replace them with guessed registry packages. The locked
-  installer physically materializes only the reviewed `dsh-github-copilot`
-  integration. Classify `dsh-playwright-host` and `dsh-cron` as optional Web
+- Treat plugins and the core as separate compatibility layers. In
+  `desktopNativeVerifiedRelease` mode, preserve native delegation and do not
+  materialize the reserved Desktop profile from Windows Ops; in legacy
+  `windowsOpsVerifiedRelease` mode, preserve and attest Desktop's official
+  Profile links plus its non-bundled panel placeholder. Classify
+  `dsh-playwright-host` and `dsh-cron` as optional Web
   overlays rather than silently making them baseline requirements. Run the
   check-first installer, repository replay self-check, and exact-marker dry run
   before applying unrelated patches.

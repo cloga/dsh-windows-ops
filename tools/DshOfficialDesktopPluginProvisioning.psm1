@@ -93,12 +93,19 @@ function Get-DshOfficialDesktopPluginContract {
         [string]$contract.adapter -cne 'DshOfficialDesktopPluginProvisioning.psm1') {
         throw 'desktop-plugin-contract-invalid'
     }
-    if ([string]$contract.registry -cne 'https://packagefeedproxy.microsoft.io/npm/') {
+    if ([string]$contract.mode -ceq 'desktopNativeVerifiedRelease') {
+        if ($null -ne $contract.registry) { throw 'desktop-plugin-registry-invalid' }
+    } elseif ([string]$contract.registry -cne 'https://packagefeedproxy.microsoft.io/npm/') {
         throw 'desktop-plugin-registry-invalid'
     }
     $hosts = @($contract.allowedRedirectHosts)
-    if ($hosts.Count -ne 2 -or $hosts -notcontains 'github.com' -or
-        $hosts -notcontains 'release-assets.githubusercontent.com') {
+    $requiredHosts = if ([string]$contract.mode -ceq 'desktopNativeVerifiedRelease') {
+        @('github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com')
+    } else {
+        @('github.com', 'release-assets.githubusercontent.com')
+    }
+    if ($hosts.Count -ne $requiredHosts.Count -or
+        @($requiredHosts | Where-Object { $hosts -notcontains $_ }).Count -gt 0) {
         throw 'desktop-plugin-redirect-hosts-invalid'
     }
     if ([string]$package.name -cne 'dsh-github-copilot' -or
@@ -146,7 +153,7 @@ function Get-DshOfficialDesktopPluginContract {
         schemaVersion = [int]$contract.schemaVersion
         mode = [string]$contract.mode
         adapter = [string]$contract.adapter
-        registry = [string]$contract.registry
+        registry = if ($null -eq $contract.registry) { $null } else { [string]$contract.registry }
         allowedRedirectHosts = @($hosts)
         nativeCapability = $contract.nativeCapability
         removal = $contract.removal

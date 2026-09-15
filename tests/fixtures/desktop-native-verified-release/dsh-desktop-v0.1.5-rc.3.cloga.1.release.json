@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "owner": "cloga/deepseek-harness",
+  "mode": "interactive-windows-installer",
+  "channel": "cloga-windows-x64",
+  "version": "0.1.5-rc.3.cloga.1",
+  "upstreamVersion": "0.1.5-rc.2",
+  "sequence": 2,
+  "source": {
+    "repository": "cloga/deepseek-harness",
+    "commit": "87506730d5f511316bac5ea623610e124908c657",
+    "tree": "668553ac4e3019cbb6e25d8f87db046abbfdc8e3",
+    "tag": "dsh-desktop-v0.1.5-rc.3.cloga.1"
+  },
+  "build": {
+    "workflow": ".github/workflows/desktop-fork-release.yml",
+    "lockfileSha256": "792eea9ecea71f309e26d1f8ce116a1353adf26c41128cf4844d76de764f3ce2",
+    "planSha256": "031d7c69b0f79a62530d4798a62d791c37322050805708109a9b4a22fb69128d",
+    "nodeVersion": "v24.13.0",
+    "pnpmVersion": "11.7.0",
+    "packageRegistry": "https://registry.npmjs.org/"
+  },
+  "identity": {
+    "appId": "io.github.cloga.deepseek-harness.desktop",
+    "productName": "DeepSeek Harness (cloga)",
+    "packageName": "cloga-deepseek-harness-desktop",
+    "executableName": "cloga-deepseek-harness"
+  },
+  "installer": {
+    "file": "cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe",
+    "bytes": 180145810,
+    "sha256": "432fdc5f438ce4e9d984ff36546c42d4a43bb571f15230bfa127b133623e8367",
+    "sha512": "nX/mcCRN6YJwxWjcJg2nWDOlm+hJzN+iBMxtC9IGkzfnumbwL7aCWckvlVHtXymB9jkdjPm3CIaEObUU0NXOog==",
+    "signature": "NotSigned"
+  },
+  "buildReceipt": {
+    "file": "build-receipt.json",
+    "sha256": "3490e4d7aeb7064d2aaee947cb73f32cb1b5dda710d22fe958f40f69aa18523d",
+    "receiptSha256": "0282bffefa300d6b1eedb5ba9e9ff286f4c02e178c9bcd754e536cac4aeb2516"
+  },
+  "installedEvidence": {
+    "executableSha256": "f77b28611cba6210f6441318db7453d32ff7b2c4cf58fd58ce0b44e743f25434",
+    "runtimeSha256": "210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836"
+  },
+  "pluginCompatibility": {
+    "capability": {
+      "id": "desktopNativeVerifiedRelease",
+      "schemaVersion": 1,
+      "sourceSchemaVersion": 1,
+      "receiptSchemaVersion": 1
+    },
+    "automaticProvisioning": false
+  },
+  "network": {
+    "manifestOrigin": "https://github.com",
+    "apiOrigin": "https://api.github.com",
+    "allowedRedirectHosts": [
+      "github.com",
+      "objects.githubusercontent.com",
+      "release-assets.githubusercontent.com"
+    ]
+  },
+  "installation": {
+    "interaction": "required",
+    "installerArguments": [],
+    "uac": "installer-controlled",
+    "completion": "post-restart-installed-evidence"
+  },
+  "manifestSha256": "753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc"
+}

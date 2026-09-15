@@ -2,13 +2,16 @@
 
 `deployments/windows-copilot.lock.json` owns the single versioned
 `desktopProvisioning` contract. The current mode is
-`windowsOpsVerifiedRelease`; `desktopNativeVerifiedRelease` is a future
-capability-gated replacement, not a second active path.
+`desktopNativeVerifiedRelease`: Windows Ops validates the native capability and
+keeps the historical adapter only as a compatibility/delegation surface. It no
+longer mutates the reserved Desktop profile through the external workaround.
 
 ## Native capability gate
 
-Do not switch modes until one reviewed official Core/Desktop pair proves all of
-the following with a committed fixture:
+The mode switch is complete for the fork-owned
+`dsh-desktop-v0.1.5-rc.3.cloga.1` release. Future switches must not proceed
+until one reviewed Core/Desktop pair proves all of the following with a
+committed fixture:
 
 1. Desktop accepts an exact immutable Release artifact or equivalent
    cryptographically locked local package without resolving the root package
@@ -28,7 +31,7 @@ the following with a committed fixture:
 
 Record the exact Core commit, Desktop commit, and fixture path in
 `nativeCapability`, set `verified=true`, and change `mode` to
-`desktopNativeVerifiedRelease` in the same pull request. Policy tests must reject
+`desktopNativeVerifiedRelease` in the same pull request. Policy tests reject
 native mode without this evidence and reject simultaneous Windows Ops/native
 provisioning.
 
@@ -46,7 +49,8 @@ the local build guide, tools README, AGENTS.md, and pull request checklist.
 
 ## Windows Ops removal
 
-After native capability and compatibility tests pass:
+After no build/install/update entry point can still select the compatibility
+adapter:
 
 1. Remove install/update calls to the Windows Ops adapter and make PackageLocal
    receipts identify native delegation only.
@@ -54,10 +58,13 @@ After native capability and compatibility tests pass:
    `tools/dsh-official-desktop-plugin-health.mjs`, and their focused tests.
 3. Remove Windows Ops-only receipt fields after the compatibility-read window.
 4. Keep the immutable artifact contract and Release sync/check command unless
-   official Desktop provides an equally strict, independently testable source.
+   Desktop native release metadata provides an equally strict, independently
+   testable source.
 5. Run repository validators, focused and full Pester, replay SelfCheck,
    exact-marker dry run, and update-channel completion tests.
 
 Do not remove the adapter while any build/install/update entry point can still
-select it, and do not retain both provisioners as fallback paths. A native
-failure must fail closed rather than silently invoking the retired adapter.
+select it, and do not retain both provisioners as fallback paths. In the current
+native-delegated state, Check/Apply report delegation without profile mutation.
+A native failure must fail closed rather than silently invoking the retired
+adapter.

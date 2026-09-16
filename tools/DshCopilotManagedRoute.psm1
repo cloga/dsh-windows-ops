@@ -183,7 +183,9 @@ function Test-ManagedRouteReceipt {
     if (-not (Test-ManagedRouteEqual (@(Get-ManagedRouteKeys $Receipt) | Sort-Object) (@('plugin', 'protocolVersion', 'historyScope', 'observedAt', 'capabilities', 'complete', 'defaultSelection', 'sessions', 'routes') | Sort-Object))) { return $false }
     $plugin = Get-ManagedRouteField $Receipt 'plugin'
     $time = Get-ManagedRouteField $Receipt 'observedAt'
-    if ((Get-ManagedRouteField $Receipt 'protocolVersion') -ne (Get-ManagedRouteField $Policy 'migrationStatusProtocol') -or
+    $protocol = Get-ManagedRouteField $Receipt 'protocolVersion'
+    if (-not ($protocol -is [int] -or $protocol -is [long] -or $protocol -is [double]) -or
+        $protocol -ne (Get-ManagedRouteField $Policy 'migrationStatusProtocol') -or
         (Get-ManagedRouteField $Receipt 'historyScope') -cne 'live-agents-only' -or
         (Get-ManagedRouteField $plugin 'name') -cne 'dsh-github-copilot' -or
         (Get-ManagedRouteField $plugin 'version') -cne (Get-ManagedRouteField (Get-ManagedRouteField $Policy 'plugin') 'version') -or
@@ -433,6 +435,160 @@ function Invoke-DshCopilotManagedRouteRpc {
     return Get-ManagedRouteField $result 'value'
 }
 
+function Test-NativeCopilotStatus {
+    param($Status)
+    if (-not (Test-ManagedRouteObject $Status)) { return $false }
+    foreach ($key in @(Get-ManagedRouteKeys $Status)) {
+        if ($key -cnotin @('phase', 'configured', 'writable', 'inFlight', 'notices', 'catalog', 'accountModels', 'route', 'error')) { return $false }
+        if ($null -eq (Get-ManagedRouteField $Status $key)) { return $false }
+    }
+    if ((Get-ManagedRouteField $Status 'phase') -cnotin @('signed-out', 'authorizing', 'signed-in', 'error')) { return $false }
+    foreach ($key in @('configured', 'writable', 'inFlight')) {
+        if ((Get-ManagedRouteField $Status $key) -isnot [bool]) { return $false }
+    }
+    $notices = Get-ManagedRouteField $Status 'notices'
+    if ($notices -isnot [array]) { return $false }
+    foreach ($notice in $notices) {
+        if (-not (Test-ManagedRouteObject $notice) -or (Get-ManagedRouteField $notice 'message') -isnot [string]) { return $false }
+        foreach ($key in @(Get-ManagedRouteKeys $notice)) {
+            if ($key -cnotin @('message', 'url', 'code') -or (Get-ManagedRouteField $notice $key) -isnot [string]) { return $false }
+        }
+    }
+    $account = Get-ManagedRouteField $Status 'accountModels'
+    if ($null -ne $account) {
+        if (-not (Test-ManagedRouteObject $account)) { return $false }
+        foreach ($key in @(Get-ManagedRouteKeys $account)) {
+            if ($key -cnotin @('state', 'models', 'rejected', 'warnings', 'discoveredAt', 'error')) { return $false }
+            if ($null -eq (Get-ManagedRouteField $account $key) -and $key -cnotin @('models', 'rejected', 'warnings')) { return $false }
+        }
+        if ((Get-ManagedRouteField $account 'state') -cnotin @('idle', 'loading', 'ready', 'stale', 'error', 'disposed', 'unconfigured', 'unavailable')) { return $false }
+        $models = Get-ManagedRouteField $account 'models'
+        if ($models -isnot [array] -or $models.Count -gt 512) { return $false }
+        $ids = @()
+        foreach ($model in $models) {
+            if (-not (Test-ManagedRouteEqual (@(Get-ManagedRouteKeys $model) | Sort-Object) @('api', 'id', 'name'))) { return $false }
+            foreach ($key in @('id', 'name', 'api')) {
+                if ((Get-ManagedRouteField $model $key) -isnot [string]) { return $false }
+            }
+            $id = Get-ManagedRouteField $model 'id'
+            if ([string]::IsNullOrWhiteSpace($id) -or $ids -ccontains $id) { return $false }
+            $ids += $id
+        }
+        foreach ($section in @('rejected', 'warnings')) {
+            $entries = Get-ManagedRouteField $account $section
+            if ($section -ceq 'warnings' -and @(Get-ManagedRouteKeys $account) -cnotcontains $section) { continue }
+            if ($entries -isnot [array] -or $entries.Count -gt 1024) { return $false }
+            foreach ($entry in $entries) {
+                if (-not (Test-ManagedRouteObject $entry) -or (Get-ManagedRouteField $entry 'code') -isnot [string]) { return $false }
+                foreach ($key in @(Get-ManagedRouteKeys $entry)) {
+                    if ($key -cnotin @('id', 'code') -or (Get-ManagedRouteField $entry $key) -isnot [string]) { return $false }
+                }
+                if ($section -ceq 'warnings' -and (Get-ManagedRouteField $entry 'id') -isnot [string]) { return $false }
+            }
+        }
+        if (@(Get-ManagedRouteKeys $account) -ccontains 'discoveredAt') {
+            $time = Get-ManagedRouteField $account 'discoveredAt'
+            if (-not ($time -is [int] -or $time -is [long] -or $time -is [double]) -or $time -lt 0 -or $time % 1 -ne 0) { return $false }
+        }
+        if (@(Get-ManagedRouteKeys $account) -ccontains 'error' -and (Get-ManagedRouteField $account 'error') -isnot [string]) { return $false }
+    }
+    $route = Get-ManagedRouteField $Status 'route'
+    if ($null -ne $route) {
+        foreach ($key in @(Get-ManagedRouteKeys $route)) {
+            if ($key -cnotin @('state', 'diagnosticCode')) { return $false }
+        }
+        if ((Get-ManagedRouteField $route 'state') -cnotin @('ready', 'needs-repair', 'not-configured', 'conflict', 'error')) { return $false }
+        if (@(Get-ManagedRouteKeys $route) -ccontains 'diagnosticCode' -and
+            (Get-ManagedRouteField $route 'diagnosticCode') -cnotin @('ROUTE_READ_FAILED', 'RECONCILIATION_FAILED', 'ROUTE_CONFLICT')) { return $false }
+    }
+    $catalog = Get-ManagedRouteField $Status 'catalog'
+    if ($null -ne $catalog) {
+        foreach ($key in @(Get-ManagedRouteKeys $catalog)) {
+            if ($key -cnotin @('state', 'accountModelCount', 'supportedModelCount', 'unknownModelIds', 'temporarilyUnavailableModelIds', 'previewModelIds')) { return $false }
+        }
+        if ((Get-ManagedRouteField $catalog 'state') -cnotin @('current', 'partially-outdated', 'outdated')) { return $false }
+        foreach ($key in @('accountModelCount', 'supportedModelCount')) {
+            $count = Get-ManagedRouteField $catalog $key
+            if (-not ($count -is [int] -or $count -is [long] -or $count -is [double]) -or $count -lt 0 -or $count % 1 -ne 0) { return $false }
+        }
+        foreach ($key in @('unknownModelIds', 'temporarilyUnavailableModelIds', 'previewModelIds')) {
+            $ids = Get-ManagedRouteField $catalog $key
+            if ($key -cne 'unknownModelIds' -and @(Get-ManagedRouteKeys $catalog) -cnotcontains $key) { continue }
+            if ($ids -isnot [array] -or @($ids | Where-Object { $_ -isnot [string] }).Count -gt 0) { return $false }
+        }
+    }
+    if (@(Get-ManagedRouteKeys $Status) -ccontains 'error' -and (Get-ManagedRouteField $Status 'error') -isnot [string]) { return $false }
+    return $true
+}
+
+function Get-DshCopilotNativeRouteAssessment {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$PluginVersion,
+        $MigrationStatus,
+        $AuthorizationStatus,
+        [string]$ExpectedModelId,
+        [string]$ExpectedSessionId
+    )
+    $reasons = [Collections.Generic.List[string]]::new()
+    $policy = @{ migrationStatusProtocol = 1; plugin = @{ version = $PluginVersion } }
+    $migrationValid = Test-ManagedRouteReceipt $MigrationStatus $policy
+    $statusValid = Test-NativeCopilotStatus $AuthorizationStatus
+    if (-not $migrationValid) { $reasons.Add('managed-migration-status-invalid-or-version-mismatch') }
+    if (-not $statusValid) { $reasons.Add('managed-authorization-status-invalid') }
+    if ([string]::IsNullOrWhiteSpace($ExpectedModelId)) { $reasons.Add('managed-expected-model-required') }
+    if ($migrationValid -and $statusValid) {
+        $complete = Get-ManagedRouteField $MigrationStatus 'complete'
+        if (-not (Test-ManagedRouteTrue (Get-ManagedRouteField (Get-ManagedRouteField $MigrationStatus 'capabilities') 'providerRegistry')) -or
+            -not (Test-ManagedRouteTrue (Get-ManagedRouteField $complete 'routes'))) { $reasons.Add('managed-route-evidence-incomplete') }
+        if (-not (Test-ManagedRouteTrue (Get-ManagedRouteField (Get-ManagedRouteField $MigrationStatus 'routes') 'managedRegistered'))) {
+            $reasons.Add('managed-provider-not-registered')
+        }
+        if (-not (Test-ManagedRouteTrue (Get-ManagedRouteField $AuthorizationStatus 'configured')) -or
+            (Get-ManagedRouteField $AuthorizationStatus 'phase') -cne 'signed-in') { $reasons.Add('managed-sign-in-required') }
+        $notices = Get-ManagedRouteField $AuthorizationStatus 'notices'
+        if ((Get-ManagedRouteField $AuthorizationStatus 'inFlight') -ne $false -or
+            @($notices).Count -gt 0) { $reasons.Add('managed-authorization-in-progress') }
+        if (@(Get-ManagedRouteKeys $AuthorizationStatus) -ccontains 'error') { $reasons.Add('managed-authorization-error') }
+        $account = Get-ManagedRouteField $AuthorizationStatus 'accountModels'
+        $models = Get-ManagedRouteField $account 'models'
+        if ((Get-ManagedRouteField $account 'state') -cne 'ready' -or @($models).Count -eq 0 -or
+            @(Get-ManagedRouteKeys $account) -ccontains 'error') { $reasons.Add('managed-account-models-not-ready') }
+        if (@($models | Where-Object { (Get-ManagedRouteField $_ 'id') -ceq $ExpectedModelId -and
+            -not [string]::IsNullOrWhiteSpace((Get-ManagedRouteField $_ 'api')) }).Count -ne 1) { $reasons.Add('managed-expected-model-unavailable') }
+        if ($ExpectedSessionId) {
+            $sessions = @((Get-ManagedRouteField $MigrationStatus 'sessions') | Where-Object {
+                (Get-ManagedRouteField $_ 'id') -ceq $ExpectedSessionId
+            })
+            if (-not (Test-ManagedRouteTrue (Get-ManagedRouteField $complete 'sessions')) -or $sessions.Count -ne 1) {
+                $reasons.Add('managed-session-evidence-incomplete')
+            } else {
+                $session = $sessions[0]
+                $selection = Get-ManagedRouteField $session 'effectiveSelection'
+                if ((Get-ManagedRouteField $session 'selectionSource') -ceq 'unknown' -or
+                    (Get-ManagedRouteField $selection 'provider') -cne 'github-copilot-preview' -or
+                    (Get-ManagedRouteField $selection 'model') -cne $ExpectedModelId) { $reasons.Add('managed-session-selection-mismatch') }
+                if ((Get-ManagedRouteField $session 'status') -ceq 'running') {
+                    $active = Get-ManagedRouteField $session 'activeRequestSelection'
+                    if ((Get-ManagedRouteField $active 'provider') -cne 'github-copilot-preview' -or
+                        (Get-ManagedRouteField $active 'model') -cne $ExpectedModelId) { $reasons.Add('managed-active-request-selection-unknown-or-mismatch') }
+                }
+            }
+        }
+    }
+    [pscustomobject]@{
+        valid = $reasons.Count -eq 0
+        status = if ($reasons.Count -eq 0) { 'ready-projection' } elseif (-not $migrationValid -or -not $statusValid) { 'unknown' } else { 'not-ready' }
+        reasons = @($reasons)
+        provider = 'github-copilot-preview'
+        model = $ExpectedModelId
+        sessionBinding = if ($ExpectedSessionId) { 'requested' } else { 'not-requested' }
+        legacyRouteStatus = if ($statusValid) { Get-ManagedRouteField (Get-ManagedRouteField $AuthorizationStatus 'route') 'state' } else { $null }
+        modelResponseVerified = $false
+        fullBaselineVerified = $false
+    }
+}
+
 function Get-DshCopilotManagedRouteSnapshot {
     [CmdletBinding()]
     param([string]$BaseUri = 'http://127.0.0.1:3080', [scriptblock]$Invoker, [switch]$AllowAccountDiscovery)
@@ -546,5 +702,5 @@ function Invoke-DshCopilotManagedRouteMigration {
 Export-ModuleMember -Function @(
     'Test-DshCopilotManagedRoutePolicy', 'Get-DshCopilotManagedRoutePlan',
     'Invoke-DshCopilotManagedRouteRpc', 'Get-DshCopilotManagedRouteSnapshot',
-    'Invoke-DshCopilotManagedRouteMigration'
+    'Invoke-DshCopilotManagedRouteMigration', 'Get-DshCopilotNativeRouteAssessment'
 )

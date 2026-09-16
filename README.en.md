@@ -20,13 +20,53 @@ For a newer Copilot installation moving from two routes to the account-discovere
 
 | Component | Locked version |
 |---|---|
-| DeepSeek Harness Desktop | fork-owned `0.1.5-rc.3.cloga.1`, release tag `dsh-desktop-v0.1.5-rc.3.cloga.1`, commit `87506730d5f511316bac5ea623610e124908c657` |
-| Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.5-rc.2`, attested by installed `resources\dsh\desktop-runtime.json` descriptor SHA-256 `210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836`; default per-user root is `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`, but Windows Ops follows the actual installed EXE path |
-| Required `dsh-github-copilot` | 0.4.0-alpha.18; preserved/delegated through `desktopNativeVerifiedRelease`, not externally materialized by Windows Ops |
-| Desktop native capability | `desktopNativeVerifiedRelease`, manifest self SHA-256 `753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc`, generic plugin compatibility `automaticProvisioning=false` |
+| DeepSeek Harness Desktop | fork-owned `0.1.5-rc.3.cloga.3`, release tag `dsh-desktop-v0.1.5-rc.3.cloga.3`, commit `f34f048a6a862046de9b75f2aabf48944819f0d4` |
+| Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.5-rc.2`, attested by installed `resources\dsh\desktop-runtime.json` descriptor SHA-256 `7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085`; default per-user root is `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`, but Windows Ops follows the actual installed EXE path |
+| Required `dsh-github-copilot` | 0.4.0-alpha.22; preserved/delegated through `desktopNativeVerifiedRelease`, not externally materialized by Windows Ops |
+| Desktop native capability | `desktopNativeVerifiedRelease`, manifest self SHA-256 `8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b`, generic plugin compatibility `automaticProvisioning=false` |
 | Optional Web overlays (not baseline requirements) | `dsh-playwright-host@0.1.2`, `dsh-cron@0.4.1` |
 
 A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline. The default branch and deployment lock are this repository's publication channel; this repository does not redistribute Desktop/DSH/plugin binaries. A lock update defines the reviewed target baseline, not proof that a particular machine already ran `-Apply`; default check mode reports unapplied drift truthfully.
+
+Replay uses the installer's lock-selected Desktop discovery and bundled runtime
+descriptor checks, with no legacy Tauri fallback. SelfCheck/DryRun exit zero is
+not deployment acceptance: inspect their `deployment` evidence and patch
+statuses. Plugin markers in Web/headless do not prove Desktop Models readiness.
+
+The published fork checks for managed updates about ten seconds after startup.
+After confirmation of the impact on active work, its helper downloads/verifies
+the release and starts the interactive installer; Windows/UAC prompts remain.
+Restart evidence gates completion. This is not an unattended installation.
+Copilot alpha.22 uses required host authorization/schemastery peers rather than
+private dependency copies; the locked bundled Core remains unchanged.
+React is a Client external singleton (`dsh.client.external`), not a required
+Node peer or private runtime dependency. Alpha.22 corrects that alpha.21 startup
+failure; published metadata alone still does not prove live Desktop readiness.
+
+Recovery Release `390062857` (sequence 4) passed standalone copied-helper
+bootstrap, synthetic ACK/cancel, packaged initial/restart
+provisioning and signed-out Models UI acceptance, not OAuth, a model round or a
+local installer upgrade. Its legacy-compatible update manifest deliberately
+keeps `automaticProvisioning=false`; the separately hash-bound build receipt
+and packaged capability declare native startup provisioning with the exact
+plan. Do not equate those two compatibility objects or relax local registry TLS.
+
+Older `.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
+unresolved `semver` import. They cannot repair themselves by discovering a newer
+release. Recovery requires the independently verified `.cloga.3` installer,
+explicit interruption consent and a clean Desktop/Host exit, coordinated by the
+operator outside the broken helper. Do not patch live files or install missing
+dependencies into an update operation. Generic direct registry probe failures
+are not evidence that the supported provisioner failed.
+
+Native `Check` separates exact installed files/receipts from functional evidence.
+The Electron Host uses parent-owned byte pipes, not `127.0.0.1:3080`; Web checks
+cannot prove native Models readiness. `Verify` reports
+`manual-verification-required` (exit 2); independently record Desktop UI and real
+model-response acceptance outside this CLI. Missing native Remote
+access is unknown, never success. Legacy Apply/rollback/restart are blocked for
+the native lock; use the native managed updater and its live Session impact
+confirmation instead.
 
 ## Start here
 
@@ -68,8 +108,8 @@ Then use an isolated `DSH_HOME` to verify Cordis activation, tool registration, 
 | Category | Primary tool | Purpose |
 |---|---|---|
 | Deployment | `tools/install-windows-copilot.ps1` | Check by default; install the locked baseline only with explicit `-Apply` |
-| Official local source Desktop | `tools/install-official-desktop-local.ps1` | Check by default; explicit `-Apply -AcknowledgeUnsignedLocalBuild` runs the exact `PackageLocal` flow, installs side-by-side, then transactionally provisions the locked immutable Copilot Release through the corporate dependency registry. New installs use an isolated Harness home by default; `-SharedHome <existing-home>` opts into an existing home, `-UseIsolatedHome` returns to isolation, and Electron user data always remains separate |
-| Local Desktop update channel | `tools/manage-official-desktop-update-channel.ps1` | Verified one-click Install plus separate Package/Check/Stage/Complete recovery flow with `rc.yml`, SHA-256/SHA-512 evidence, schema-3 completion metadata, and the same post-update plugin provisioner. The unsigned NSIS and Windows/UAC prompts remain interactive; native and automatic updates remain disabled |
+| Official local source Desktop | `tools/install-official-desktop-local.ps1` | Check by default; explicit `-Apply -AcknowledgeUnsignedLocalBuild` runs the exact `PackageLocal` flow and installs side-by-side. The single `desktopProvisioning` adapter preserves native delegation; Windows Ops does not populate the reserved profile. New installs use an isolated Harness home; `-SharedHome <existing-home>` opts into an existing home and Electron user data remains separate |
+| Local Desktop update channel | `tools/manage-official-desktop-update-channel.ps1` | Explicit local-build Install and Package/Check/Stage/Complete recovery, separate from the published fork's startup discovery. SHA-256/SHA-512 and completion evidence are verified through the same adapter; NSIS and Windows/UAC prompts stay interactive and the signed native updater remains disabled |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1` (historical compatibility name) | Install the direct Copilot plugin, select hosted search, and report UI sign-in requirements; no vision fallback is installed |
 | Optional suite | `tools/install-optional-companion-suite.ps1` | Check/Apply/Verify the locked Copilot, Cron, and Playwright selection against installed Core/Cordis/API compatibility without replacing Desktop/Core or restarting processes |
 | Replay and acceptance | `tools/dsh-replay.ps1` | Self-check, strict-marker patches, dry-run, backup, and rollback |
@@ -108,8 +148,8 @@ This repository does not redistribute Desktop, DSH, or the Copilot plugin. It pi
 
 | Project | Deployment responsibility | Current relationship |
 |---|---|---|
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Fork-owned Windows Desktop release channel, lifecycle, Desktop-managed bundled DSH runtime, and `desktopNativeVerifiedRelease` generic plugin capability | Current lock uses `dsh-desktop-v0.1.5-rc.3.cloga.1` at commit `87506730d5f511316bac5ea623610e124908c657` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | PR #120 source/merge/immutable Release commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`; Release `v0.4.0-alpha.18` |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Fork-owned Windows Desktop release channel, lifecycle, Desktop-managed bundled DSH runtime, and `desktopNativeVerifiedRelease` generic plugin capability | Current lock uses `dsh-desktop-v0.1.5-rc.3.cloga.3` at commit `f34f048a6a862046de9b75f2aabf48944819f0d4` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | PR #133 source/merge/immutable Release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b`; Release `v0.4.0-alpha.22` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 
 The optional-suite entrypoint evaluates the installed Core, Cordis, and plugin

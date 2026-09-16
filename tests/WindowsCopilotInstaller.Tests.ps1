@@ -375,14 +375,14 @@ function New-TestFingerprint {
         $caseRoot = Join-Path $TestDrive 'profile-coherence'
         New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
         $dshHome = Join-Path $caseRoot '.dsh'
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.18.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.22.tgz'
         $stage = Join-Path $caseRoot 'stage'
         $package = Join-Path $stage 'package'
         New-Item -ItemType Directory -Path $package -Force | Out-Null
-        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.18' } |
+        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.22' } |
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package 'package.json') `
                 -Encoding UTF8
-        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.18' } } |
+        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.22' } } |
             ConvertTo-Json -Depth 5 |
                 Set-Content -LiteralPath (Join-Path $package 'deployment-baseline.json') `
                     -Encoding UTF8
@@ -408,11 +408,11 @@ importers:
     dependencies:
       dsh-github-copilot:
         specifier: $dependency
-        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz
+        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz
 packages:
-  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz:
-    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz}
-    version: 0.4.0-alpha.18
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz}
+    version: 0.4.0-alpha.22
 "@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
         }
 
@@ -421,7 +421,7 @@ packages:
         @($coherent.profiles).Count | Should -Be 2
         (Get-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Raw).
             Replace(
-                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.18.tgz',
+                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz',
                 'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.17.tgz'
             ) |
             Set-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Encoding UTF8
@@ -709,8 +709,8 @@ packages:
         }
 
         $rejected = @(
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.17/dsh-github-copilot-0.4.0-alpha.18.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/not-dsh-github-copilot-0.4.0-alpha.18.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.17/dsh-github-copilot-0.4.0-alpha.22.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/not-dsh-github-copilot-0.4.0-alpha.22.tgz'
             "file:../../artifacts/wrong-commit/$($lock.components.copilotIntegration.package.artifact.name)"
             "file:../../arbitrary/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
             "https://example.test/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
@@ -1217,7 +1217,8 @@ packages:
         $result.valid | Should -Be $true
         $result.sourceVerified | Should -Be $true
         $result.artifactVerified | Should -Be $false
-        @($result.capabilities).Count | Should -Be 31
+        @($result.capabilities).Count | Should -Be 32
+        @($result.capabilities) | Should -Contain 'desktop-shared-package-ownership'
         @($result.capabilities) | Should -Contain 'client-module-loader-handoff'
         @($result.capabilities) | Should -Contain 'copilot-optional-tool-arguments'
         @($result.capabilities) | Should -Contain 'strict-remote-result-codecs'
@@ -1256,17 +1257,91 @@ packages:
         $threw | Should -Be $true
     }
 
-    It 'rejects a provider source missing the authorization runtime dependency' {
+    It 'rejects a lock that omits the published shared routing chunk from installed attestation' {
+        $tampered = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $tampered.components.copilotIntegration.package.attestedFiles = @(
+            $tampered.components.copilotIntegration.package.attestedFiles |
+                Where-Object { $_ -ne 'lib/search-routing-pFLux0W7.js' }
+        )
+        { Test-WindowsCopilotLock -Lock $tampered } |
+            Should -Throw '*all six published JavaScript*'
+    }
+
+    It 'rejects a provider source missing the host-owned authorization peer' {
         $providerRoot = Join-Path $TestDrive 'provider-runtime-contract'
         Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider') -Destination $providerRoot -Recurse
         $packagePath = Join-Path $providerRoot 'package.json'
         $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
-        $package.dependencies.PSObject.Properties.Remove('@deepseek-ai/dsh-authorization')
+        $package.peerDependencies.PSObject.Properties.Remove('@deepseek-ai/dsh-authorization')
         $package | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
 
         {
             Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot | Out-Null
-        } | Should -Throw '*deployment-baseline metadata does not match*'
+        } | Should -Throw '*shared peer dependencies do not match*'
+    }
+
+    It 'rejects private Desktop packages under <Kind>' -TestCases @(
+        @{ Kind = 'dependencies' },
+        @{ Kind = 'optionalDependencies' }
+    ) {
+        param($Kind)
+        $providerRoot = Join-Path $TestDrive ("provider-private-" + $Kind)
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider') -Destination $providerRoot -Recurse
+        $packagePath = Join-Path $providerRoot 'package.json'
+        $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (-not $package.PSObject.Properties[$Kind]) {
+            $package | Add-Member -NotePropertyName $Kind -NotePropertyValue ([pscustomobject]@{})
+        }
+        $package.$Kind | Add-Member -NotePropertyName '@deepseek-ai/dsh-authorization' -NotePropertyValue '0.1.2-rc.1'
+        $package | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+        { Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot | Out-Null } |
+            Should -Throw '*must not install private copies*'
+    }
+
+    It 'rejects an optional host-owned authorization peer' {
+        $providerRoot = Join-Path $TestDrive 'provider-optional-peer'
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider') -Destination $providerRoot -Recurse
+        $packagePath = Join-Path $providerRoot 'package.json'
+        $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $package.peerDependenciesMeta | Add-Member -NotePropertyName '@deepseek-ai/dsh-authorization' `
+            -NotePropertyValue ([pscustomobject]@{ optional = $true })
+        $package | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+        { Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot | Out-Null } |
+            Should -Throw '*shared peers must not be optional*'
+    }
+
+    It 'rejects Client React entering the Node graph through <Kind>' -TestCases @(
+        @{ Kind = 'dependencies' }, @{ Kind = 'optionalDependencies' }, @{ Kind = 'peerDependencies' }
+    ) {
+        param($Kind)
+        $providerRoot = Join-Path $TestDrive ("provider-react-" + $Kind)
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider') -Destination $providerRoot -Recurse
+        $path = Join-Path $providerRoot 'package.json'
+        $package = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (-not $package.PSObject.Properties[$Kind]) {
+            $package | Add-Member -NotePropertyName $Kind -NotePropertyValue ([pscustomobject]@{})
+        }
+        $package.$Kind | Add-Member -NotePropertyName react -NotePropertyValue '^18.2.0'
+        $package | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+        { Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot | Out-Null } |
+            Should -Throw '*React is Client-only*'
+    }
+
+    It 'rejects missing Client external React ownership' {
+        $providerRoot = Join-Path $TestDrive 'provider-react-no-external'
+        Copy-Item -LiteralPath (Join-Path $fixtureRoot 'provider') -Destination $providerRoot -Recurse
+        $path = Join-Path $providerRoot 'package.json'
+        $package = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+        $package.dsh.client.external = @()
+        $package | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
+        { Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot | Out-Null } |
+            Should -Throw '*Client external singleton*'
+    }
+
+    It 'rejects a lock that reclassifies React as a Node graph dependency' {
+        $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+        $tampered.components.copilotIntegration.package.deploymentBaseline.clientExternals.react.nodeGraph = $true
+        { Test-WindowsCopilotLock -Lock $tampered } | Should -Throw '*Client-only React ownership*'
     }
 
     It 'rejects a provider source missing the zod runtime dependency' {
@@ -1279,7 +1354,7 @@ packages:
 
         {
             Test-ProviderDeploymentContract -Lock $lock -SourceRoot $providerRoot | Out-Null
-        } | Should -Throw '*deployment-baseline metadata does not match*'
+        } | Should -Throw '*runtime dependencies do not match*'
     }
 
     It 'resolves only the locked Copilot Release URL or a hash-matching local artifact' {
@@ -1426,6 +1501,7 @@ packages:
         $scriptPath = Join-Path $repoRoot 'tools\install-windows-copilot.ps1'
         $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath `
             -DshHome $dshHome `
+            -DesktopExecutablePath (Join-Path $TestDrive 'absent-desktop\cloga-deepseek-harness.exe') `
             -NpmGlobalRoot (Join-Path $fixtureRoot 'global') `
             -ModelCatalogPath (Join-Path $fixtureRoot 'model-catalog.json') `
             -ComposedConfigPath (Join-Path $fixtureRoot 'composed-config.yml') `
@@ -1489,12 +1565,12 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         $runtimeSchema.behavior.providerCompatibilityOwner | Should -Be 'dsh-github-copilot'
         $runtimeSchema.releaseStatus | Should -Be 'official-desktop-managed'
         $copilot = $lock.components.copilotIntegration
-        $copilot.source.pullRequest | Should -Be 120
-        $copilot.source.commit | Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
-        $copilot.source.mergeCommit | Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
-        $copilot.source.reviewedHead | Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
+        $copilot.source.pullRequest | Should -Be 133
+        $copilot.source.commit | Should -Be '479340f965c5be7b4408e4f1e6c9dda6c421d37b'
+        $copilot.source.mergeCommit | Should -Be '479340f965c5be7b4408e4f1e6c9dda6c421d37b'
+        $copilot.source.reviewedHead | Should -Be '52a7428fc68b05c34d7a3066787703527788e98d'
         $copilot.package.artifact.releaseCommit |
-            Should -Be '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704'
+            Should -Be '479340f965c5be7b4408e4f1e6c9dda6c421d37b'
         $officialProfileLinks = @(
             'dsh-tauri',
             'dsh-tauri-panel',
@@ -1561,7 +1637,7 @@ It 'rejects tampered runtime and Copilot plugin identity metadata' {
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.source.reviewedHead = ('0' * 40) -join ''
         { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*reviewed PR #120*'
+            Should -Throw '*reviewed PR #133*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.package.artifact.releaseCommit = ('0' * 40) -join ''
@@ -1587,16 +1663,19 @@ It 'rejects tampered runtime and Copilot plugin identity metadata' {
         }
     }
 
-It 'plans no Core build install receipt or activation work' {
+It 'plans native delegation without Core build global install or profile mutation' {
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
             -NpmGlobalRoot (Join-Path $TestDrive 'global\node_modules')
         $text = $plan | ConvertTo-Json -Depth 10
         $text | Should -Not -Match '(?i)build-core|install-core|receipt|DSH_CLI_PATH|controlled-fork'
-        @($plan.steps.id) | Should -Contain 'verify-desktop-official-runtime'
-        @($plan.steps.id) | Should -Contain 'install-global-transaction'
+        @($plan.steps.id) | Should -Contain 'verify-native-files'
+        @($plan.steps.id) | Should -Contain 'native-managed-update'
+        @($plan.steps.id) | Should -Not -Contain 'install-global-transaction'
+        @($plan.steps | Where-Object changesSystem).Count | Should -Be 0
     }
 
-It 'plans the reviewed companion suite in the same deployment transaction' {
+It 'plans the reviewed companion suite in the legacy Web deployment transaction' {
+        Mock Test-WindowsCopilotNativeMode -ModuleName WindowsCopilotDeployment { $false }
         $plan = Get-WindowsCopilotInstallPlan -Lock $lock -DshHome (Join-Path $TestDrive '.dsh') `
             -NpmGlobalRoot (Join-Path $TestDrive 'global\node_modules') -IncludeCompanionSuite
         $plan.includeCompanionSuite | Should -Be $true
@@ -2259,6 +2338,7 @@ It 'discovers and validates a reviewed task-only gateway outside the default pat
     }
 
 It 'restores reviewed profile plugin and gateway snapshots and refuses later drift' {
+        Mock Test-WindowsCopilotNativeMode -ModuleName WindowsCopilotDeployment { $false }
         $backupRoot = Join-Path $TestDrive 'backups'
         $operationId = '20260904T120000000Z'
         $operationRoot = Join-Path $backupRoot $operationId
@@ -2333,6 +2413,7 @@ It 'restores reviewed profile plugin and gateway snapshots and refuses later dri
     }
 
 It 'rejects a modified rollback backup before changing any target' {
+        Mock Test-WindowsCopilotNativeMode -ModuleName WindowsCopilotDeployment { $false }
         $backupRoot = Join-Path $TestDrive 'tampered-backup'
         $operationId = '20260904T120000002Z'
         $operationRoot = Join-Path $backupRoot $operationId
@@ -2447,6 +2528,7 @@ It 'keeps default Check non-mutating and free of fork inputs' {
         $scriptPath = Join-Path $repoRoot 'tools\install-windows-copilot.ps1'
         $output = & pwsh -NoProfile -File $scriptPath -ManifestPath $manifest `
             -DshHome $dshHome -NpmGlobalRoot (Join-Path $TestDrive 'global\node_modules') `
+            -DesktopExecutablePath (Join-Path $TestDrive 'absent-desktop\cloga-deepseek-harness.exe') `
             -SkipRuntimeChecks
         $LASTEXITCODE | Should -Be 0
         $result = ($output -join "`n") | ConvertFrom-Json

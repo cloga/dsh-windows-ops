@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'WindowsCopilotDeployment.psm1')
 
 function Get-DshDefaultStateRoot {
     if ($env:DSH_OPS_STATE_ROOT) {
@@ -76,7 +77,8 @@ function Resolve-DshComponentRoot {
         if ($DshHome) { $expanded = $expanded.Replace('${DSH_HOME}', $DshHome) }
         $candidates.Add((Expand-DshPath $expanded))
     }
-    if ([string]$Component.name -eq 'dsh-desktop') {
+    if ([string]$Component.name -eq 'dsh-desktop' -and
+        (Get-DshPropertyValue -InputObject $Component -Name 'registryDiscovery') -ne $false) {
         foreach ($registryPath in @(
             'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
             'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
@@ -99,6 +101,73 @@ function Resolve-DshComponentRoot {
         if ($candidate -and (Test-Path -LiteralPath $candidate)) { return $candidate }
     }
     return $null
+}
+
+function Resolve-DshLockedReplayConfig {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Config,
+        [Parameter(Mandatory)]$Lock
+    )
+    $resolved = $Config | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+    $desktopComponents = @($resolved.components | Where-Object name -eq 'dsh-desktop')
+    $runtimeComponents = @($resolved.components | Where-Object name -eq 'dsh-desktop-runtime')
+    if ($desktopComponents.Count -ne 1 -or $runtimeComponents.Count -ne 1) {
+        throw 'replay-requires-one-locked-desktop-and-runtime'
+    }
+    $desktopComponent = $desktopComponents[0]
+    $runtimeComponent = $runtimeComponents[0]
+    $explicitRoot = $null
+    $rootEnv = Get-DshPropertyValue $desktopComponent 'rootEnv'
+    if ($rootEnv) { $explicitRoot = [Environment]::GetEnvironmentVariable([string]$rootEnv) }
+    $configuredRoots = @((Get-DshPropertyValue $desktopComponent 'rootCandidates') | Where-Object { $_ })
+    if ($configuredRoots.Count -gt 1) { throw 'replay-desktop-root-must-be-unambiguous' }
+    if (-not $explicitRoot -and $configuredRoots.Count -eq 1) { $explicitRoot = [string]$configuredRoots[0] }
+    $desktopArgs = @{ Lock = $Lock }
+    if ($explicitRoot) {
+        $desktopArgs.Path = Join-Path (Expand-DshPath $explicitRoot) ([string]$Lock.components.desktop.installedExecutable.relativePath)
+    }
+    $desktop = Get-WindowsCopilotDesktopState @desktopArgs
+    if ($explicitRoot -and -not $desktop.valid) {
+        throw "replay-explicit-desktop-conflicts-with-lock:$($desktop.status)"
+    }
+    foreach ($root in $configuredRoots) {
+        if ((Expand-DshPath ([string]$root)).TrimEnd('\') -ine (Split-Path -Parent ([string]$desktop.path)).TrimEnd('\')) {
+            throw 'replay-configured-desktop-conflicts-with-lock'
+        }
+    }
+    foreach ($executable in @((Get-DshPropertyValue $desktopComponent 'executables') | Where-Object { $_ })) {
+        if ([string]$executable -cne [string]$Lock.components.desktop.installedExecutable.relativePath) {
+            throw 'replay-configured-executable-conflicts-with-lock'
+        }
+    }
+    $runtime = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock -DesktopExecutablePath ([string]$desktop.path)
+    $runtimeRoots = @((Get-DshPropertyValue $runtimeComponent 'rootCandidates') | Where-Object { $_ })
+    $runtimeEnv = Get-DshPropertyValue $runtimeComponent 'rootEnv'
+    if ($runtimeEnv) {
+        $environmentRoot = [Environment]::GetEnvironmentVariable([string]$runtimeEnv)
+        if ($environmentRoot) { $runtimeRoots += $environmentRoot }
+    }
+    foreach ($root in $runtimeRoots) {
+        if ((Expand-DshPath ([string]$root)).TrimEnd('\') -ine ([string]$runtime.root).TrimEnd('\')) {
+            throw 'replay-explicit-runtime-conflicts-with-lock'
+        }
+    }
+    foreach ($entry in @(
+        @{ component = $desktopComponent; root = (Split-Path -Parent ([string]$desktop.path)) },
+        @{ component = $runtimeComponent; root = [string]$runtime.root }
+    )) {
+        $entry.component | Add-Member -NotePropertyName rootEnv -NotePropertyValue $null -Force
+        $entry.component | Add-Member -NotePropertyName rootCandidates -NotePropertyValue @($entry.root) -Force
+        $entry.component | Add-Member -NotePropertyName registryDiscovery -NotePropertyValue $false -Force
+    }
+    $resolved | Add-Member -NotePropertyName deployment -NotePropertyValue ([pscustomobject]@{
+        desktop = $desktop
+        runtime = $runtime
+        provisioningMode = [string]$Lock.components.copilotIntegration.desktopProvisioning.mode
+        valid = [bool]($desktop.valid -and $runtime.valid)
+    }) -Force
+    return $resolved
 }
 
 function Get-DshPackageVersion {
@@ -356,6 +425,19 @@ function Test-DshPatch {
         [Parameter(Mandatory)]$Patch,
         [Parameter(Mandatory)]$Config
     )
+    $selectors = @(Get-DshPropertyValue $Patch 'runtimeSelectors')
+    if ($selectors.Count -gt 0 -and $selectors[0]) {
+        $selector = Get-DshNestedProperty $Config 'deployment.runtime.selector'
+        if (-not $selector -or $selectors -cnotcontains [string]$selector) {
+            return [pscustomobject]@{
+                id = $Patch.id
+                component = $Patch.component
+                status = if ($selector) { 'not-applicable' } else { 'unsupported' }
+                reason = 'patch-runtime-selector-not-supported'
+                upstream = $Patch.upstreamStatus
+            }
+        }
+    }
     $target = Resolve-DshPatchTarget -Patch $Patch -Config $Config
     if (-not $target) {
         return [pscustomobject]@{ id = $Patch.id; component = $Patch.component; status = 'component-not-found'; upstream = $Patch.upstreamStatus }
@@ -397,6 +479,15 @@ function Write-DshOperationMetadata {
     Move-Item -LiteralPath $temp -Destination $path -Force
 }
 
+function Assert-DshReplayMutationAllowed {
+    param($Config, [switch]$DryRun)
+    $deployment = Get-DshPropertyValue $Config 'deployment'
+    if (-not $DryRun -and $deployment -and
+        (Get-DshPropertyValue $deployment 'provisioningMode') -ceq 'desktopNativeVerifiedRelease') {
+        throw 'native-replay-mutation-delegated: use the native updater; external replay cannot mutate its reserved profile or authorize native Session interruption.'
+    }
+}
+
 function Invoke-DshPatchSet {
     [CmdletBinding()]
     param(
@@ -405,6 +496,7 @@ function Invoke-DshPatchSet {
         [switch]$DryRun,
         [string]$StateRoot = (Get-DshDefaultStateRoot)
     )
+    Assert-DshReplayMutationAllowed -Config $Config -DryRun:$DryRun
     $operationId = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssfffZ')
     $backupRoot = Join-Path (Expand-DshPath $StateRoot) (Join-Path 'backups' $operationId)
     $results = [Collections.Generic.List[object]]::new()
@@ -493,6 +585,7 @@ function Restore-DshPatchSet {
         [string]$StateRoot = (Get-DshDefaultStateRoot),
         [switch]$DryRun
     )
+    Assert-DshReplayMutationAllowed -Config $Config -DryRun:$DryRun
     $backups = Join-Path (Expand-DshPath $StateRoot) 'backups'
     if (-not (Test-Path -LiteralPath $backups -PathType Container)) { throw 'No backups are available.' }
     if (-not $OperationId) {
@@ -594,6 +687,12 @@ function Invoke-DshDesktopRecovery {
         [switch]$DryRun,
         [int]$TimeoutSeconds = 90
     )
+    Assert-DshReplayMutationAllowed -Config $Config -DryRun:$DryRun
+    $deployment = Get-DshPropertyValue $Config 'deployment'
+    if ($DryRun -and $deployment -and
+        (Get-DshPropertyValue $deployment 'provisioningMode') -ceq 'desktopNativeVerifiedRelease') {
+        return [pscustomobject]@{ status = 'would-block-native-session-evidence-unavailable'; mutated = $false }
+    }
     $desktop = @($Config.components | Where-Object name -eq 'dsh-desktop' | Select-Object -First 1)
     if ($desktop.Count -eq 0) { throw 'The configuration has no dsh-desktop component.' }
     $root = Resolve-DshComponentRoot -Component $desktop[0] -DshHome (Expand-DshPath $env:DSH_HOME)
@@ -625,6 +724,7 @@ function Invoke-DshDesktopRecovery {
 }
 
 Export-ModuleMember -Function @(
+    'Resolve-DshLockedReplayConfig',
     'Get-DshComponentInventory',
     'Get-DshServiceChecks',
     'Get-DshConfigChecks',

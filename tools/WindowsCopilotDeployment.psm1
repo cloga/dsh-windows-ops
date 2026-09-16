@@ -15,6 +15,25 @@ function Get-LockProperty {
     return $property.Value
 }
 
+function Test-WindowsCopilotNativeMode {
+    param($Lock)
+    if ($null -eq $Lock) { return $false }
+    $components = Get-LockProperty $Lock 'components'
+    if ($null -eq $components) { return $false }
+    $plugin = Get-LockProperty $components 'copilotIntegration'
+    if ($null -eq $plugin) { return $false }
+    $contract = Get-LockProperty $plugin 'desktopProvisioning'
+    if ($null -eq $contract) { return $false }
+    return (Get-LockProperty $contract 'mode') -ceq 'desktopNativeVerifiedRelease'
+}
+
+function Assert-WindowsCopilotLegacyMutation {
+    param($Lock)
+    if (Test-WindowsCopilotNativeMode $Lock) {
+        throw 'native-desktop-mutation-delegated: use the native managed updater and its live Session impact acknowledgement; the external Web session/list cannot authorize native restart, Apply or rollback.'
+    }
+}
+
 function Get-WindowsCopilotRuntimeSelector {
     param([Parameter(Mandatory)]$Lock)
     $selectors = @($Lock.components.desktop.runtimeSelectors)
@@ -231,22 +250,42 @@ function Test-WindowsCopilotLock {
         }
     } elseif ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness') {
         $channel = $desktop.releaseChannel
-        if ($desktopVersion -cne '0.1.5-rc.3.cloga.1' -or
-            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.1' -or
-            [string]$desktop.source.commit -cne '87506730d5f511316bac5ea623610e124908c657' -or
-            [string]$desktop.source.reviewedHead -cne '679110798316e8e455d95535a4f25a90315b652d' -or
-            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe' -or
-            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.1/cloga-deepseek-harness-0.1.5-rc.3.cloga.1-win-x64.exe' -or
-            [string]$desktop.artifact.sha256 -cne '432fdc5f438ce4e9d984ff36546c42d4a43bb571f15230bfa127b133623e8367' -or
-            [long]$desktop.artifact.size -ne 180145810 -or
+        if ($desktopVersion -cne '0.1.5-rc.3.cloga.3' -or
+            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.3' -or
+            [string]$desktop.source.commit -cne 'f34f048a6a862046de9b75f2aabf48944819f0d4' -or
+            [string]$desktop.source.reviewedHead -cne 'd8ca1e66dd1ef4275213a0e821e84f266a97ac0b' -or
+            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.3-win-x64.exe' -or
+            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.3/cloga-deepseek-harness-0.1.5-rc.3.cloga.3-win-x64.exe' -or
+            [string]$desktop.artifact.sha256 -cne '10964ad5c668a0513cc3bf79f7cb8d5c091445eca06f629d33d20bcf1dc8eba5' -or
+            [long]$desktop.artifact.size -ne 180175893 -or
             $desktop.artifact.releaseImmutable -ne $true -or
             [int]$channel.schemaVersion -ne 3 -or
             [string]$channel.owner -cne 'cloga/deepseek-harness' -or
             [string]$channel.mode -cne 'interactive-windows-installer' -or
-            [int]$channel.sequence -ne 2 -or
-            [string]$channel.manifestRawSha256 -cne '234caae905de71144e4dc4b6ecdfebf567c6cfdf7dad546c0d766fa7dd2937b3' -or
-            [string]$channel.manifestSha256 -cne '753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc') {
+            [int]$desktop.source.pullRequest -ne 44 -or
+            [long]$desktop.artifact.releaseId -ne 390062857 -or
+            [long]$desktop.artifact.assetId -ne 568279633 -or
+            [int]$channel.sequence -ne 4 -or
+            [string]$channel.manifestRawSha256 -cne '8c4661f963621e8e97da0490f9e616d635fec217a737d321ae7d7fcc36b1365b' -or
+            [string]$channel.manifestSha256 -cne '8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b') {
             throw 'Desktop identity must match the immutable cloga fork-owned 0.1.5 release.'
+        }
+        if ([int]$channel.managedCapability.schemaVersion -ne 3 -or
+            [int]$channel.managedCapability.currentSequence -ne 4 -or
+            [int]$channel.managedCapability.minimumSequence -ne 2 -or
+            $channel.pluginCompatibility.automaticProvisioning -ne $false -or
+            $channel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning -ne $true -or
+            [string]$channel.nativeProvisioning.capabilitySha256 -cne
+                '9ff3baf74aefe1b42de19aee3c78bee76a68703b46e08c1abc415de33ae8a85a' -or
+            [string]$channel.nativeProvisioning.helperSha256 -cne
+                '54aa5767c9f993f39a21d2a8d4aa23cd8b377301d19de0cd8d379d4fad4d313e' -or
+            [string]$channel.nativeProvisioning.plan.sha256 -cne
+                '5631b016dbe9c82084bcac61a17726e9c66e6a68e400c0d47be49068a043d6cd' -or
+            [string]$channel.nativeProvisioning.plan.planSha256 -cne
+                'd381ba004763970ae24991046b5811a958ad1238c8f2c5b862ed8fffc041cfbb' -or
+            [string]$channel.managedCapability.provisioning.planSha256 -cne
+                [string]$channel.nativeProvisioning.plan.planSha256) {
+            throw 'Desktop recovery must preserve legacy update compatibility and exact native startup provisioning evidence.'
         }
     } else {
         throw 'Desktop source repository is not reviewed.'
@@ -267,22 +306,24 @@ function Test-WindowsCopilotLock {
     if ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness' -and (
         [string]$installedDesktop.relativePath -cne 'cloga-deepseek-harness.exe' -or
         [string]$installedDesktop.sha256 -cne
-            'f77b28611cba6210f6441318db7453d32ff7b2c4cf58fd58ce0b44e743f25434' -or
+            '594f5da5e36109711a55cd556b65b11196b07583b5c6914fcf15c0d83073b0c2' -or
         [string]$installedDesktop.productName -cne 'DeepSeek Harness (cloga)' -or
-        [string]$installedDesktop.productVersion -cne '0.1.5-rc.3.cloga.1' -or
+        [string]$installedDesktop.fileDescription -cne 'DeepSeek Harness (cloga)' -or
+        [string]$installedDesktop.companyName -cne 'GitHub, Inc.' -or
+        [string]$installedDesktop.productVersion -cne '0.1.5.0' -or
         [string]$installedDesktop.authenticodeStatus -cne 'NotSigned' -or
         [string]$desktop.installedRuntimeDescriptor.relativePath -cne 'resources\dsh\desktop-runtime.json' -or
         [string]$desktop.installedRuntimeDescriptor.sha256 -cne
-            '210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836')) {
+            '7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085')) {
         throw 'Installed Desktop executable identity must match the reviewed cloga fork release evidence.'
     }
     $copilotSource = $Lock.components.copilotIntegration.source
     if ([string]$copilotSource.repository -cne 'https://github.com/cloga/dsh-github-copilot' -or
-        [int]$copilotSource.pullRequest -ne 120 -or
-        [string]$copilotSource.commit -cne '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704' -or
-        [string]$copilotSource.reviewedHead -cne '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704' -or
-        [string]$copilotSource.mergeCommit -cne '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704') {
-        throw 'Copilot integration source must match reviewed PR #120 and its exact merge identity.'
+        [int]$copilotSource.pullRequest -ne 133 -or
+        [string]$copilotSource.commit -cne '479340f965c5be7b4408e4f1e6c9dda6c421d37b' -or
+        [string]$copilotSource.reviewedHead -cne '52a7428fc68b05c34d7a3066787703527788e98d' -or
+        [string]$copilotSource.mergeCommit -cne '479340f965c5be7b4408e4f1e6c9dda6c421d37b') {
+        throw 'Copilot integration source must match reviewed PR #133 and its exact merge identity.'
     }
 
     foreach ($commit in @(
@@ -441,7 +482,7 @@ function Test-WindowsCopilotLock {
         }
     } elseif ([string]$officialSelector.id -ceq 'desktop-fork-managed') {
         if ([string]$officialSelector.source -cne 'desktop-managed-release' -or
-            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.1' -or
+            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.3' -or
             [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
             [string]$officialSelector.package.version -cne '0.1.5-rc.2' -or
             [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.5-rc.2' -or
@@ -466,8 +507,11 @@ function Test-WindowsCopilotLock {
         [string]$providerArtifact.url -cne $expectedProviderArtifactUrl -or
         [string]$providerArtifact.releaseTag -cne $expectedProviderReleaseTag -or
         [string]$providerArtifact.releaseCommit -cne
-            '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704' -or
-        $providerArtifact.releaseImmutable -ne $true -or
+            '479340f965c5be7b4408e4f1e6c9dda6c421d37b' -or
+        $providerArtifact.releaseImmutable -isnot [bool] -or $providerArtifact.releaseImmutable -ne $true -or
+        (Get-LockProperty $providerArtifact 'releaseId') -ne 389773051 -or
+        (Get-LockProperty $providerArtifact 'assetId') -ne 567596250 -or
+        (Get-LockProperty $providerArtifact.checksumManifest 'assetId') -ne 567596283 -or
         [int]$providerArtifact.size -le 0 -or
         [string]$providerArtifact.sha256 -notmatch '^[0-9a-f]{64}$' -or
         [string]$providerArtifact.sha512 -notmatch '^[0-9a-f]{128}$' -or
@@ -485,13 +529,16 @@ function Test-WindowsCopilotLock {
     $expectedProviderAttestedFiles = @(
         [string]$Lock.components.copilotIntegration.package.main,
         'lib/client.js',
-        'lib/remote.js'
+        'lib/remote.js',
+        'lib/routed-web.js',
+        'lib/search-routing-pFLux0W7.js',
+        'lib/web-delegate.js'
     )
     if ($providerAttestedFiles.Count -ne $expectedProviderAttestedFiles.Count -or
         @($expectedProviderAttestedFiles | Where-Object {
             $providerAttestedFiles -notcontains $_
         }).Count -gt 0) {
-        throw 'Provider installed-file contract must attest the exact server, client, and remote entrypoints.'
+        throw 'Provider installed-file contract must attest all six published JavaScript entrypoints and shared chunks.'
     }
     $expectedProviderBuildCommands = @(
         'install --frozen-lockfile',
@@ -858,6 +905,29 @@ function Test-WindowsCopilotLock {
         throw 'Traditional Search contract must require github-copilot-hosted sources.'
     }
     $providerRoute = $Lock.acceptance.providerRoute
+    if ((Get-LockProperty $providerRoute 'applicableMode') -cne 'windowsOpsVerifiedRelease') {
+        throw 'Canonical provider route repair is a legacy Web-only acceptance contract.'
+    }
+    $native = Get-LockProperty $Lock.acceptance 'nativeDesktop'
+    if ($null -eq $native) { throw 'The native Desktop acceptance boundary is required.' }
+    foreach ($entry in @{
+        applicableMode = 'desktopNativeVerifiedRelease'; structuralVerifier = 'tools/verify-native-desktop.mjs'
+        profile = 'desktop'; hostTransport = 'parent-owned-byte-pipes'; externalRemoteAttachment = $false
+        httpListenerRequired = $false; functionalStatus = 'manual-verification-required'; unknownCountsAsPass = $false
+        canonicalRouteRequired = $false; managedProvider = 'github-copilot-preview'; liveModelResponseRequired = $true
+        externalMutation = 'native-updater-delegated'
+    }.GetEnumerator()) {
+        $value = Get-LockProperty $native ([string]$entry.Key)
+        if ($value -cne $entry.Value -or
+            ($entry.Value -is [bool] -and $value -isnot [bool])) {
+            throw "Native Desktop acceptance boundary mismatch: $($entry.Key)."
+        }
+    }
+    $nativeRemotes = @(Get-LockProperty $native 'readOnlyRemotes')
+    if ($nativeRemotes.Count -ne 2 -or $nativeRemotes -cnotcontains 'githubCopilot.status' -or
+        $nativeRemotes -cnotcontains 'githubCopilot.migrationStatus') {
+        throw 'Native acceptance may only describe the existing read-only plugin Remotes.'
+    }
     if ($providerRoute.legacyConnectionFieldsRemovedByDeployment -ne $true -or
         @($providerRoute.reconciliationOwnedPaths).Count -ne 2 -or
         @($providerRoute.reconciliationOwnedPaths) -notcontains 'providers.github-copilot.models' -or
@@ -889,6 +959,7 @@ function Test-WindowsCopilotLock {
     }
     $baseline = $Lock.components.copilotIntegration.package.deploymentBaseline
     $expectedCapabilities = @(
+        'desktop-shared-package-ownership',
         'readonly-search-composition-preflight',
         'session-model-search-routing',
         'explicit-deepseek-search-fallback',
@@ -923,7 +994,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly thirty-one required capabilities.'
+        throw 'Copilot integration baseline must lock exactly thirty-two required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {
@@ -937,17 +1008,24 @@ function Test-WindowsCopilotLock {
         @($baseline.platforms) -notcontains 'windows' -or
         @($baseline.platforms) -notcontains 'linux' -or
         [string]$baseline.node -ne '>=22.19.0' -or
-        [string]$baseline.dshRelease -ne '0.1.5-alpha.2' -or
+        [string]$baseline.dshRelease -ne '0.1.6-alpha.1' -or
         [string]$baseline.dshDevelopmentRelease -ne '0.1.2-rc.1' -or
         [string]$baseline.dshPeerRange -ne
-            '0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2' -or
+            '0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2 || 0.1.6-alpha.1' -or
         [string]$baseline.piAi -ne '0.85.1' -or
-        [string]$baseline.runtimeDependencies.'@deepseek-ai/dsh-authorization' -ne
-            '0.1.2-rc.1' -or
-        [string]$baseline.runtimeDependencies.'@deepseek-ai/schemastery' -ne '^3.18.2' -or
+        @($baseline.runtimeDependencies.PSObject.Properties).Count -ne 2 -or
+        [string]$baseline.sharedPeerDependencies.'@deepseek-ai/dsh-authorization' -cne [string]$baseline.dshPeerRange -or
+        [string]$baseline.sharedPeerDependencies.'@deepseek-ai/schemastery' -cne '^3.18.2' -or
         [string]$baseline.runtimeDependencies.'@earendil-works/pi-ai' -ne '0.85.1' -or
         [string]$baseline.runtimeDependencies.zod -ne '^4.4.3') {
         throw 'Provider deployment baseline metadata does not match the reviewed contract.'
+    }
+    $clientExternals = Get-LockProperty $baseline 'clientExternals'
+    $react = if ($clientExternals) { Get-LockProperty $clientExternals 'react' } else { $null }
+    if (-not $react -or (Get-LockProperty $react 'range') -cne '^18.2.0' -or
+        (Get-LockProperty $react 'owner') -cne 'dsh-client-module-static-singleton' -or
+        (Get-LockProperty $react 'nodeGraph') -isnot [bool] -or (Get-LockProperty $react 'nodeGraph') -ne $false) {
+        throw 'Provider lock must preserve Client-only React ownership.'
     }
     $legacyGateway = $Lock.migration.legacyGateway
     if ($legacyGateway.active -ne $false -or $legacyGateway.successCriteria -ne $false -or
@@ -1702,18 +1780,53 @@ function Assert-ProviderBaselineData {
         throw 'Provider package metadata does not match the deployment lock.'
     }
     $contract = $expected.deploymentBaseline
-    $authorizationPackage = '@deepseek-ai/dsh-authorization'
-    $zodPackage = 'zod'
-    $expectedAuthorizationRange = [string](Get-LockProperty `
-        -InputObject $contract.runtimeDependencies -Name $authorizationPackage)
-    $baselineAuthorizationRange = [string](Get-LockProperty `
-        -InputObject $Baseline.supportedBaselines.runtimeDependencies -Name $authorizationPackage)
-    $packageAuthorizationRange = [string](Get-LockProperty `
-        -InputObject $Package.dependencies -Name $authorizationPackage)
-    $expectedZodRange = [string](Get-LockProperty -InputObject $contract.runtimeDependencies -Name $zodPackage)
-    $baselineZodRange = [string](Get-LockProperty `
-        -InputObject $Baseline.supportedBaselines.runtimeDependencies -Name $zodPackage)
-    $packageZodRange = [string](Get-LockProperty -InputObject $Package.dependencies -Name $zodPackage)
+    $client = Get-LockProperty $Package.dsh 'client'
+    $externals = @(if ($client) { Get-LockProperty $client 'external' })
+    if ($externals.Count -ne 1 -or $externals -cnotcontains 'react') {
+        throw 'Provider React must be declared as the Client external singleton.'
+    }
+    foreach ($kind in @('dependencies', 'optionalDependencies', 'peerDependencies')) {
+        $dependencies = Get-LockProperty $Package $kind
+        if ($dependencies -and $null -ne $dependencies.PSObject.Properties['react']) {
+            throw 'Provider React is Client-only and must not enter the Node dependency or peer graph.'
+        }
+    }
+    $clientExternals = Get-LockProperty $Baseline.supportedBaselines 'clientExternals'
+    $react = if ($clientExternals) { Get-LockProperty $clientExternals 'react' } else { $null }
+    if (-not $react -or (Get-LockProperty $react 'range') -cne '^18.2.0' -or
+        (Get-LockProperty $react 'owner') -cne 'dsh-client-module-static-singleton' -or
+        (Get-LockProperty $react 'nodeGraph') -isnot [bool] -or (Get-LockProperty $react 'nodeGraph') -ne $false) {
+        throw 'Provider deployment baseline must preserve Client-only React ownership.'
+    }
+    foreach ($dependency in @($contract.runtimeDependencies.PSObject.Properties)) {
+        if ([string](Get-LockProperty $Package.dependencies $dependency.Name) -cne [string]$dependency.Value -or
+            [string](Get-LockProperty $Baseline.supportedBaselines.runtimeDependencies $dependency.Name) -cne [string]$dependency.Value) {
+            throw 'Provider deployment-baseline runtime dependencies do not match the deployment lock.'
+        }
+    }
+    $sharedPeers = Get-LockProperty $Baseline.supportedBaselines 'sharedPeerDependencies'
+    $packagePeers = Get-LockProperty $Package 'peerDependencies'
+    $peerMetadata = Get-LockProperty $Package 'peerDependenciesMeta'
+    foreach ($dependency in @($contract.sharedPeerDependencies.PSObject.Properties)) {
+        if (-not $sharedPeers -or -not $packagePeers -or
+            [string](Get-LockProperty $sharedPeers $dependency.Name) -cne [string]$dependency.Value -or
+            [string](Get-LockProperty $packagePeers $dependency.Name) -cne [string]$dependency.Value) {
+            throw 'Provider shared peer dependencies do not match the deployment lock.'
+        }
+        if ($peerMetadata) {
+            $metadata = Get-LockProperty $peerMetadata $dependency.Name
+            if ($metadata -and (Get-LockProperty $metadata 'optional') -eq $true) {
+                throw 'Provider Desktop shared peers must not be optional.'
+            }
+        }
+    }
+    foreach ($kind in @('dependencies', 'optionalDependencies')) {
+        $dependencies = Get-LockProperty $Package $kind
+        if ($dependencies -and @($dependencies.PSObject.Properties |
+            Where-Object Name -like '@deepseek-ai/*').Count -gt 0) {
+            throw 'Provider must not install private copies of Desktop shared packages.'
+        }
+    }
     if ([int]$Baseline.schemaVersion -ne [int]$contract.schemaVersion -or
         [string]$Baseline.baseline.id -ne [string]$contract.id -or
         [string]$Baseline.baseline.kind -ne [string]$contract.kind -or
@@ -1728,11 +1841,7 @@ function Assert-ProviderBaselineData {
         [string]$Baseline.supportedBaselines.dsh.release -ne [string]$contract.dshRelease -or
         [string]$Baseline.supportedBaselines.dsh.developmentRelease -ne [string]$contract.dshDevelopmentRelease -or
         [string]$Baseline.supportedBaselines.dsh.peerRange -ne [string]$contract.dshPeerRange -or
-        [string]$Baseline.supportedBaselines.piAi -ne [string]$contract.piAi -or
-        $baselineAuthorizationRange -ne $expectedAuthorizationRange -or
-        $packageAuthorizationRange -ne $expectedAuthorizationRange -or
-        $baselineZodRange -ne $expectedZodRange -or
-        $packageZodRange -ne $expectedZodRange) {
+        [string]$Baseline.supportedBaselines.piAi -ne [string]$contract.piAi) {
         throw 'Provider deployment-baseline metadata does not match the deployment lock.'
     }
     $actualCapabilities = @($Baseline.capabilities | Where-Object { $_.required -eq $true } | ForEach-Object {
@@ -1868,6 +1977,19 @@ function Get-WindowsCopilotInstallPlan {
         [switch]$IncludeCompanionSuite
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    if (Test-WindowsCopilotNativeMode $Lock) {
+        return [pscustomobject]@{
+            mode = 'desktopNativeVerifiedRelease'
+            status = 'native-delegated'
+            profileRoot = Join-Path (Resolve-DeploymentPath $DshHome) 'profiles\desktop'
+            changesSystem = $false
+            steps = @(
+                [pscustomobject]@{ id = 'verify-native-files'; action = 'read-only-exact-release-inventory'; changesSystem = $false },
+                [pscustomobject]@{ id = 'native-managed-update'; action = 'delegate-to-native-interactive-updater'; changesSystem = $false },
+                [pscustomobject]@{ id = 'verify-native-model-response'; action = 'manual-electron-ui-and-model-response'; changesSystem = $false }
+            )
+        }
+    }
     $profileRoot = Join-Path (Resolve-DeploymentPath $DshHome) ([string]$Lock.profile.relativePath)
     $globalSpecs = @($Lock.globalInstall.packages | ForEach-Object {
         "$($_.name)@$($_.version)"
@@ -3075,6 +3197,7 @@ function Restore-WindowsCopilotDeployment {
         [string[]]$AcknowledgeLiveSessionIds,
         [object[]]$DesktopProcesses
     )
+    Assert-WindowsCopilotLegacyMutation $Lock
     $mutex = Enter-WindowsCopilotDeploymentLock -BackupRoot $BackupRoot
     try {
         return Restore-WindowsCopilotDeploymentLocked @PSBoundParameters
@@ -3456,7 +3579,9 @@ function Get-WindowsCopilotDesktopState {
     } else {
         $null
     }
-    $lockedProductVersionPrefix = if ([string]$identity.productVersion -match '^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$') {
+    $lockedProductVersionPrefix = if ([string]$identity.productVersion -match '^\d+\.\d+\.\d+\.\d+$') {
+        [string]$identity.productVersion
+    } elseif ([string]$identity.productVersion -match '^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$') {
         "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
     } else {
         $null
@@ -4673,6 +4798,10 @@ function Restart-WindowsCopilotDesktop {
         [object[]]$LiveSessions,
         [object[]]$FinalLiveSessions
     )
+    Assert-WindowsCopilotLegacyMutation $Lock
+    if ([IO.Path]::GetFileName($DesktopExecutablePath) -ieq 'cloga-deepseek-harness.exe') {
+        throw 'native-host-session-list-unavailable: native restart requires its own live impact assessment, not Web HTTP evidence.'
+    }
     $executable = Resolve-DeploymentPath $DesktopExecutablePath
     if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
         throw "Desktop executable not found: '$executable'."
@@ -5184,6 +5313,15 @@ function Test-WindowsCopilotVerificationAcceptance {
         [Parameter(Mandatory)]$Installation,
         [switch]$IncludeCompanionSuite
     )
+    if ((Get-LockProperty $Installation 'mode') -ceq 'desktopNativeVerifiedRelease') {
+        return [pscustomobject]@{
+            valid = $false
+            baseValid = [bool]$Installation.staticValid
+            companionValid = -not $IncludeCompanionSuite
+            manualSmokePending = $true
+            status = 'native-functional-manual-verification-required'
+        }
+    }
     $manualSmokePending = [bool](
         -not $Installation.complete -and $Installation.readyForManualSearchSmoke
     )
@@ -6072,6 +6210,117 @@ function Remove-WindowsCopilotCompanionSuite {
     }
 }
 
+function Test-WindowsCopilotNativeInstallation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Lock,
+        [Parameter(Mandatory)][string]$DshHome,
+        [string]$DesktopExecutablePath,
+        [object[]]$DesktopProcesses,
+        [switch]$SkipRuntimeChecks
+    )
+    Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    if (-not (Test-WindowsCopilotNativeMode $Lock)) { throw 'Native acceptance requires desktopNativeVerifiedRelease.' }
+    $userPresetConfig = Test-DshUserPresetConfig -DshHome $DshHome -Contract $Lock.acceptance.runtimeSchema
+    $desktop = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
+    $home = Resolve-DeploymentPath $DshHome
+    $installRoot = Split-Path -Parent ([string]$desktop.path)
+    $inputJson = @{ lock = $Lock; installRoot = $installRoot; dshHome = $home } | ConvertTo-Json -Depth 40 -Compress
+    # Windows PowerShell 5.1 otherwise replaces non-ASCII stdin path characters.
+    $OutputEncoding = [Text.UTF8Encoding]::new($false)
+    $fileOutput = $inputJson | & node (Join-Path $PSScriptRoot 'verify-native-desktop.mjs')
+    if ($LASTEXITCODE -ne 0) { throw 'native-read-only-verifier-failed' }
+    $files = ($fileOutput -join "`n") | ConvertFrom-Json
+    $payload = [pscustomobject]@{ valid = $false; status = 'native-inventory-not-ready' }
+    if ($files.provisioning.valid) {
+        try {
+            $root = [string]$files.provisioning.packageRoot
+            Assert-NoReparsePointAncestor -Path $root
+            $metadata = Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            $baseline = Get-Content -LiteralPath (Join-Path $root 'deployment-baseline.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            Assert-ProviderBaselineData -Lock $Lock -Package $metadata -Baseline $baseline
+            foreach ($relativePath in @($Lock.components.copilotIntegration.package.attestedFiles)) {
+                $path = Join-Path $root ([string]$relativePath).Replace('/', '\')
+                Assert-NoReparsePointAncestor -Path $path
+                $expected = Get-TarEntrySha256 -ArtifactPath ([string]$files.provisioning.artifactPath) `
+                    -EntryPath ('package/' + ([string]$relativePath).Replace('\', '/'))
+                if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $expected) {
+                    throw 'native-provider-payload-mismatch'
+                }
+            }
+            $payload = [pscustomobject]@{ valid = $true; status = 'all-published-entrypoints-verified' }
+        } catch {
+            $payload = [pscustomobject]@{ valid = $false; status = 'native-provider-payload-or-baseline-invalid' }
+        }
+    }
+    $active = [ordered]@{
+        valid = $false; status = 'desktop-not-running'; source = 'native-parent-owned-byte-pipes'
+        processIds = @(); desktopProcessIds = @(); listenerCheck = 'not-applicable'
+    }
+    if ($SkipRuntimeChecks) {
+        $active.status = 'skipped'
+    } else {
+        if ($null -eq $DesktopProcesses) {
+            $DesktopProcesses = @(Get-CimInstance Win32_Process |
+                Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
+        }
+        $parents = @($DesktopProcesses | Where-Object {
+            $_.ExecutablePath -and [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq [string]$desktop.path
+        })
+        $active.desktopProcessIds = @($parents | ForEach-Object { [int]$_.ProcessId })
+        if ($parents.Count -gt 0) {
+            $node = Join-Path $installRoot 'resources\runtime\node\node.exe'
+            $runtimeRoot = Join-Path $installRoot 'resources\dsh'
+            $expectedArgs = @($node, (Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'),
+                $runtimeRoot, (Join-Path $home 'profiles\desktop'))
+            $children = @($DesktopProcesses | Where-Object {
+                if (-not $_.ExecutablePath -or [string]$_.ExecutablePath -ine $node -or
+                    $active.desktopProcessIds -notcontains [int]$_.ParentProcessId -or -not $_.CommandLine) { return $false }
+                $command = [string]$_.CommandLine
+                $pattern = '"[^"]*"|[^\s"]+'
+                if ([regex]::Replace($command, $pattern, '').Trim()) { return $false }
+                $tokens = @([regex]::Matches($command, $pattern) | ForEach-Object { $_.Value.Trim('"') })
+                if ($tokens.Count -ne 4) { return $false }
+                for ($index = 0; $index -lt 4; $index++) {
+                    if ($tokens[$index] -ine $expectedArgs[$index]) { return $false }
+                }
+                return $true
+            })
+            $active.processIds = @($children | ForEach-Object { [int]$_.ProcessId })
+            $active.valid = [bool]($desktop.valid -and $files.runtime.valid -and $children.Count -eq 1)
+            $active.status = if ($active.valid) { 'native-host-process-bound' } else { 'native-host-process-or-artifact-mismatch' }
+        }
+    }
+    $staticValid = [bool]($userPresetConfig.valid -and $desktop.valid -and $files.valid -and $payload.valid)
+    [pscustomobject]@{
+        mode = 'desktopNativeVerifiedRelease'
+        complete = $false
+        staticValid = $staticValid
+        runtimeValid = $false
+        readyForManualSearchSmoke = $false
+        status = if ($staticValid) { 'manual-verification-required' } else { 'native-structural-not-ready' }
+        desktop = $desktop
+        profile = [pscustomobject]@{
+            root = Join-Path $home 'profiles\desktop'
+            userPresetConfig = $userPresetConfig
+            nativeProvisioning = $files.provisioning
+            payload = $payload
+            providerRoute = $files.functional
+            credential = [pscustomobject]@{ status = 'native-host-owned-not-read'; configured = $null }
+            companionSuite = [pscustomobject]@{ selected = $false; valid = $false; status = 'web-overlay-not-applicable' }
+        }
+        runtime = [pscustomobject]@{
+            officialRuntime = $files.runtime
+            activeRuntime = [pscustomobject]$active
+            listeners = @()
+            listenerStatus = 'not-applicable-native-host'
+            catalog = $files.functional
+        }
+        functional = $files.functional
+        mutated = $false
+    }
+}
+
 function Test-WindowsCopilotInstallation {
     [CmdletBinding()]
     param(
@@ -6088,6 +6337,11 @@ function Test-WindowsCopilotInstallation {
         [switch]$IncludeCompanionSuite
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    if (Test-WindowsCopilotNativeMode $Lock) {
+        return Test-WindowsCopilotNativeInstallation -Lock $Lock -DshHome $DshHome `
+            -DesktopExecutablePath $DesktopExecutablePath -DesktopProcesses $DesktopProcesses `
+            -SkipRuntimeChecks:$SkipRuntimeChecks
+    }
     $userPresetConfig = Test-DshUserPresetConfig -DshHome $DshHome -Contract $Lock.acceptance.runtimeSchema
     $home = Resolve-DeploymentPath $DshHome
     $profileRoot = Join-Path $home ([string]$Lock.profile.relativePath)
@@ -7001,6 +7255,7 @@ function Invoke-WindowsCopilotApply {
         [string[]]$AcknowledgeLiveSessionIds,
         [int]$TimeoutSeconds = 90
     )
+    Assert-WindowsCopilotLegacyMutation $Lock
     $mutex = Enter-WindowsCopilotDeploymentLock -BackupRoot $BackupRoot
     try {
         return Invoke-WindowsCopilotApplyLocked @PSBoundParameters
@@ -7012,6 +7267,8 @@ function Invoke-WindowsCopilotApply {
 Export-ModuleMember -Function @(
     'Read-WindowsCopilotLock',
     'Test-WindowsCopilotLock',
+    'Test-WindowsCopilotNativeMode',
+    'Test-WindowsCopilotNativeInstallation',
     'Test-LockedArtifact',
     'Test-WindowsCopilotInstalledArtifactClosure',
     'Get-WindowsCopilotDirectoryTreeState',

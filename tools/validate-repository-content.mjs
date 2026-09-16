@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { verifyNativeReleaseEvidence } from './verify-native-desktop.mjs'
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -34,7 +35,7 @@ export function validateRepositoryContent(root = defaultRoot) {
   expect(plugin?.artifact?.checksumManifestSha256 === artifact?.checksumManifest?.sha256, 'catalog checksum digest differs from deployment lock')
   expect(plugin?.artifact?.checksumManifestSize === artifact?.checksumManifest?.size, 'catalog checksum size differs from deployment lock')
   expect(artifact?.releaseImmutable === true, 'locked Copilot Release must be immutable')
-  expect(artifact?.releaseCommit === '08bfccc3b5930b93ef2fe31d9cf9e509f34a8704', 'locked Copilot Release commit differs')
+  expect(artifact?.releaseCommit === '479340f965c5be7b4408e4f1e6c9dda6c421d37b', 'locked Copilot Release commit differs')
   expect(artifact?.releaseTag === `v${version}`, 'locked Copilot Release tag differs from package version')
   expect(artifact?.name === `dsh-github-copilot-${version}.tgz`, 'locked Copilot artifact name differs from package version')
   expect(artifact?.url === `https://github.com/cloga/dsh-github-copilot/releases/download/v${version}/${artifact?.name}`, 'locked Copilot artifact URL is not canonical')
@@ -84,22 +85,27 @@ export function validateRepositoryContent(root = defaultRoot) {
   const fork = selectors.find(candidate => candidate.id === 'desktop-fork-managed')
   const forkDesktop = desktop?.source?.repository === 'https://github.com/cloga/deepseek-harness'
   if (forkDesktop) {
-    expect(desktop?.version === '0.1.5-rc.3.cloga.1', 'Desktop fork version differs')
-    expect(desktop?.source?.releaseTag === 'dsh-desktop-v0.1.5-rc.3.cloga.1', 'Desktop fork release tag differs')
-    expect(desktop?.source?.commit === '87506730d5f511316bac5ea623610e124908c657', 'Desktop fork source commit differs')
-    expect(desktop?.source?.reviewedHead === '679110798316e8e455d95535a4f25a90315b652d', 'Desktop fork reviewed head differs')
-    expect(desktop?.artifact?.sha256 === '432fdc5f438ce4e9d984ff36546c42d4a43bb571f15230bfa127b133623e8367', 'Desktop fork installer digest differs')
-    expect(desktop?.artifact?.size === 180145810, 'Desktop fork installer size differs')
+    expect(desktop?.version === '0.1.5-rc.3.cloga.3', 'Desktop fork version differs')
+    expect(desktop?.source?.releaseTag === 'dsh-desktop-v0.1.5-rc.3.cloga.3', 'Desktop fork release tag differs')
+    expect(desktop?.source?.commit === 'f34f048a6a862046de9b75f2aabf48944819f0d4', 'Desktop fork source commit differs')
+    expect(desktop?.source?.reviewedHead === 'd8ca1e66dd1ef4275213a0e821e84f266a97ac0b', 'Desktop fork reviewed head differs')
+    expect(desktop?.artifact?.sha256 === '10964ad5c668a0513cc3bf79f7cb8d5c091445eca06f629d33d20bcf1dc8eba5', 'Desktop fork installer digest differs')
+    expect(desktop?.artifact?.size === 180175893, 'Desktop fork installer size differs')
     expect(desktop?.artifact?.releaseImmutable === true, 'Desktop fork release must be immutable')
     expect(desktop?.installedExecutable?.relativePath === 'cloga-deepseek-harness.exe', 'installed Desktop fork executable path differs')
-    expect(desktop?.installedExecutable?.sha256 === 'f77b28611cba6210f6441318db7453d32ff7b2c4cf58fd58ce0b44e743f25434', 'installed Desktop fork executable digest differs')
+    expect(desktop?.installedExecutable?.sha256 === '594f5da5e36109711a55cd556b65b11196b07583b5c6914fcf15c0d83073b0c2', 'installed Desktop fork executable digest differs')
     expect(desktop?.installedExecutable?.authenticodeStatus === 'NotSigned', 'installed Desktop fork signature status differs')
     expect(desktop?.installedRuntimeDescriptor?.relativePath === 'resources\\dsh\\desktop-runtime.json', 'installed Desktop runtime descriptor path differs')
-    expect(desktop?.installedRuntimeDescriptor?.sha256 === '210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836', 'installed Desktop runtime descriptor digest differs')
+    expect(desktop?.installedRuntimeDescriptor?.sha256 === '7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085', 'installed Desktop runtime descriptor digest differs')
     expect(desktop?.releaseChannel?.schemaVersion === 3, 'Desktop fork release manifest schema differs')
     expect(desktop?.releaseChannel?.owner === 'cloga/deepseek-harness', 'Desktop fork release owner differs')
-    expect(desktop?.releaseChannel?.manifestRawSha256 === '234caae905de71144e4dc4b6ecdfebf567c6cfdf7dad546c0d766fa7dd2937b3', 'Desktop fork manifest raw digest differs')
-    expect(desktop?.releaseChannel?.manifestSha256 === '753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc', 'Desktop fork manifest self digest differs')
+    expect(desktop?.releaseChannel?.manifestRawSha256 === '8c4661f963621e8e97da0490f9e616d635fec217a737d321ae7d7fcc36b1365b', 'Desktop fork manifest raw digest differs')
+    expect(desktop?.releaseChannel?.manifestSha256 === '8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b', 'Desktop fork manifest self digest differs')
+    try {
+      verifyNativeReleaseEvidence(lock, path.join(root, desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/')))
+    } catch (error) {
+      failures.push(`Desktop formal release evidence failed: ${error.message}`)
+    }
   } else {
     expect(desktop?.version === '0.10.3', 'Desktop version must be 0.10.3')
     expect(desktop?.source?.commit === '113dc8f77095e765f4f55e233d8455e7ad9204ae', 'Desktop source commit differs')

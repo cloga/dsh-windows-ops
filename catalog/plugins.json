@@ -70,26 +70,26 @@
       ],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.4.0-alpha.18.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/dsh-github-copilot-0.4.0-alpha.18.tgz",
-        "sha256": "2ca4f604e89eda3000cf2a51d79871cee3cb721fa6f4324fc9a1197926c359a8",
-        "sha512": "15975665b6ff2bc8e613ae06c1bf5953e5000c0a9a9007ea2d7aebbbfaa92c5492e2a0b82cc3b4b88714d4a6ecc350a0e79c5fd2af9949b9f4cb771dc83ccb5f",
-        "integrity": "sha512-FZdWZbb/K8jmE64Gwb9ZU+UADAqakAfqLXrru/qpLFSS4qC4LMO0uIcU1Kbsw1Cg55xf0q+ZSbn0y3cdyDzLXw==",
-        "releaseTag": "v0.4.0-alpha.18",
-        "releaseCommit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
+        "name": "dsh-github-copilot-0.4.0-alpha.22.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/dsh-github-copilot-0.4.0-alpha.22.tgz",
+        "sha256": "e749d982ac55752eeca4cf4819b9751144cda1c2dc06033e4b42240151e40e0e",
+        "sha512": "1e41800a07d4ad34446ed6d481927a49bd3686a2ac782b65756d7a641a2e9d065a853a5e2965b96ea8f94cd6f5303e97ef2e1ee4c23443979d60b085ef5c9b9d",
+        "integrity": "sha512-HkGACgfUrTREbtbUgZJ6Sb02hqKseCtldW16ZBounQZahTpeKWW5bqj5TNb1MD6X7y4e5MI0Q5edYLCF71ybnQ==",
+        "releaseTag": "v0.4.0-alpha.22",
+        "releaseCommit": "479340f965c5be7b4408e4f1e6c9dda6c421d37b",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.18/SHA256SUMS",
-        "size": 538911,
-        "checksumManifestSha256": "caf7a63a46764b499df15acd6eca020b449ca34bd868f7064712c29df53a5293",
+        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/SHA256SUMS",
+        "size": 651444,
+        "checksumManifestSha256": "cdc2a7e8df955c9136c6c79c25adaaf929bee815308ff3ceb6c9cfb948c03546",
         "checksumManifestSize": 104
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
-        "reviewedHead": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
-        "mergeCommit": "08bfccc3b5930b93ef2fe31d9cf9e509f34a8704",
-        "pullRequest": 120,
-        "release": "0.4.0-alpha.18"
+        "commit": "479340f965c5be7b4408e4f1e6c9dda6c421d37b",
+        "reviewedHead": "52a7428fc68b05c34d7a3066787703527788e98d",
+        "mergeCommit": "479340f965c5be7b4408e4f1e6c9dda6c421d37b",
+        "pullRequest": 133,
+        "release": "0.4.0-alpha.22"
       },
       "platforms": [
         "cross-platform"
@@ -103,22 +103,22 @@
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows Copilot deployment lock pins official Desktop 0.10.3, its eight Profile links, its non-bundled panel placeholder, and its exact Desktop-managed DSH runtime together with the Copilot artifact, source commit, build commands, and required capabilities.",
+            "description": "The Windows Copilot deployment lock pins the fork-owned Desktop, its bundled runtime descriptor and native provisioning capability together with the immutable Copilot artifact, source identity, required host peers, and required capabilities. A promoted lock does not prove local installation.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
             "kind": "import-probe",
-            "description": "The maintained web and headless Profiles completed real host-entry import probes without fatal imports.",
+            "description": "The deployment acceptance contract requires real host-entry import probes. Web/headless evidence must remain separate from the reserved Desktop profile and does not establish Desktop Models readiness.",
             "path": "docs/local-core-desktop-copilot.md"
           },
           {
             "kind": "composition-mount",
-            "description": "The validated Profiles loaded the expected plugin composition and registered the supported capabilities.",
+            "description": "Desktop native provisioning owns reserved-profile composition and health verification. The Windows Ops adapter preserves delegation and never falls back to external profile materialization.",
             "path": "docs/local-core-desktop-copilot.md"
           },
           {
             "kind": "functional-smoke",
-            "description": "The official Desktop-managed rc.1 runtime, strict Remote codecs and OAuth JSON normalization, authorization fallback, leaf-only account model reconciliation, mixed per-model protocols, Copilot-scoped removal of unusable escalation fields, direct GitHub-hosted and Enterprise Copilot endpoints, dual-protocol inline search, Responses-only ctx.web search, default capability probing, and explicit probe bypass semantics are documented.",
+            "description": "The guide defines required post-upgrade Models, sign-in, transport, hosted-search, and fresh-Session acceptance. Published alpha.22 metadata adds Desktop shared-package ownership; package admission and fixture tests do not substitute for live functional evidence.",
             "path": "docs/local-core-desktop-copilot.md"
           }
         ]

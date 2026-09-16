@@ -8,6 +8,11 @@ import { validateRepositoryContent } from '../tools/validate-repository-content.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const scratchRoot = path.join(root, 'tests', '.repository-content-scratch')
 const fixtureFiles = [
+  'tests/fixtures/desktop-native-verified-release/formal-cloga3/release.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga3/build-receipt.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga3/capability.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga3/desktop-provisioning.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga3/helper-acceptance.json',
   'deployments/windows-copilot.lock.json',
   'catalog/plugins.json',
   'README.md',
@@ -158,8 +163,8 @@ test('rejects stale README versions and missing repository entry points', () => 
   const target = copyFixture()
   const readmePath = path.join(target, 'README.en.md')
   fs.writeFileSync(readmePath, fs.readFileSync(readmePath, 'utf8')
-    .replaceAll('0.4.0-alpha.18', '0.4.0-alpha.17')
-    .replaceAll('08bfccc3', '00000000'))
+    .replaceAll('0.4.0-alpha.22', '0.4.0-alpha.17')
+    .replaceAll('479340f9', '00000000'))
   fs.rmSync(path.join(target, 'SECURITY.md'))
   const result = validateRepositoryContent(target)
   assert.match(messages(result), /README\.en\.md does not name/)

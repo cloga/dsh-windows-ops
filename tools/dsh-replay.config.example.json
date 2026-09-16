@@ -5,25 +5,22 @@
     {
       "name": "dsh-desktop",
       "rootEnv": "DSH_DESKTOP_ROOT",
-      "rootCandidates": [
-        "%LOCALAPPDATA%\\Deepseek Harness Desktop"
-      ],
+      "rootCandidates": [],
+      "registryDiscovery": false,
       "executables": [
-        "deepseek-harness-desktop.exe"
+        "cloga-deepseek-harness.exe"
       ],
       "versionProbes": [],
       "fileVersionProbes": [
         {
-          "path": "deepseek-harness-desktop.exe"
+          "path": "cloga-deepseek-harness.exe"
         }
       ]
     },
     {
       "name": "dsh-desktop-runtime",
       "rootEnv": "DSH_DESKTOP_RUNTIME_ROOT",
-      "rootCandidates": [
-        "%APPDATA%\\io.github.hairyf.deepseek-harness-desktop\\dependencies\\dsh"
-      ],
+      "rootCandidates": [],
       "versionProbes": [
         {
           "path": "node_modules\\@deepseek-ai\\dsh\\package.json",
@@ -35,7 +32,7 @@
       "name": "dsh-github-copilot",
       "rootEnv": "DSH_GITHUB_COPILOT_ROOT",
       "rootCandidates": [
-        "${DSH_HOME}\\profiles\\web\\node_modules\\dsh-github-copilot"
+        "${DSH_HOME}\\profiles\\desktop\\node_modules\\dsh-github-copilot"
       ],
       "versionProbes": [
         {
@@ -48,8 +45,7 @@
       "name": "pi-ai",
       "rootEnv": "PI_AI_ROOT",
       "rootCandidates": [
-        "${DSH_HOME}\\profiles\\web\\node_modules\\@earendil-works\\pi-ai",
-        "${DSH_HOME}\\profiles\\web\\node_modules\\@mariozechner\\pi-ai"
+        "${DSH_HOME}\\profiles\\desktop\\node_modules\\@earendil-works\\pi-ai"
       ],
       "versionProbes": [
         {
@@ -68,6 +64,7 @@
   ],
   "configFiles": [
     "${DSH_HOME}\\settings.yaml",
+    "${DSH_HOME}\\profiles\\desktop\\cordis.patch.yml",
     "${DSH_HOME}\\profiles\\web\\cordis.patch.yml",
     "${DSH_HOME}\\profiles\\headless\\cordis.patch.yml"
   ],

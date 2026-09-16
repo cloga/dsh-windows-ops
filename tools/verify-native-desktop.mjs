@@ -256,11 +256,17 @@ export function verifyNativeDesktopFiles({ lock, installRoot, dshHome }) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  let stage = 'stdin';
   try {
-    const input = JSON.parse(readFileSync(0, 'utf8'));
+    // Windows native pipes may not be ready for synchronous fd reads.
+    const chunks = [];
+    for await (const chunk of process.stdin) chunks.push(chunk);
+    stage = 'json';
+    const input = JSON.parse(Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/u, ''));
+    stage = 'verification';
     console.log(JSON.stringify(verifyNativeDesktopFiles(input)));
   } catch {
-    console.error('native-check-input-invalid');
+    console.error(`native-check-input-invalid:${stage}`);
     process.exitCode = 2;
   }
 }

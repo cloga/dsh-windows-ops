@@ -6,10 +6,34 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { verifyNativeDesktopFiles, verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
 import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
 const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga3/', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
+
+for (const bom of ['', '\uFEFF']) {
+  test(`CLI waits for fragmented UTF-8 stdin${bom ? ' with BOM' : ''}`, async (t) => {
+    const f = fixture(t);
+    const script = fileURLToPath(new URL('../tools/verify-native-desktop.mjs', import.meta.url));
+    const child = spawn(process.execPath, [script], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const output = [];
+    const errors = [];
+    child.stdout.on('data', (chunk) => output.push(chunk));
+    child.stderr.on('data', (chunk) => errors.push(chunk));
+    const completed = new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.once('close', (code) => resolve(code));
+    });
+    const bytes = Buffer.from(bom + JSON.stringify({ ...f, diagnosticLabel: '\u6d4b\u8bd5' }));
+    // Deliberately split within the multibyte label and delay the final bytes.
+    child.stdin.write(bytes.subarray(0, bytes.length - 4));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    child.stdin.end(bytes.subarray(bytes.length - 4));
+    assert.equal(await completed, 0, Buffer.concat(errors).toString('utf8'));
+    assert.equal(JSON.parse(Buffer.concat(output).toString('utf8')).valid, true);
+  });
+}
 
 test('formal immutable evidence preserves legacy manifest false and startup receipt true', () => {
   const result = verifyNativeReleaseEvidence(actualLock(), formalRoot);

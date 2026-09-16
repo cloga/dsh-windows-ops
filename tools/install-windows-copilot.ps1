@@ -41,12 +41,6 @@ if ($Apply) {
     }
     $Action = 'Apply'
 }
-if ($Action -eq 'RemoveCompanionSuite') {
-    Remove-WindowsCopilotCompanionSuite -Lock $lock -DshHome $DshHome `
-        -BackupRoot $BackupRoot -DesktopExecutablePath $DesktopExecutablePath |
-        ConvertTo-Json -Depth 20
-    exit 0
-}
 if ($Action -in @('Check', 'Verify')) {
     $userPresetConfig = Test-DshUserPresetConfig -DshHome $DshHome -Contract $lock.acceptance.runtimeSchema
     if (-not $userPresetConfig.valid) {
@@ -57,6 +51,37 @@ if ($Action -in @('Check', 'Verify')) {
         } | ConvertTo-Json -Depth 20
         exit 2
     }
+}
+if (Test-WindowsCopilotNativeMode $lock) {
+    if ($Action -notin @('Check', 'Verify') -or $RestartDesktop) {
+        throw 'native-desktop-mutation-delegated: use the native managed updater with live Session impact acknowledgement; this entry point only checks native installations.'
+    }
+    if ($IncludeCompanionSuite) {
+        throw 'native-web-overlays-not-applicable: companion overlays belong to the separate Web profile, not native Desktop acceptance.'
+    }
+    $installation = Test-WindowsCopilotNativeInstallation -Lock $lock -DshHome $DshHome `
+        -DesktopExecutablePath $DesktopExecutablePath -SkipRuntimeChecks:$SkipRuntimeChecks
+    [pscustomobject]@{
+        mode = $Action.ToLowerInvariant()
+        valid = $false
+        staticValid = $installation.staticValid
+        status = $installation.status
+        installation = $installation
+        functional = $installation.functional
+        checks = [pscustomobject]@{
+            manifest = [pscustomobject]@{ valid = $true }
+            installation = $installation
+            providerRoute = $installation.functional
+        }
+    } | ConvertTo-Json -Depth 20
+    if ($Action -eq 'Verify') { exit 2 }
+    exit 0
+}
+if ($Action -eq 'RemoveCompanionSuite') {
+    Remove-WindowsCopilotCompanionSuite -Lock $lock -DshHome $DshHome `
+        -BackupRoot $BackupRoot -DesktopExecutablePath $DesktopExecutablePath |
+        ConvertTo-Json -Depth 20
+    exit 0
 }
 if (-not $NpmGlobalRoot) {
     $NpmGlobalRoot = (& npm root --global).Trim()

@@ -5,6 +5,7 @@
       "id": "desktop-official-renderer-slot-outlet",
       "description": "Verify the official Desktop-managed runtime renderer exports SlotOutlet for dsh-tauri-ui.",
       "component": "dsh-desktop-runtime",
+      "runtimeSelectors": ["desktop-official"],
       "files": [
         "node_modules\\@deepseek-ai\\dsh-client-ui-renderer\\lib\\client.js"
       ],
@@ -65,22 +66,25 @@
       "files": ["lib\\index.js"],
       "verifyMarkers": [
         "llm-pi-ai/github-copilot",
-        "models.getAuth(catalogModel)"
+        "models.getAuth(\"github-copilot\")",
+        "createGitHubCopilotTokenResolver(ctx, async () =>"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/copilot-auth.ts"
     },
     {
       "id": "github-copilot-per-model-api-route-materialization",
-      "description": "Verify account models retain their installed per-model protocol and selection prefers it over a route fallback.",
+      "description": "Verify managed route facts come from the current account snapshot and retain the selected model protocol.",
       "component": "dsh-github-copilot",
       "files": ["lib\\index.js"],
       "verifyMarkers": [
-        "[model.id, model.api]",
-        "const effectiveApi = selectedApi ?? routeApi;"
+        "routeFacts(modelId)",
+        "const snapshot = source.readSnapshot();",
+        "api: descriptor.api",
+        "baseURL: proof.baseURL"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/31"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/preview-route.ts"
     },
     {
       "id": "github-copilot-optional-tool-arguments",
@@ -89,25 +93,27 @@
       "files": ["lib\\index.js"],
       "verifyMarkers": [
         "const ESCALATION_FIELDS",
-        "assembly.variables.provider !== GITHUB_COPILOT_PROVIDER_ID",
+        "assembly.variables.provider !== \"github-copilot\" && !(ownedPreview && assembly.variables.provider === \"github-copilot-preview\")",
+        "isPluginPreviewProvider(ctx, assembled.variables.provider ?? \"\")",
         "installCopilotToolSchemaCompatibility(ctx)"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/45"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/tool-schema-compat.ts"
     },
     {
       "id": "github-copilot-existing-grant-route-self-healing",
-      "description": "Verify an existing valid Copilot grant repairs its account model list and strict-mode leaf without replacing the provider profile.",
+      "description": "Verify grant validation and legacy strict-mode repair preserve an absent canonical profile instead of recreating it.",
       "component": "dsh-github-copilot",
       "files": ["lib\\index.js"],
       "verifyMarkers": [
         "ensureGitHubCopilotProviderProfile(ctx)",
-        "function sameProviderModels(current, expected)",
+        "validateGrant(record)",
+        "current !== void 0 && providerSupportsStrictMode(current) !== false",
         "async function repairGitHubCopilotProviderProfile(ctx)",
         "normalizeGitHubCopilotOAuthCredential(record.payload)"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/33"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/authorization-controller.ts"
     },
     {
       "id": "github-copilot-strict-json-oauth-grant-normalization",
@@ -123,17 +129,32 @@
     },
     {
       "id": "github-copilot-direct-hosted-search",
-      "description": "Verify direct Copilot API metadata, bounded probe retry, and hosted-search bridge.",
+      "description": "Verify request-owned Copilot auth, fail-closed managed metadata checks, bounded probe retry, and hosted-search bridge.",
       "component": "dsh-github-copilot",
       "files": ["lib\\index.js"],
       "verifyMarkers": [
-        "Openai-Intent",
+        "resolveRequestAuth(candidate.model, candidateSignals.get(candidate))",
+        "COPILOT_MANAGED_SEARCH_METADATA_CHANGED",
         "const RESPONSES_PROBE_ROUNDS = 2;",
         "github-copilot-hosted",
         "api.individual.githubcopilot.com"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/pull/19"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/index.ts"
+    },
+    {
+      "id": "github-copilot-shared-routing-chunk",
+      "description": "Verify canonical route API precedence and trusted-host request metadata in the exact alpha.22 packed shared chunk.",
+      "component": "dsh-github-copilot",
+      "files": ["lib\\search-routing-pFLux0W7.js"],
+      "verifyMarkers": [
+        "const effectiveApi = provider === \"github-copilot\" ? routeApi : selectedApi ?? routeApi;",
+        "hostname.endsWith(\".githubcopilot.com\") || hostname.startsWith(\"copilot-api.\")",
+        "headers[\"X-Initiator\"] = initiator;",
+        "headers[\"Openai-Intent\"] = \"conversation-edits\";"
+      ],
+      "upstreamStatus": "upstreamed",
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/tree/479340f965c5be7b4408e4f1e6c9dda6c421d37b"
     },
     {
       "id": "github-copilot-models-ui",
@@ -151,6 +172,7 @@
       "id": "desktop-no-open-recovery",
       "description": "Use the no-open flag during Desktop backend recovery to avoid a second browser launch.",
       "component": "dsh-desktop",
+      "runtimeSelectors": ["desktop-official"],
       "files": [
         "resources\\app.asar.unpacked\\main.mjs",
         "resources\\app\\main.mjs"

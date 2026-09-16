@@ -20,13 +20,53 @@
 
 | 组件 | 锁定版本 |
 |---|---|
-| DeepSeek Harness Desktop | fork-owned `0.1.5-rc.3.cloga.1`，release tag `dsh-desktop-v0.1.5-rc.3.cloga.1`，commit `87506730d5f511316bac5ea623610e124908c657` |
-| Desktop 管理的 DSH runtime | installer 内置 `@deepseek-ai/dsh@0.1.5-rc.2`，由安装后的 `resources\dsh\desktop-runtime.json` 证明，descriptor SHA-256 `210cacaf3842643ef6c124fd23cb3b67caf7008e97868c733550b56ba7a1e836`；默认 per-user root 是 `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`，但 Windows Ops 以实际安装 EXE 路径为准 |
-| 必需的 `dsh-github-copilot` | 0.4.0-alpha.18；在 `desktopNativeVerifiedRelease` 下由 Desktop native capability 保留/接管，不再由 Windows Ops 外部事务物化 |
-| Desktop native capability | `desktopNativeVerifiedRelease`，manifest self SHA-256 `753ac3ae302e03d85e120742f07e6c5c0ad5c88103c70c78e5b0335fe84e35cc`，generic plugin compatibility `automaticProvisioning=false` |
+| DeepSeek Harness Desktop | fork-owned `0.1.5-rc.3.cloga.3`，release tag `dsh-desktop-v0.1.5-rc.3.cloga.3`，commit `f34f048a6a862046de9b75f2aabf48944819f0d4` |
+| Desktop 管理的 DSH runtime | installer 内置 `@deepseek-ai/dsh@0.1.5-rc.2`，由安装后的 `resources\dsh\desktop-runtime.json` 证明，descriptor SHA-256 `7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085`；默认 per-user root 是 `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`，但 Windows Ops 以实际安装 EXE 路径为准 |
+| 必需的 `dsh-github-copilot` | 0.4.0-alpha.22；在 `desktopNativeVerifiedRelease` 下由 Desktop native capability 保留/接管，不再由 Windows Ops 外部事务物化 |
+| Desktop native capability | `desktopNativeVerifiedRelease`，manifest self SHA-256 `8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b`，generic plugin compatibility `automaticProvisioning=false` |
 | 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.2`、`dsh-cron@0.4.1` |
 
 README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。默认分支和 deployment lock 是本仓库的发布渠道；本仓库不另行分发 Desktop/DSH/plugin 二进制。Lock 更新表示经过评审的目标基线，不代表某台机器已经执行 `-Apply`；默认 check mode 会如实报告尚未应用的 drift。
+
+Replay uses the installer's lock-selected Desktop discovery and bundled runtime
+descriptor checks, with no legacy Tauri fallback. SelfCheck/DryRun exit zero is
+not deployment acceptance: inspect their `deployment` evidence and patch
+statuses. Plugin markers in Web/headless do not prove Desktop Models readiness.
+
+The published fork checks for managed updates about ten seconds after startup.
+After confirmation of the impact on active work, its helper downloads/verifies
+the release and starts the interactive installer; Windows/UAC prompts remain.
+Restart evidence gates completion. This is not an unattended installation.
+Copilot alpha.22 uses required host authorization/schemastery peers rather than
+private dependency copies; the locked bundled Core remains unchanged.
+React is a Client external singleton (`dsh.client.external`), not a required
+Node peer or private runtime dependency. Alpha.22 corrects that alpha.21 startup
+failure; published metadata alone still does not prove live Desktop readiness.
+
+Recovery Release `390062857` (sequence 4) passed standalone copied-helper
+bootstrap, synthetic ACK/cancel, packaged initial/restart
+provisioning and signed-out Models UI acceptance, not OAuth, a model round or a
+local installer upgrade. Its legacy-compatible update manifest deliberately
+keeps `automaticProvisioning=false`; the separately hash-bound build receipt
+and packaged capability declare native startup provisioning with the exact
+plan. Do not equate those two compatibility objects or relax local registry TLS.
+
+Older `.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
+unresolved `semver` import. They cannot repair themselves by discovering a newer
+release. Recovery requires the independently verified `.cloga.3` installer,
+explicit interruption consent and a clean Desktop/Host exit, coordinated by the
+operator outside the broken helper. Do not patch live files or install missing
+dependencies into an update operation. Generic direct registry probe failures
+are not evidence that the supported provisioner failed.
+
+Native `Check` separates exact installed files/receipts from functional evidence.
+The Electron Host uses parent-owned byte pipes, not `127.0.0.1:3080`; Web checks
+cannot prove native Models readiness. `Verify` reports
+`manual-verification-required` (exit 2); independently record Desktop UI and real
+model-response acceptance outside this CLI. Missing native Remote
+access is unknown, never success. Legacy Apply/rollback/restart are blocked for
+the native lock; use the native managed updater and its live Session impact
+confirmation instead.
 
 ## 快速入口
 
@@ -67,7 +107,7 @@ node tools\validate-plugin-catalog.mjs
 | 类别 | 主要工具 | 用途 |
 |---|---|---|
 | 部署 | `tools/install-windows-copilot.ps1` | 默认只检查；显式 `-Apply` 才安装锁定基线 |
-| 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | 默认只检查；显式 `-Apply -AcknowledgeUnsignedLocalBuild` 才先运行精确 `PackageLocal`、严格验收并排安装，然后通过锁定 immutable Release tgz 和公司 registry 事务化 provision Copilot 插件；新安装默认隔离 Home，`-SharedHome <existing-home>` 显式复用已有 Home，`-UseIsolatedHome` 切回隔离模式；Electron user-data 始终隔离；不启动、不重启、不移除社区版 |
+| 官方源码本地 Desktop | `tools/install-official-desktop-local.ps1` | Check by default; explicit `-Apply -AcknowledgeUnsignedLocalBuild` runs the exact `PackageLocal` flow and installs side-by-side. The single `desktopProvisioning` adapter preserves native delegation; Windows Ops does not populate the reserved profile. New installs use an isolated Harness home; `-SharedHome <existing-home>` opts into an existing home and Electron user data remains separate |
 | 本地 Desktop 更新通道 | `tools/manage-official-desktop-update-channel.ps1` | `Check` 只读检查远端 manifest；一次显式 `Install` 自动下载、验证并暂存后启动交互式 NSIS 安装器，保留 Windows/UAC 确认，再严格 `Complete` 回读并运行同一插件 provisioning adapter；不是 silent/automatic update，仍不发布、不嵌入 `app-update.yml`，并保留独立 Package/Stage/Complete 恢复路径 |
 | Bootstrap | `tools/enable-copilot-search-vision.ps1`（历史兼容文件名） | 安装直连 Copilot 插件、选择 hosted search，并报告 UI 登录要求；不安装视觉 fallback |
 | 可选套件 | `tools/install-optional-companion-suite.ps1` | 依据已安装 Core/Cordis/API 而非 Desktop 补丁版本，单独 Check/Apply/Verify 锁定的 Copilot、Cron 与 Playwright Bundle；不替换 Desktop/Core、全局包或运行中进程 |
@@ -107,8 +147,8 @@ node tools\validate-plugin-catalog.mjs
 
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | fork-owned Windows Desktop release channel、生命周期、Desktop-managed bundled DSH runtime，以及 `desktopNativeVerifiedRelease` generic plugin capability | 当前 lock 使用 `dsh-desktop-v0.1.5-rc.3.cloga.1`，commit `87506730d5f511316bac5ea623610e124908c657` |
-| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | PR #120 source/merge/immutable Release commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`；Release `v0.4.0-alpha.18` |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | fork-owned Windows Desktop release channel、生命周期、Desktop-managed bundled DSH runtime，以及 `desktopNativeVerifiedRelease` generic plugin capability | 当前 lock 使用 `dsh-desktop-v0.1.5-rc.3.cloga.3`，commit `f34f048a6a862046de9b75f2aabf48944819f0d4` |
+| [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | PR #133 source/merge/immutable Release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b`；Release `v0.4.0-alpha.22` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 
 历史 ACP 子代理实践仍保留在

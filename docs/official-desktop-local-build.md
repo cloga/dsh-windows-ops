@@ -201,12 +201,20 @@ home, or write outside the isolated build root.
 
 The PackageLocal receipt carries the single versioned
 `desktopProvisioning` recipe from `deployments/windows-copilot.lock.json`.
-That recipe pins `dsh-github-copilot@0.4.0-alpha.18`, immutable Release/tag
-commit `08bfccc3b5930b93ef2fe31d9cf9e509f34a8704`, artifact name/URL/size,
-SHA-256, SHA-512/SRI, `SHA256SUMS` identity, the corporate dependency registry,
+That recipe pins `dsh-github-copilot@0.4.0-alpha.22`, immutable Release/tag
+commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b`, artifact name/URL/size,
+SHA-256, SHA-512/SRI, `SHA256SUMS` identity, the mode-specific registry policy,
 redirect allowlist, adapter, and active mode. PackageLocal does not put a user
 Home, Sessions, settings, credentials, or a prebuilt `node_modules` tree into
 the installer.
+
+The current lock uses `desktopNativeVerifiedRelease`. Windows Ops preserves
+native delegation and does not stage or install into the live reserved profile.
+Desktop's verified native release owns its dependency registry, shared peers,
+plan, transaction, and receipt. The corporate-registry transaction described by
+older Windows Ops receipts applies only to the inactive
+`windowsOpsVerifiedRelease` compatibility lane; it is not a fallback on native
+failure.
 
 This packaging choice does **not** mean the official product lacks updates.
 At the pinned commit, `apps/desktop/src/main.ts` exposes **Check for Updates**.
@@ -218,6 +226,13 @@ therefore remain visible without a configured release stream. This installer
 does not add a feed, change signing, or enable automatic downloads.
 
 ## dsh-windows-ops managed update channel (explicit one-click install)
+
+For the fork-owned published Desktop, see the
+[managed Desktop flow](local-core-desktop-copilot.md#managed-desktop-update-behavior):
+startup discovery runs after about ten seconds, user confirmation precedes
+helper download/verification and interactive installation, and restart evidence
+gates completion. The following CLI operations are the separate local-build
+and recovery lane, not a requirement to download the published installer by hand.
 
 The existing `PackageLocal` and one-command install defaults remain unchanged:
 they do not configure an updater. A separate operations-owned workflow can

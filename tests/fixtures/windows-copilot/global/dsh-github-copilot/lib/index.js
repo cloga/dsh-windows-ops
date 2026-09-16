@@ -7,13 +7,17 @@ export const strictJsonOAuthGrantMarkers = [
 ]
 
 export const perModelApiRouteMarkers = [
-  '[model.id, model.api]',
-  'const effectiveApi = selectedApi ?? routeApi;',
+  'routeFacts(modelId)',
+  'const snapshot = source.readSnapshot();',
+  'api: descriptor.api',
+  'baseURL: proof.baseURL',
 ]
 
 export const existingGrantRouteSelfHealingMarkers = [
   'ensureGitHubCopilotProviderProfile(ctx)',
-  'function sameProviderProfile(current, expected)',
+  'validateGrant(record)',
+  'current !== void 0 && providerSupportsStrictMode(current) !== false',
+  'async function repairGitHubCopilotProviderProfile(ctx)',
   'normalizeGitHubCopilotOAuthCredential(record.payload)',
 ]
 
@@ -25,12 +29,21 @@ export const authorizationBootstrapMarkers = [
 
 export const sharedCredentialMarkers = [
   'llm-pi-ai/github-copilot',
-  'models.getAuth(catalogModel)',
+  'models.getAuth("github-copilot")',
+  'createGitHubCopilotTokenResolver(ctx, async () =>',
 ]
 
 export const directHostedSearchMarkers = [
-  'Openai-Intent',
+  'resolveRequestAuth(candidate.model, candidateSignals.get(candidate))',
+  'COPILOT_MANAGED_SEARCH_METADATA_CHANGED',
   'const RESPONSES_PROBE_ROUNDS = 2;',
   'github-copilot-hosted',
   'api.individual.githubcopilot.com',
+]
+
+export const toolSchemaMarkers = [
+  'const ESCALATION_FIELDS',
+  'assembly.variables.provider !== "github-copilot" && !(ownedPreview && assembly.variables.provider === "github-copilot-preview")',
+  'isPluginPreviewProvider(ctx, assembled.variables.provider ?? "")',
+  'installCopilotToolSchemaCompatibility(ctx)',
 ]

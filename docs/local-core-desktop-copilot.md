@@ -47,6 +47,14 @@ checks their shared capability, exact published hashes, canonical self hashes,
 and plan binding; installation checks additionally require actual profile
 receipts, state, inventory and artifact bytes.
 
+Native dependency registry acceptance follows the exact packaged plan, bound to
+both the locked release plan digest and managed capability, rather than a
+hard-coded endpoint. Profile receipts and provisioning state must preserve that
+same source, including `dependencyRegistry`. Changing a local plan, registry or
+receipt does not authorize another endpoint; a baseline change requires newly
+verified release evidence. This check neither changes npm configuration nor
+performs dependency downloads.
+
 The formal run verified standalone copied-helper bootstrap, a synthetic
 handoff ACK and cancellation, initial/restart provisioning and the signed-out Models
 account entry. It did not perform OAuth, a real model round, or a local

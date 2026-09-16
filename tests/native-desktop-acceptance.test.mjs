@@ -77,7 +77,7 @@ function write(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value));
 }
-function fixture(t) {
+function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/') {
   const root = mkdtempSync(join(tmpdir(), 'native-desktop-acceptance-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const installRoot = join(root, 'install');
@@ -94,7 +94,7 @@ function fixture(t) {
     tag: artifact.releaseTag, asset: artifact.name, assetId: artifact.assetId, packageName: 'dsh-github-copilot',
     version: lock.components.copilotIntegration.package.version, size: artifact.size, sha256: artifact.sha256,
     integrity: artifact.integrity, targetCommit: lock.components.copilotIntegration.source.commit,
-    dependencyRegistry: 'https://registry.npmjs.org/',
+    dependencyRegistry,
     checksumManifest: { format: 'sha256sums', asset: checksum.name, assetId: checksum.assetId,
       url: checksum.url, size: checksum.size, sha256: checksum.sha256 } };
   const plan = { schemaVersion: 1, mode: 'exact', plugins: [{ required: true, source }] };
@@ -103,6 +103,7 @@ function fixture(t) {
     stateSchemaVersion: 1, pluginCapability: receiptCapability };
   const planSha256 = hash(JSON.stringify(plan));
   lock.components.desktop.releaseChannel.managedCapability.provisioning = { capability, planSha256 };
+  lock.components.desktop.releaseChannel.nativeProvisioning.plan.planSha256 = planSha256;
   const receipt = { schemaVersion: 1, capability: receiptCapability, source, releaseId: artifact.releaseId,
     assetId: artifact.assetId, packageName: source.packageName, version: source.version,
     artifactSha256: artifact.sha256, states: { staged: true, health: 'passed', activated: true, rolledBack: false, verified: true } };
@@ -150,6 +151,18 @@ test('native file acceptance binds exact inventory without claiming live functio
   assert.equal(result.functional.modelResponseVerified, false);
 });
 
+test('native registry follows the exact lock-attested plan rather than a fixed endpoint', (t) => {
+  const input = fixture(t, 'https://packagefeedproxy.microsoft.io/npm/');
+  assert.equal(verifyNativeDesktopFiles(input).valid, true);
+});
+
+for (const registry of [null, '']) {
+  test(`native registry cannot be ${JSON.stringify(registry)} even in an attested plan`, (t) => {
+    const input = fixture(t, registry);
+    assert.equal(verifyNativeDesktopFiles(input).provisioning.reason, 'native-plan-source-mismatch');
+  });
+}
+
 for (const [name, change, expected] of [
   ['missing evidence', (f) => rmSync(join(f.profile, 'desktop-plugin-receipts.json')), 'native-evidence-missing'],
   ['wrong receipt release', (f) => {
@@ -164,6 +177,30 @@ for (const [name, change, expected] of [
     f.plan.plugins[0].source.version = '0.4.0-alpha.18';
     write(join(f.installRoot, 'resources', 'desktop-provisioning', 'plan.json'), f.plan);
   }, 'native-plan-hash-mismatch'],
+  ['substituted registry', (f) => {
+    f.plan.plugins[0].source.dependencyRegistry = 'https://unapproved.invalid/npm/';
+    write(join(f.installRoot, 'resources', 'desktop-provisioning', 'plan.json'), f.plan);
+  }, 'native-plan-hash-mismatch'],
+  ['registry substituted in plan and capability without release plan attestation', (f) => {
+    f.plan.plugins[0].source.dependencyRegistry = 'https://unapproved.invalid/npm/';
+    f.lock.components.desktop.releaseChannel.managedCapability.provisioning.planSha256 = hash(JSON.stringify(f.plan));
+    write(join(f.installRoot, 'resources', 'desktop-provisioning', 'plan.json'), f.plan);
+    write(join(f.installRoot, 'resources', 'managed-update', 'capability.json'),
+      f.lock.components.desktop.releaseChannel.managedCapability);
+  }, 'native-plan-hash-mismatch'],
+  ['receipt registry differs from attested plan even when state copies that receipt', (f) => {
+    f.receipt.source = { ...f.source, dependencyRegistry: 'https://unapproved.invalid/npm/' };
+    write(join(f.profile, 'desktop-plugin-receipts.json'), { schemaVersion: 1, receipts: { [f.source.packageName]: f.receipt } });
+    write(join(f.profile, 'desktop-plugin-provisioning-state.json'), f.state);
+  }, 'native-receipt-invalid'],
+  ['state registry differs from attested plan', (f) => {
+    f.state.plugins[0].source = { ...f.source, dependencyRegistry: 'https://unapproved.invalid/npm/' };
+    write(join(f.profile, 'desktop-plugin-provisioning-state.json'), f.state);
+  }, 'native-state-receipt-mismatch'],
+  ['state plan digest differs from attested plan', (f) => {
+    f.state.planSha256 = '0'.repeat(64);
+    write(join(f.profile, 'desktop-plugin-provisioning-state.json'), f.state);
+  }, 'native-provisioning-state-invalid'],
   ['corrupt local artifact', (f) => write(join(f.profile, '.desktop-plugin-artifacts', `${f.source.sha256}.tgz`), 'corrupt'), 'native-local-artifact-mismatch'],
   ['corrupt installed helper', (f) => write(join(f.installRoot, 'resources', 'managed-update', 'helper.mjs'), 'corrupt'), 'native-helper-hash-mismatch'],
   ['profile disabled', (f) => {

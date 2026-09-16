@@ -173,17 +173,21 @@ function verifyProvisioning(lock, root, home) {
   const plan = canonicalPlan(json(child(root, 'resources/desktop-provisioning/plan.json')));
   const planSha256 = sha256(JSON.stringify(plan));
   requireValue(planSha256 === capability.provisioning.planSha256 &&
+    planSha256 === lock.components.desktop.releaseChannel.nativeProvisioning.plan.planSha256 &&
     isDeepStrictEqual(capability.provisioning.capability, provisioningCapability), 'native-plan-hash-mismatch');
   // The current Windows baseline has one required immutable plugin, not Web overlays.
   requireValue(plan.plugins.length === 1 && plan.plugins[0].required === true, 'native-plan-inventory-mismatch');
   const source = plan.plugins[0].source;
+  // The locked plan digest attests the exact registry; receipts must preserve this source below.
+  requireValue(typeof source.dependencyRegistry === 'string' && source.dependencyRegistry.length > 0,
+    'native-plan-source-mismatch');
   const plugin = lock.components.copilotIntegration;
   const artifact = plugin.package.artifact;
   const checksum = artifact.checksumManifest;
   const expected = { schemaVersion: 1, type: 'githubRelease', owner: 'cloga', repo: 'dsh-github-copilot',
     tag: artifact.releaseTag, asset: artifact.name, assetId: artifact.assetId, packageName: plugin.package.name,
     version: plugin.package.version, size: artifact.size, sha256: artifact.sha256, integrity: artifact.integrity,
-    targetCommit: plugin.source.commit, dependencyRegistry: 'https://registry.npmjs.org/' };
+    targetCommit: plugin.source.commit };
   requireValue(Object.entries(expected).every(([key, value]) => source[key] === value), 'native-plan-source-mismatch');
   requireValue(source.checksumManifest.format === 'sha256sums' && source.checksumManifest.asset === checksum.name &&
     source.checksumManifest.assetId === checksum.assetId && source.checksumManifest.url === checksum.url &&

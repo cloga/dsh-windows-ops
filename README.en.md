@@ -50,6 +50,9 @@ local installer upgrade. Its legacy-compatible update manifest deliberately
 keeps `automaticProvisioning=false`; the separately hash-bound build receipt
 and packaged capability declare native startup provisioning with the exact
 plan. Do not equate those two compatibility objects or relax local registry TLS.
+Native registry acceptance binds `dependencyRegistry` to the exact lock-attested
+packaged plan and matching receipts/state, not a fixed endpoint or local npm
+configuration.
 
 Older `.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer

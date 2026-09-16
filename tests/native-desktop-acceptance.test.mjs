@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
-const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga3/', import.meta.url));
+const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga4/', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
 
 for (const bom of ['', '\uFEFF']) {
@@ -73,6 +73,18 @@ test('formal actual profile receipt and state agree with the exact source plan',
   assert.deepEqual(receipt.states, { staged: true, health: 'passed', activated: true, rolledBack: false, verified: true });
   assert.equal(receipt.releaseId, actualLock().components.copilotIntegration.package.artifact.releaseId);
 });
+
+test('formal plugin dependency registry differs from the frozen workspace build registry', () => {
+  const read = (name) => JSON.parse(readFileSync(join(formalRoot, name), 'utf8'));
+  const plan = read('desktop-provisioning.json');
+  assert.equal(plan.plugins[0].source.dependencyRegistry, 'https://packagefeedproxy.microsoft.io/npm/');
+  assert.equal(read('release.json').build.packageRegistry, 'https://registry.npmjs.org/');
+  assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
+  assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
+  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.22');
+  assert.equal(read('release.json').upstreamVersion, '0.1.5-rc.2');
+});
+
 function write(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value));

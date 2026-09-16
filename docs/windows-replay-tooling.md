@@ -83,7 +83,7 @@ The `0.4.0-alpha.22` baseline checks:
 | Direct hosted search | request-owned auth and managed protocol/endpoint mismatch checks fail closed; Responses/Anthropic inline search, Responses-only `ctx.web`, and bounded proof remain separate acceptance requirements |
 | Client UI | official DSH Models provider-card authorization |
 | Desktop-managed DSH | bundled `@deepseek-ai/dsh@0.1.5-rc.2`, attested by the locked `resources\dsh\desktop-runtime.json`; no separate Core installation |
-| Desktop | fork-owned `0.1.5-rc.3.cloga.3`; executable bytes, metadata, and descriptor are checked by the installer's discovery implementation |
+| Desktop | fork-owned `0.1.5-rc.3.cloga.4`; executable bytes, metadata, and descriptor are checked by the installer's discovery implementation |
 | Desktop plugins | `desktopNativeVerifiedRelease` delegates ownership to Desktop; Windows Ops does not populate the reserved profile or copy its dependencies |
 
 The legacy SlotOutlet and no-open recovery patches explicitly select the

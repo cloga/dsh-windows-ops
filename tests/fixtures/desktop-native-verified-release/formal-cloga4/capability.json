@@ -4,7 +4,7 @@
   "owner": "cloga/deepseek-harness",
   "tagPrefix": "dsh-desktop-v",
   "manifestAsset": "release.json",
-  "currentSequence": 4,
+  "currentSequence": 5,
   "minimumSequence": 2,
   "provisioning": {
     "capability": {
@@ -19,7 +19,7 @@
         "receiptSchemaVersion": 1
       }
     },
-    "planSha256": "d381ba004763970ae24991046b5811a958ad1238c8f2c5b862ed8fffc041cfbb"
+    "planSha256": "20516d79c48e07585644279b7e09346f0ac4a4c000cff2a099a933d2be8a5154"
   },
   "migration": {
     "owner": "cloga/dsh-windows-ops",

@@ -3,19 +3,19 @@
   "owner": "cloga/deepseek-harness",
   "mode": "interactive-windows-installer",
   "channel": "cloga-windows-x64",
-  "version": "0.1.5-rc.3.cloga.3",
+  "version": "0.1.5-rc.3.cloga.4",
   "upstreamVersion": "0.1.5-rc.2",
-  "sequence": 4,
+  "sequence": 5,
   "source": {
     "repository": "cloga/deepseek-harness",
-    "commit": "f34f048a6a862046de9b75f2aabf48944819f0d4",
-    "tree": "c82cff1d845f23872b698039bf4312de86701cd5",
-    "tag": "dsh-desktop-v0.1.5-rc.3.cloga.3"
+    "commit": "45fd3a15b6a259ef84ef23d6fc9aa89406b50a69",
+    "tree": "dfb87a2aae994f0d1d49005306566916d7edc195",
+    "tag": "dsh-desktop-v0.1.5-rc.3.cloga.4"
   },
   "build": {
     "workflow": ".github/workflows/desktop-fork-release.yml",
     "lockfileSha256": "91bf2accf4a211812d1b647a3b3aabfce4a0916a3f736d8451240478c0f4f69f",
-    "planSha256": "15fb386fc979ac0dda41dd66e5d10eedefd64dc394a8042321bbe5a286c39cae",
+    "planSha256": "50695073eb0601a4e1ce2f4ff5e65b2fa29e97fc09ee7fb5682bed8c730fa6f0",
     "nodeVersion": "v24.13.0",
     "pnpmVersion": "11.7.0",
     "packageRegistry": "https://registry.npmjs.org/"
@@ -27,20 +27,20 @@
     "executableName": "cloga-deepseek-harness"
   },
   "installer": {
-    "file": "cloga-deepseek-harness-0.1.5-rc.3.cloga.3-win-x64.exe",
-    "bytes": 180175893,
-    "sha256": "10964ad5c668a0513cc3bf79f7cb8d5c091445eca06f629d33d20bcf1dc8eba5",
-    "sha512": "pGBmfYJZh24qd1v5Y1YsK3mOH2p5E6VegZk9GYZlfF2NdfVOtNeDwlK2XnCTaDX/7K2kWv5o3Qv9/NEHyaHn4w==",
+    "file": "cloga-deepseek-harness-0.1.5-rc.3.cloga.4-win-x64.exe",
+    "bytes": 180175906,
+    "sha256": "5e76219fb33b011bf17cca55acd1e38d5685d7632f4ca111c3209bd36748cc91",
+    "sha512": "ar1SR0mCI7hr5Q7XlNoHQsk7OGf1g0ph1dQba6OnpIBpxzg58yI7JU/3hetzzM+ARAWHxWyZ+V5jFuY395bzog==",
     "signature": "NotSigned"
   },
   "buildReceipt": {
     "file": "build-receipt.json",
-    "sha256": "322a204977a43e4fcf7dae25284a5f5bbb57b51d101fd5e618caa0551b587c5b",
-    "receiptSha256": "a43b4825675a073509b3fec3ac250a637f9d87bf70d8f51c5906ce3efc8a5643"
+    "sha256": "4d958c7ccfd675b0f73761df720da9986cdd65be0cb6ef2b15e326bd8019dc58",
+    "receiptSha256": "db4e39ab1b2449b77923b974e78cebb2cc14588016e454a6d9129fab78191bab"
   },
   "installedEvidence": {
-    "executableSha256": "594f5da5e36109711a55cd556b65b11196b07583b5c6914fcf15c0d83073b0c2",
-    "runtimeSha256": "7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085"
+    "executableSha256": "9d5f4e0365e994efa754182cf8da831f635644ff120f0c84356873d3a97ba3bf",
+    "runtimeSha256": "bc8782b7c265b9d50ffd9d60af139603fd2c011605233b8d6cfea1f302971fb2"
   },
   "pluginCompatibility": {
     "capability": {
@@ -66,5 +66,5 @@
     "uac": "installer-controlled",
     "completion": "post-restart-installed-evidence"
   },
-  "manifestSha256": "8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b"
+  "manifestSha256": "c6335ff8e8e176bd9ced039533d6d66208cc73c73d3148d5c960c46bb5522c0b"
 }

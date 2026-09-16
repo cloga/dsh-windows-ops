@@ -20,10 +20,10 @@
 
 | 组件 | 锁定版本 |
 |---|---|
-| DeepSeek Harness Desktop | fork-owned `0.1.5-rc.3.cloga.3`，release tag `dsh-desktop-v0.1.5-rc.3.cloga.3`，commit `f34f048a6a862046de9b75f2aabf48944819f0d4` |
-| Desktop 管理的 DSH runtime | installer 内置 `@deepseek-ai/dsh@0.1.5-rc.2`，由安装后的 `resources\dsh\desktop-runtime.json` 证明，descriptor SHA-256 `7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085`；默认 per-user root 是 `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`，但 Windows Ops 以实际安装 EXE 路径为准 |
+| DeepSeek Harness Desktop | fork-owned `0.1.5-rc.3.cloga.4`，release tag `dsh-desktop-v0.1.5-rc.3.cloga.4`，commit `45fd3a15b6a259ef84ef23d6fc9aa89406b50a69` |
+| Desktop 管理的 DSH runtime | installer 内置 `@deepseek-ai/dsh@0.1.5-rc.2`，由安装后的 `resources\dsh\desktop-runtime.json` 证明，descriptor SHA-256 `bc8782b7c265b9d50ffd9d60af139603fd2c011605233b8d6cfea1f302971fb2`；默认 per-user root 是 `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`，但 Windows Ops 以实际安装 EXE 路径为准 |
 | 必需的 `dsh-github-copilot` | 0.4.0-alpha.22；在 `desktopNativeVerifiedRelease` 下由 Desktop native capability 保留/接管，不再由 Windows Ops 外部事务物化 |
-| Desktop native capability | `desktopNativeVerifiedRelease`，manifest self SHA-256 `8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b`，generic plugin compatibility `automaticProvisioning=false` |
+| Desktop native capability | `desktopNativeVerifiedRelease`，manifest self SHA-256 `c6335ff8e8e176bd9ced039533d6d66208cc73c73d3148d5c960c46bb5522c0b`，generic plugin compatibility `automaticProvisioning=false` |
 | 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.2`、`dsh-cron@0.4.1` |
 
 README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。默认分支和 deployment lock 是本仓库的发布渠道；本仓库不另行分发 Desktop/DSH/plugin 二进制。Lock 更新表示经过评审的目标基线，不代表某台机器已经执行 `-Apply`；默认 check mode 会如实报告尚未应用的 drift。
@@ -43,7 +43,7 @@ React is a Client external singleton (`dsh.client.external`), not a required
 Node peer or private runtime dependency. Alpha.22 corrects that alpha.21 startup
 failure; published metadata alone still does not prove live Desktop readiness.
 
-Recovery Release `390062857` (sequence 4) passed standalone copied-helper
+Recovery Release `390223593` (sequence 5) passed standalone copied-helper
 bootstrap, synthetic ACK/cancel, packaged initial/restart
 provisioning and signed-out Models UI acceptance, not OAuth, a model round or a
 local installer upgrade. Its legacy-compatible update manifest deliberately
@@ -53,10 +53,14 @@ plan. Do not equate those two compatibility objects or relax local registry TLS.
 Native registry acceptance binds `dependencyRegistry` to the exact lock-attested
 packaged plan and matching receipts/state, not a fixed endpoint or local npm
 configuration.
+The `.cloga.4` plan pins plugin dependency downloads to
+`https://packagefeedproxy.microsoft.io/npm/` with normal TLS verification.
+The frozen workspace build registry remains `https://registry.npmjs.org/`;
+these are distinct contracts. Core `0.1.5-rc.2` and Copilot alpha.22 are unchanged.
 
 Older `.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
-release. Recovery requires the independently verified `.cloga.3` installer,
+release. Recovery requires the independently verified current `.cloga.4` installer,
 explicit interruption consent and a clean Desktop/Host exit, coordinated by the
 operator outside the broken helper. Do not patch live files or install missing
 dependencies into an update operation. Generic direct registry probe failures
@@ -150,7 +154,7 @@ node tools\validate-plugin-catalog.mjs
 
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | fork-owned Windows Desktop release channel、生命周期、Desktop-managed bundled DSH runtime，以及 `desktopNativeVerifiedRelease` generic plugin capability | 当前 lock 使用 `dsh-desktop-v0.1.5-rc.3.cloga.3`，commit `f34f048a6a862046de9b75f2aabf48944819f0d4` |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | fork-owned Windows Desktop release channel、生命周期、Desktop-managed bundled DSH runtime，以及 `desktopNativeVerifiedRelease` generic plugin capability | 当前 lock 使用 `dsh-desktop-v0.1.5-rc.3.cloga.4`，commit `45fd3a15b6a259ef84ef23d6fc9aa89406b50a69` |
 | [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | PR #133 source/merge/immutable Release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b`；Release `v0.4.0-alpha.22` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 

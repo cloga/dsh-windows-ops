@@ -8,11 +8,11 @@ import { validateRepositoryContent } from '../tools/validate-repository-content.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const scratchRoot = path.join(root, 'tests', '.repository-content-scratch')
 const fixtureFiles = [
-  'tests/fixtures/desktop-native-verified-release/formal-cloga3/release.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga3/build-receipt.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga3/capability.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga3/desktop-provisioning.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga3/helper-acceptance.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga4/release.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga4/build-receipt.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga4/capability.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga4/desktop-provisioning.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga4/helper-acceptance.json',
   'deployments/windows-copilot.lock.json',
   'catalog/plugins.json',
   'README.md',

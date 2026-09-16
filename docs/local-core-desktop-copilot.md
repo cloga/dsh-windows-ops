@@ -33,6 +33,14 @@ Matching version text alone is insufficient. The locked executable's actual PE
 ProductVersion is `0.1.5.0`, CompanyName is `GitHub, Inc.`, and Authenticode is
 `NotSigned`; the semantic release version remains `0.1.5-rc.3.cloga.4`.
 
+Host command acceptance preserves the four-token bundled Node/entry/runtime/profile
+shape for existing inventories. If and only if the fully hash-verified inventory
+contains the Host-owned `register-module-resolution-policy.mjs`, it instead
+requires `--import` and that file's exact Node `pathToFileURL` URL before the
+entry. Missing, duplicate or unknown flags and different entry/runtime/profile
+paths fail closed. An extra on-disk policy file cannot switch modes. This
+compatibility support does not promote an unpublished release or change pins.
+
 The immutable recovery Release is ID `390223593`, sequence 5, incorporating the
 dependency registry fix in `cloga/deepseek-harness#47` and retaining the earlier
 helper repair and test reliability changes in `cloga/deepseek-harness#43` and

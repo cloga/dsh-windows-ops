@@ -160,7 +160,10 @@ function verifyRuntime(lock, root) {
     const metadata = json(child(runtimeRoot, `${shared.path}/package.json`));
     requireValue(metadata.name === shared.name && metadata.version === shared.version, 'native-shared-package-mismatch');
   }
-  return { valid: true, status: 'runtime-tree-verified', fileCount: files.length };
+  const policyPath = 'node_modules/@deepseek-ai/dsh-desktop-host/register-module-resolution-policy.mjs';
+  return { valid: true, status: 'runtime-tree-verified', fileCount: files.length,
+    moduleResolutionPolicyUrl: files.some(({ path }) => path === policyPath)
+      ? pathToFileURL(child(runtimeRoot, policyPath)).href : null };
 }
 
 function verifyProvisioning(lock, root, home) {

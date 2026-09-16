@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { verifyNativeDesktopFiles, verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
@@ -89,10 +89,10 @@ function write(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value));
 }
-function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/') {
+function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/', withPolicy = false) {
   const root = mkdtempSync(join(tmpdir(), 'native-desktop-acceptance-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const installRoot = join(root, 'install');
+  const installRoot = join(root, 'install spaces % # \u6d4b\u8bd5');
   const dshHome = join(root, 'home');
   const profile = join(dshHome, 'profiles', 'desktop');
   const lock = JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
@@ -138,6 +138,9 @@ function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/') {
   const runtimePath = 'node_modules/@deepseek-ai/dsh-desktop-host/lib/index.js';
   const runtimeFiles = { [runtimePath]: runtimeFile,
     'node_modules/@deepseek-ai/dsh-desktop-host/package.json': JSON.stringify({ name: '@deepseek-ai/dsh-desktop-host', version: '0.1.5-rc.2' }) };
+  if (withPolicy) {
+    runtimeFiles['node_modules/@deepseek-ai/dsh-desktop-host/register-module-resolution-policy.mjs'] = 'synthetic policy; never imported';
+  }
   for (const name of ['@deepseek-ai/dsh-authorization', '@deepseek-ai/schemastery']) {
     runtimeFiles[`node_modules/${name}/package.json`] = JSON.stringify({ name, version: '1.0.0', main: 'lib/index.js' });
     runtimeFiles[`node_modules/${name}/lib/index.js`] = 'export const fixture = true;';
@@ -238,6 +241,33 @@ test('runtime inventory detects added files rather than trusting the descriptor 
   write(join(input.installRoot, 'resources', 'dsh', 'extra.js'), 'extra');
   const result = verifyNativeDesktopFiles(input);
   assert.equal(result.runtime.reason, 'native-runtime-tree-mismatch');
+});
+
+test('only attested runtime inventory selects the exact Node preload file URL', (t) => {
+  const input = fixture(t, undefined, true);
+  const policy = join(input.installRoot, 'resources', 'dsh', 'node_modules', '@deepseek-ai',
+    'dsh-desktop-host', 'register-module-resolution-policy.mjs');
+  const runtime = verifyNativeDesktopFiles(input).runtime;
+  assert.equal(runtime.valid, true);
+  assert.equal(runtime.moduleResolutionPolicyUrl, pathToFileURL(policy).href);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%20/);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%25/);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%23/);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%E6%B5%8B%E8%AF%95/);
+  write(policy, 'tampered');
+  const changed = verifyNativeDesktopFiles(input).runtime;
+  assert.equal(changed.valid, false);
+  assert.equal(changed.moduleResolutionPolicyUrl, undefined);
+});
+
+test('an extra policy file cannot enable preload mode for the old inventory', (t) => {
+  const input = fixture(t);
+  assert.equal(verifyNativeDesktopFiles(input).runtime.moduleResolutionPolicyUrl, null);
+  write(join(input.installRoot, 'resources', 'dsh', 'node_modules', '@deepseek-ai',
+    'dsh-desktop-host', 'register-module-resolution-policy.mjs'), 'unattested');
+  const runtime = verifyNativeDesktopFiles(input).runtime;
+  assert.equal(runtime.reason, 'native-runtime-tree-mismatch');
+  assert.equal(runtime.moduleResolutionPolicyUrl, undefined);
 });
 
 test('native inventory rejects a private copy of a required Host peer even at the same version', (t) => {

@@ -6271,7 +6271,12 @@ function Test-WindowsCopilotNativeInstallation {
         if ($parents.Count -gt 0) {
             $node = Join-Path $installRoot 'resources\runtime\node\node.exe'
             $runtimeRoot = Join-Path $installRoot 'resources\dsh'
-            $expectedArgs = @($node, (Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'),
+            $expectedArgs = @($node)
+            $policyUrl = Get-LockProperty -InputObject $files.runtime -Name 'moduleResolutionPolicyUrl'
+            if ($files.runtime.valid -and $policyUrl) {
+                $expectedArgs += @('--import', [string]$policyUrl)
+            }
+            $expectedArgs += @((Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'),
                 $runtimeRoot, (Join-Path $home 'profiles\desktop'))
             $children = @($DesktopProcesses | Where-Object {
                 if (-not $_.ExecutablePath -or [string]$_.ExecutablePath -ine $node -or
@@ -6280,8 +6285,9 @@ function Test-WindowsCopilotNativeInstallation {
                 $pattern = '"[^"]*"|[^\s"]+'
                 if ([regex]::Replace($command, $pattern, '').Trim()) { return $false }
                 $tokens = @([regex]::Matches($command, $pattern) | ForEach-Object { $_.Value.Trim('"') })
-                if ($tokens.Count -ne 4) { return $false }
-                for ($index = 0; $index -lt 4; $index++) {
+                if ($tokens.Count -ne $expectedArgs.Count) { return $false }
+                for ($index = 0; $index -lt $expectedArgs.Count; $index++) {
+                    if ($policyUrl -and $index -in @(1, 2) -and $tokens[$index] -cne $expectedArgs[$index]) { return $false }
                     if ($tokens[$index] -ine $expectedArgs[$index]) { return $false }
                 }
                 return $true

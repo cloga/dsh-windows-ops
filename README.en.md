@@ -53,6 +53,9 @@ plan. Do not equate those two compatibility objects or relax local registry TLS.
 Native registry acceptance binds `dependencyRegistry` to the exact lock-attested
 packaged plan and matching receipts/state, not a fixed endpoint or local npm
 configuration.
+Host command checks require the exact `--import` file URL only when the
+hash-verified runtime inventory contains the owned module-resolution policy;
+extra files or arbitrary Node flags cannot enable this mode.
 The `.cloga.4` plan pins plugin dependency downloads to
 `https://packagefeedproxy.microsoft.io/npm/` with normal TLS verification.
 The frozen workspace build registry remains `https://registry.npmjs.org/`;

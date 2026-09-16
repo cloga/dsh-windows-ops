@@ -11,11 +11,11 @@ is the machine-readable deployment contract, verified on **2026-09-15**.
 
 | Component | Locked identity |
 |---|---|
-| Desktop | fork-owned `0.1.5-rc.3.cloga.4`, release tag `dsh-desktop-v0.1.5-rc.3.cloga.4`, commit `45fd3a15b6a259ef84ef23d6fc9aa89406b50a69` |
-| Desktop artifact | [`cloga-deepseek-harness-0.1.5-rc.3.cloga.4-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.4/cloga-deepseek-harness-0.1.5-rc.3.cloga.4-win-x64.exe), SHA-256 `5e76219fb33b011bf17cca55acd1e38d5685d7632f4ca111c3209bd36748cc91` |
+| Desktop | fork-owned `0.1.5-rc.3.cloga.5`, release tag `dsh-desktop-v0.1.5-rc.3.cloga.5`, commit `29f1863f5457470bacd12de00e987b8bdd6f4b2f` |
+| Desktop artifact | [`cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.5/cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe), SHA-256 `f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c` |
 | Desktop-managed runtime | default root `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`, but the installer is interactive and may use a different `$INSTDIR`; Windows Ops follows the actual installed `cloga-deepseek-harness.exe` path |
-| Installed Desktop | executable SHA-256 `9d5f4e0365e994efa754182cf8da831f635644ff120f0c84356873d3a97ba3bf`; runtime descriptor `resources\dsh\desktop-runtime.json` SHA-256 `bc8782b7c265b9d50ffd9d60af139603fd2c011605233b8d6cfea1f302971fb2` |
-| Runtime attestation | fork release manifest schema 3, self SHA-256 `c6335ff8e8e176bd9ced039533d6d66208cc73c73d3148d5c960c46bb5522c0b`, raw SHA-256 `c672e7b1fb1f005012fbca0ca5db1418767c0773da424704a30ceff92a4fe70c`; bundled CLI baseline `@deepseek-ai/dsh@0.1.5-rc.2` |
+| Installed Desktop | executable SHA-256 `2ee392923d3796c9d68fbcfec675be558a3b0d68c3a68ec5dbce0f88a8212561`; runtime descriptor `resources\dsh\desktop-runtime.json` SHA-256 `f21d8b8fb67ed04554290acf3a48c91ea163bef7772842fd0796e0e97788d72d` |
+| Runtime attestation | fork release manifest schema 3, self SHA-256 `2e5b8efbabd812b07258e0fa794ffa04a7084f84a86ac6ee3ca534c034221152`, raw SHA-256 `b6fa1c79fd4a534c1ed7b5bc9caa85241e6c91d0745f07c800dad112176f161e`; bundled CLI baseline `@deepseek-ai/dsh@0.1.5-rc.2` |
 | Copilot plugin | `dsh-github-copilot@0.4.0-alpha.22`, PR #133, source/merge/release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b` |
 | Plugin artifact | Immutable Release [`dsh-github-copilot-0.4.0-alpha.22.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/dsh-github-copilot-0.4.0-alpha.22.tgz), 651,444 bytes, SHA-256 `e749d982ac55752eeca4cf4819b9751144cda1c2dc06033e4b42240151e40e0e`, SHA-512 SRI `sha512-HkGACgfUrTREbtbUgZJ6Sb02hqKseCtldW16ZBounQZahTpeKWW5bqj5TNb1MD6X7y4e5MI0Q5edYLCF71ybnQ==`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/SHA256SUMS), digest `cdc2a7e8df955c9136c6c79c25adaaf929bee815308ff3ceb6c9cfb948c03546` |
 | Desktop native capability | `desktopNativeVerifiedRelease`; generic plugin compatibility evidence is present, `automaticProvisioning=false`, and Windows Ops no longer mutates the Desktop profile through the external workaround |
@@ -31,7 +31,7 @@ runtime descriptor. Native acceptance binds the exact Electron parent and its
 bundled Node Host arguments; it does not require a `127.0.0.1:3080` listener.
 Matching version text alone is insufficient. The locked executable's actual PE
 ProductVersion is `0.1.5.0`, CompanyName is `GitHub, Inc.`, and Authenticode is
-`NotSigned`; the semantic release version remains `0.1.5-rc.3.cloga.4`.
+`NotSigned`; the semantic release version remains `0.1.5-rc.3.cloga.5`.
 
 Host command acceptance preserves the four-token bundled Node/entry/runtime/profile
 shape for existing inventories. If and only if the fully hash-verified inventory
@@ -41,10 +41,11 @@ entry. Missing, duplicate or unknown flags and different entry/runtime/profile
 paths fail closed. An extra on-disk policy file cannot switch modes. This
 compatibility support does not promote an unpublished release or change pins.
 
-The immutable recovery Release is ID `390223593`, sequence 5, incorporating the
+The immutable recovery Release is ID `390292533`, sequence 6, incorporating the
+ancestor module-isolation fix in `cloga/deepseek-harness#49`, the
 dependency registry fix in `cloga/deepseek-harness#47` and retaining the earlier
 helper repair and test reliability changes in `cloga/deepseek-harness#43` and
-`cloga/deepseek-harness#44`. Run `35140853744`, attempt 2, published it after
+`cloga/deepseek-harness#44`. Run `35152173707`, attempt 1, published it after
 packaged acceptance. Its schema-3
 update manifest intentionally retains `automaticProvisioning=false` so the old
 installed update client can parse it. Do not change this field or insert new
@@ -65,7 +66,7 @@ receipt does not authorize another endpoint; a baseline change requires newly
 verified release evidence. This check neither changes npm configuration nor
 performs dependency downloads.
 
-The `.cloga.4` plan's plugin `dependencyRegistry` is
+The `.cloga.5` plan's plugin `dependencyRegistry` is
 `https://packagefeedproxy.microsoft.io/npm/`, replacing the `.cloga.3` npmjs
 endpoint after native dependency provisioning failed TLS checks locally.
 The frozen workspace build still declares
@@ -74,11 +75,14 @@ and the corresponding receipt build inputs. Do not rewrite that build field,
 patch a live plan, disable TLS verification, or run a separate profile install.
 Managed Core `0.1.5-rc.2` and immutable Copilot alpha.22 are unchanged.
 
-This registry repair does not establish successful startup for an existing home:
-legacy ancestor `node_modules` can still redirect an optional SDK outside the
-owned packages, which Desktop correctly rejects. Do not delete or disable
-ancestor packages as an implicit recovery step. Packaged isolated-home success
-is separate from operator-verified local startup and model acceptance.
+The `.cloga.4` registry repair exposed legacy ancestor `node_modules` redirecting
+an optional SDK outside owned packages. The `.cloga.5` runtime now includes the
+Host-owned module-resolution preload. Formal polluted-home acceptance records
+`ancestorSdkJunction=true` and `ancestorSdkLoaded=false` with matching initial
+and restart graphs; those exact evidence files are hash-bound in the lock.
+Do not delete or disable ancestor packages as an implicit recovery step.
+Packaged regression success is separate from operator-verified local startup
+and model acceptance.
 
 The formal run verified standalone copied-helper bootstrap, a synthetic
 handoff ACK and cancellation, initial/restart provisioning and the signed-out Models
@@ -91,7 +95,7 @@ TLS connectivity or authenticated model readiness.
 **Older-helper recovery:** `.cloga.1` and `.cloga.2` copied helpers have an
 unresolved `semver` import and fail before ACK without `node_modules`. A new
 release cannot repair an already installed broken helper. Use the independently
-verified formal current `.cloga.4` installer out of band only after explicit interruption
+verified formal current `.cloga.5` installer out of band only after explicit interruption
 consent and a clean Desktop/Host exit, with normal interactive Windows/UAC
 handling. Do not reuse the failed handoff, patch live helper files, add operation
 dependencies or bypass session protection. The repaired helper hash is

@@ -4,7 +4,7 @@
   "owner": "cloga/deepseek-harness",
   "tagPrefix": "dsh-desktop-v",
   "manifestAsset": "release.json",
-  "currentSequence": 5,
+  "currentSequence": 6,
   "minimumSequence": 2,
   "provisioning": {
     "capability": {

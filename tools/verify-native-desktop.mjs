@@ -119,6 +119,25 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     receipt.artifacts.capabilitySha256 === native.capabilitySha256,
   'native-release-plan-mismatch');
   const plugin = lock.components.copilotIntegration;
+  const isolation = native.ancestorIsolation;
+  const acceptance = read('acceptance.json', isolation.acceptanceSha256);
+  requireValue(acceptance.sourceCommit === desktop.source.commit &&
+    acceptance.desktopVersion === desktop.version && acceptance.runtimeVersion === channel.upstreamVersion &&
+    acceptance.ancestorSdkJunction === true && acceptance.ancestorSdkLoaded === false &&
+    acceptance.actualGraphVerified === true && acceptance.accountEntryVisible === true &&
+    acceptance.realOAuth === false && acceptance.realModelRound === false &&
+    acceptance.installerUpgradeVerified === false &&
+    isDeepStrictEqual(acceptance.plugin, plan.plugins[0].source),
+  'native-release-ancestor-isolation-mismatch');
+  for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
+    ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
+    const graph = read(file, hash);
+    requireValue(graph.valid === true && graph.runtimeSha256 === desktop.installedRuntimeDescriptor.sha256 &&
+      graph.nodePath === null && graph.nodeOptionsPresent === false &&
+      graph.google.sdkPeerOptional === true && typeof graph.sdk.target === 'string' &&
+      !graph.sdk.target.toLowerCase().startsWith(`${graph.profile.toLowerCase()}\\`),
+    'native-release-ancestor-graph-mismatch');
+  }
   requireValue(plan.plugins.length === 1 && plan.plugins[0].required === true &&
     plan.plugins[0].source.sha256 === plugin.package.artifact.sha256 &&
     plan.plugins[0].source.targetCommit === plugin.source.commit &&

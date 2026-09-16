@@ -8,11 +8,14 @@ import { validateRepositoryContent } from '../tools/validate-repository-content.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const scratchRoot = path.join(root, 'tests', '.repository-content-scratch')
 const fixtureFiles = [
-  'tests/fixtures/desktop-native-verified-release/formal-cloga4/release.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga4/build-receipt.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga4/capability.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga4/desktop-provisioning.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga4/helper-acceptance.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/release.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/build-receipt.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/capability.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/desktop-provisioning.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/helper-acceptance.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/acceptance.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/initial-packaged-graph.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga5/restart-packaged-graph.json',
   'deployments/windows-copilot.lock.json',
   'catalog/plugins.json',
   'README.md',

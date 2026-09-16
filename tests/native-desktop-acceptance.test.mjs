@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
-const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga4/', import.meta.url));
+const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga5/', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
 
 for (const bom of ['', '\uFEFF']) {
@@ -88,6 +88,22 @@ test('formal plugin dependency registry differs from the frozen workspace build 
 function write(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value));
+}
+
+for (const [field, value] of [['ancestorSdkJunction', false], ['ancestorSdkLoaded', true],
+  ['ancestorSdkLoaded', 'false']]) {
+  test(`formal migration evidence rejects ${field}=${JSON.stringify(value)}`, (t) => {
+    const directory = mkdtempSync(join(tmpdir(), 'native-isolation-evidence-'));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    cpSync(formalRoot, directory, { recursive: true });
+    const path = join(directory, 'acceptance.json');
+    const acceptance = JSON.parse(readFileSync(path, 'utf8'));
+    acceptance[field] = value;
+    write(path, acceptance);
+    const lock = actualLock();
+    lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, directory), /native-release-ancestor-isolation-mismatch/);
+  });
 }
 function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/', withPolicy = false) {
   const root = mkdtempSync(join(tmpdir(), 'native-desktop-acceptance-'));

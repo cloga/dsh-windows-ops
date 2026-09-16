@@ -250,39 +250,39 @@ function Test-WindowsCopilotLock {
         }
     } elseif ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness') {
         $channel = $desktop.releaseChannel
-        if ($desktopVersion -cne '0.1.5-rc.3.cloga.3' -or
-            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.3' -or
-            [string]$desktop.source.commit -cne 'f34f048a6a862046de9b75f2aabf48944819f0d4' -or
-            [string]$desktop.source.reviewedHead -cne 'd8ca1e66dd1ef4275213a0e821e84f266a97ac0b' -or
-            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.3-win-x64.exe' -or
-            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.3/cloga-deepseek-harness-0.1.5-rc.3.cloga.3-win-x64.exe' -or
-            [string]$desktop.artifact.sha256 -cne '10964ad5c668a0513cc3bf79f7cb8d5c091445eca06f629d33d20bcf1dc8eba5' -or
-            [long]$desktop.artifact.size -ne 180175893 -or
+        if ($desktopVersion -cne '0.1.5-rc.3.cloga.5' -or
+            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.5' -or
+            [string]$desktop.source.commit -cne '29f1863f5457470bacd12de00e987b8bdd6f4b2f' -or
+            [string]$desktop.source.reviewedHead -cne '6a6330f011ae48b9f2193026bc64c77765bdb4ec' -or
+            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe' -or
+            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.5/cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe' -or
+            [string]$desktop.artifact.sha256 -cne 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c' -or
+            [long]$desktop.artifact.size -ne 180176641 -or
             $desktop.artifact.releaseImmutable -ne $true -or
             [int]$channel.schemaVersion -ne 3 -or
             [string]$channel.owner -cne 'cloga/deepseek-harness' -or
             [string]$channel.mode -cne 'interactive-windows-installer' -or
-            [int]$desktop.source.pullRequest -ne 44 -or
-            [long]$desktop.artifact.releaseId -ne 390062857 -or
-            [long]$desktop.artifact.assetId -ne 568279633 -or
-            [int]$channel.sequence -ne 4 -or
-            [string]$channel.manifestRawSha256 -cne '8c4661f963621e8e97da0490f9e616d635fec217a737d321ae7d7fcc36b1365b' -or
-            [string]$channel.manifestSha256 -cne '8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b') {
+            [int]$desktop.source.pullRequest -ne 49 -or
+            [long]$desktop.artifact.releaseId -ne 390292533 -or
+            [long]$desktop.artifact.assetId -ne 568852338 -or
+            [int]$channel.sequence -ne 6 -or
+            [string]$channel.manifestRawSha256 -cne 'b6fa1c79fd4a534c1ed7b5bc9caa85241e6c91d0745f07c800dad112176f161e' -or
+            [string]$channel.manifestSha256 -cne '2e5b8efbabd812b07258e0fa794ffa04a7084f84a86ac6ee3ca534c034221152') {
             throw 'Desktop identity must match the immutable cloga fork-owned 0.1.5 release.'
         }
         if ([int]$channel.managedCapability.schemaVersion -ne 3 -or
-            [int]$channel.managedCapability.currentSequence -ne 4 -or
+            [int]$channel.managedCapability.currentSequence -ne 6 -or
             [int]$channel.managedCapability.minimumSequence -ne 2 -or
             $channel.pluginCompatibility.automaticProvisioning -ne $false -or
             $channel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning -ne $true -or
             [string]$channel.nativeProvisioning.capabilitySha256 -cne
-                '9ff3baf74aefe1b42de19aee3c78bee76a68703b46e08c1abc415de33ae8a85a' -or
+                'd13be03ea6af8ffdec8919af45ab23efd4efa8fa5f354b1858d6267910fad88e' -or
             [string]$channel.nativeProvisioning.helperSha256 -cne
                 '54aa5767c9f993f39a21d2a8d4aa23cd8b377301d19de0cd8d379d4fad4d313e' -or
             [string]$channel.nativeProvisioning.plan.sha256 -cne
-                '5631b016dbe9c82084bcac61a17726e9c66e6a68e400c0d47be49068a043d6cd' -or
+                '81ebdcc3ed17b46ed2f794986e905ace3bfd3843bcef8e5e0a62341ed945914a' -or
             [string]$channel.nativeProvisioning.plan.planSha256 -cne
-                'd381ba004763970ae24991046b5811a958ad1238c8f2c5b862ed8fffc041cfbb' -or
+                '20516d79c48e07585644279b7e09346f0ac4a4c000cff2a099a933d2be8a5154' -or
             [string]$channel.managedCapability.provisioning.planSha256 -cne
                 [string]$channel.nativeProvisioning.plan.planSha256) {
             throw 'Desktop recovery must preserve legacy update compatibility and exact native startup provisioning evidence.'
@@ -306,7 +306,7 @@ function Test-WindowsCopilotLock {
     if ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness' -and (
         [string]$installedDesktop.relativePath -cne 'cloga-deepseek-harness.exe' -or
         [string]$installedDesktop.sha256 -cne
-            '594f5da5e36109711a55cd556b65b11196b07583b5c6914fcf15c0d83073b0c2' -or
+            '2ee392923d3796c9d68fbcfec675be558a3b0d68c3a68ec5dbce0f88a8212561' -or
         [string]$installedDesktop.productName -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.fileDescription -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.companyName -cne 'GitHub, Inc.' -or
@@ -314,7 +314,7 @@ function Test-WindowsCopilotLock {
         [string]$installedDesktop.authenticodeStatus -cne 'NotSigned' -or
         [string]$desktop.installedRuntimeDescriptor.relativePath -cne 'resources\dsh\desktop-runtime.json' -or
         [string]$desktop.installedRuntimeDescriptor.sha256 -cne
-            '7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085')) {
+            'f21d8b8fb67ed04554290acf3a48c91ea163bef7772842fd0796e0e97788d72d')) {
         throw 'Installed Desktop executable identity must match the reviewed cloga fork release evidence.'
     }
     $copilotSource = $Lock.components.copilotIntegration.source
@@ -482,7 +482,7 @@ function Test-WindowsCopilotLock {
         }
     } elseif ([string]$officialSelector.id -ceq 'desktop-fork-managed') {
         if ([string]$officialSelector.source -cne 'desktop-managed-release' -or
-            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.3' -or
+            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.5' -or
             [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
             [string]$officialSelector.package.version -cne '0.1.5-rc.2' -or
             [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.5-rc.2' -or
@@ -6271,7 +6271,12 @@ function Test-WindowsCopilotNativeInstallation {
         if ($parents.Count -gt 0) {
             $node = Join-Path $installRoot 'resources\runtime\node\node.exe'
             $runtimeRoot = Join-Path $installRoot 'resources\dsh'
-            $expectedArgs = @($node, (Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'),
+            $expectedArgs = @($node)
+            $policyUrl = Get-LockProperty -InputObject $files.runtime -Name 'moduleResolutionPolicyUrl'
+            if ($files.runtime.valid -and $policyUrl) {
+                $expectedArgs += @('--import', [string]$policyUrl)
+            }
+            $expectedArgs += @((Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'),
                 $runtimeRoot, (Join-Path $home 'profiles\desktop'))
             $children = @($DesktopProcesses | Where-Object {
                 if (-not $_.ExecutablePath -or [string]$_.ExecutablePath -ine $node -or
@@ -6280,8 +6285,9 @@ function Test-WindowsCopilotNativeInstallation {
                 $pattern = '"[^"]*"|[^\s"]+'
                 if ([regex]::Replace($command, $pattern, '').Trim()) { return $false }
                 $tokens = @([regex]::Matches($command, $pattern) | ForEach-Object { $_.Value.Trim('"') })
-                if ($tokens.Count -ne 4) { return $false }
-                for ($index = 0; $index -lt 4; $index++) {
+                if ($tokens.Count -ne $expectedArgs.Count) { return $false }
+                for ($index = 0; $index -lt $expectedArgs.Count; $index++) {
+                    if ($policyUrl -and $index -in @(1, 2) -and $tokens[$index] -cne $expectedArgs[$index]) { return $false }
                     if ($tokens[$index] -ine $expectedArgs[$index]) { return $false }
                 }
                 return $true

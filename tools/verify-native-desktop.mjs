@@ -119,6 +119,25 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     receipt.artifacts.capabilitySha256 === native.capabilitySha256,
   'native-release-plan-mismatch');
   const plugin = lock.components.copilotIntegration;
+  const isolation = native.ancestorIsolation;
+  const acceptance = read('acceptance.json', isolation.acceptanceSha256);
+  requireValue(acceptance.sourceCommit === desktop.source.commit &&
+    acceptance.desktopVersion === desktop.version && acceptance.runtimeVersion === channel.upstreamVersion &&
+    acceptance.ancestorSdkJunction === true && acceptance.ancestorSdkLoaded === false &&
+    acceptance.actualGraphVerified === true && acceptance.accountEntryVisible === true &&
+    acceptance.realOAuth === false && acceptance.realModelRound === false &&
+    acceptance.installerUpgradeVerified === false &&
+    isDeepStrictEqual(acceptance.plugin, plan.plugins[0].source),
+  'native-release-ancestor-isolation-mismatch');
+  for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
+    ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
+    const graph = read(file, hash);
+    requireValue(graph.valid === true && graph.runtimeSha256 === desktop.installedRuntimeDescriptor.sha256 &&
+      graph.nodePath === null && graph.nodeOptionsPresent === false &&
+      graph.google.sdkPeerOptional === true && typeof graph.sdk.target === 'string' &&
+      !graph.sdk.target.toLowerCase().startsWith(`${graph.profile.toLowerCase()}\\`),
+    'native-release-ancestor-graph-mismatch');
+  }
   requireValue(plan.plugins.length === 1 && plan.plugins[0].required === true &&
     plan.plugins[0].source.sha256 === plugin.package.artifact.sha256 &&
     plan.plugins[0].source.targetCommit === plugin.source.commit &&
@@ -160,7 +179,10 @@ function verifyRuntime(lock, root) {
     const metadata = json(child(runtimeRoot, `${shared.path}/package.json`));
     requireValue(metadata.name === shared.name && metadata.version === shared.version, 'native-shared-package-mismatch');
   }
-  return { valid: true, status: 'runtime-tree-verified', fileCount: files.length };
+  const policyPath = 'node_modules/@deepseek-ai/dsh-desktop-host/register-module-resolution-policy.mjs';
+  return { valid: true, status: 'runtime-tree-verified', fileCount: files.length,
+    moduleResolutionPolicyUrl: files.some(({ path }) => path === policyPath)
+      ? pathToFileURL(child(runtimeRoot, policyPath)).href : null };
 }
 
 function verifyProvisioning(lock, root, home) {
@@ -173,17 +195,21 @@ function verifyProvisioning(lock, root, home) {
   const plan = canonicalPlan(json(child(root, 'resources/desktop-provisioning/plan.json')));
   const planSha256 = sha256(JSON.stringify(plan));
   requireValue(planSha256 === capability.provisioning.planSha256 &&
+    planSha256 === lock.components.desktop.releaseChannel.nativeProvisioning.plan.planSha256 &&
     isDeepStrictEqual(capability.provisioning.capability, provisioningCapability), 'native-plan-hash-mismatch');
   // The current Windows baseline has one required immutable plugin, not Web overlays.
   requireValue(plan.plugins.length === 1 && plan.plugins[0].required === true, 'native-plan-inventory-mismatch');
   const source = plan.plugins[0].source;
+  // The locked plan digest attests the exact registry; receipts must preserve this source below.
+  requireValue(typeof source.dependencyRegistry === 'string' && source.dependencyRegistry.length > 0,
+    'native-plan-source-mismatch');
   const plugin = lock.components.copilotIntegration;
   const artifact = plugin.package.artifact;
   const checksum = artifact.checksumManifest;
   const expected = { schemaVersion: 1, type: 'githubRelease', owner: 'cloga', repo: 'dsh-github-copilot',
     tag: artifact.releaseTag, asset: artifact.name, assetId: artifact.assetId, packageName: plugin.package.name,
     version: plugin.package.version, size: artifact.size, sha256: artifact.sha256, integrity: artifact.integrity,
-    targetCommit: plugin.source.commit, dependencyRegistry: 'https://registry.npmjs.org/' };
+    targetCommit: plugin.source.commit };
   requireValue(Object.entries(expected).every(([key, value]) => source[key] === value), 'native-plan-source-mismatch');
   requireValue(source.checksumManifest.format === 'sha256sums' && source.checksumManifest.asset === checksum.name &&
     source.checksumManifest.assetId === checksum.assetId && source.checksumManifest.url === checksum.url &&

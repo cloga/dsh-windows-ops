@@ -11,11 +11,11 @@ is the machine-readable deployment contract, verified on **2026-09-15**.
 
 | Component | Locked identity |
 |---|---|
-| Desktop | fork-owned `0.1.5-rc.3.cloga.3`, release tag `dsh-desktop-v0.1.5-rc.3.cloga.3`, commit `f34f048a6a862046de9b75f2aabf48944819f0d4` |
-| Desktop artifact | [`cloga-deepseek-harness-0.1.5-rc.3.cloga.3-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.3/cloga-deepseek-harness-0.1.5-rc.3.cloga.3-win-x64.exe), SHA-256 `10964ad5c668a0513cc3bf79f7cb8d5c091445eca06f629d33d20bcf1dc8eba5` |
+| Desktop | fork-owned `0.1.5-rc.3.cloga.5`, release tag `dsh-desktop-v0.1.5-rc.3.cloga.5`, commit `29f1863f5457470bacd12de00e987b8bdd6f4b2f` |
+| Desktop artifact | [`cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.5/cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe), SHA-256 `f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c` |
 | Desktop-managed runtime | default root `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`, but the installer is interactive and may use a different `$INSTDIR`; Windows Ops follows the actual installed `cloga-deepseek-harness.exe` path |
-| Installed Desktop | executable SHA-256 `594f5da5e36109711a55cd556b65b11196b07583b5c6914fcf15c0d83073b0c2`; runtime descriptor `resources\dsh\desktop-runtime.json` SHA-256 `7563c64128ecbd38ea058f0e1b380e87df0691c7dfb42f536f545f15f2333085` |
-| Runtime attestation | fork release manifest schema 3, self SHA-256 `8a8fa3a39c355494cc086e0c85d0376271a3b745366620097dfb7f692b15343b`, raw SHA-256 `8c4661f963621e8e97da0490f9e616d635fec217a737d321ae7d7fcc36b1365b`; bundled CLI baseline `@deepseek-ai/dsh@0.1.5-rc.2` |
+| Installed Desktop | executable SHA-256 `2ee392923d3796c9d68fbcfec675be558a3b0d68c3a68ec5dbce0f88a8212561`; runtime descriptor `resources\dsh\desktop-runtime.json` SHA-256 `f21d8b8fb67ed04554290acf3a48c91ea163bef7772842fd0796e0e97788d72d` |
+| Runtime attestation | fork release manifest schema 3, self SHA-256 `2e5b8efbabd812b07258e0fa794ffa04a7084f84a86ac6ee3ca534c034221152`, raw SHA-256 `b6fa1c79fd4a534c1ed7b5bc9caa85241e6c91d0745f07c800dad112176f161e`; bundled CLI baseline `@deepseek-ai/dsh@0.1.5-rc.2` |
 | Copilot plugin | `dsh-github-copilot@0.4.0-alpha.22`, PR #133, source/merge/release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b` |
 | Plugin artifact | Immutable Release [`dsh-github-copilot-0.4.0-alpha.22.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/dsh-github-copilot-0.4.0-alpha.22.tgz), 651,444 bytes, SHA-256 `e749d982ac55752eeca4cf4819b9751144cda1c2dc06033e4b42240151e40e0e`, SHA-512 SRI `sha512-HkGACgfUrTREbtbUgZJ6Sb02hqKseCtldW16ZBounQZahTpeKWW5bqj5TNb1MD6X7y4e5MI0Q5edYLCF71ybnQ==`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/SHA256SUMS), digest `cdc2a7e8df955c9136c6c79c25adaaf929bee815308ff3ceb6c9cfb948c03546` |
 | Desktop native capability | `desktopNativeVerifiedRelease`; generic plugin compatibility evidence is present, `automaticProvisioning=false`, and Windows Ops no longer mutates the Desktop profile through the external workaround |
@@ -31,21 +31,58 @@ runtime descriptor. Native acceptance binds the exact Electron parent and its
 bundled Node Host arguments; it does not require a `127.0.0.1:3080` listener.
 Matching version text alone is insufficient. The locked executable's actual PE
 ProductVersion is `0.1.5.0`, CompanyName is `GitHub, Inc.`, and Authenticode is
-`NotSigned`; the semantic release version remains `0.1.5-rc.3.cloga.3`.
+`NotSigned`; the semantic release version remains `0.1.5-rc.3.cloga.5`.
 
-The immutable recovery Release is ID `390062857`, incorporating the helper repair
-in `cloga/deepseek-harness#43` and test reliability change in
-`cloga/deepseek-harness#44`, published by run `35115948742`. Its schema-3
+Host command acceptance preserves the four-token bundled Node/entry/runtime/profile
+shape for existing inventories. If and only if the fully hash-verified inventory
+contains the Host-owned `register-module-resolution-policy.mjs`, it instead
+requires `--import` and that file's exact Node `pathToFileURL` URL before the
+entry. Missing, duplicate or unknown flags and different entry/runtime/profile
+paths fail closed. An extra on-disk policy file cannot switch modes. This
+compatibility support does not promote an unpublished release or change pins.
+
+The immutable recovery Release is ID `390292533`, sequence 6, incorporating the
+ancestor module-isolation fix in `cloga/deepseek-harness#49`, the
+dependency registry fix in `cloga/deepseek-harness#47` and retaining the earlier
+helper repair and test reliability changes in `cloga/deepseek-harness#43` and
+`cloga/deepseek-harness#44`. Run `35152173707`, attempt 1, published it after
+packaged acceptance. Its schema-3
 update manifest intentionally retains `automaticProvisioning=false` so the old
 installed update client can parse it. Do not change this field or insert new
 manifest keys. Native startup provisioning is separately declared by the
 build receipt (`automaticProvisioning=true`) and packaged managed capability
 schema 3, both binding canonical plan SHA-256
-`d381ba004763970ae24991046b5811a958ad1238c8f2c5b862ed8fffc041cfbb`.
+`20516d79c48e07585644279b7e09346f0ac4a4c000cff2a099a933d2be8a5154`.
 The two compatibility objects must not be equated wholesale. Windows Ops
 checks their shared capability, exact published hashes, canonical self hashes,
 and plan binding; installation checks additionally require actual profile
 receipts, state, inventory and artifact bytes.
+
+Native dependency registry acceptance follows the exact packaged plan, bound to
+both the locked release plan digest and managed capability, rather than a
+hard-coded endpoint. Profile receipts and provisioning state must preserve that
+same source, including `dependencyRegistry`. Changing a local plan, registry or
+receipt does not authorize another endpoint; a baseline change requires newly
+verified release evidence. This check neither changes npm configuration nor
+performs dependency downloads.
+
+The `.cloga.5` plan's plugin `dependencyRegistry` is
+`https://packagefeedproxy.microsoft.io/npm/`, replacing the `.cloga.3` npmjs
+endpoint after native dependency provisioning failed TLS checks locally.
+The frozen workspace build still declares
+`build.packageRegistry=https://registry.npmjs.org/` in the release manifest
+and the corresponding receipt build inputs. Do not rewrite that build field,
+patch a live plan, disable TLS verification, or run a separate profile install.
+Managed Core `0.1.5-rc.2` and immutable Copilot alpha.22 are unchanged.
+
+The `.cloga.4` registry repair exposed legacy ancestor `node_modules` redirecting
+an optional SDK outside owned packages. The `.cloga.5` runtime now includes the
+Host-owned module-resolution preload. Formal polluted-home acceptance records
+`ancestorSdkJunction=true` and `ancestorSdkLoaded=false` with matching initial
+and restart graphs; those exact evidence files are hash-bound in the lock.
+Do not delete or disable ancestor packages as an implicit recovery step.
+Packaged regression success is separate from operator-verified local startup
+and model acceptance.
 
 The formal run verified standalone copied-helper bootstrap, a synthetic
 handoff ACK and cancellation, initial/restart provisioning and the signed-out Models
@@ -58,7 +95,7 @@ TLS connectivity or authenticated model readiness.
 **Older-helper recovery:** `.cloga.1` and `.cloga.2` copied helpers have an
 unresolved `semver` import and fail before ACK without `node_modules`. A new
 release cannot repair an already installed broken helper. Use the independently
-verified formal `.cloga.3` installer out of band only after explicit interruption
+verified formal current `.cloga.5` installer out of band only after explicit interruption
 consent and a clean Desktop/Host exit, with normal interactive Windows/UAC
 handling. Do not reuse the failed handoff, patch live helper files, add operation
 dependencies or bypass session protection. The repaired helper hash is

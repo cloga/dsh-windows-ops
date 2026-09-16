@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { verifyNativeDesktopFiles, verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
-const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga3/', import.meta.url));
+const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga5/', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
 
 for (const bom of ['', '\uFEFF']) {
@@ -73,14 +73,42 @@ test('formal actual profile receipt and state agree with the exact source plan',
   assert.deepEqual(receipt.states, { staged: true, health: 'passed', activated: true, rolledBack: false, verified: true });
   assert.equal(receipt.releaseId, actualLock().components.copilotIntegration.package.artifact.releaseId);
 });
+
+test('formal plugin dependency registry differs from the frozen workspace build registry', () => {
+  const read = (name) => JSON.parse(readFileSync(join(formalRoot, name), 'utf8'));
+  const plan = read('desktop-provisioning.json');
+  assert.equal(plan.plugins[0].source.dependencyRegistry, 'https://packagefeedproxy.microsoft.io/npm/');
+  assert.equal(read('release.json').build.packageRegistry, 'https://registry.npmjs.org/');
+  assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
+  assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
+  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.22');
+  assert.equal(read('release.json').upstreamVersion, '0.1.5-rc.2');
+});
+
 function write(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value));
 }
-function fixture(t) {
+
+for (const [field, value] of [['ancestorSdkJunction', false], ['ancestorSdkLoaded', true],
+  ['ancestorSdkLoaded', 'false']]) {
+  test(`formal migration evidence rejects ${field}=${JSON.stringify(value)}`, (t) => {
+    const directory = mkdtempSync(join(tmpdir(), 'native-isolation-evidence-'));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    cpSync(formalRoot, directory, { recursive: true });
+    const path = join(directory, 'acceptance.json');
+    const acceptance = JSON.parse(readFileSync(path, 'utf8'));
+    acceptance[field] = value;
+    write(path, acceptance);
+    const lock = actualLock();
+    lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, directory), /native-release-ancestor-isolation-mismatch/);
+  });
+}
+function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/', withPolicy = false) {
   const root = mkdtempSync(join(tmpdir(), 'native-desktop-acceptance-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const installRoot = join(root, 'install');
+  const installRoot = join(root, 'install spaces % # \u6d4b\u8bd5');
   const dshHome = join(root, 'home');
   const profile = join(dshHome, 'profiles', 'desktop');
   const lock = JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
@@ -94,7 +122,7 @@ function fixture(t) {
     tag: artifact.releaseTag, asset: artifact.name, assetId: artifact.assetId, packageName: 'dsh-github-copilot',
     version: lock.components.copilotIntegration.package.version, size: artifact.size, sha256: artifact.sha256,
     integrity: artifact.integrity, targetCommit: lock.components.copilotIntegration.source.commit,
-    dependencyRegistry: 'https://registry.npmjs.org/',
+    dependencyRegistry,
     checksumManifest: { format: 'sha256sums', asset: checksum.name, assetId: checksum.assetId,
       url: checksum.url, size: checksum.size, sha256: checksum.sha256 } };
   const plan = { schemaVersion: 1, mode: 'exact', plugins: [{ required: true, source }] };
@@ -103,6 +131,7 @@ function fixture(t) {
     stateSchemaVersion: 1, pluginCapability: receiptCapability };
   const planSha256 = hash(JSON.stringify(plan));
   lock.components.desktop.releaseChannel.managedCapability.provisioning = { capability, planSha256 };
+  lock.components.desktop.releaseChannel.nativeProvisioning.plan.planSha256 = planSha256;
   const receipt = { schemaVersion: 1, capability: receiptCapability, source, releaseId: artifact.releaseId,
     assetId: artifact.assetId, packageName: source.packageName, version: source.version,
     artifactSha256: artifact.sha256, states: { staged: true, health: 'passed', activated: true, rolledBack: false, verified: true } };
@@ -125,6 +154,9 @@ function fixture(t) {
   const runtimePath = 'node_modules/@deepseek-ai/dsh-desktop-host/lib/index.js';
   const runtimeFiles = { [runtimePath]: runtimeFile,
     'node_modules/@deepseek-ai/dsh-desktop-host/package.json': JSON.stringify({ name: '@deepseek-ai/dsh-desktop-host', version: '0.1.5-rc.2' }) };
+  if (withPolicy) {
+    runtimeFiles['node_modules/@deepseek-ai/dsh-desktop-host/register-module-resolution-policy.mjs'] = 'synthetic policy; never imported';
+  }
   for (const name of ['@deepseek-ai/dsh-authorization', '@deepseek-ai/schemastery']) {
     runtimeFiles[`node_modules/${name}/package.json`] = JSON.stringify({ name, version: '1.0.0', main: 'lib/index.js' });
     runtimeFiles[`node_modules/${name}/lib/index.js`] = 'export const fixture = true;';
@@ -150,6 +182,18 @@ test('native file acceptance binds exact inventory without claiming live functio
   assert.equal(result.functional.modelResponseVerified, false);
 });
 
+test('native registry follows the exact lock-attested plan rather than a fixed endpoint', (t) => {
+  const input = fixture(t, 'https://packagefeedproxy.microsoft.io/npm/');
+  assert.equal(verifyNativeDesktopFiles(input).valid, true);
+});
+
+for (const registry of [null, '']) {
+  test(`native registry cannot be ${JSON.stringify(registry)} even in an attested plan`, (t) => {
+    const input = fixture(t, registry);
+    assert.equal(verifyNativeDesktopFiles(input).provisioning.reason, 'native-plan-source-mismatch');
+  });
+}
+
 for (const [name, change, expected] of [
   ['missing evidence', (f) => rmSync(join(f.profile, 'desktop-plugin-receipts.json')), 'native-evidence-missing'],
   ['wrong receipt release', (f) => {
@@ -164,6 +208,30 @@ for (const [name, change, expected] of [
     f.plan.plugins[0].source.version = '0.4.0-alpha.18';
     write(join(f.installRoot, 'resources', 'desktop-provisioning', 'plan.json'), f.plan);
   }, 'native-plan-hash-mismatch'],
+  ['substituted registry', (f) => {
+    f.plan.plugins[0].source.dependencyRegistry = 'https://unapproved.invalid/npm/';
+    write(join(f.installRoot, 'resources', 'desktop-provisioning', 'plan.json'), f.plan);
+  }, 'native-plan-hash-mismatch'],
+  ['registry substituted in plan and capability without release plan attestation', (f) => {
+    f.plan.plugins[0].source.dependencyRegistry = 'https://unapproved.invalid/npm/';
+    f.lock.components.desktop.releaseChannel.managedCapability.provisioning.planSha256 = hash(JSON.stringify(f.plan));
+    write(join(f.installRoot, 'resources', 'desktop-provisioning', 'plan.json'), f.plan);
+    write(join(f.installRoot, 'resources', 'managed-update', 'capability.json'),
+      f.lock.components.desktop.releaseChannel.managedCapability);
+  }, 'native-plan-hash-mismatch'],
+  ['receipt registry differs from attested plan even when state copies that receipt', (f) => {
+    f.receipt.source = { ...f.source, dependencyRegistry: 'https://unapproved.invalid/npm/' };
+    write(join(f.profile, 'desktop-plugin-receipts.json'), { schemaVersion: 1, receipts: { [f.source.packageName]: f.receipt } });
+    write(join(f.profile, 'desktop-plugin-provisioning-state.json'), f.state);
+  }, 'native-receipt-invalid'],
+  ['state registry differs from attested plan', (f) => {
+    f.state.plugins[0].source = { ...f.source, dependencyRegistry: 'https://unapproved.invalid/npm/' };
+    write(join(f.profile, 'desktop-plugin-provisioning-state.json'), f.state);
+  }, 'native-state-receipt-mismatch'],
+  ['state plan digest differs from attested plan', (f) => {
+    f.state.planSha256 = '0'.repeat(64);
+    write(join(f.profile, 'desktop-plugin-provisioning-state.json'), f.state);
+  }, 'native-provisioning-state-invalid'],
   ['corrupt local artifact', (f) => write(join(f.profile, '.desktop-plugin-artifacts', `${f.source.sha256}.tgz`), 'corrupt'), 'native-local-artifact-mismatch'],
   ['corrupt installed helper', (f) => write(join(f.installRoot, 'resources', 'managed-update', 'helper.mjs'), 'corrupt'), 'native-helper-hash-mismatch'],
   ['profile disabled', (f) => {
@@ -189,6 +257,33 @@ test('runtime inventory detects added files rather than trusting the descriptor 
   write(join(input.installRoot, 'resources', 'dsh', 'extra.js'), 'extra');
   const result = verifyNativeDesktopFiles(input);
   assert.equal(result.runtime.reason, 'native-runtime-tree-mismatch');
+});
+
+test('only attested runtime inventory selects the exact Node preload file URL', (t) => {
+  const input = fixture(t, undefined, true);
+  const policy = join(input.installRoot, 'resources', 'dsh', 'node_modules', '@deepseek-ai',
+    'dsh-desktop-host', 'register-module-resolution-policy.mjs');
+  const runtime = verifyNativeDesktopFiles(input).runtime;
+  assert.equal(runtime.valid, true);
+  assert.equal(runtime.moduleResolutionPolicyUrl, pathToFileURL(policy).href);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%20/);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%25/);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%23/);
+  assert.match(runtime.moduleResolutionPolicyUrl, /%E6%B5%8B%E8%AF%95/);
+  write(policy, 'tampered');
+  const changed = verifyNativeDesktopFiles(input).runtime;
+  assert.equal(changed.valid, false);
+  assert.equal(changed.moduleResolutionPolicyUrl, undefined);
+});
+
+test('an extra policy file cannot enable preload mode for the old inventory', (t) => {
+  const input = fixture(t);
+  assert.equal(verifyNativeDesktopFiles(input).runtime.moduleResolutionPolicyUrl, null);
+  write(join(input.installRoot, 'resources', 'dsh', 'node_modules', '@deepseek-ai',
+    'dsh-desktop-host', 'register-module-resolution-policy.mjs'), 'unattested');
+  const runtime = verifyNativeDesktopFiles(input).runtime;
+  assert.equal(runtime.reason, 'native-runtime-tree-mismatch');
+  assert.equal(runtime.moduleResolutionPolicyUrl, undefined);
 });
 
 test('native inventory rejects a private copy of a required Host peer even at the same version', (t) => {

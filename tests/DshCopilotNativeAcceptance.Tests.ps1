@@ -117,32 +117,54 @@ Describe 'Native installer mode and interruption boundaries' {
     }
 
     It 'binds only exact parent, bundled Node and full Host arguments without requiring 3080' -ForEach @(
-        @{ Mismatch = '' }, @{ Mismatch = 'parent' }, @{ Mismatch = 'node' },
-        @{ Mismatch = 'profile' }, @{ Mismatch = 'script' }, @{ Mismatch = 'flag' }, @{ Mismatch = 'none' }
+        @{ Mismatch = ''; Preload = $false }, @{ Mismatch = 'parent'; Preload = $false }, @{ Mismatch = 'node'; Preload = $false },
+        @{ Mismatch = 'profile'; Preload = $false }, @{ Mismatch = 'script'; Preload = $false }, @{ Mismatch = 'flag'; Preload = $false }, @{ Mismatch = 'none'; Preload = $false }
+        @{ Mismatch = ''; Preload = $true }, @{ Mismatch = 'script'; Preload = $true },
+        @{ Mismatch = 'runtime'; Preload = $true }, @{ Mismatch = 'policy'; Preload = $true },
+        @{ Mismatch = 'missing-import'; Preload = $true }, @{ Mismatch = 'extra-import'; Preload = $true },
+        @{ Mismatch = 'flag'; Preload = $true }, @{ Mismatch = 'unattested-import'; Preload = $false }
+        @{ Mismatch = 'runtime-attestation'; Preload = $true }, @{ Mismatch = 'unknown-flag'; Preload = $true }
     ) {
-        $install = Join-Path $TestDrive 'Desktop With Spaces'
+        $install = Join-Path $TestDrive ('Desktop Spaces % # ' + [char]0x6d4b + [char]0x8bd5)
         $script:nativeExe = Join-Path $install 'cloga-deepseek-harness.exe'
         Mock Test-WindowsCopilotLock -ModuleName WindowsCopilotDeployment { $true }
         Mock Get-WindowsCopilotDesktopState -ModuleName WindowsCopilotDeployment {
             [pscustomobject]@{ valid = $true; path = $script:nativeExe }
         }
+        $script:policyAttested = $Preload -eq $true
+        $script:runtimeValidJson = if ($Mismatch -eq 'runtime-attestation') { 'false' } else { 'true' }
         Mock node -ModuleName WindowsCopilotDeployment {
             $global:LASTEXITCODE = 0
-            '{"valid":false,"runtime":{"valid":true},"provisioning":{"valid":false},"functional":{"valid":false,"status":"manual-verification-required"}}'
+            '{"valid":false,"runtime":{"valid":' + $script:runtimeValidJson + ',"moduleResolutionPolicyUrl":' +
+                $script:policyUrlJson +
+                '},"provisioning":{"valid":false},"functional":{"valid":false,"status":"manual-verification-required"}}'
         }
         $nodePath = Join-Path $install 'resources\runtime\node\node.exe'
         $runtime = Join-Path $install 'resources\dsh'
         $hostScript = Join-Path $runtime 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'
         $profile = Join-Path $TestDrive 'profiles\desktop'
+        $policyPath = Join-Path $runtime 'node_modules\@deepseek-ai\dsh-desktop-host\register-module-resolution-policy.mjs'
+        $policyUri = & (Get-Command node -CommandType Application).Source -e "console.log(require('node:url').pathToFileURL(process.argv[1]).href)" $policyPath
+        $LASTEXITCODE | Should -Be 0
+        $script:policyUrlJson = if ($script:policyAttested) { ConvertTo-Json $policyUri -Compress } else { 'null' }
         $parentId = 10
         switch ($Mismatch) {
             parent { $parentId = 99 }
             node { $nodePath = Join-Path $TestDrive 'node.exe' }
             profile { $profile = Join-Path $TestDrive 'profiles\web' }
             script { $hostScript = Join-Path $runtime 'desktop-runtime.json' }
+            runtime { $runtime = Join-Path $TestDrive 'wrong-runtime' }
+            policy { $policyUri = 'file:///C:/unowned/register-module-resolution-policy.mjs' }
         }
-        $command = '"' + (@($nodePath, $hostScript, $runtime, $profile) -join '" "') + '"'
+        $arguments = @($nodePath)
+        if (($script:policyAttested -and $Mismatch -ne 'missing-import') -or $Mismatch -eq 'unattested-import') {
+            $arguments += @('--import', $policyUri)
+        }
+        if ($Mismatch -eq 'extra-import') { $arguments += @('--import', $policyUri) }
+        $arguments += @($hostScript, $runtime, $profile)
+        $command = '"' + ($arguments -join '" "') + '"'
         if ($Mismatch -eq 'flag') { $command += ' --allow-linked-profile' }
+        if ($Mismatch -eq 'unknown-flag') { $command += ' --unknown' }
         $processes = @(
             [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'cloga-deepseek-harness.exe'; ExecutablePath = $script:nativeExe; CommandLine = '' },
             [pscustomobject]@{ ProcessId = 11; ParentProcessId = $parentId; Name = 'node.exe'; ExecutablePath = $nodePath; CommandLine = $command }

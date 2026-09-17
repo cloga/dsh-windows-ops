@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
-const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga5/', import.meta.url));
+const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga7/', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
 
 for (const bom of ['', '\uFEFF']) {
@@ -44,6 +44,11 @@ test('formal immutable evidence preserves legacy manifest false and startup rece
 });
 
 for (const [name, mutate, code] of [
+  ['historical cloga.5 source', (l) => { l.components.desktop.source.commit = '29f1863f5457470bacd12de00e987b8bdd6f4b2f'; }, 'source'],
+  ['historical cloga.5 sequence', (l) => { l.components.desktop.releaseChannel.sequence = 6; }, 'source'],
+  ['historical cloga.5 installer', (l) => { l.components.desktop.artifact.sha256 = 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c'; }, 'installed-identity'],
+  ['historical cloga.5 receipt bytes', (l) => { l.components.desktop.releaseChannel.buildReceipt.sha256 = 'd083232d6ac98736935529c352259f97abe19b45cb522d730b0488b1b7777515'; }, 'file-hash'],
+  ['historical cloga.5 receipt self digest', (l) => { l.components.desktop.releaseChannel.buildReceipt.receiptSha256 = 'f25b04be3ce7718fbecb6398115fdf311aa804271f8bfedfbc38c3d1b51cd98b'; }, 'source'],
   ['candidate descriptor', (l) => { l.components.desktop.installedRuntimeDescriptor.sha256 = 'f012735da203eacca31ff4ee0df7f2dc7e0a0df5ee16df77845ab7a0062f242c'; }, 'installed-identity'],
   ['manifest provisioning upgraded in lock', (l) => { l.components.desktop.releaseChannel.pluginCompatibility.automaticProvisioning = true; }, 'capability'],
   ['startup provisioning disabled', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning = false; }, 'capability'],

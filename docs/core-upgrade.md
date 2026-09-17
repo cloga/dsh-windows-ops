@@ -23,6 +23,9 @@ The planner reads the inventory and emits an unexecuted plan. It performs no
 network, credential, file-write, install or restart operations. The example is
 this task's target, not a qualification claim or a mutable latest-version alias.
 
+本次版本记录 / Version-specific assessment:
+[0.1.6-alpha.2](core-016a2-assessment.md) — source review, not deployment qualification.
+
 ## 必须先比较官方实现 / Official-first gate
 
 不要只提高 peer 版本或修到编译通过。逐项比较自有功能和精确官方目标的

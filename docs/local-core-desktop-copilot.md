@@ -16,7 +16,7 @@ identifies the reviewed published target, not a new local installation.
 | Desktop | fork-owned `0.1.6-alpha.1.cloga.1`, release tag `dsh-desktop-v0.1.6-alpha.1.cloga.1`, commit `fae12b69dcd28413518f68b5770e40f8eb2ff730` |
 | Desktop artifact | [`cloga-deepseek-harness-0.1.6-alpha.1.cloga.1-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.1/cloga-deepseek-harness-0.1.6-alpha.1.cloga.1-win-x64.exe), 171,301,423 bytes, SHA-256 `9e645df11f8f48f82f1fad512a763a07791b75f1cafe1e354d5d8d2826f2fae6` |
 | Desktop-managed runtime | virtual root `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\app.asar\dsh`; the interactive installer may use a different `$INSTDIR`, so Windows Ops follows the actual installed `cloga-deepseek-harness.exe` path |
-| Expected installed Desktop identity | executable SHA-256 `ea8c801e8cef289772c5d616a25aeaa255a86b3471b7549ca958cb7708bcf41f`; virtual descriptor `resources\app.asar\dsh\desktop-runtime.json` SHA-256 `b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344`; target bytes, not local installation or Ops qualification proof |
+| Expected installed Desktop identity | executable SHA-256 `ea8c801e8cef289772c5d616a25aeaa255a86b3471b7549ca958cb7708bcf41f`; virtual descriptor `resources\app.asar\dsh\desktop-runtime.json` SHA-256 `b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344`; byte identities matched by the scoped Ops CI evidence below, not local installation |
 | Runtime attestation | release manifest schema 3, self SHA-256 `50fa6bf1af2ae94bf7e2a032ec00665760b989c7468e514e0005ed78a616e207`, raw SHA-256 `20e546c5ca5cb9152d931be023e67de1472b7a6fd6e078f97806888d57ee0d32`; bundled `@deepseek-ai/dsh@0.1.6-alpha.1`, runtime descriptor schema 1 / Host protocol 3 |
 | Copilot plugin | `dsh-github-copilot@0.4.0-alpha.22`, PR #133, source/merge/release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b` |
 | Plugin artifact | Immutable Release [`dsh-github-copilot-0.4.0-alpha.22.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/dsh-github-copilot-0.4.0-alpha.22.tgz), 651,444 bytes, SHA-256 `e749d982ac55752eeca4cf4819b9751144cda1c2dc06033e4b42240151e40e0e`, SHA-512 SRI `sha512-HkGACgfUrTREbtbUgZJ6Sb02hqKseCtldW16ZBounQZahTpeKWW5bqj5TNb1MD6X7y4e5MI0Q5edYLCF71ybnQ==`; verify with the same Release's [`SHA256SUMS`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/SHA256SUMS), digest `cdc2a7e8df955c9136c6c79c25adaaf929bee815308ff3ceb6c9cfb948c03546` |
@@ -46,9 +46,11 @@ plain-Node ASAR fallback or port-3080 ownership claim is accepted. Historical
 The formal EXE has PE ProductVersion `0.1.6.0`, CompanyName `GitHub, Inc.` and
 Authenticode `NotSigned`; its semantic release is `0.1.6-alpha.1.cloga.1`.
 
-**Published source target, not completed Ops qualification:** source-owned
-formal UI/restart/ancestor acceptance passed, while the separate genuine Ops
-observer/manual run remains pending. Repinning does not install or activate it.
+**Published source target and scoped Ops CI qualification:** source-owned formal
+UI/restart/ancestor acceptance and the separate genuine
+[Ops observer run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+passed. The [qualified scope and exclusions](#scoped-ops-ci-qualification) below
+remain explicit; neither publication nor this CI result installs or activates it locally.
 
 The current immutable [Release](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.1)
 is ID `390539601`, sequence 11, published on 2026-09-17 from source
@@ -62,7 +64,9 @@ assets and eleven formal fixture files to their original bytes, source/tag,
 manifest and receipt bindings. The new fixture root is
 `tests/fixtures/desktop-native-verified-release/formal-cloga016-1`.
 This is actual formal release evidence, not candidate or synthetic replacement
-data; the separate genuine Ops observer qualification is still pending.
+data. The separate genuine Ops observer proof is recorded below and in
+`tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json`,
+not inserted into or substituted for those eleven formal input fixtures.
 No installer execution or local Desktop change accompanied this repin.
 
 The published build receipt has raw SHA-256
@@ -122,11 +126,60 @@ provisioning, signed-out Copilot Models account UI and graph/ancestor isolation.
 Its packaged graph reports Electron `44.0.0`, Node `24.18.1`, Node-mode carrier
 and ASAR runtime resolution. The build toolchain remains Node `24.13.0` / pnpm
 `11.7.0`; it is not the Host engine identity. No real OAuth/model round or
-installed-application upgrade was performed. Genuine Ops observer qualification
-still must run separately against this exact release and profile fixture.
+installed-application upgrade was performed. The separate genuine Ops observer
+qualification passed against this exact release in run `35210215981`; it does
+not turn source acceptance into local-machine or model-response evidence.
 Historical `.cloga.7` acceptance artifact `10479574730` / run `35178158751`
 remains historical evidence. Hosted source success is not local registry TLS,
 model readiness, installation, activation or restart authorization.
+
+## Scoped Ops CI qualification
+
+Genuine manual [run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+passed at exact Ops code head `83b0303c250b62f55424be3d88347bf147c593d8`.
+Its actual called job [`105165989138`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/job/105165989138)
+completed every step, including controlled selected-payload NSIS **data**
+extraction, archive-root package identity, source-owned initial/restart UI and
+the awaited read-only Ops observer, summary upload and private cleanup. No
+installer was executed. This documentation/evidence update does not imply PR176
+has already merged or change the code identity that was qualified.
+
+The retained [raw Ops summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json)
+reports `valid:true` / `locked-release-ops-observer` and binds the unchanged
+source `fae12b69dcd28413518f68b5770e40f8eb2ff730`, tree
+`3ab1707c85ade70f7df5e33e95eb9991b53229f1`, installer/EXE/descriptor hashes above.
+[Artifact `10492165208`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208),
+`native-asar-qualification-35210215981-1`, is a 731-byte ZIP with independently
+verified SHA-256 `67a5221217841b94a4a7699a6f6db5b6b0949fea19d9e23a5b4f7eff496abb96`;
+its raw 1,071-byte summary SHA-256 is
+`c6066e0d632bb5777c44da193ebd695a7094195319b6835ef94ddb86031df648`.
+These are evidence identities, not new release or component pins.
+
+The summary establishes:
+
+- **9,806 runtime files** in the completed runtime proof, with public resolver
+  mode `metadata-cjs-esm`. The real shipped `PluginPackages`, its native addon,
+  and the production resolution policy were exercised—not inert API stubs.
+- Actual `app.asar/package.json` name `cloga-deepseek-harness-desktop` and full
+  version `0.1.6-alpha.1.cloga.1`, with raw package SHA-256
+  `0949ee2efc88442461c4ff9d31a8c9a5c7e747da0e7323744f1a09c3f820272b`.
+  Numeric PE `ProductVersion` alone did not establish that full release identity.
+- `observerCalls:1` and `profileRemoved:true`: the observer ran once after the
+  source fixture's initial/restart acceptance, and its owned profile was cleaned.
+- Exactly three additional invalid **request copies**—descriptor digest, version
+  and absent home—were rejected against the unchanged actual fixture. These are
+  not mutations of the real observer profile/runtime.
+
+The scope remains limited: `wholeCarrierAttested:false`,
+`modelResponseVerified:false` and `installerUpgradeVerified:false` are retained.
+No real OAuth/model round, local installation/activation/restart, or installed
+upgrade was performed. The three invalid requests do **not** establish advanced
+private-peer, custom-home/generation routing or missing-addon negative cases;
+source-owned ancestor-bait evidence and separately reviewed tests remain distinct.
+Existing user-preset ASAR validation is still explicitly unsupported, optional
+Web still requires an existing compatible physical runtime, and immutable replay
+refusals remain. The successful CI run does not broaden those entrypoints or
+attest user-extra package contents.
 
 ## Managed Desktop update behavior
 
@@ -153,8 +206,8 @@ SHA-256 is `34a56d9d8bf8d2ffcd584b90b4af1e1140c388eb5c7ddb35e99c02f00600d27b`.
 At the time of that additive notice guidance, the [deployment lock](../deployments/windows-copilot.lock.json)
 selected the separate `.cloga.7` baseline from [ops PR #178](https://github.com/cloga/dsh-windows-ops/pull/178).
 The current target is now published `0.1.6-alpha.1.cloga.1`; the `.cloga.8` record
-above remains historical and is not relabeled as `.6` Ops observer proof. That
-separate Ops qualification is still pending. An existing `.cloga.5` installation does not gain the notice from
+above remains historical and is not relabeled as `.6` Ops observer proof. The
+separate `.6` proof is [run `35210215981`](#scoped-ops-ci-qualification). An existing `.cloga.5` installation does not gain the notice from
 publication alone: a verified Desktop containing the change must first be safely
 installed and activated by explicit user action. That Desktop can then show the
 persistent notice for future available updates. This documentation update does
@@ -566,8 +619,9 @@ Replay obtains ASAR runtime identity from the audited native checker, not
 PowerShell reads of virtual paths. Archive and canonical
 `resources/app.asar.unpacked/dsh` patch targets are explicitly immutable/
 unsupported even in Verify/DryRun. Native Apply/Rollback remains delegated.
-None of these checks substitutes for the still-pending genuine Ops observer
-qualification against the exact formal `.6` fixture.
+The genuine [Ops observer qualification](#scoped-ops-ci-qualification) passed
+against the exact formal `.6` fixture in run `35210215981`; read-only replay
+status still does not substitute for that proof or broaden its scope.
 
 The Electron Host uses parent-owned byte pipes and `dsh-app://`, not an HTTP
 listener on port 3080. The Web smoke command above applies only to a separately

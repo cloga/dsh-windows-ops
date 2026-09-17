@@ -14,7 +14,7 @@ This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery 
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.
 
-## Current published deployment target (Ops qualification pending)
+## Current published deployment target (scoped Ops CI qualified)
 
 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-17**.
 
@@ -52,9 +52,14 @@ source `fae12b69dcd28413518f68b5770e40f8eb2ff730`, tree
 succeeded on attempt 1. Six Release assets and eleven formal fixture files were
 independently byte-verified. Source-owned acceptance artifact `10486794570`
 records isolated initial/restart Copilot Models UI and graph/ancestor isolation.
-**Genuine Ops observer/manual qualification is still pending**; source acceptance
-is not that separate proof. No local installation/activation, real OAuth/model
-round, or installer upgrade was performed. The stable deployment ID remains
+**Genuine Ops observer/manual qualification passed** in
+[run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+at exact Ops code head `83b0303c250b62f55424be3d88347bf147c593d8`.
+[Artifact `10492165208`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208)
+records 9,806 runtime files, the actual archive package's full identity, public
+resolver/native-addon/policy proof, one observer call and owned-profile cleanup.
+See the [scoped evidence and limits](docs/local-core-desktop-copilot.md#scoped-ops-ci-qualification).
+No local installation/activation, real OAuth/model round, or installer upgrade was performed. The stable deployment ID remains
 `windows-copilot-2026-09-15`; historical `.cloga.5`/`.cloga.7` evidence is retained,
 not rewritten as `.6` proof.
 Its legacy-compatible update manifest deliberately
@@ -77,8 +82,9 @@ remains `https://registry.npmjs.org/`. Core is now `0.1.6-alpha.1`; Copilot rema
 alpha.22. Ownership-aware checks retain user extras as `contentsAttested:false`,
 not baseline health, while required Copilot proof remains exact even if user-owned.
 Formal source ancestor-SDK acceptance passed; its eleven new raw fixture files
-are under `formal-cloga016-1`. Source proof does not replace pending Ops observer
-qualification, local OAuth, or model-response acceptance.
+are under `formal-cloga016-1`. The separate successful Ops summary is retained
+under `ops-cloga016-1`; neither evidence set establishes local OAuth or a model
+response, and neither authorizes activation.
 
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
@@ -134,7 +140,7 @@ Then use an isolated `DSH_HOME` to verify Cordis activation, tool registration, 
 
 **User-reported candidate:** [`csyangwen/dsh-memory-evolve`](https://github.com/csyangwen/dsh-memory-evolve/tree/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9) is user-reported useful for cross-session memory/evolution workflows, but this repository has completed only an `L1` source review of commit `c337dc1af7b5c8a5578e03150bf5c4d6133f66f9` / tag `v26091501` and lists it as `experimental`. The Release has no asset or checksum manifest, the package declares no DSH peer range, and no isolated mount or functional/security validation is recorded; see the [plugin selection guide](docs/plugins/choosing-a-plugin.md#user-reported-high-privilege-candidates). Because it handles long-term memory, background evolution, skill/prompt modification, self-update, and optional external CLI, Git synchronization, and messaging capabilities, first use must stay in an isolated Profile with explicit review of data retention and automatic modification. It is not part of the Windows locked baseline, Desktop required plugins, or default automatic installation.
 
-The [Desktop source-snapshot guide](docs/plugins/desktop-source-installation.md) preserves the initial publication evidence for core [issue #50](https://github.com/cloga/deepseek-harness/issues/50) / PR #53 in historical Desktop `.cloga.7` (sequence 9, PR #57). The current lock now selects `.6` release `0.1.6-alpha.1.cloga.1`, with Ops observer qualification still pending and no local installation/activation. Original pinned Memory Evolve acquisition/packing and renderer/pnpm fixtures do not become `.6` runtime evidence or plugin activation, nor promote `L1`/`experimental`; complete the selected target's qualification and separately authorized native installation before use.
+The [Desktop source-snapshot guide](docs/plugins/desktop-source-installation.md) preserves the initial publication evidence for core [issue #50](https://github.com/cloga/deepseek-harness/issues/50) / PR #53 in historical Desktop `.cloga.7` (sequence 9, PR #57). The current lock now selects `.6` release `0.1.6-alpha.1.cloga.1`, with scoped Ops observer CI qualification passed in run `35210215981`, but no local installation/activation. Original pinned Memory Evolve acquisition/packing and renderer/pnpm fixtures do not become `.6` runtime evidence or plugin activation, nor promote `L1`/`experimental`; complete target-machine checks and the separately authorized native installation before use.
 
 ## Tool map
 
@@ -154,7 +160,7 @@ The [Desktop source-snapshot guide](docs/plugins/desktop-source-installation.md)
 
 Use each script's header and linked guide for full parameters.
 
-**ASAR entrypoint boundaries (published target, Ops qualification pending):** the optional Web installer explicitly requires an already-existing compatible physical `-RuntimeRoot` for an ASAR default and never installs or copies another Core. ASAR target validation for existing user Agent Presets is explicitly unsupported, not skipped and reported valid. Replay uses audited read-only native state and refuses immutable archive patches/native mutations. See [tool boundaries](tools/README.md#asar-entrypoint-boundaries); the formal `.6` Release/source acceptance passed, but genuine Ops observer qualification remains pending; this does not claim local installation or activation.
+**ASAR entrypoint boundaries (scoped Ops CI qualified):** the optional Web installer explicitly requires an already-existing compatible physical `-RuntimeRoot` for an ASAR default and never installs or copies another Core. ASAR target validation for existing user Agent Presets is explicitly unsupported, not skipped and reported valid. Replay uses audited read-only native state and refuses immutable archive patches/native mutations. See [tool boundaries](tools/README.md#asar-entrypoint-boundaries); the formal `.6` Release/source acceptance and scoped [Ops observer CI `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981) passed, while the unsupported entrypoints remain unsupported; this does not claim local installation or activation.
 
 ## Documentation map
 
@@ -183,7 +189,7 @@ This repository does not redistribute Desktop, DSH, or the Copilot plugin. It pi
 
 | Project | Deployment responsibility | Current relationship |
 |---|---|---|
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Fork-owned Windows Desktop release channel, lifecycle, Desktop-managed bundled DSH runtime, and `desktopNativeVerifiedRelease` generic plugin capability | Current lock selects published `dsh-desktop-v0.1.6-alpha.1.cloga.1` at `fae12b69dcd28413518f68b5770e40f8eb2ff730`; Ops observer qualification pending |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | Fork-owned Windows Desktop release channel, lifecycle, Desktop-managed bundled DSH runtime, and `desktopNativeVerifiedRelease` generic plugin capability | Current lock selects published `dsh-desktop-v0.1.6-alpha.1.cloga.1` at `fae12b69dcd28413518f68b5770e40f8eb2ff730`; scoped Ops observer CI `35210215981` passed, no local activation |
 | [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | A companion to built-in `@deepseek-ai/dsh-llm-pi-ai`: sign-in UI, Host-only grant normalization, account-aware `models`/strict-mode leaf reconciliation, Copilot-scoped Tool Schema filtering, Responses/Anthropic inline search, and Responses-only `ctx.web` search. The plugin preserves unowned existing-profile fields; the Windows deployment removes legacy connection references. No second adapter, gateway, or ACP. | PR #133 source/merge/immutable Release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b`; Release `v0.4.0-alpha.22` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | Exact lock, check-first installer, migration, acceptance, and rollback | Default branch maintains the Windows + Copilot deployment baseline |
 

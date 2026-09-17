@@ -14,7 +14,7 @@
 
 已有新版 Copilot、需要从两条路由统一到账号自动识别目录时，使用[先检查的配置维护流程](docs/copilot-managed-route.md)与独立的 [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json)。它只允许经过确认的路径级配置 CAS，不安装组件、不重启、不自动修改 Session 或默认模型；不会为了下述独立部署目标替换或降级现有 Desktop。策略中的 Release 必须已验证、指定插件版本必须实际加载；冷历史影响需明确确认。该维护策略不是新的完整 Desktop/Core 验证声明。
 
-## 当前已发布部署目标（Ops 验证待完成）
+## 当前已发布部署目标（Ops 限定 CI 验证已通过）
 
 机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-09-17**：
 
@@ -52,9 +52,14 @@ source `fae12b69dcd28413518f68b5770e40f8eb2ff730`, tree
 succeeded on attempt 1. Six Release assets and eleven formal fixture files were
 independently byte-verified. Source-owned acceptance artifact `10486794570`
 records isolated initial/restart Copilot Models UI and graph/ancestor isolation.
-**Genuine Ops observer/manual qualification is still pending**; source acceptance
-is not that separate proof. No local installation/activation, real OAuth/model
-round, or installer upgrade was performed. The stable deployment ID remains
+**Genuine Ops observer/manual qualification passed** in
+[run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+at exact Ops code head `83b0303c250b62f55424be3d88347bf147c593d8`.
+[Artifact `10492165208`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208)
+records 9,806 runtime files, the actual archive package's full identity, public
+resolver/native-addon/policy proof, one observer call and owned-profile cleanup.
+See the [scoped evidence and limits](docs/local-core-desktop-copilot.md#scoped-ops-ci-qualification).
+No local installation/activation, real OAuth/model round, or installer upgrade was performed. The stable deployment ID remains
 `windows-copilot-2026-09-15`; historical `.cloga.5`/`.cloga.7` evidence is retained,
 not rewritten as `.6` proof.
 Its legacy-compatible update manifest deliberately
@@ -77,8 +82,9 @@ remains `https://registry.npmjs.org/`. Core is now `0.1.6-alpha.1`; Copilot rema
 alpha.22. Ownership-aware checks retain user extras as `contentsAttested:false`,
 not baseline health, while required Copilot proof remains exact even if user-owned.
 Formal source ancestor-SDK acceptance passed; its eleven new raw fixture files
-are under `formal-cloga016-1`. Source proof does not replace pending Ops observer
-qualification, local OAuth, or model-response acceptance.
+are under `formal-cloga016-1`. The separate successful Ops summary is retained
+under `ops-cloga016-1`; neither evidence set establishes local OAuth or a model
+response, and neither authorizes activation.
 
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
@@ -133,7 +139,7 @@ node tools\validate-plugin-catalog.mjs
 
 **用户反馈候选：** [`csyangwen/dsh-memory-evolve`](https://github.com/csyangwen/dsh-memory-evolve/tree/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9) 被用户评价为“对跨会话记忆/演化工作流有用”（User-reported useful for cross-session memory/evolution workflows），但本仓库仅对 commit `c337dc1af7b5c8a5578e03150bf5c4d6133f66f9` / tag `v26091501` 完成 `L1` 源码审查，目录推荐为 `experimental`。其 Release 无资产/校验清单，未声明 DSH peer 范围，也未完成隔离挂载或功能/安全验证；详见[插件选择指南](docs/plugins/choosing-a-plugin.md#user-reported-high-privilege-candidates)。它涉及长期记忆、后台演化、技能/提示词修改、自更新及可选外部 CLI、Git 同步和消息发送，首次使用必须隔离 Profile 并审查数据保留与自动修改边界；不属于 Windows locked baseline、Desktop 必需插件或默认自动安装。
 
-[Desktop 源码快照安装说明](docs/plugins/desktop-source-installation.md)保留核心 [issue #50](https://github.com/cloga/deepseek-harness/issues/50) / PR #53 首次随历史 Desktop `.cloga.7`（sequence 9、PR #57）发布的证据。当前 lock 已选择 `.6` 的 `0.1.6-alpha.1.cloga.1`，但新的 Ops observer 验证仍待完成，本机未安装或激活。固定 Memory Evolve commit 的原始获取/打包、隔离 renderer 与 pnpm fixture 不会因此变成 `.6` 运行证据或插件激活，也不提升 `L1`/`experimental` 等级；使用前仍须完成所选目标的验证和单独授权的原生安装流程。
+[Desktop 源码快照安装说明](docs/plugins/desktop-source-installation.md)保留核心 [issue #50](https://github.com/cloga/deepseek-harness/issues/50) / PR #53 首次随历史 Desktop `.cloga.7`（sequence 9、PR #57）发布的证据。当前 lock 已选择 `.6` 的 `0.1.6-alpha.1.cloga.1`，且限定范围的 Ops observer CI 验证已通过 run `35210215981`；本机仍未安装或激活。固定 Memory Evolve commit 的原始获取/打包、隔离 renderer 与 pnpm fixture 不会因此变成 `.6` 运行证据或插件激活，也不提升 `L1`/`experimental` 等级；使用前仍须完成目标机器的检查和单独授权的原生安装流程。
 
 ## 工具地图
 
@@ -153,7 +159,7 @@ node tools\validate-plugin-catalog.mjs
 
 所有脚本的详细参数以文件头和对应文档为准。
 
-**ASAR 入口边界（已发布目标，Ops 验证待完成）：** 可选 Web 安装器针对 ASAR 默认目标会明确要求一个已存在、兼容的物理 `-RuntimeRoot`，不会额外安装或复制 Core；已有用户 Agent Presets 的 ASAR target 校验会明确报告未支持，不会跳过并宣称通过。Replay 使用受审计的只读原生状态，并拒绝不可变归档补丁和原生变更。详见[工具边界](tools/README.md#asar-entrypoint-boundaries)；`.6` 正式 Release 与来源验收已通过，但真正 Ops observer 验证仍待完成，本说明不代表本机安装或激活。
+**ASAR 入口边界（限定 Ops CI 验证已通过）：** 可选 Web 安装器针对 ASAR 默认目标会明确要求一个已存在、兼容的物理 `-RuntimeRoot`，不会额外安装或复制 Core；已有用户 Agent Presets 的 ASAR target 校验会明确报告未支持，不会跳过并宣称通过。Replay 使用受审计的只读原生状态，并拒绝不可变归档补丁和原生变更。详见[工具边界](tools/README.md#asar-entrypoint-boundaries)；`.6` 正式 Release、来源验收和限定范围的 [Ops observer CI `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981) 已通过，以上未支持的入口仍保持未支持，本说明不代表本机安装或激活。
 
 ## 文档地图
 
@@ -182,7 +188,7 @@ node tools\validate-plugin-catalog.mjs
 
 | 项目 | 在本仓库部署中的职责 | 当前关系 |
 |---|---|---|
-| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | fork-owned Windows Desktop release channel、生命周期、Desktop-managed bundled DSH runtime，以及 `desktopNativeVerifiedRelease` generic plugin capability | 当前 lock 使用已发布 `dsh-desktop-v0.1.6-alpha.1.cloga.1`，commit `fae12b69dcd28413518f68b5770e40f8eb2ff730`；Ops observer 验证待完成 |
+| [`cloga/deepseek-harness`](https://github.com/cloga/deepseek-harness) | fork-owned Windows Desktop release channel、生命周期、Desktop-managed bundled DSH runtime，以及 `desktopNativeVerifiedRelease` generic plugin capability | 当前 lock 使用已发布 `dsh-desktop-v0.1.6-alpha.1.cloga.1`，commit `fae12b69dcd28413518f68b5770e40f8eb2ff730`；限定 Ops observer CI `35210215981` 已通过，未本机激活 |
 | [`cloga/dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | 复用内置 `@deepseek-ai/dsh-llm-pi-ai` 的 Copilot companion：提供登录 UI、Host-only grant 规范化、账号感知的 `models`/strict-mode 叶节点同步、Copilot-scoped Tool Schema 过滤，以及 Responses/Anthropic inline search 与 Responses-only `ctx.web` search；插件保留已有 profile 的非归属字段，Windows deployment 负责清理 legacy connection reference；不包含第二套 adapter、网关或 ACP | PR #133 source/merge/immutable Release commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b`；Release `v0.4.0-alpha.22` |
 | [`cloga/dsh-windows-ops`](https://github.com/cloga/dsh-windows-ops) | 精确锁、check-first 安装器、迁移、验收和回滚 | 默认分支维护当前 Windows + Copilot 部署基线 |
 

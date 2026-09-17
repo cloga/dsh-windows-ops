@@ -103,7 +103,7 @@
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows Copilot deployment lock selects the published 0.1.6-alpha.1.cloga.1 Desktop, ASAR-backed runtime descriptor and native provisioning capability with the unchanged immutable Copilot alpha.22 artifact, source identity and required host peers. Genuine Ops observer qualification remains pending; publication/repinning is not local installation or activation.",
+            "description": "The Windows Copilot deployment lock selects the published 0.1.6-alpha.1.cloga.1 Desktop, ASAR-backed runtime descriptor and native provisioning capability with the unchanged immutable Copilot alpha.22 artifact, source identity and required host peers. Scoped genuine Ops observer qualification passed in run 35210215981 at exact code head 83b0303c250b62f55424be3d88347bf147c593d8; publication, repinning and CI proof are not local installation or activation.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -118,8 +118,13 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "Formal source run 35197577605 for immutable Desktop 0.1.6-alpha.1.cloga.1 verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and Electron Node-mode ASAR graph/ancestor isolation. Packaged Host evidence reports Electron 44.0.0 and Node 24.18.1; the source build toolchain remains separate. Genuine Ops observer qualification is still pending. No real OAuth/model round, local installer upgrade, or local activation was performed.",
+            "description": "Formal source run 35197577605 for immutable Desktop 0.1.6-alpha.1.cloga.1 verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and Electron Node-mode ASAR graph/ancestor isolation. Packaged Host evidence reports Electron 44.0.0 and Node 24.18.1; the source build toolchain remains separate. Separate genuine Ops observer run 35210215981 subsequently passed; its own evidence entry preserves the narrower proof boundary. No real OAuth/model round, local installer upgrade, or local activation was performed.",
             "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-1/acceptance.json"
+          },
+          {
+            "kind": "import-probe",
+            "description": "Genuine Ops CI run 35210215981 / called job 105165989138 passed at exact code head 83b0303c250b62f55424be3d88347bf147c593d8 against the unchanged formal .6 release. Artifact 10492165208 retains the raw locked-release-ops-observer summary: 9806 runtime files, actual app.asar package name/full version/raw SHA, shipped public PluginPackages/native-addon/production-policy metadata+CJS+ESM proof, one observer call and owned-profile cleanup. Exactly descriptor-digest, version and absent-home request copies were rejected; advanced private-peer/custom-home/missing-addon negatives are not claimed by those requests. Whole-carrier attestation, model response and installer upgrade remain false; user-extra contents and unsupported Web/preset entrypoints are not promoted. See https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208; no local activation or PR-merge claim.",
+            "path": "tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json"
           }
         ]
       },

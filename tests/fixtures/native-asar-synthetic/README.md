@@ -175,7 +175,7 @@ header allocation bytes between file opens; use the existing serialized,
 no-mutation deployment scope. No archive extraction or filesystem mutation is
 performed by the verifier itself.
 
-## Manual actual-release observer bridge (prepared; execution pending)
+## Manual actual-release observer bridge (qualified code head 83b0303)
 
 `.github/workflows/native-asar-release.yml` permits **manual execution only** and
 requires `confirm_version` to exactly match the checked-in Desktop lock. It also
@@ -183,12 +183,15 @@ exposes `workflow_call` to the already-registered `plugin-catalog.yml` manual
 entrypoint, with explicit manual-event guards in caller and callee. Legacy
 physical `.5` inputs still fail before acquisition. The current target is the
 actual immutable `0.1.6-alpha.1.cloga.1` release (formal run `35197577605`), with
-11 byte-preserved formal fixtures; source-owned UI/restart/ancestor acceptance is
-published evidence, not yet the separate Ops observer qualification. Never use
-synthetic `.6` data to make the workflow green. Dispatch and final qualification
-belong to the reviewed release flow; repinning alone is not qualification.
+11 byte-preserved formal fixtures. The separate genuine Ops observer passed in
+[run 35210215981](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+at **code head `83b0303c250b62f55424be3d88347bf147c593d8`**. Its unchanged
+[summary and independently verified artifact/entry hashes](../desktop-native-verified-release/ops-cloga016-1/README.md)
+record 9806 runtime files, actual root package name/full version, public resolver
+proof, one observer call and removed owned profile. Inert fixtures do not provide
+this evidence; repinning alone remains insufficient.
 
-Before PR176 merges, dispatch the **registered** Plugin catalog validation
+The successful premerge run used the **registered** Plugin catalog validation
 workflow (`345664659`) at the exact reviewed `cloga-dsh-0-1-6-baseline` ref, with
 `qualify_native_asar=true` and `confirm_version=0.1.6-alpha.1.cloga.1`, through the
 approved `cloga` GitHub identity gate. Its relative reusable-workflow reference
@@ -293,10 +296,11 @@ No real OAuth/model round or installer-upgrade acceptance is claimed. The earlie
 EXE-only carrier/DLL and concurrency boundaries still apply: installer acquisition
 provides archive provenance, not a new per-DLL loaded-image attestation.
 
-**Actual-run gates remain:** the published immutable `.6` target and complete
-formal fixtures now exist, but the Ops run must still verify its exact source
-checkout/build, Actions-token access to the selected source/release (no private
-cross-repository token fallback), existing runner 7-Zip NSIS listing/extraction,
-actual archive-root package identity, credential-free native provisioning, and
-the public resolver/native addon/Electron proof. Inert unit tests substitute for
-none of these execution gates; actual Ops observer execution is still pending.
+**Mandatory gates for future updates:** exact immutable release/source/fixtures,
+source checkout/build, restricted acquisition token, existing-runner format-pinned
+extraction, actual archive-root package identity, credential-free native
+provisioning, and the public resolver/native-addon/Electron proof. Run
+`35210215981` passed those gates for code head `83b0303`; documentation/evidence-only
+follow-ups do not change that qualified code. Runtime-affecting changes require
+new genuine qualification. Inert tests never substitute for execution evidence,
+and no successful CI run authorizes local installation or activation.

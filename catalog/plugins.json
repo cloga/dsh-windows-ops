@@ -103,7 +103,7 @@
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows Copilot deployment lock selects immutable Desktop 0.1.6-alpha.1.cloga.2, Core 0.1.6-alpha.1, and Copilot 0.4.0-alpha.24 with the repaired Client search-routing Remote grant. ASAR descriptor, release-owned provisioning and exact package/source evidence are correlated. Genuine Ops native-ASAR qualification for this paired target remains pending; prior .cloga.1 evidence is historical, not transferable. No local installation or activation is claimed.",
+            "description": "The Windows Copilot deployment lock selects immutable Desktop 0.1.6-alpha.1.cloga.2, Core 0.1.6-alpha.1, and Copilot 0.4.0-alpha.24 with the repaired Client search-routing Remote grant. ASAR descriptor, release-owned provisioning and exact package/source evidence are correlated. Genuine Ops native-ASAR qualification passed for this pair in run 35278350619 at exact code head 243c33d286f19d9e4c608e238a52de2b9a136b9e; prior .cloga.1 evidence remains historical, not transferred. No local installation or activation is claimed.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -125,6 +125,11 @@
             "kind": "import-probe",
             "description": "HISTORICAL .cloga.1/alpha.22 ONLY: Genuine Ops CI run 35210215981 / called job 105165989138 passed at exact code head 83b0303c250b62f55424be3d88347bf147c593d8 against the unchanged formal .6 release. Artifact 10492165208 retains the raw locked-release-ops-observer summary: 9806 runtime files, actual app.asar package name/full version/raw SHA, shipped public PluginPackages/native-addon/production-policy metadata+CJS+ESM proof, one observer call and owned-profile cleanup. Exactly descriptor-digest, version and absent-home request copies were rejected; advanced private-peer/custom-home/missing-addon negatives are not claimed by those requests. Whole-carrier attestation, model response and installer upgrade remain false; user-extra contents and unsupported Web/preset entrypoints are not promoted. See https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208; no local activation or PR-merge claim.",
             "path": "tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json"
+          },
+          {
+            "kind": "import-probe",
+            "description": "Genuine registered-caller run 35278350619 / job 105394672036 passed at exact Ops code head 243c33d286f19d9e4c608e238a52de2b9a136b9e against Desktop .cloga.2 / Core .6 / Copilot alpha.24. Artifact10521682863 original ZIP733bytes SHA2568cda9c1657242cefd8a0634d1b9f8f600107e80b668497008ee81700f7c4f184 contains the byte-exact1071byte summary SHA2566fcbe781c367d33d62351c40a9fd3edfdb5d0ac372dd2986f9884cc470f80524. It proves9806 runtime files, exact archive application identity, public metadata+CJS+ESM resolver, one observer and owned-profile cleanup, and three rejected descriptor/version/absent-home request copies. Fresh settings phases were checked by the qualified driver, not new summary fields. Whole-carrier/model/installer-upgrade remain false; no local activation or expanded negative coverage. First run35276462350 remains an unexplained preobserver failure, not retroactively repaired by this success.",
+            "path": "tests/fixtures/desktop-native-verified-release/ops-cloga016-2/qualification.json"
           }
         ]
       },

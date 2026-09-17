@@ -346,8 +346,10 @@ Acceptance requires all of the following:
 
 ## Optional Web-profile overlays
 
-`dsh-playwright-host@0.1.2` and `dsh-cron@0.4.1` remain reviewed optional Web
-overlays. When `-IncludeCompanionSuite` selects them, their exact source,
+`dsh-playwright-host@0.1.7` and `dsh-cron@0.7.1` are reviewed immutable optional Web
+overlays for Core `0.1.6-alpha.1`. Source and artifact-byte verification do not
+establish local activation or a live browser/scheduler smoke. When
+`-IncludeCompanionSuite` selects them, their exact source,
 artifact, closure, and bundle state are strict gates. When not selected, a
 configured-source mismatch is inventory/warning data rather than base-baseline
 health. `dsh-github-copilot` remains required and cannot be removed by

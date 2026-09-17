@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "artifact": "reader.cjs",
+  "sha256": "39d513271953d16945d1aaddfd05ba52b9d1e265e675ca4f13e775402ef047f9",
+  "bytes": 13939,
+  "upstream": "@electron/asar@3.4.1",
+  "bundler": "esbuild@0.25.12",
+  "selector": "typescript@6.0.3",
+  "exports": [
+    "getRawHeader",
+    "extractFile",
+    "uncache"
+  ],
+  "closure": {
+    "asar.js": {
+      "declarations": [
+        "__createBinding",
+        "__setModuleDefault",
+        "__importStar",
+        "disk",
+        "getRawHeader",
+        "extractFile",
+        "uncache"
+      ],
+      "selectedSourceSha256": "43bdc7799d73b0c42b952ffad752a20cbb46cc988c52d9f0dbbee1bf4db57a24"
+    },
+    "disk.js": {
+      "declarations": [
+        "__createBinding",
+        "__setModuleDefault",
+        "__importStar",
+        "__importDefault",
+        "path",
+        "wrapped_fs_1",
+        "pickle_1",
+        "filesystem_1",
+        "filesystemCache",
+        "readArchiveHeaderSync",
+        "readFilesystemSync",
+        "uncacheFilesystem",
+        "readFileSync"
+      ],
+      "selectedSourceSha256": "1c1cbd4d4c5ba46e382bd3bacbd777240d052693ac9e50e25ad919ecab1ad38e"
+    },
+    "filesystem.js": {
+      "declarations": [
+        "__createBinding",
+        "__setModuleDefault",
+        "__importStar",
+        "path",
+        "Filesystem"
+      ],
+      "classes": {
+        "Filesystem": [
+          "constructor",
+          "getRootPath",
+          "getHeaderSize",
+          "setHeader",
+          "searchNodeFromDirectory",
+          "getNode",
+          "getFile"
+        ]
+      },
+      "selectedSourceSha256": "5eecca1319f4f5f6b56b12c36e2006a2fd4c4202e1ff23592f1d62b668260d48"
+    },
+    "pickle.js": {
+      "declarations": [
+        "SIZE_INT32",
+        "SIZE_UINT32",
+        "PAYLOAD_UNIT",
+        "CAPACITY_READ_ONLY",
+        "alignInt",
+        "PickleIterator",
+        "Pickle"
+      ],
+      "classes": {
+        "PickleIterator": [
+          "constructor",
+          "readInt",
+          "readUInt32",
+          "readString",
+          "readBytes",
+          "getReadPayloadOffsetAndAdvance",
+          "advance"
+        ],
+        "Pickle": [
+          "constructor",
+          "createFromBuffer",
+          "getHeader",
+          "getHeaderSize",
+          "createIterator",
+          "setPayloadSize",
+          "getPayloadSize",
+          "resize"
+        ]
+      },
+      "selectedSourceSha256": "9c2013a7185f7ec45874820c2270f3c23ada7a1e20bb098a3a71965a25f5ef60"
+    },
+    "wrapped-fs.js": {
+      "declarations": [
+        "fs"
+      ],
+      "selectedSourceSha256": "03857daaab5bf8621aa1b58b17dccc7e99cfd295d3571d68c71ca8878d506943"
+    }
+  },
+  "externalImports": [
+    "fs",
+    "original-fs",
+    "path"
+  ]
+}

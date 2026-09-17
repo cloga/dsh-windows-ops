@@ -598,7 +598,7 @@ function Test-WindowsCopilotLock {
         [string]$companionCompatibility.core.manifest -cne
             'node_modules\@deepseek-ai\dsh\package.json' -or
         @($companionCompatibility.core.versions).Count -ne 1 -or
-        [string]$companionCompatibility.core.versions[0] -cne '0.1.2-rc.1' -or
+        [string]$companionCompatibility.core.versions[0] -cne '0.1.6-alpha.1' -or
         [string]$companionCompatibility.cordis.name -cne '@deepseek-ai/cordis' -or
         [string]$companionCompatibility.cordis.manifest -cne
             'node_modules\@deepseek-ai\cordis\package.json' -or
@@ -734,18 +734,18 @@ function Test-WindowsCopilotLock {
     $optionalOverlays = @($Lock.profile.optionalOverlays)
     $expectedOptionalOverlays = [ordered]@{
         'dsh-playwright-host' = [ordered]@{
-            version = '0.1.2'
-            source = 'github:cloga/dsh-playwright-host#v0.1.2'
-            sourceCommit = 'a7f63e2c3565008e1c614023afb1c3110fd62fff'
-            resolvedCommit = '2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac'
-            pullRequest = 6
+            version = '0.1.7'
+            source = 'github:cloga/dsh-playwright-host#v0.1.7'
+            sourceCommit = 'c8f514b838516eed8cced19ef2dd514ef1f2f0a4'
+            resolvedCommit = 'fdec939b48d14d66d14bef3d8f12ec68411d58fb'
+            pullRequest = 19
         }
         'dsh-cron' = [ordered]@{
-            version = '0.4.1'
-            source = 'github:cloga/dsh-cron#v0.4.1'
-            sourceCommit = 'e0ecca9e18a66fe0acecec6dfc6cc6faaa9520b2'
-            resolvedCommit = '5f99313e110932195821d924259b2836947271f3'
-            pullRequest = 12
+            version = '0.7.1'
+            source = 'github:cloga/dsh-cron#v0.7.1'
+            sourceCommit = '7628e5bb9d8b24981962548974cafd3dfa9e509c'
+            resolvedCommit = '6dae9da71e6c36c58e04f3ca8c10cc5c4790b3bd'
+            pullRequest = 45
         }
     }
     if ($optionalOverlays.Count -ne $expectedOptionalOverlays.Count) {
@@ -766,39 +766,53 @@ function Test-WindowsCopilotLock {
     }
     $playwrightOverlay = @($optionalOverlays | Where-Object { [string]$_.name -ceq 'dsh-playwright-host' })[0]
     $playwrightArtifact = $playwrightOverlay.artifact
-    if ([string]$playwrightArtifact.name -cne 'dsh-playwright-host-0.1.2.tgz' -or
+    if ([string]$playwrightArtifact.name -cne 'dsh-playwright-host-0.1.7.tgz' -or
         [string]$playwrightArtifact.url -cne
-            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/dsh-playwright-host-0.1.2.tgz' -or
+            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/dsh-playwright-host-0.1.7.tgz' -or
         [string]$playwrightArtifact.sha256 -cne
-            '18e4e2d29429a94f495d9507188282e6157f11c2ef75fa076b54b30c03ac0cf2' -or
-        [int]$playwrightArtifact.size -ne 3659 -or
-        [string]$playwrightArtifact.releaseTag -cne 'v0.1.2' -or
+            '647c2112f09c9aa9aabfb6fbe3659dad32658a63eeb034a9040736695ca061f3' -or
+        [string]$playwrightArtifact.sha512 -cne
+            '6c902d923270082697877402321944ab81935a49b20e548d16403e12b5582f82541d2b851adeb9e74ca9b9d23aef07349e142e0f75d2a1fec4c02f1f56841dce' -or
+        [string]$playwrightArtifact.integrity -cne
+            'sha512-bJAtkjJwCCaXh3QCMhlEq4GTWkmyDlSNFkA+ErVYL4JUHSuFGt6550ypudI67wc0nhQuD3XSof7EwC8fVoQdzg==' -or
+        [int]$playwrightArtifact.size -ne 8280 -or
+        [string]$playwrightArtifact.releaseTag -cne 'v0.1.7' -or
+        [long]$playwrightArtifact.releaseId -ne 389282244 -or
+        [long]$playwrightArtifact.assetId -ne 566016151 -or
         $playwrightArtifact.releaseImmutable -ne $true -or
         [string]$playwrightArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
         [string]$playwrightArtifact.checksumManifest.url -cne
-            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/SHA256SUMS' -or
+            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/SHA256SUMS' -or
         [string]$playwrightArtifact.checksumManifest.sha256 -cne
-            '06647ede584dad3055508733f17cd720f4ebf149c2cd73d680497e7117247e84' -or
+            '45a32a05036595e23d22c101126c41e9f6c77ac0fe1402a2ebc9456f55952a6b' -or
+        [long]$playwrightArtifact.checksumManifest.assetId -ne 566016150 -or
         [int]$playwrightArtifact.checksumManifest.size -ne 96) {
-        throw 'Optional dsh-playwright-host artifact must match the immutable v0.1.2 Release and SHA256SUMS.'
+        throw 'Optional dsh-playwright-host artifact must match the immutable v0.1.7 Release and SHA256SUMS.'
     }
     $cronOverlay = @($optionalOverlays | Where-Object { [string]$_.name -ceq 'dsh-cron' })[0]
     $cronArtifact = $cronOverlay.artifact
-    if ([string]$cronArtifact.name -cne 'dsh-cron-0.4.1.tgz' -or
+    if ([string]$cronArtifact.name -cne 'dsh-cron-0.7.1.tgz' -or
         [string]$cronArtifact.url -cne
-            'https://github.com/cloga/dsh-cron/releases/download/v0.4.1/dsh-cron-0.4.1.tgz' -or
+            'https://github.com/cloga/dsh-cron/releases/download/v0.7.1/dsh-cron-0.7.1.tgz' -or
         [string]$cronArtifact.sha256 -cne
-            '9be9e7c6ea1b4bf8a6f354dd1533e8a920f4d397c09fb20e14a2b5c91a50ce5f' -or
-        [int]$cronArtifact.size -ne 34276 -or
-        [string]$cronArtifact.releaseTag -cne 'v0.4.1' -or
+            '136ba9d66ba2f2ada87f1ce97dfb21be97474dc76504fc65ae8e01cde60768d0' -or
+        [string]$cronArtifact.sha512 -cne
+            'f5baf2b185dcd1abab2743c8f06abaeaaeda715ea8b3ae8a38cf3f58647425612bf1ef769984d9fbe92a63719963e785c1788aa5c8cde1bcbffc0935d5ec0ac4' -or
+        [string]$cronArtifact.integrity -cne
+            'sha512-9brysYXc0aurJ0PI8Gq66q7acV6os66KOM8/WGR0JWEr8e92mYTZ++kqY3GZY+eFwXiKpcjN4by//Ak11ewKxA==' -or
+        [int]$cronArtifact.size -ne 64919 -or
+        [string]$cronArtifact.releaseTag -cne 'v0.7.1' -or
+        [long]$cronArtifact.releaseId -ne 389294372 -or
+        [long]$cronArtifact.assetId -ne 566045997 -or
         $cronArtifact.releaseImmutable -ne $true -or
         [string]$cronArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
         [string]$cronArtifact.checksumManifest.url -cne
-            'https://github.com/cloga/dsh-cron/releases/download/v0.4.1/SHA256SUMS' -or
+            'https://github.com/cloga/dsh-cron/releases/download/v0.7.1/SHA256SUMS' -or
         [string]$cronArtifact.checksumManifest.sha256 -cne
-            'ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf' -or
+            'f05eef489a31f38ee203b91808d54e2100ae18b222907fbe4125c680bac802f2' -or
+        [long]$cronArtifact.checksumManifest.assetId -ne 566046029 -or
         [int]$cronArtifact.checksumManifest.size -ne 85) {
-        throw 'Optional dsh-cron artifact must match the immutable v0.4.1 Release and SHA256SUMS.'
+        throw 'Optional dsh-cron artifact must match the immutable v0.7.1 Release and SHA256SUMS.'
     }
 
     $pluginPolicy = $Lock.profile.pluginPolicy
@@ -6264,27 +6278,60 @@ function Test-WindowsCopilotNativeInstallation {
             $DesktopProcesses = @(Get-CimInstance Win32_Process |
                 Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
         }
+        # Select the process contract from the locked descriptor, never an installed
+        # loose-file probe or an executable basename. Unknown layouts fail closed.
+        $descriptor = Get-LockProperty -InputObject $Lock.components.desktop -Name 'installedRuntimeDescriptor'
+        $descriptorRelativePath = [string](Get-LockProperty -InputObject $descriptor -Name 'relativePath')
+        $descriptorRelativePath = $descriptorRelativePath.Replace('\', '/')
+        $legacyLayout = $descriptorRelativePath -ceq 'resources/dsh/desktop-runtime.json'
+        $asarLayout = $descriptorRelativePath -ceq 'resources/app.asar/dsh/desktop-runtime.json'
+        $argumentPattern = '(?:^|\s+)(?:"[^"]*"|[^\s"]+)(?=\s|$)'
         $parents = @($DesktopProcesses | Where-Object {
-            $_.ExecutablePath -and [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq [string]$desktop.path
+            if (-not $_.ExecutablePath -or [string]$_.ExecutablePath -ine [string]$desktop.path) { return $false }
+            if ($asarLayout) {
+                # Electron also carries the Host and renderer/helper processes. Only
+                # the supported bare Desktop launch can authorize a Host child.
+                $command = [string]$_.CommandLine
+                if ([regex]::Replace($command, $argumentPattern, '').Trim()) { return $false }
+                $tokens = @([regex]::Matches($command, $argumentPattern) | ForEach-Object { $_.Value.Trim().Trim('"') })
+                if ($tokens.Count -ne 1 -or $tokens[0] -ine [string]$desktop.path) { return $false }
+            }
+            return $true
         })
         $active.desktopProcessIds = @($parents | ForEach-Object { [int]$_.ProcessId })
         if ($parents.Count -gt 0) {
-            $node = Join-Path $installRoot 'resources\runtime\node\node.exe'
-            $runtimeRoot = Join-Path $installRoot 'resources\dsh'
-            $expectedArgs = @($node)
+            $hostExecutable = $null
+            $hostEntry = $null
+            $runtimeRoot = $null
             $policyUrl = Get-LockProperty -InputObject $files.runtime -Name 'moduleResolutionPolicyUrl'
-            if ($files.runtime.valid -and $policyUrl) {
+            $bindingReady = [bool]($files.runtime.valid -and ($legacyLayout -or $asarLayout))
+            if ($legacyLayout) {
+                $hostExecutable = Join-Path $installRoot 'resources\runtime\node\node.exe'
+                $runtimeRoot = Join-Path $installRoot 'resources\dsh'
+                $hostEntry = Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'
+            } elseif ($asarLayout) {
+                $hostExecutable = [string]$desktop.path
+                $runtimeRoot = Join-Path $installRoot 'resources\app.asar\dsh'
+                $attestedRuntimeRoot = [string](Get-LockProperty -InputObject $files.runtime -Name 'runtimeRoot')
+                $hostEntry = [string](Get-LockProperty -InputObject $files.runtime -Name 'hostEntry')
+                # The verifier reads hostEntry and the preload from the locked ASAR
+                # descriptor. An unattested/missing preload is not a legacy fallback.
+                $bindingReady = [bool]($bindingReady -and $attestedRuntimeRoot -ieq $runtimeRoot -and
+                    -not [string]::IsNullOrWhiteSpace($hostEntry) -and
+                    -not [string]::IsNullOrWhiteSpace([string]$policyUrl))
+            }
+            $expectedArgs = @($hostExecutable)
+            if ($bindingReady -and $policyUrl) {
                 $expectedArgs += @('--import', [string]$policyUrl)
             }
-            $expectedArgs += @((Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'),
-                $runtimeRoot, (Join-Path $home 'profiles\desktop'))
+            $expectedArgs += @($hostEntry, $runtimeRoot, (Join-Path $home 'profiles\desktop'))
             $children = @($DesktopProcesses | Where-Object {
-                if (-not $_.ExecutablePath -or [string]$_.ExecutablePath -ine $node -or
+                if (-not $bindingReady -or -not $_.ExecutablePath -or
+                    [string]$_.ExecutablePath -ine $hostExecutable -or
                     $active.desktopProcessIds -notcontains [int]$_.ParentProcessId -or -not $_.CommandLine) { return $false }
                 $command = [string]$_.CommandLine
-                $pattern = '"[^"]*"|[^\s"]+'
-                if ([regex]::Replace($command, $pattern, '').Trim()) { return $false }
-                $tokens = @([regex]::Matches($command, $pattern) | ForEach-Object { $_.Value.Trim('"') })
+                if ([regex]::Replace($command, $argumentPattern, '').Trim()) { return $false }
+                $tokens = @([regex]::Matches($command, $argumentPattern) | ForEach-Object { $_.Value.Trim().Trim('"') })
                 if ($tokens.Count -ne $expectedArgs.Count) { return $false }
                 for ($index = 0; $index -lt $expectedArgs.Count; $index++) {
                     if ($policyUrl -and $index -in @(1, 2) -and $tokens[$index] -cne $expectedArgs[$index]) { return $false }

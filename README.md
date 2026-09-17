@@ -24,7 +24,7 @@
 | Desktop 管理的 DSH runtime | installer 内置 `@deepseek-ai/dsh@0.1.5-rc.2`，由安装后的 `resources\dsh\desktop-runtime.json` 证明，descriptor SHA-256 `f21d8b8fb67ed04554290acf3a48c91ea163bef7772842fd0796e0e97788d72d`；默认 per-user root 是 `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`，但 Windows Ops 以实际安装 EXE 路径为准 |
 | 必需的 `dsh-github-copilot` | 0.4.0-alpha.22；在 `desktopNativeVerifiedRelease` 下由 Desktop native capability 保留/接管，不再由 Windows Ops 外部事务物化 |
 | Desktop native capability | `desktopNativeVerifiedRelease`，manifest self SHA-256 `2e5b8efbabd812b07258e0fa794ffa04a7084f84a86ac6ee3ca534c034221152`，generic plugin compatibility `automaticProvisioning=false` |
-| 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.2`、`dsh-cron@0.4.1` |
+| 可选 Web overlays（非基线必需） | `dsh-playwright-host@0.1.7`、`dsh-cron@0.7.1`；已核验不可变 Release 与产物字节，目标 Core `0.1.6-alpha.1`，不代表本机已启用 |
 
 README、插件目录或历史文档中出现一个项目，**不代表它属于该基线**。默认分支和 deployment lock 是本仓库的发布渠道；本仓库不另行分发 Desktop/DSH/plugin 二进制。Lock 更新表示经过评审的目标基线，不代表某台机器已经执行 `-Apply`；默认 check mode 会如实报告尚未应用的 drift。
 

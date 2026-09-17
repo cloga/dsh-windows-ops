@@ -1,0 +1,9 @@
+{
+  "syntheticOnly": true,
+  "runtimeProof": false,
+  "version": "0.1.6-synthetic-local.1",
+  "descriptorSha256": "ae1adfd706b5f0f743c7d97334faa1149640df96bb14fa0371be4e1351386af7",
+  "archiveSha256": "66cbe923b466b467ce3b5b7a4bb740d6ea463a05a00bf5237cf93b1810bb1a72",
+  "generator": "@electron/asar@3.4.1 createPackageWithOptions",
+  "unpack": "**/*.node"
+}

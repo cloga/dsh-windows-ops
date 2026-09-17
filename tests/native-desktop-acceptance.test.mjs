@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { verifyNativeDesktopFiles, verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
+import childProcess from 'node:child_process';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
+import { preflightAsar, headerRuntimeInventory, probeEnvironment } from '../tools/native-asar-runtime.mjs';
+import { limits, validateDescriptor } from '../tools/native-runtime-integrity.mjs';
+import { probe as electronProbe } from '../tools/native-electron-probe.mjs';
+const asarReader = createRequire(import.meta.url)('../tools/vendor/asar-reader/reader.cjs');
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
 const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga5/', import.meta.url));
@@ -85,6 +91,16 @@ test('formal plugin dependency registry differs from the frozen workspace build 
   assert.equal(read('release.json').upstreamVersion, '0.1.5-rc.2');
 });
 
+// Use primitive wide-path APIs: Node 24.13 recursive cp/rm can corrupt Unicode
+// paths on this Windows carrier. Never follow a fixture junction during cleanup.
+function removeFixturePath(path) {
+  const stat = lstatSync(path, { throwIfNoEntry: false });
+  if (!stat) return;
+  if (stat.isDirectory() && !stat.isSymbolicLink()) {
+    for (const name of readdirSync(path)) removeFixturePath(join(path, name));
+    rmdirSync(path);
+  } else unlinkSync(path);
+}
 function write(path, value) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value));
@@ -94,7 +110,7 @@ for (const [field, value] of [['ancestorSdkJunction', false], ['ancestorSdkLoade
   ['ancestorSdkLoaded', 'false']]) {
   test(`formal migration evidence rejects ${field}=${JSON.stringify(value)}`, (t) => {
     const directory = mkdtempSync(join(tmpdir(), 'native-isolation-evidence-'));
-    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    t.after(() => removeFixturePath(directory, { recursive: true, force: true }));
     cpSync(formalRoot, directory, { recursive: true });
     const path = join(directory, 'acceptance.json');
     const acceptance = JSON.parse(readFileSync(path, 'utf8'));
@@ -107,7 +123,7 @@ for (const [field, value] of [['ancestorSdkJunction', false], ['ancestorSdkLoade
 }
 function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/', withPolicy = false) {
   const root = mkdtempSync(join(tmpdir(), 'native-desktop-acceptance-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeFixturePath(root, { recursive: true, force: true }));
   const installRoot = join(root, 'install spaces % # \u6d4b\u8bd5');
   const dshHome = join(root, 'home');
   const profile = join(dshHome, 'profiles', 'desktop');
@@ -195,7 +211,7 @@ for (const registry of [null, '']) {
 }
 
 for (const [name, change, expected] of [
-  ['missing evidence', (f) => rmSync(join(f.profile, 'desktop-plugin-receipts.json')), 'native-evidence-missing'],
+  ['missing evidence', (f) => removeFixturePath(join(f.profile, 'desktop-plugin-receipts.json')), 'native-evidence-missing'],
   ['wrong receipt release', (f) => {
     f.receipt.releaseId++;
     write(join(f.profile, 'desktop-plugin-receipts.json'), { schemaVersion: 1, receipts: { [f.source.packageName]: f.receipt } });
@@ -307,4 +323,216 @@ test('raw parser errors and file contents never enter evidence output', (t) => {
   const result = verifyNativeDesktopFiles(input);
   assert.equal(result.provisioning.reason, 'native-evidence-unreadable');
   assert.ok(!JSON.stringify(result).includes('fixture-private'));
+});
+
+// Generated SYNTHETIC LOCAL integrity fixtures, not functional runtime/release proof.
+const syntheticRoot = fileURLToPath(new URL('./fixtures/native-asar-synthetic/', import.meta.url));
+function asarFixture(t) {
+  const input = fixture(t);
+  unlinkSync(join(input.profile, 'node_modules', '@deepseek-ai'));
+  removeFixturePath(join(input.installRoot, 'resources', 'dsh'), { recursive: true });
+  writeFileSync(join(input.installRoot, 'resources', 'app.asar'), readFileSync(join(syntheticRoot, 'app.asar')));
+  const native = 'app.asar.unpacked/dsh/node_modules/fixture-native/fixture.node';
+  mkdirSync(dirname(join(input.installRoot, 'resources', native)), { recursive: true });
+  writeFileSync(join(input.installRoot, 'resources', native), readFileSync(join(syntheticRoot, native)));
+  assert.deepEqual(readFileSync(join(input.installRoot, 'resources/app.asar.unpacked/dsh/node_modules/fixture-native/fixture.node')),
+    readFileSync(join(syntheticRoot, 'app.asar.unpacked/dsh/node_modules/fixture-native/fixture.node')));
+  const identity = JSON.parse(readFileSync(join(syntheticRoot, 'identity.json'), 'utf8'));
+  assert.equal(identity.syntheticOnly, true); assert.equal(identity.runtimeProof, false);
+  input.lock.components.desktop.installedRuntimeDescriptor = { relativePath: 'resources\\app.asar\\dsh\\desktop-runtime.json', sha256: identity.descriptorSha256 };
+  input.lock.components.desktop.releaseChannel.upstreamVersion = identity.version;
+  const executable = join(input.installRoot, input.lock.components.desktop.installedExecutable.relativePath);
+  write(executable, 'SYNTHETIC CARRIER BYTES - NEVER EXECUTED');
+  input.lock.components.desktop.installedExecutable.sha256 = hash(readFileSync(executable));
+  input.diagnosticRoot = dirname(input.installRoot);
+  return input;
+}
+function noChild(t) {
+  let count = 0;
+  t.mock.method(childProcess, 'spawnSync', () => { count++; throw new Error('unexpected-launch'); });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); assert.equal(count, 0, 'invalid evidence must launch zero children'); });
+}
+const archivePath = f => join(f.installRoot, 'resources', 'app.asar');
+const sidecarPath = f => join(f.installRoot, 'resources', 'app.asar.unpacked', 'dsh');
+
+test('synthetic ASAR passes ONLY header/sidecar integrity, not runtime proof', t => {
+  const f = asarFixture(t); noChild(t);
+  const result = preflightAsar(f.lock, f.installRoot);
+  assert.equal(result.unpackedCount, 1); assert.equal(result.descriptor.files.length, 18);
+  assert.equal(result.archiveSha256, hash(readFileSync(archivePath(f))));
+  assert.equal(result.runtimeRoot, join(archivePath(f), 'dsh'));
+  for (const encoded of ['%20', '%25', '%23', '%E6%B5%8B%E8%AF%95']) assert.ok(result.moduleResolutionPolicyUrl.includes(encoded));
+});
+
+for (const [name, mutate, expected] of [
+  ['wrong exe hash', f => { f.lock.components.desktop.installedExecutable.sha256 = '0'.repeat(64); }, 'native-carrier-hash-mismatch'],
+  ['missing exe', f => removeFixturePath(join(f.installRoot, f.lock.components.desktop.installedExecutable.relativePath)), 'native-evidence-missing'],
+  ['traversed exe', f => { f.lock.components.desktop.installedExecutable.relativePath = '../other.exe'; }, 'native-invalid-relative-path'],
+  ['absolute exe', f => { f.lock.components.desktop.installedExecutable.relativePath = 'C:/other.exe'; }, 'native-invalid-relative-path'],
+  ['ADS exe', f => { f.lock.components.desktop.installedExecutable.relativePath = 'carrier.exe:secret'; }, 'native-invalid-relative-path'],
+  ['unknown layout no fallback', f => { f.lock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources/other/desktop-runtime.json'; }, 'native-runtime-layout-unsupported'],
+  ['traversed layout', f => { f.lock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources/app.asar/dsh/../desktop-runtime.json'; }, 'native-runtime-layout-unsupported'],
+  ['descriptor hash', f => { f.lock.components.desktop.installedRuntimeDescriptor.sha256 = '0'.repeat(64); }, 'native-runtime-descriptor-mismatch'],
+  ['release drift', f => { f.lock.components.desktop.releaseChannel.upstreamVersion = '0.1.6-wrong'; }, 'native-runtime-descriptor-invalid'],
+  ['mixed legacy version with ASAR layout', f => { f.lock.components.desktop.releaseChannel.upstreamVersion = '0.1.5-rc.2'; }, 'native-runtime-layout-unsupported'],
+  ['truncated header', f => writeFileSync(archivePath(f), Buffer.from([4, 0, 0])), 'native-asar-header-invalid'],
+  ['oversized header', f => { const b = readFileSync(archivePath(f)); b.writeUInt32LE(limits.header + 4, 4); writeFileSync(archivePath(f), b); }, 'native-asar-header-limit'],
+  ['header beyond archive', f => { const b = readFileSync(archivePath(f)); b.writeUInt32LE(b.length * 4, 4); writeFileSync(archivePath(f), b); }, 'native-asar-header-limit'],
+  ['malformed parser', f => { const b = readFileSync(archivePath(f)); b[16] = 0x21; writeFileSync(archivePath(f), b); }, 'native-evidence-unreadable'],
+  ['missing and extra packed path', f => { const b = readFileSync(archivePath(f)); const at = b.indexOf(Buffer.from('"index.js"')); assert.ok(at > 0); b.write('"other.js"', at); writeFileSync(archivePath(f), b); }, 'native-asar-header-inventory-mismatch'],
+  ['header traversal path', f => { const b = readFileSync(archivePath(f)); const at = b.indexOf(Buffer.from('"lib"')); assert.ok(at > 0); b.write('".. "', at); writeFileSync(archivePath(f), b); }, 'native-invalid-relative-path'],
+  ['orphan unpacked native', f => write(join(sidecarPath(f), 'orphan.node'), 'invisible virtually'), 'native-asar-sidecar-mismatch'],
+  ['orphan unpacked ordinary file', f => write(join(sidecarPath(f), 'orphan.txt'), 'invisible virtually'), 'native-asar-sidecar-mismatch'],
+  ['packed-only shadow', f => write(join(sidecarPath(f), 'node_modules/@deepseek-ai/dsh/package.json'), 'shadow'), 'native-asar-sidecar-mismatch'],
+  ['outside sidecar scope', f => write(join(f.installRoot, 'resources/app.asar.unpacked/other/extra.node'), 'outside'), 'native-asar-sidecar-outside-runtime'],
+  ['missing unpacked file', f => removeFixturePath(join(sidecarPath(f), 'node_modules/fixture-native/fixture.node')), 'native-asar-sidecar-mismatch'],
+  ['missing sidecar', f => removeFixturePath(join(f.installRoot, 'resources/app.asar.unpacked'), { recursive: true }), 'native-asar-sidecar-mismatch'],
+  ['same-size unpacked change', f => { const p = join(sidecarPath(f), 'node_modules/fixture-native/fixture.node'); const b = readFileSync(p); b[0] ^= 1; writeFileSync(p, b); }, 'native-asar-sidecar-mismatch'],
+  ['sidecar junction', f => { const p = join(sidecarPath(f), 'node_modules/fixture-native'); removeFixturePath(p, { recursive: true }); symlinkSync(f.profile, p, 'junction'); }, 'native-reparse-or-inventory-limit'],
+  ['dangling sidecar junction', f => { const p = join(f.installRoot, 'resources/app.asar.unpacked'); removeFixturePath(p, { recursive: true }); symlinkSync(join(f.diagnosticRoot, 'absent'), p, 'junction'); }, 'native-reparse-path'],
+  ['dangling dsh junction', f => { const p = sidecarPath(f); removeFixturePath(p, { recursive: true }); symlinkSync(join(f.diagnosticRoot, 'absent'), p, 'junction'); }, 'native-reparse-path'],
+  ['resources junction', f => { const p = join(f.installRoot, 'resources'); const target = join(f.diagnosticRoot, 'resources-target'); renameSync(p, target); symlinkSync(target, p, 'junction'); }, 'native-reparse-path'],
+  ['UNC root', f => { f.installRoot = '\\\\server\\share\\install'; }, 'native-invalid-physical-path'],
+]) {
+  test(`ASAR rejects ${name} BEFORE child launch (synthetic)`, t => {
+    const f = asarFixture(t); noChild(t); mutate(f);
+    const result = verifyNativeDesktopFiles(f);
+    assert.equal(result.valid, false); assert.equal(result.runtime.reason, expected);
+    assert.equal(result.functional.modelResponseVerified, false);
+  });
+}
+
+for (const [name, mutate] of [
+  ['link', h => { h.header.files.dsh.files.bad = { link: 'outside' }; }],
+  ['case alias', h => { h.header.files.DSH = h.header.files.dsh; }],
+  ['traversal', h => { h.header.files.dsh.files['..'] = { size: 0, offset: '0' }; }],
+  ['inherited unpack mismatch', h => { const dir = h.header.files.dsh.files.node_modules.files['fixture-native']; dir.unpacked = true; delete dir.files['fixture.node'].unpacked; }],
+  ['negative size', h => { h.header.files.dsh.files['desktop-runtime.json'].size = -1; }],
+  ['unsafe offset', h => { h.header.files.dsh.files['desktop-runtime.json'].offset = '9007199254740992'; }],
+]) {
+  test(`maintained header rejects ${name} (synthetic metadata)`, () => {
+    const archive = join(syntheticRoot, 'app.asar'); const raw = asarReader.getRawHeader(archive); mutate(raw);
+    assert.throws(() => headerRuntimeInventory(raw, readFileSync(archive).length), /native-/);
+  });
+}
+
+test('consistent inherited unpack flags agree with reader semantics', () => {
+  const archive = join(syntheticRoot, 'app.asar'); const raw = asarReader.getRawHeader(archive);
+  raw.header.files.dsh.files.node_modules.files['fixture-native'].unpacked = true;
+  assert.equal(headerRuntimeInventory(raw, readFileSync(archive).length).filter(f => f.unpacked).length, 1);
+});
+
+for (const [name, mutate] of [
+  ['duplicate', d => d.files.push(d.files[0])],
+  ['case alias', d => d.files.push({ ...d.files[0], path: d.files[0].path.toUpperCase() })],
+  ['traversal', d => { d.files[0].path = '../outside'; }],
+  ['missing shared identity', d => { d.sharedPackages = d.sharedPackages.filter(p => p.name !== '@deepseek-ai/dsh'); }],
+  ['protocol', d => { d.release.hostProtocolVersion = 0; }],
+  ['version', d => { d.release.nodeVersion = 'not-a-version'; }],
+  ['unsafe size', d => { d.files[0].bytes = Number.MAX_SAFE_INTEGER; }],
+]) {
+  test(`strict descriptor rejects ${name} (synthetic)`, t => {
+    const f = asarFixture(t); const snapshot = preflightAsar(f.lock, f.installRoot);
+    const d = structuredClone(snapshot.descriptor); mutate(d); const bytes = Buffer.from(JSON.stringify(d));
+    assert.throws(() => validateDescriptor(bytes, hash(bytes), snapshot.descriptor.release.version), /native-/);
+  });
+}
+
+test('preflight rereads header after archive replacement, never cached metadata', t => {
+  const f = asarFixture(t); preflightAsar(f.lock, f.installRoot);
+  const b = readFileSync(archivePath(f)); b.writeUInt32LE(0xffffffff, 4); writeFileSync(archivePath(f), b);
+  assert.throws(() => preflightAsar(f.lock, f.installRoot), /native-asar-header-limit/);
+});
+
+test('Node-mode environment allowlist excludes case variants and secrets', t => {
+  const f = asarFixture(t);
+  const env = probeEnvironment(f.diagnosticRoot, { NODE_OPTIONS: 'secret-sentinel', node_path: 'secret-sentinel',
+    Electron_No_Asar: 'secret-sentinel', DSH_HOME: 'secret-sentinel', DSH_MODEL: 'secret-sentinel',
+    OPENAI_API_KEY: 'secret-sentinel', GH_TOKEN: 'secret-sentinel', npm_config_registry: 'secret-sentinel', PATH: 'secret-sentinel' });
+  assert.equal(env.ELECTRON_RUN_AS_NODE, '1'); assert.equal(env.TEMP, f.diagnosticRoot);
+  assert.ok(!JSON.stringify(env).includes('secret-sentinel'));
+  assert.deepEqual(Object.keys(env).sort(), ['ELECTRON_RUN_AS_NODE', 'HOME', 'TEMP', 'TMP', 'USERPROFILE']);
+});
+
+for (const [name, childResult, expected] of [
+  ['timeout', { error: { code: 'ETIMEDOUT' }, status: null }, 'native-probe-timeout'],
+  ['unavailable Electron', { error: { code: 'ENOENT' }, status: null }, 'native-probe-failed'],
+  ['nonzero', { status: 1, stdout: 'secret-sentinel', stderr: 'secret-sentinel' }, 'native-probe-failed'],
+  ['noisy', { status: 0, stdout: 'log\n{}', stderr: '' }, 'native-probe-output-invalid'],
+  ['truncated', { status: 0, stdout: '{', stderr: '' }, 'native-probe-output-invalid'],
+  ['oversized', { status: 0, stdout: 'x'.repeat(limits.output + 1), stderr: '' }, 'native-probe-output-invalid'],
+  ['stderr', { status: 0, stdout: '{}', stderr: 'secret-sentinel' }, 'native-probe-output-invalid'],
+  ['unbound valid boolean', { status: 0, stdout: '{"valid":true}', stderr: '' }, 'native-probe-output-invalid'],
+]) {
+  test(`bounded protocol rejects ${name}; no ready claims (synthetic mock)`, t => {
+    const f = asarFixture(t); let count = 0;
+    t.mock.method(childProcess, 'spawnSync', (exe, args, options) => {
+      count++; assert.equal(exe, join(f.installRoot, f.lock.components.desktop.installedExecutable.relativePath));
+      assert.equal(options.shell, false); assert.equal(options.windowsHide, true);
+      assert.equal(options.timeout, 30000); assert.equal(options.maxBuffer, limits.output);
+      assert.equal(options.env.ELECTRON_RUN_AS_NODE, '1');
+      assert.ok(args.includes('--max-old-space-size=512')); assert.ok(args.includes('--experimental-import-meta-resolve'));
+      assert.ok(!args.includes('--import')); assert.equal(JSON.parse(options.input).profile, f.profile);
+      return childResult;
+    });
+    syncBuiltinESMExports(); t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+    const result = verifyNativeDesktopFiles(f);
+    assert.equal(count, 1); assert.equal(result.valid, false); assert.equal(result.runtime.reason, expected);
+    assert.ok(!JSON.stringify(result).includes('secret-sentinel'));
+  });
+}
+
+test('mixed ASAR-era version cannot use legacy physical checks as fallback', t => {
+  const f = fixture(t); noChild(t);
+  f.lock.components.desktop.releaseChannel.upstreamVersion = '0.1.6-synthetic-local.1';
+  assert.equal(verifyNativeDesktopFiles(f).runtime.reason, 'native-runtime-layout-unsupported');
+});
+
+test('plain Node is not an Electron carrier and cannot reach runtime imports', async () => {
+  await assert.rejects(electronProbe({ schemaVersion: 1 }), /native-probe-carrier-invalid/);
+});
+
+for (const [name, mutate] of [
+  ['missing disposal', o => { o.resolverDisposed = false; }],
+  ['unresolved peers', o => { o.peerCount = 1; }],
+  ['wrong file count', o => { o.fileCount++; }],
+  ['wrong archive correlation', o => { o.archiveSha256 = '0'.repeat(64); }],
+  ['wrong descriptor correlation', o => { o.descriptorSha256 = '0'.repeat(64); }],
+  ['CJS-only evidence', o => { o.mode = 'metadata-cjs'; }],
+  ['extra output field', o => { o.untrusted = true; }],
+]) {
+  test(`synthetic child claim rejected for ${name}, not resolver success evidence`, t => {
+    const f = asarFixture(t);
+    t.mock.method(childProcess, 'spawnSync', (exe, args, options) => {
+      const input = JSON.parse(options.input);
+      const output = { schemaVersion: 1, valid: true, mode: 'metadata-cjs-esm', resolverDisposed: true,
+        peerCount: 2, fileCount: 18, archiveSha256: input.archiveSha256, descriptorSha256: input.descriptorSha256 };
+      mutate(output); return { status: 0, stdout: JSON.stringify(output), stderr: '' };
+    });
+    syncBuiltinESMExports(); t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+    const result = verifyNativeDesktopFiles(f);
+    assert.equal(result.valid, false); assert.equal(result.runtime.reason, 'native-probe-output-invalid');
+  });
+}
+
+test('concurrent carrier replacement invalidates even a synthetic correlated child claim', t => {
+  const f = asarFixture(t);
+  t.mock.method(childProcess, 'spawnSync', (exe, args, options) => {
+    const input = JSON.parse(options.input); writeFileSync(exe, 'concurrent replacement');
+    return { status: 0, stderr: '', stdout: JSON.stringify({ schemaVersion: 1, valid: true,
+      mode: 'metadata-cjs-esm', resolverDisposed: true, peerCount: 2, fileCount: 18,
+      archiveSha256: input.archiveSha256, descriptorSha256: input.descriptorSha256 }) };
+  });
+  syncBuiltinESMExports(); t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const result = verifyNativeDesktopFiles(f);
+  assert.equal(result.valid, false); assert.equal(result.runtime.reason, 'native-carrier-hash-mismatch');
+});
+
+test('source receipt drift blocks ASAR launch with sound synthetic runtime inventory', t => {
+  const f = asarFixture(t); noChild(t);
+  f.receipt.source = { ...f.source, targetCommit: '0'.repeat(40) };
+  write(join(f.profile, 'desktop-plugin-receipts.json'), { schemaVersion: 1, receipts: { [f.source.packageName]: f.receipt } });
+  const result = verifyNativeDesktopFiles(f);
+  assert.equal(result.valid, false); assert.equal(result.provisioning.reason, 'native-state-receipt-mismatch');
 });

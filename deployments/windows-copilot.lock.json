@@ -428,7 +428,7 @@
         "name": "@deepseek-ai/dsh",
         "manifest": "node_modules\\@deepseek-ai\\dsh\\package.json",
         "versions": [
-          "0.1.2-rc.1"
+          "0.1.6-alpha.1"
         ]
       },
       "cordis": {
@@ -612,51 +612,61 @@
     "optionalOverlays": [
       {
         "name": "dsh-playwright-host",
-        "version": "0.1.2",
+        "version": "0.1.7",
         "profile": "web",
-        "source": "github:cloga/dsh-playwright-host#v0.1.2",
-        "resolvedCommit": "2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac",
+        "source": "github:cloga/dsh-playwright-host#v0.1.7",
+        "resolvedCommit": "fdec939b48d14d66d14bef3d8f12ec68411d58fb",
         "required": false,
-        "sourceCommit": "a7f63e2c3565008e1c614023afb1c3110fd62fff",
-        "pullRequest": 6,
+        "sourceCommit": "c8f514b838516eed8cced19ef2dd514ef1f2f0a4",
+        "pullRequest": 19,
         "artifact": {
-          "name": "dsh-playwright-host-0.1.2.tgz",
-          "url": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/dsh-playwright-host-0.1.2.tgz",
-          "sha256": "18e4e2d29429a94f495d9507188282e6157f11c2ef75fa076b54b30c03ac0cf2",
-          "size": 3659,
-          "releaseTag": "v0.1.2",
+          "name": "dsh-playwright-host-0.1.7.tgz",
+          "url": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/dsh-playwright-host-0.1.7.tgz",
+          "sha256": "647c2112f09c9aa9aabfb6fbe3659dad32658a63eeb034a9040736695ca061f3",
+          "sha512": "6c902d923270082697877402321944ab81935a49b20e548d16403e12b5582f82541d2b851adeb9e74ca9b9d23aef07349e142e0f75d2a1fec4c02f1f56841dce",
+          "integrity": "sha512-bJAtkjJwCCaXh3QCMhlEq4GTWkmyDlSNFkA+ErVYL4JUHSuFGt6550ypudI67wc0nhQuD3XSof7EwC8fVoQdzg==",
+          "size": 8280,
+          "releaseTag": "v0.1.7",
+          "releaseId": 389282244,
+          "assetId": 566016151,
           "releaseImmutable": true,
           "checksumManifest": {
             "name": "SHA256SUMS",
-            "url": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/SHA256SUMS",
-            "sha256": "06647ede584dad3055508733f17cd720f4ebf149c2cd73d680497e7117247e84",
-            "size": 96
+            "url": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/SHA256SUMS",
+            "sha256": "45a32a05036595e23d22c101126c41e9f6c77ac0fe1402a2ebc9456f55952a6b",
+            "size": 96,
+            "assetId": 566016150
           }
         }
       },
       {
         "name": "dsh-cron",
-        "version": "0.4.1",
+        "version": "0.7.1",
         "profile": "web",
-        "source": "github:cloga/dsh-cron#v0.4.1",
-        "resolvedCommit": "5f99313e110932195821d924259b2836947271f3",
+        "source": "github:cloga/dsh-cron#v0.7.1",
+        "resolvedCommit": "6dae9da71e6c36c58e04f3ca8c10cc5c4790b3bd",
         "required": false,
-        "sourceCommit": "e0ecca9e18a66fe0acecec6dfc6cc6faaa9520b2",
+        "sourceCommit": "7628e5bb9d8b24981962548974cafd3dfa9e509c",
         "artifact": {
-          "name": "dsh-cron-0.4.1.tgz",
-          "url": "https://github.com/cloga/dsh-cron/releases/download/v0.4.1/dsh-cron-0.4.1.tgz",
-          "sha256": "9be9e7c6ea1b4bf8a6f354dd1533e8a920f4d397c09fb20e14a2b5c91a50ce5f",
-          "size": 34276,
-          "releaseTag": "v0.4.1",
+          "name": "dsh-cron-0.7.1.tgz",
+          "url": "https://github.com/cloga/dsh-cron/releases/download/v0.7.1/dsh-cron-0.7.1.tgz",
+          "sha256": "136ba9d66ba2f2ada87f1ce97dfb21be97474dc76504fc65ae8e01cde60768d0",
+          "sha512": "f5baf2b185dcd1abab2743c8f06abaeaaeda715ea8b3ae8a38cf3f58647425612bf1ef769984d9fbe92a63719963e785c1788aa5c8cde1bcbffc0935d5ec0ac4",
+          "integrity": "sha512-9brysYXc0aurJ0PI8Gq66q7acV6os66KOM8/WGR0JWEr8e92mYTZ++kqY3GZY+eFwXiKpcjN4by//Ak11ewKxA==",
+          "size": 64919,
+          "releaseTag": "v0.7.1",
+          "releaseId": 389294372,
+          "assetId": 566045997,
           "releaseImmutable": true,
           "checksumManifest": {
             "name": "SHA256SUMS",
-            "url": "https://github.com/cloga/dsh-cron/releases/download/v0.4.1/SHA256SUMS",
-            "sha256": "ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf",
-            "size": 85
+            "url": "https://github.com/cloga/dsh-cron/releases/download/v0.7.1/SHA256SUMS",
+            "sha256": "f05eef489a31f38ee203b91808d54e2100ae18b222907fbe4125c680bac802f2",
+            "size": 85,
+            "assetId": 566046029
           }
         },
-        "pullRequest": 12
+        "pullRequest": 45
       }
     ],
     "allowBuilds": [

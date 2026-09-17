@@ -106,7 +106,7 @@ Describe 'Optional companion suite compatibility wrapper' {
             -RuntimeRoot $runtimeRoot
 
         $result.valid | Should -BeTrue
-        $result.core.version | Should -Be '0.1.2-rc.1'
+        $result.core.version | Should -Be '0.1.6-alpha.1'
         $result.cordis.version | Should -Be '4.0.2'
         $result.desktopVersionChecked | Should -BeFalse
     }
@@ -138,8 +138,36 @@ Describe 'Optional companion suite compatibility wrapper' {
             Should -Be 4
     }
 
+    It 'rejects optional release identity drift without weakening the mandatory lock' {
+        Test-WindowsCopilotLock -Lock $lock
+        foreach ($name in @('dsh-playwright-host', 'dsh-cron')) {
+            foreach ($field in @('sha256', 'sha512', 'integrity', 'releaseId', 'assetId', 'releaseImmutable')) {
+                $changed = $lock | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+                $artifact = @($changed.profile.optionalOverlays | Where-Object { $_.name -eq $name })[0].artifact
+                if ($field -eq 'releaseImmutable') { $artifact.$field = $false }
+                elseif ($field -in @('releaseId', 'assetId')) { $artifact.$field = 1 }
+                else { $artifact.$field = 'tampered' }
+                { Test-WindowsCopilotLock -Lock $changed } | Should -Throw '*Optional*artifact*'
+            }
+            $changed = $lock | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+            $overlay = @($changed.profile.optionalOverlays | Where-Object { $_.name -eq $name })[0]
+            $overlay.resolvedCommit = '0000000000000000000000000000000000000000'
+            { Test-WindowsCopilotLock -Lock $changed } | Should -Throw '*Optional overlay inventory*'
+        }
+    }
+
     It 'evaluates plugin peer ranges with SemVer prerelease rules and fails unknown syntax' {
         InModuleScope WindowsCopilotDeployment {
+            Test-WindowsCopilotSemVerRange -Version '0.1.6-alpha.1' `
+                -Range '>=0.1.6-alpha.1 <0.1.7-0' | Should -BeTrue
+            Test-WindowsCopilotSemVerRange -Version '0.1.5-rc.2' `
+                -Range '>=0.1.6-alpha.1 <0.1.7-0' | Should -BeFalse
+            Test-WindowsCopilotSemVerRange -Version '0.1.7-alpha.1' `
+                -Range '>=0.1.6-alpha.1 <0.1.7-0' | Should -BeFalse
+            Test-WindowsCopilotSemVerRange -Version '0.1.6-alpha.1' `
+                -Range '0.1.5-rc.2 || 0.1.6-alpha.1' | Should -BeTrue
+            Test-WindowsCopilotSemVerRange -Version '0.1.6-alpha.2' `
+                -Range '0.1.5-rc.2 || 0.1.6-alpha.1' | Should -BeFalse
             Test-WindowsCopilotSemVerRange -Version '0.1.2-rc.1' `
                 -Range '0.1.1-rc.2 || 0.1.2-rc.1' | Should -BeTrue
             Test-WindowsCopilotSemVerRange -Version '0.1.2-rc.1' `

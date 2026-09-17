@@ -24,7 +24,7 @@ For a newer Copilot installation moving from two routes to the account-discovere
 | Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.5-rc.2`, attested by installed `resources\dsh\desktop-runtime.json` descriptor SHA-256 `f21d8b8fb67ed04554290acf3a48c91ea163bef7772842fd0796e0e97788d72d`; default per-user root is `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh`, but Windows Ops follows the actual installed EXE path |
 | Required `dsh-github-copilot` | 0.4.0-alpha.22; preserved/delegated through `desktopNativeVerifiedRelease`, not externally materialized by Windows Ops |
 | Desktop native capability | `desktopNativeVerifiedRelease`, manifest self SHA-256 `2e5b8efbabd812b07258e0fa794ffa04a7084f84a86ac6ee3ca534c034221152`, generic plugin compatibility `automaticProvisioning=false` |
-| Optional Web overlays (not baseline requirements) | `dsh-playwright-host@0.1.2`, `dsh-cron@0.4.1` |
+| Optional Web overlays (not baseline requirements) | `dsh-playwright-host@0.1.7`, `dsh-cron@0.7.1`; immutable Releases and artifact bytes verified for target Core `0.1.6-alpha.1`, not proof of local activation |
 
 A project appearing in a README, catalog, or historical incident does **not** mean it belongs to this baseline. The default branch and deployment lock are this repository's publication channel; this repository does not redistribute Desktop/DSH/plugin binaries. A lock update defines the reviewed target baseline, not proof that a particular machine already ran `-Apply`; default check mode reports unapplied drift truthfully.
 

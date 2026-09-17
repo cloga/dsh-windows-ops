@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "name": "@electron/asar",
+    "version": "3.4.1",
+    "license": "MIT",
+    "tarball": "https://registry.npmjs.org/@electron/asar/-/asar-3.4.1.tgz",
+    "integrity": "sha512-i4/rNPRS84t0vSRa2HorerGRXWyF4vThfHesw0dmcWHp+cspK743UanA0suA5Q5y8kzY2y6YKrvbIUn69BCAiA==",
+    "integrityEvidence": "Exact resolution in the source worktree pnpm-lock.yaml; independently downloaded tarball from the explicitly approved Microsoft npm proxy matches this original integrity. All seven selected source/license inputs were compared byte-for-byte against tarball members and existing installed files. No TLS bypass was used.",
+    "verifiedTarball": {
+      "acquisitionUrl": "https://packagefeedproxy.microsoft.io/npm/@electron/asar/-/asar-3.4.1.tgz",
+      "transport": "Strict TLS; one HTTPS 303 redirect to Microsoft's .vsblob.vsassets.io package storage. Expiring redirect query is intentionally not persisted.",
+      "bytes": 25591,
+      "sha256": "c4e6ce52ade617c57913382f04512e9f4084dd2b3fde5f32639d8bcf42796102",
+      "verification": "Original npm SHA-512 SRI verified before archive use; Windows system tar.exe -xOf streamed selected members for hash and byte comparison, without filesystem extraction.",
+      "officialRegistryAttempt": "Direct registry.npmjs.org download failed TLS handshake; the authorized mirror did not change the expected source identity."
+    },
+    "packageRelativePath": "node_modules/.pnpm/@electron+asar@3.4.1/node_modules/@electron/asar",
+    "filesSha256": {
+      "package.json": "799229d16ba7b2c0fea30f45e4efd4b9c2392cd9aa7d3695030319ce5d7a04e1",
+      "LICENSE.md": "d5af8fc171f6f600c0ab4e7597dca398dda80dbe6821ce01cef78e859e7a00f8",
+      "lib/asar.js": "91e89e96324626b140f3e897dffaca6e3cbb1135c4192ce6ceaa0e84af4ba152",
+      "lib/disk.js": "849ea3eebaf945978a48ae1f08d429d235430f4f8cc94486d124755a7fa379bb",
+      "lib/filesystem.js": "4ed3f336af7d7906c374222c0a5d085ba91471eba9e2b55e700190fe3cfcc24b",
+      "lib/pickle.js": "771c59cf05e42ee55f5bf03cbabc84f86fd623dee1bd725f0602812637fa0867",
+      "lib/wrapped-fs.js": "601c3c2151986f62de3b7297e3630873a6924230852c7f36c0b172cdabf0a4de"
+    },
+    "excludedPackageDependencies": {
+      "commander": "^5.0.0 (CLI only; not in reader closure)",
+      "glob": "^7.1.6 (writer crawl only; not in reader closure)",
+      "minimatch": "^3.0.4 (writer unpack selection only; not in reader closure)"
+    }
+  },
+  "buildDependencies": {
+    "esbuild": {
+      "version": "0.25.12",
+      "license": "MIT",
+      "integrity": "sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==",
+      "packageRelativePath": "node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild"
+    },
+    "@esbuild/win32-x64": {
+      "version": "0.25.12",
+      "license": "MIT",
+      "integrity": "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA==",
+      "packageRelativePath": "node_modules/.pnpm/@esbuild+win32-x64@0.25.12/node_modules/@esbuild/win32-x64"
+    },
+    "typescript": {
+      "version": "6.0.3",
+      "license": "Apache-2.0",
+      "integrity": "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
+      "packageRelativePath": "node_modules/.pnpm/typescript@6.0.3/node_modules/typescript"
+    }
+  },
+  "buildDependencyIntegrityEvidence": "Exact resolutions in the existing source worktree pnpm-lock.yaml; build tools are not redistributed or installed by the recipe.",
+  "runtimeNpmDependencies": {},
+  "runtimeBuiltins": ["fs", "path", "original-fs (Electron built-in, only when process.versions.electron is present)"],
+  "publicExports": ["getRawHeader", "extractFile", "uncache"]
+}

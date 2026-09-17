@@ -4,6 +4,8 @@ import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
+import { nativeLayout, preflightAsar, runAsarProbe } from './native-asar-runtime.mjs';
+import { hashFile, physical } from './native-runtime-integrity.mjs';
 
 const fail = (code) => { throw new Error(code); };
 const requireValue = (condition, code) => { if (!condition) fail(code); };
@@ -185,7 +187,7 @@ function verifyRuntime(lock, root) {
       ? pathToFileURL(child(runtimeRoot, policyPath)).href : null };
 }
 
-function verifyProvisioning(lock, root, home) {
+function verifyProvisioning(lock, root, home, runtimeMode = false) {
   const lockedCapability = lock.components.desktop.releaseChannel.managedCapability;
   requireValue(object(lockedCapability.provisioning), 'native-provisioning-capability-not-locked');
   const capability = json(child(root, 'resources/managed-update/capability.json'));
@@ -249,6 +251,13 @@ function verifyProvisioning(lock, root, home) {
   'native-local-artifact-mismatch');
   const metadata = json(child(profile, `node_modules/${source.packageName}/package.json`));
   requireValue(metadata.name === source.packageName && metadata.version === source.version, 'native-installed-package-mismatch');
+  if (runtimeMode) {
+    const packageRoot = physical(join(profile, 'node_modules', source.packageName), 'directory');
+    return { valid: true, status: 'native-metadata-verified', planSha256, artifactPath,
+      packageRoot, profileRoot: profile, packageName: source.packageName, packageVersion: source.version,
+      profileManifestSha256: hashFile(join(profile, 'package.json')),
+      pluginManifestSha256: hashFile(join(packageRoot, 'package.json')), sharedPeerResolution: 'pending' };
+  }
   const pluginRequire = createRequire(join(profile, 'node_modules', source.packageName, 'package.json'));
   const hostRequire = createRequire(child(root, 'resources/dsh/node_modules/@deepseek-ai/dsh-desktop-host/package.json'));
   for (const peer of ['@deepseek-ai/dsh-authorization', '@deepseek-ai/schemastery']) {
@@ -273,9 +282,40 @@ function check(read) {
   }
 }
 
-export function verifyNativeDesktopFiles({ lock, installRoot, dshHome }) {
-  const runtime = check(() => verifyRuntime(lock, resolve(installRoot)));
-  const provisioning = check(() => verifyProvisioning(lock, resolve(installRoot), resolve(dshHome)));
+export function verifyNativeDesktopFiles({ lock, installRoot, dshHome, diagnosticRoot }) {
+  const layout = check(() => ({ valid: true, mode: nativeLayout(lock) }));
+  let runtime; let provisioning;
+  if (!layout.valid) { runtime = layout; provisioning = { valid: false, status: 'not-ready', reason: 'native-runtime-prerequisite-failed' }; }
+  else if (layout.mode === 'physical-links') {
+    // Preserve the legacy .5 physical/link contract. Never fall back from ASAR.
+    runtime = check(() => verifyRuntime(lock, resolve(installRoot)));
+    provisioning = check(() => verifyProvisioning(lock, resolve(installRoot), resolve(dshHome)));
+  } else {
+    let snapshot;
+    runtime = check(() => {
+      physical(installRoot, 'directory'); physical(dshHome, 'directory');
+      snapshot = preflightAsar(lock, installRoot);
+      return { valid: true, status: 'asar-preflight-verified' };
+    });
+    provisioning = runtime.valid ? check(() => verifyProvisioning(lock, installRoot, dshHome, true)) :
+      { valid: false, status: 'not-ready', reason: 'native-runtime-prerequisite-failed' };
+    if (runtime.valid && provisioning.valid) {
+      runtime = check(() => {
+        const result = runAsarProbe(snapshot, provisioning, dshHome, diagnosticRoot);
+        // No installer mutation is allowed during CHECK; detect ordinary concurrent
+        // replacements. This is not an OS-enforced anti-TOCTOU/carrier-DLL boundary.
+        const after = preflightAsar(lock, installRoot);
+        requireValue(after.archiveSha256 === snapshot.archiveSha256 &&
+          isDeepStrictEqual(verifyProvisioning(lock, installRoot, dshHome, true), provisioning), 'native-inconsistent-snapshot');
+        return { valid: true, status: 'runtime-tree-verified', mode: 'asar-runtime', fileCount: result.fileCount,
+          unpackedCount: snapshot.unpackedCount, runtimeRoot: snapshot.runtimeRoot, hostEntry: snapshot.hostEntry,
+          carrierExecutable: snapshot.executable, executableSha256: snapshot.executableSha256,
+          moduleResolutionPolicyUrl: snapshot.moduleResolutionPolicyUrl, sharedPeerResolution: result.mode };
+      });
+      provisioning = runtime.valid ? { ...provisioning, status: 'native-inventory-verified', sharedPeerResolution: 'host-owned' } :
+        { valid: false, status: 'not-ready', reason: 'native-runtime-prerequisite-failed' };
+    } else if (runtime.valid) runtime = { valid: false, status: 'not-ready', reason: 'native-provisioning-prerequisite-failed' };
+  }
   return { runtime, provisioning, valid: runtime.valid && provisioning.valid, mutated: false,
     functional: { valid: false, status: 'manual-verification-required', reason: 'native-host-remote-unavailable',
       modelResponseVerified: false } };

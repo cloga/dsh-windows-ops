@@ -17,7 +17,7 @@ Playwright 仍是可选 overlays，不自动升级为 Desktop 必需组件。
 |---|---|---|---|
 | Cron 0.7.3 | `299c10b4990c957cce26956407f52427ef1c6fd8` | `850f80842fc9ae80f8f00e7b96de25fed1af9005` | [PR #50](https://github.com/cloga/dsh-cron/pull/50), [published v0.7.3](https://github.com/cloga/dsh-cron/releases/tag/v0.7.3), independently verified |
 | Playwright Host 0.1.8 | `9d07a730add21c5a056cc8b53369447ec3473c32` | `b50457e04181988e4d34b50a61291e7b52d8a417` | [PR #21](https://github.com/cloga/dsh-playwright-host/pull/21), [published v0.1.8](https://github.com/cloga/dsh-playwright-host/releases/tag/v0.1.8), independently verified |
-| Copilot 0.4.0-alpha.25 | `df09951dd0f304029d36614e9daa89ae5e1c0f3f` | `5458fda2854d5956e0c8d68a0f0b0a6e55833c8b` | [PR #140](https://github.com/cloga/dsh-github-copilot/pull/140), [GitHub v0.4.0-alpha.25](https://github.com/cloga/dsh-github-copilot/releases/tag/v0.4.0-alpha.25) independently byte-verified; npm readback unresolved (partial delivery) |
+| Copilot 0.4.0-alpha.25 | `df09951dd0f304029d36614e9daa89ae5e1c0f3f` | `5458fda2854d5956e0c8d68a0f0b0a6e55833c8b` | [PR #140](https://github.com/cloga/dsh-github-copilot/pull/140), [GitHub v0.4.0-alpha.25](https://github.com/cloga/dsh-github-copilot/releases/tag/v0.4.0-alpha.25) and [npm alpha.25](https://www.npmjs.com/package/dsh-github-copilot/v/0.4.0-alpha.25) independently verified against the same original bytes |
 | Core/Desktop fork | Work in progress | Not yet qualified | [Core #67](https://github.com/cloga/deepseek-harness/issues/67); no alpha.2 fork release or deployment qualification claimed |
 
 ## Verified published artifact identities
@@ -44,7 +44,7 @@ Its `cordis.patch.yml` SHA-256 remains
 `8a1778ebf72491af7716398b7c60d5368cfa309e3a86d6534e72e7efdebc379d`,
 identical to v0.1.7; no composition migration was silently introduced.
 
-### Copilot: verified GitHub bytes, unresolved npm readback
+### Copilot: verified GitHub and npm publication
 
 GitHub Release `391105204` is immutable, non-draft and a **prerelease**. Annotated
 tag `73ff8a7f50bc2794289f9f2116cc1474f50dc1f1` points to the exact merged commit
@@ -58,22 +58,42 @@ bytes match authenticated GitHub asset digests:
 
 Original archive SHA-512 SRI:
 `sha512-xDcD9Kxg7Z7hQqLt8opOwmS4mVFppheYmFRpRMIWgKO0r3YkmXHGNx76Ta4C79M8waLTpx5HlmNPEq10m80oLQ==`.
-This is a hash of the downloaded GitHub bytes, **not yet verified npm registry
-integrity**. A local candidate archive is not a substitute for this original.
+This hash of the downloaded GitHub bytes now matches authoritative public npm
+`dist.integrity`; npm SHA-1 is `5ab283d1e1b178a3e9d9e6cfd7aa9c9066058cbe`,
+also independently computed from the original archive. The observed `alpha`
+dist-tag pointed exactly to `0.4.0-alpha.25`. A local candidate archive is not a
+substitute for this original.
 
 The [first publisher attempt](https://github.com/cloga/dsh-github-copilot/actions/runs/35283259283/job/105411047005)
 completed GitHub publication but failed npm verification with
 `npm version integrity differs or is not yet observable; no overwrite or automatic retry`.
-The exact script uses this message for both an existing-version mismatch and
-post-publication visibility/integrity failure. It does not establish whether a
-write succeeded, whether npm is absent, or whether a conflicting package exists.
-Local direct public-registry reads failed TLS; the approved mirror's package-level
-E404 is not authoritative public-version absence. Neither local policy nor TLS
-was bypassed. A normal read-only verification addition in the repository's
-approved publication CI environment is being prepared; it must compare observed
-name/version/integrity/channel with these original bytes before recovery. No
-blind republish, immutable-asset replacement or automatic dist-tag repair is
-permitted. Both channels are required, so this remains **partial delivery**.
+That message alone did not establish write success, absence or conflicting bytes.
+The uncertainty was resolved by a separately reviewed **read-only** verifier:
+[run 35284938664](https://github.com/cloga/dsh-github-copilot/actions/runs/35284938664),
+job `105415082111`, verifier head `ae1b60ece475dae389c55d3377d1a45d35982152`,
+completed successfully on 2026-09-17. Its
+[original minimal public receipt](evidence/core-016a2-copilot-npm.json) contains the
+actual name, version, integrity, shasum and alpha-tag readback. The receipt was
+independently compared with the locally downloaded immutable archive, not merely
+accepted because the workflow was green. Both publication channels are verified;
+**no republish was needed to establish this result**. The first failed pipeline
+remains historical evidence, not a current npm-publication failure.
+
+Local direct public-registry reads still failed TLS; the approved mirror's
+package-level E404 was not treated as public-version absence. The public GETs ran
+in the repository's existing approved publication CI environment with only
+`contents: read`, no OIDC/npm credential, install, package-code execution, mutation
+or retry capability. No local registry/TLS policy was bypassed. The reusable
+verifier and recovery guidance were merged through
+[PR #141](https://github.com/cloga/dsh-github-copilot/pull/141), helper commit
+`2436552a1a3c07f0d24820f62df9b2e6a569e81a`; this is **not** the package's source
+commit. Any later normal reconciliation must retain the original source/tag and
+archive and accept only matching existing npm bytes; no blind republish,
+immutable-asset replacement or automatic dist-tag repair is permitted.
+
+中文：Copilot alpha.25 的 GitHub/npm 双渠道已经核验，npm SRI、SHA-1 和 alpha
+标签与原始 GitHub 制品一致。首次流水线的回读错误已由独立只读证据消除不确定性，
+未通过重复发布来试错；这不代表本机已安装，也不证明实时模型或搜索请求。
 
 ## Qualification and acceptance scope
 
@@ -102,16 +122,16 @@ permitted. Both channels are required, so this remains **partial delivery**.
   end-to-end qualification, live OAuth/model/search acceptance or installed Desktop
   attestation. Candidate documentation saying CI had not run is a historical
   pre-CI snapshot, not the later state recorded here. Both GitHub Release and npm
-  publication are required for this package; only GitHub artifact verification is
-  established above, not a successful npm registry readback.
+  publication are required for this package; both are independently verified
+  above. No provenance attestation or installed-runtime acceptance is implied.
 
 Public component receipts: [Cron](https://github.com/cloga/dsh-cron/pull/50#issuecomment-5722223645),
 [Playwright](https://github.com/cloga/dsh-playwright-host/issues/20#issuecomment-5722219209).
 
 ## Remaining promotion gates
 
-Complete Copilot dual-channel publication/readback and Core/Desktop implementation,
-exact-head tests, UI/runtime acceptance, release and artifact verification. Then
+Complete Core/Desktop implementation, exact-head tests, UI/runtime acceptance,
+release and artifact verification. Then
 qualify the intended combined deployment through its normal Ops workflow before
 updating deployment locks, catalog and fixtures together. Do not substitute earlier
 alpha.1 native qualification or a plugin CI result for alpha.2 Desktop acceptance.

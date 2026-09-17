@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "state": "success",
+  "reason": "publication-verified",
+  "readOnly": true,
+  "version": "0.4.0-alpha.25",
+  "expectedSha": "5458fda2854d5956e0c8d68a0f0b0a6e55833c8b",
+  "tag": "v0.4.0-alpha.25",
+  "channel": "alpha",
+  "sources": {
+    "release": "https://api.github.com/repos/cloga/dsh-github-copilot/releases/tags/v0.4.0-alpha.25",
+    "releasePage": "https://github.com/cloga/dsh-github-copilot/releases/tag/v0.4.0-alpha.25",
+    "ref": "https://api.github.com/repos/cloga/dsh-github-copilot/git/ref/tags/v0.4.0-alpha.25",
+    "registry": "https://registry.npmjs.org/dsh-github-copilot/0.4.0-alpha.25",
+    "distTags": "https://registry.npmjs.org/-/package/dsh-github-copilot/dist-tags",
+    "tagObject": "https://api.github.com/repos/cloga/dsh-github-copilot/git/tags/73ff8a7f50bc2794289f9f2116cc1474f50dc1f1"
+  },
+  "release": {
+    "id": 391105204,
+    "tag": "v0.4.0-alpha.25",
+    "targetCommit": "5458fda2854d5956e0c8d68a0f0b0a6e55833c8b",
+    "draft": false,
+    "immutable": true,
+    "prerelease": true
+  },
+  "tagObject": {
+    "sha": "73ff8a7f50bc2794289f9f2116cc1474f50dc1f1",
+    "commit": "5458fda2854d5956e0c8d68a0f0b0a6e55833c8b",
+    "type": "tag"
+  },
+  "assets": [
+    {
+      "name": "dsh-github-copilot-0.4.0-alpha.25.tgz",
+      "id": 571311733,
+      "size": 671451,
+      "sha256": "c11d4b3955ae7a8cd85fbf078e2892c74b192949838cf0cbab4796bf55a7e66f",
+      "source": "https://api.github.com/repos/cloga/dsh-github-copilot/releases/assets/571311733"
+    },
+    {
+      "name": "SHA256SUMS",
+      "id": 571311764,
+      "size": 104,
+      "sha256": "c21c8205deaa15385512b3f3a6c6d3faf8353daf69ab198950ef958c344cb7e4",
+      "source": "https://api.github.com/repos/cloga/dsh-github-copilot/releases/assets/571311764"
+    }
+  ],
+  "archive": {
+    "name": "dsh-github-copilot-0.4.0-alpha.25.tgz",
+    "size": 671451,
+    "sha256": "c11d4b3955ae7a8cd85fbf078e2892c74b192949838cf0cbab4796bf55a7e66f",
+    "integrity": "sha512-xDcD9Kxg7Z7hQqLt8opOwmS4mVFppheYmFRpRMIWgKO0r3YkmXHGNx76Ta4C79M8waLTpx5HlmNPEq10m80oLQ==",
+    "shasum": "5ab283d1e1b178a3e9d9e6cfd7aa9c9066058cbe"
+  },
+  "registry": {
+    "name": "dsh-github-copilot",
+    "version": "0.4.0-alpha.25",
+    "integrity": "sha512-xDcD9Kxg7Z7hQqLt8opOwmS4mVFppheYmFRpRMIWgKO0r3YkmXHGNx76Ta4C79M8waLTpx5HlmNPEq10m80oLQ==",
+    "shasum": "5ab283d1e1b178a3e9d9e6cfd7aa9c9066058cbe",
+    "distTag": {
+      "name": "alpha",
+      "version": "0.4.0-alpha.25"
+    }
+  }
+}

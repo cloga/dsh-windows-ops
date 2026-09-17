@@ -3666,7 +3666,8 @@ function Test-WindowsCopilotComposedConfig {
 function Get-WindowsCopilotDesktopState {
     param(
         [Parameter(Mandatory)]$Lock,
-        [string]$Path
+        [string]$Path,
+        [string]$DshHome
     )
     $expected = [string]$Lock.components.desktop.version
     $identity = $Lock.components.desktop.installedExecutable
@@ -3746,6 +3747,8 @@ function Get-WindowsCopilotDesktopState {
             $runtimeDescriptorPath = $null
             $runtimeDescriptorSha256 = $null
             $runtimeDescriptorValid = $true
+            $runtimeDescriptorStatus = 'not-required'
+            $runtimeDescriptorReason = $null
             if ($resourcesIdentity) {
                 $resourcesPath = Join-Path (Split-Path -Parent $fullPath) (
                     [string]$resourcesIdentity.relativePath
@@ -3763,14 +3766,48 @@ function Get-WindowsCopilotDesktopState {
                 $runtimeDescriptorPath = Join-Path (Split-Path -Parent $fullPath) (
                     [string]$runtimeDescriptorIdentity.relativePath
                 )
-                if (Test-Path -LiteralPath $runtimeDescriptorPath -PathType Leaf) {
+                $asarDescriptor = ([string]$runtimeDescriptorIdentity.relativePath).Replace('\', '/') -ceq 'resources/app.asar/dsh/desktop-runtime.json'
+                if ($asarDescriptor -or (Test-WindowsCopilotAsarPath $runtimeDescriptorPath)) {
+                    # A virtual descriptor is not an OS file. Reuse the bounded,
+                    # independent native audit instead of a physical lookup or a
+                    # boolean bypass. GetOfficialRuntimeState never calls this
+                    # discovery function, so the relationship is non-recursive.
+                    $runtimeDescriptorValid = $false
+                    $runtimeDescriptorStatus = 'native-asar-audit-not-ready'
+                    $runtimeDescriptorReason = if ($asarDescriptor) { 'native-audit-carrier-prerequisite-invalid' } else { 'native-runtime-layout-unsupported' }
+                    if ($asarDescriptor -and $bytesValid -and $metadataValid -and $authenticodeValid -and $resourcesValid) {
+                        $auditHome = if ($DshHome) { Resolve-DeploymentPath $DshHome }
+                            elseif ($env:DSH_HOME) { Resolve-DeploymentPath $env:DSH_HOME }
+                            else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.dsh' }
+                        $nativeState = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock -DesktopExecutablePath $fullPath -DshHome $auditHome
+                        $nativeValid = Get-LockProperty $nativeState 'valid'
+                        $nativeStatus = Get-LockProperty $nativeState 'status'
+                        $nativeHash = Get-LockProperty $nativeState 'descriptorSha256'
+                        $nativeRoot = Get-LockProperty $nativeState 'root'
+                        $nativeVersion = Get-LockProperty $nativeState 'version'
+                        $runtimeDescriptorValid = [bool]($nativeValid -is [bool] -and $nativeValid -eq $true -and
+                            $nativeStatus -ceq 'runtime-asar-verified' -and $nativeHash -is [string] -and
+                            $nativeHash -ceq [string]$runtimeDescriptorIdentity.sha256 -and
+                            $nativeRoot -is [string] -and $nativeRoot -ieq (Split-Path -Parent $runtimeDescriptorPath) -and
+                            $nativeVersion -is [string] -and $nativeVersion -ceq [string]$Lock.components.desktop.releaseChannel.upstreamVersion)
+                        if ($runtimeDescriptorValid) {
+                            $runtimeDescriptorSha256 = $nativeHash
+                            $runtimeDescriptorStatus = 'runtime-asar-verified'; $runtimeDescriptorReason = $null
+                        } else {
+                            $reason = Get-LockProperty $nativeState 'reason'
+                            $runtimeDescriptorReason = if ($reason -is [string] -and $reason -cmatch '^native-[a-z-]{1,120}$') { $reason } else { 'native-audit-correlation-mismatch' }
+                        }
+                    }
+                } elseif (Test-Path -LiteralPath $runtimeDescriptorPath -PathType Leaf) {
                     $runtimeDescriptorSha256 = (
                         Get-FileHash -LiteralPath $runtimeDescriptorPath -Algorithm SHA256 -ErrorAction Stop
                     ).Hash.ToLowerInvariant()
                     $runtimeDescriptorValid =
                         $runtimeDescriptorSha256 -ceq [string]$runtimeDescriptorIdentity.sha256
+                    $runtimeDescriptorStatus = if ($runtimeDescriptorValid) { 'runtime-descriptor-verified' } else { 'runtime-descriptor-mismatch' }
                 } else {
                     $runtimeDescriptorValid = $false
+                    $runtimeDescriptorStatus = 'runtime-descriptor-not-found'
                 }
             }
             $discoveries.Add([pscustomobject]@{
@@ -3803,6 +3840,8 @@ function Get-WindowsCopilotDesktopState {
                 runtimeDescriptorPath = $runtimeDescriptorPath
                 runtimeDescriptorSha256 = $runtimeDescriptorSha256
                 runtimeDescriptorValid = $runtimeDescriptorValid
+                runtimeDescriptorStatus = $runtimeDescriptorStatus
+                runtimeDescriptorReason = $runtimeDescriptorReason
                 identityValid = [bool](
                     $bytesValid -and $metadataValid -and $authenticodeValid -and
                     $resourcesValid -and $runtimeDescriptorValid
@@ -6625,7 +6664,7 @@ function Test-WindowsCopilotNativeInstallation {
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
     if (-not (Test-WindowsCopilotNativeMode $Lock)) { throw 'Native acceptance requires desktopNativeVerifiedRelease.' }
     $userPresetConfig = Test-DshUserPresetConfig -DshHome $DshHome -Contract $Lock.acceptance.runtimeSchema
-    $desktop = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath
+    $desktop = Get-WindowsCopilotDesktopState -Lock $Lock -Path $DesktopExecutablePath -DshHome $DshHome
     $home = Resolve-DeploymentPath $DshHome
     $installRoot = Split-Path -Parent ([string]$desktop.path)
     $inputJson = @{ lock = $Lock; installRoot = $installRoot; dshHome = $home } | ConvertTo-Json -Depth 40 -Compress

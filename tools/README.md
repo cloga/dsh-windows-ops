@@ -56,6 +56,12 @@ For the selected ASAR runtime:
   User ownership metadata is preserved without migrations, and permitted user
   extras remain `contentsAttested:false`, not baseline health. Replay runtime identity uses that audited checker,
   not PowerShell reads of virtual files; failed prerequisites remain not-ready.
+- Higher-level Desktop identity also projects the bounded ASAR audit using the
+  caller's explicit Harness home, rather than treating a virtual descriptor as
+  a missing physical file. EXE bytes, metadata, signature and exact audited
+  version/root/descriptor identity must all pass. This removes a false structural
+  failure and its propagated Host-binding failure; it does not bypass either
+  guard, change the exact Host argv contract, or upgrade/reload a plugin.
 - The optional Web installer requires an explicit **existing compatible physical
   Web runtime** (`-RuntimeRoot`) or reports `physical-web-runtime-required`
   before downloads, import probes or its mutex. It never supplies another Core.

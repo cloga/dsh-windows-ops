@@ -1894,10 +1894,16 @@ It 'rejects reparse directories anywhere in the official wrapper tree' -Skip:$sc
         $state.status | Should -Be 'reparse-point-path'
     }
 
-It 'rejects modified same-version Desktop executables by exact bytes metadata and signature' {
-        $desktopPath = Join-Path $TestDrive ('desktop-attestation\' + [string]$lock.components.desktop.installedExecutable.relativePath)
-        $descriptorPath = if ($lock.components.desktop.installedRuntimeDescriptor) {
-            Join-Path (Split-Path -Parent $desktopPath) ([string]$lock.components.desktop.installedRuntimeDescriptor.relativePath)
+It 'rejects modified same-version Desktop executables by exact bytes metadata and signature in the physical fixture' {
+        # This exercises physical-descriptor transport, not an invented on-disk
+        # app.asar directory. Dedicated ASAR projection tests use the audited path.
+        $physicalLock = $lock | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        if ($physicalLock.components.desktop.installedRuntimeDescriptor) {
+            $physicalLock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources\dsh\desktop-runtime.json'
+        }
+        $desktopPath = Join-Path $TestDrive ('desktop-attestation\' + [string]$physicalLock.components.desktop.installedExecutable.relativePath)
+        $descriptorPath = if ($physicalLock.components.desktop.installedRuntimeDescriptor) {
+            Join-Path (Split-Path -Parent $desktopPath) ([string]$physicalLock.components.desktop.installedRuntimeDescriptor.relativePath)
         } else {
             $null
         }
@@ -1908,7 +1914,7 @@ It 'rejects modified same-version Desktop executables by exact bytes metadata an
             Set-Content -LiteralPath $descriptorPath -Value '{}'
         }
         InModuleScope WindowsCopilotDeployment -Parameters @{
-            FixtureLock = $lock
+            FixtureLock = $physicalLock
             Executable = $desktopPath
             Descriptor = $descriptorPath
         } {

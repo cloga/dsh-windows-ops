@@ -288,15 +288,18 @@ jobs:
           if ($tool.PSIsContainer -or ($tool.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Existing runner 7-Zip is required' }
           $outer = Join-Path $env:PRIVATE_ROOT 'nsis'
           $applicationRoot = Join-Path $env:PRIVATE_ROOT 'application'
-          function Assert-ArchiveListing([string] $Archive, [string] $Label) {
+          function Assert-ArchiveListing([string] $Archive, [ValidateSet('nsis', 'application')][string] $Label) {
+            Write-Host ('ASAR_STAGE ' + $Label + '-listing')
             $listing = Join-Path $env:PRIVATE_ROOT "logs/$Label.listing"
             & $sevenZip l -slt -ba -bd -bsp0 $Archive > $listing 2> (Join-Path $env:PRIVATE_ROOT "logs/$Label-list.stderr")
             if ($LASTEXITCODE -ne 0 -or (Get-Item -LiteralPath $listing).Length -gt 32MB) { throw 'native-asar-archive-listing-failed' }
             $records = (Get-Content -LiteralPath $listing -Raw) -split '(?:\r?\n){2,}'
             $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
             [long] $total = 0
+            $recordIndex = 0
             foreach ($record in $records) {
               if ([string]::IsNullOrWhiteSpace($record)) { continue }
+              $recordIndex++
               $paths = [regex]::Matches($record, '(?m)^Path = ([^\r\n]*)\r?$')
               if ($paths.Count -ne 1) { throw 'native-asar-archive-record-invalid' }
               $path = $paths[0].Groups[1].Value.Replace('\', '/')
@@ -312,7 +315,21 @@ jobs:
                   $record -match '(?im)^(?:Attributes|Characteristics) = .*\bReparse\b' -or
                   $record -match '(?im)^Encrypted = \+') { throw 'native-asar-archive-link-or-special-entry-rejected' }
               $sizes = [regex]::Matches($record, '(?m)^Size = (\d+)\r?$')
-              if ($sizes.Count -ne 1) { throw 'native-asar-archive-size-invalid' }
+              if ($sizes.Count -ne 1) {
+                # Diagnose maintained 7-Zip format differences without printing a
+                # path, raw record/listing, parser text, stderr, or any credentials.
+                $diagnostic = [ordered]@{
+                  schemaVersion = 1; valid = $false; stage = ($Label + '-listing')
+                  reason = 'native-asar-archive-size-invalid'; recordIndex = $recordIndex
+                  sizeFieldCount = [regex]::Matches($record, '(?m)^Size = [^\r\n]*\r?$').Count
+                  numericSizeFieldCount = $sizes.Count
+                  blankSizeFieldCount = [regex]::Matches($record, '(?m)^Size = [ \t]*\r?$').Count
+                  directoryFlag = [bool]($record -match '(?im)^Folder = \+|^Attributes = D|^Attributes = .*\bd[rwxstST-]{9}(?:\s|$)')
+                  numericPackedSizePresent = [bool]($record -match '(?m)^Packed Size = \d+\r?$')
+                }
+                Write-Host ('ASAR_LISTING_DIAGNOSTIC ' + ($diagnostic | ConvertTo-Json -Compress))
+                throw 'native-asar-archive-size-invalid'
+              }
               [long] $size = 0
               if (-not [long]::TryParse($sizes[0].Groups[1].Value, [ref]$size) -or $size -gt 16GB) { throw 'native-asar-archive-size-invalid' }
               $total += $size

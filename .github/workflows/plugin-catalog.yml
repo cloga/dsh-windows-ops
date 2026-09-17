@@ -38,17 +38,24 @@ jobs:
       - name: Validate repository, catalog, plugin, and scripts
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
           $env:DSH_016_ROOT = Join-Path $PWD 'dsh-0.1.6'
           node tools\validate-repository-content.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tools\validate-plugin-catalog.mjs
-          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs
-          node --check tools\dsh-compat-check.mjs
-          node --check tools\validate-plugin-catalog.mjs
-          node --check tools\validate-repository-content.mjs
-          node --check tools\dsh-doctor.mjs
-          node --check tools\dsh-dev-tools\index.js
-          node --check tools\dsh-dev-tools\snapshot-json.js
-          node --check tools\preflight-check.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs tests\native-desktop-acceptance.test.mjs tests\native-asar-release-smoke.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($script in @(
+            'tools\dsh-compat-check.mjs', 'tools\validate-plugin-catalog.mjs',
+            'tools\validate-repository-content.mjs', 'tools\dsh-doctor.mjs',
+            'tools\dsh-dev-tools\index.js', 'tools\dsh-dev-tools\snapshot-json.js',
+            'tools\preflight-check.mjs', 'tools\native-asar-runtime.mjs',
+            'tools\native-electron-probe.mjs', 'tools\native-runtime-integrity.mjs'
+          )) {
+            node --check $script
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
   repository-content:
     runs-on: ubuntu-latest

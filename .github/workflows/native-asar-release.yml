@@ -1,0 +1,442 @@
+name: Native ASAR release qualification (manual, no install)
+
+# Tracking: cloga/dsh-windows-ops#161. No push/PR/release trigger or publication.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_version:
+        description: Exact reviewed Desktop version in the checked-in ASAR deployment lock
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-asar-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # checkout requires a workspace-relative path. Only this credential-free
+      # bootstrap lives there; all acquisition/build/profile work is in RUNNER_TEMP.
+      - name: Checkout Ops bootstrap
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: ops-bootstrap
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Reject legacy lock before acquisition and prepare private work area
+        id: private
+        env:
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($PSVersionTable.PSVersion -lt [version]'7.4') { throw 'PowerShell 7.4 native binary redirection is required' }
+          $bootstrap = Join-Path $env:GITHUB_WORKSPACE 'ops-bootstrap'
+          $lock = Get-Content -LiteralPath (Join-Path $bootstrap 'deployments/windows-copilot.lock.json') -Raw | ConvertFrom-Json
+          $desktop = $lock.components.desktop
+          if ($desktop.installedRuntimeDescriptor.relativePath.Replace('\', '/') -cne 'resources/app.asar/dsh/desktop-runtime.json' -or
+              $desktop.releaseChannel.upstreamVersion -cnotmatch '^0\.1\.6(?:-|$)' -or
+              $env:CONFIRM_VERSION -cne $desktop.version) { throw 'native-asar-release-requires-reviewed-asar-lock-and-exact-confirmation' }
+          $node = $desktop.releaseChannel.build.nodeVersion -creplace '^v', ''
+          $pnpm = $desktop.releaseChannel.build.pnpmVersion
+          if ($node -cnotmatch '^\d+\.\d+\.\d+$' -or $pnpm -cnotmatch '^\d+\.\d+\.\d+$') { throw 'Exact locked toolchain versions are required' }
+          if ($desktop.source.commit -cnotmatch '^[a-f0-9]{40}$' -or $desktop.source.tree -cnotmatch '^[a-f0-9]{40}$') { throw 'Exact source identity is required' }
+          function Assert-OrdinaryDirectory([string] $Path) {
+            $item = Get-Item -LiteralPath $Path -Force
+            while ($null -ne $item) {
+              if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Private work root must not traverse a reparse point' }
+              $item = $item.Parent
+            }
+          }
+          Assert-OrdinaryDirectory $env:RUNNER_TEMP
+          if ($env:RUNNER_TEMP -match '(?i)(^|[\\/])OneDrive([\\/ ]|$)' -or $env:RUNNER_TEMP.StartsWith('\\')) { throw 'Private work root must be local and non-synchronized' }
+          foreach ($entry in Get-ChildItem Env: | Where-Object Name -Like 'OneDrive*') {
+            if ($entry.Value -and ($env:RUNNER_TEMP.TrimEnd('\') + '\').StartsWith($entry.Value.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Private work root is synchronized' }
+          }
+          $root = Join-Path $env:RUNNER_TEMP ('native-asar-' + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $root | Out-Null
+          $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+          & icacls.exe $root /inheritance:r /grant:r "*${sid}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F' | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Could not restrict private work directory access' }
+          foreach ($name in @('ops', 'evidence', 'logs', 'output', 'tmp', 'toolcache', 'tooling', 'pnpm-store', 'npm-cache', 'no-hooks')) {
+            New-Item -ItemType Directory -Path (Join-Path $root $name) | Out-Null
+          }
+          # Copy tracked Ops bytes only: never carry untracked files, .git or credentials.
+          & git -C $bootstrap archive --format=tar "--output=$(Join-Path $root 'ops.tar')" HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Could not archive the selected Ops revision' }
+          & tar.exe -xf (Join-Path $root 'ops.tar') -C (Join-Path $root 'ops')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not materialize private Ops tooling' }
+          Remove-Item -LiteralPath (Join-Path $root 'ops.tar') -Force
+          $userConfig = Join-Path $root 'npm-userconfig'
+          [IO.File]::WriteAllText($userConfig, 'store-dir=' + (Join-Path $root 'pnpm-store').Replace('\', '/') + "`n", [Text.UTF8Encoding]::new($false))
+          [IO.File]::WriteAllText((Join-Path $root 'npm-globalconfig'), '', [Text.UTF8Encoding]::new($false))
+          [IO.File]::WriteAllText((Join-Path $root 'git-globalconfig'), '', [Text.UTF8Encoding]::new($false))
+          "root=$root" >> $env:GITHUB_OUTPUT
+          "node=$node" >> $env:GITHUB_OUTPUT
+          "pnpm=$pnpm" >> $env:GITHUB_OUTPUT
+          "OPS_ROOT=$(Join-Path $root 'ops')" >> $env:GITHUB_ENV
+          "PRIVATE_ROOT=$root" >> $env:GITHUB_ENV
+          "TEMP=$(Join-Path $root 'tmp')" >> $env:GITHUB_ENV
+          "TMP=$(Join-Path $root 'tmp')" >> $env:GITHUB_ENV
+          "NPM_CONFIG_CACHE=$(Join-Path $root 'npm-cache')" >> $env:GITHUB_ENV
+          "NPM_CONFIG_USERCONFIG=$userConfig" >> $env:GITHUB_ENV
+          "NPM_CONFIG_GLOBALCONFIG=$(Join-Path $root 'npm-globalconfig')" >> $env:GITHUB_ENV
+          "COREPACK_HOME=$(Join-Path $root 'tooling/corepack')" >> $env:GITHUB_ENV
+          "GH_CONFIG_DIR=$(Join-Path $root 'tooling/gh')" >> $env:GITHUB_ENV
+          'GH_PROMPT_DISABLED=1' >> $env:GITHUB_ENV
+          'GH_NO_UPDATE_NOTIFIER=1' >> $env:GITHUB_ENV
+
+      - name: Select exact locked Node in private tool cache
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6, already used by Ops
+        env:
+          RUNNER_TOOL_CACHE: ${{ steps.private.outputs.root }}/toolcache
+        with:
+          node-version: ${{ steps.private.outputs.node }}
+          check-latest: false
+          package-manager-cache: false
+
+      - name: Select exact locked pnpm in private tooling
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: ${{ steps.private.outputs.pnpm }}
+          dest: ${{ steps.private.outputs.root }}/tooling/pnpm
+          run_install: false
+
+      - name: Plan exact immutable release acquisition
+        env:
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $driver = Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs'
+          & node $driver --plan --lock (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') --confirm-version $env:CONFIRM_VERSION > (Join-Path $env:PRIVATE_ROOT 'plan.json') 2> (Join-Path $env:PRIVATE_ROOT 'logs/plan.stderr')
+          if ($LASTEXITCODE -ne 0) { throw 'native-asar-release-plan-rejected' }
+          $plan = Get-Content -LiteralPath (Join-Path $env:PRIVATE_ROOT 'plan.json') -Raw | ConvertFrom-Json
+          if ($plan.schemaVersion -ne 1 -or $plan.sourceRepository -cne 'cloga/deepseek-harness' -or $plan.sourceCommit -cnotmatch '^[a-f0-9]{40}$') { throw 'native-asar-release-plan-invalid' }
+
+      - name: Acquire and verify immutable Release metadata before downloading assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:PRIVATE_ROOT 'evidence'
+          $lockPath = Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json'
+          $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+          $plan = Get-Content -LiteralPath (Join-Path $env:PRIVATE_ROOT 'plan.json') -Raw | ConvertFrom-Json
+          $repo = $plan.sourceRepository
+          function Get-GitHubJson([string] $Endpoint) {
+            $raw = & gh api --hostname github.com -H 'X-GitHub-Api-Version: 2022-11-28' $Endpoint 2> (Join-Path $env:PRIVATE_ROOT 'logs/acquisition.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-release-metadata-acquisition-failed' }
+            return ($raw -join "`n")
+          }
+          try {
+            $raw = Get-GitHubJson "repos/$repo/releases/$($lock.components.desktop.artifact.releaseId)"
+            [IO.File]::WriteAllText((Join-Path $evidence 'github-release.json'), $raw, [Text.UTF8Encoding]::new($false))
+            $ref = Get-GitHubJson "repos/$repo/git/ref/tags/$([Uri]::EscapeDataString($plan.sourceTag))" | ConvertFrom-Json
+            $tags = @()
+            $object = $ref.object
+            while ($object.type -ceq 'tag') {
+              if ($tags.Count -ge 4 -or $object.sha -cnotmatch '^[a-f0-9]{40}$') { throw 'native-asar-release-tag-chain-invalid' }
+              $tag = Get-GitHubJson "repos/$repo/git/tags/$($object.sha)" | ConvertFrom-Json
+              if ($tag.sha -cne $object.sha) { throw 'native-asar-release-tag-object-mismatch' }
+              $tags += $tag
+              $object = $tag.object
+            }
+            if ($object.type -cne 'commit' -or $object.sha -cnotmatch '^[a-f0-9]{40}$') { throw 'native-asar-release-tag-target-invalid' }
+            $commit = Get-GitHubJson "repos/$repo/git/commits/$($object.sha)" | ConvertFrom-Json
+            $chain = @{ ref = $ref; tags = $tags; commit = $commit } | ConvertTo-Json -Depth 40
+            [IO.File]::WriteAllText((Join-Path $evidence 'github-tag-chain.json'), $chain, [Text.UTF8Encoding]::new($false))
+            # Verifies release ID/tag/immutable and exact dereferenced source SHA/tree,
+            # plus locked asset IDs/names/URLs/sizes. Must precede every asset request.
+            & node (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --verify-metadata --lock $lockPath --confirm-version $env:CONFIRM_VERSION --evidence-root $evidence > (Join-Path $env:PRIVATE_ROOT 'logs/metadata.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/metadata.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-release-metadata-rejected' }
+          } finally { Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue }
+
+      - name: Acquire exact selected assets and attest installer as data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $plan = Get-Content -LiteralPath (Join-Path $env:PRIVATE_ROOT 'plan.json') -Raw | ConvertFrom-Json
+          $lockPath = Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json'
+          $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
+          $evidence = Join-Path $env:PRIVATE_ROOT 'evidence'
+          $release = Get-Content -LiteralPath (Join-Path $evidence 'github-release.json') -Raw | ConvertFrom-Json
+          try {
+            foreach ($asset in $plan.assets) {
+              if ($asset.name -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$' -or $asset.id -le 0) { throw 'native-asar-release-asset-selection-invalid' }
+              $path = Join-Path $evidence $asset.name
+              # PowerShell >=7.4 preserves the native stdout byte stream; never run it.
+              & gh api --hostname github.com -H 'Accept: application/octet-stream' -H 'X-GitHub-Api-Version: 2022-11-28' "repos/$($plan.sourceRepository)/releases/assets/$($asset.id)" > $path 2> (Join-Path $env:PRIVATE_ROOT 'logs/asset.stderr')
+              if ($LASTEXITCODE -ne 0) { throw 'native-asar-release-asset-acquisition-failed' }
+              $metadata = @($release.assets | Where-Object { $_.id -eq $asset.id -and $_.name -ceq $asset.name })
+              if ($metadata.Count -ne 1 -or (Get-Item -LiteralPath $path).Length -ne $metadata[0].size -or
+                  ($null -ne $asset.bytes -and (Get-Item -LiteralPath $path).Length -ne $asset.bytes) -or
+                  (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $asset.sha256) { throw 'native-asar-release-asset-bytes-mismatch' }
+            }
+            $installer = Join-Path $evidence $plan.installerName
+            $sha512 = [Convert]::ToBase64String([Convert]::FromHexString((Get-FileHash -LiteralPath $installer -Algorithm SHA512).Hash))
+            if ($sha512 -cne $lock.components.desktop.artifact.sha512) { throw 'native-asar-release-installer-sha512-mismatch' }
+            & node (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --verify-acquisition --lock $lockPath --confirm-version $env:CONFIRM_VERSION --evidence-root $evidence > (Join-Path $env:PRIVATE_ROOT 'logs/assets.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/assets.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-release-acquisition-rejected' }
+          } finally { Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue }
+
+      - name: Acquire exact locked source with non-persisted read-only authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $plan = Get-Content -LiteralPath (Join-Path $env:PRIVATE_ROOT 'plan.json') -Raw | ConvertFrom-Json
+          $source = Join-Path $env:PRIVATE_ROOT 'source'
+          # Process-only Git configuration; never write an auth header/token to .git.
+          $env:GIT_CONFIG_NOSYSTEM = '1'
+          $env:GIT_CONFIG_GLOBAL = Join-Path $env:PRIVATE_ROOT 'git-globalconfig'
+          $env:GIT_CONFIG_COUNT = '3'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = 'AUTHORIZATION: basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('x-access-token:' + $env:GH_TOKEN))
+          $env:GIT_CONFIG_KEY_1 = 'core.hooksPath'
+          $env:GIT_CONFIG_VALUE_1 = Join-Path $env:PRIVATE_ROOT 'no-hooks'
+          $env:GIT_CONFIG_KEY_2 = 'core.autocrlf'
+          $env:GIT_CONFIG_VALUE_2 = 'false'
+          $env:GIT_TERMINAL_PROMPT = '0'
+          $env:GIT_TRACE = '0'
+          $env:GIT_TRACE_CURL = '0'
+          try {
+            & git init --quiet $source 2> (Join-Path $env:PRIVATE_ROOT 'logs/git.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-source-init-failed' }
+            & git -C $source remote add origin "https://github.com/$($plan.sourceRepository).git" 2> (Join-Path $env:PRIVATE_ROOT 'logs/git.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-source-remote-failed' }
+            & git -C $source fetch --quiet --no-tags --depth=1 origin $plan.sourceCommit 2> (Join-Path $env:PRIVATE_ROOT 'logs/git.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-source-fetch-failed' }
+            & git -C $source checkout --quiet --detach FETCH_HEAD 2> (Join-Path $env:PRIVATE_ROOT 'logs/git.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-source-checkout-failed' }
+            $head = & git -C $source rev-parse HEAD
+            if ($LASTEXITCODE -ne 0 -or $head -cne $plan.sourceCommit) { throw 'native-asar-source-head-mismatch' }
+            $tree = & git -C $source rev-parse 'HEAD^{tree}'
+            if ($LASTEXITCODE -ne 0 -or $tree -cne $plan.sourceTree) { throw 'native-asar-source-tree-mismatch' }
+          } finally {
+            foreach ($name in @('GH_TOKEN', 'GIT_CONFIG_COUNT', 'GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_KEY_0', 'GIT_CONFIG_VALUE_0', 'GIT_CONFIG_KEY_1', 'GIT_CONFIG_VALUE_1', 'GIT_CONFIG_KEY_2', 'GIT_CONFIG_VALUE_2', 'GIT_TERMINAL_PROMPT', 'GIT_TRACE', 'GIT_TRACE_CURL')) {
+              Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+            }
+          }
+
+      - name: Verify source and build only frozen Host libraries without credentials
+        env:
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+          DSH_TELEMETRY_DISABLED: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($entry in @(Get-ChildItem Env:)) {
+            if ($entry.Name -match '(?i)(TOKEN|SECRET|PASSWORD|CREDENTIAL|AUTH|COOKIE|API[_-]?KEY|ACCESS_KEY|^GIT_CONFIG_|^NODE_OPTIONS$|^NODE_PATH$|^DSH_)' -and
+                -not ($entry.Name -ceq 'DSH_TELEMETRY_DISABLED' -and $entry.Value -ceq '1')) { Remove-Item "Env:$($entry.Name)" -ErrorAction SilentlyContinue }
+          }
+          $env:GIT_CONFIG_NOSYSTEM = '1'
+          $env:GIT_CONFIG_GLOBAL = Join-Path $env:PRIVATE_ROOT 'git-globalconfig'
+          $plan = Get-Content -LiteralPath (Join-Path $env:PRIVATE_ROOT 'plan.json') -Raw | ConvertFrom-Json
+          $source = Join-Path $env:PRIVATE_ROOT 'source'
+          $driver = Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs'
+          $lockPath = Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json'
+          $nodeVersion = & node --version
+          if ($LASTEXITCODE -ne 0 -or $nodeVersion -cne ('v' + $plan.nodeVersion)) { throw 'native-asar-node-version-mismatch' }
+          $pnpmVersion = & pnpm --version
+          if ($LASTEXITCODE -ne 0 -or $pnpmVersion -cne $plan.pnpmVersion) { throw 'native-asar-pnpm-version-mismatch' }
+          # Source build registry is distinct from the immutable plugin plan's
+          # dependencyRegistry. Never rewrite that native provisioning source.
+          $env:NPM_CONFIG_REGISTRY = [string]$plan.packageRegistry
+          Push-Location $source
+          try {
+            & node $driver --verify-source --lock $lockPath --confirm-version $env:CONFIRM_VERSION --source-root $source > (Join-Path $env:PRIVATE_ROOT 'logs/source-before.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/source-before.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-source-before-build-rejected' }
+            $registry = & pnpm config get registry 2> (Join-Path $env:PRIVATE_ROOT 'logs/registry.stderr')
+            if ($LASTEXITCODE -ne 0 -or ([uri]$registry).AbsoluteUri -cne ([uri]$plan.packageRegistry).AbsoluteUri) { throw 'native-asar-source-registry-mismatch' }
+            & pnpm install --frozen-lockfile > (Join-Path $env:PRIVATE_ROOT 'logs/install.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/install.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-frozen-source-install-failed' }
+            & pnpm run build:lib:host > (Join-Path $env:PRIVATE_ROOT 'logs/build.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/build.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-host-library-build-failed' }
+            & node $driver --verify-source --lock $lockPath --confirm-version $env:CONFIRM_VERSION --source-root $source > (Join-Path $env:PRIVATE_ROOT 'logs/source-after.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/source-after.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-source-after-build-rejected' }
+          } finally { Pop-Location }
+
+      - name: Extract verified NSIS payload as data using existing runner 7-Zip
+        env:
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $plan = Get-Content -LiteralPath (Join-Path $env:PRIVATE_ROOT 'plan.json') -Raw | ConvertFrom-Json
+          $sevenZip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
+          $tool = Get-Item -LiteralPath $sevenZip
+          if ($tool.PSIsContainer -or ($tool.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Existing runner 7-Zip is required' }
+          $outer = Join-Path $env:PRIVATE_ROOT 'nsis'
+          $applicationRoot = Join-Path $env:PRIVATE_ROOT 'application'
+          function Assert-ArchiveListing([string] $Archive, [string] $Label) {
+            $listing = Join-Path $env:PRIVATE_ROOT "logs/$Label.listing"
+            & $sevenZip l -slt -ba -bd -bsp0 $Archive > $listing 2> (Join-Path $env:PRIVATE_ROOT "logs/$Label-list.stderr")
+            if ($LASTEXITCODE -ne 0 -or (Get-Item -LiteralPath $listing).Length -gt 32MB) { throw 'native-asar-archive-listing-failed' }
+            $records = (Get-Content -LiteralPath $listing -Raw) -split '(?:\r?\n){2,}'
+            $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            [long] $total = 0
+            foreach ($record in $records) {
+              if ([string]::IsNullOrWhiteSpace($record)) { continue }
+              $paths = [regex]::Matches($record, '(?m)^Path = ([^\r\n]*)\r?$')
+              if ($paths.Count -ne 1) { throw 'native-asar-archive-record-invalid' }
+              $path = $paths[0].Groups[1].Value.Replace('\', '/')
+              $parts = $path.Split('/')
+              if ($path.Length -eq 0 -or $path.Length -gt 32760 -or $parts.Count -gt 128 -or
+                  $path -match '[\x00-\x1f:"<>|?*]' -or $path.StartsWith('/') -or
+                  @($parts | Where-Object { $_ -in @('', '.', '..') -or $_ -match '[. ]$' -or $_ -match '^(?i:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)' }).Count -gt 0 -or
+                  -not $names.Add($path) -or $names.Count -gt 200000) { throw 'native-asar-archive-path-rejected' }
+              # Technical listing exposes link/reparse metadata; do not ask 7-Zip
+              # to create any link/stream, even from a checksum-verified installer.
+              if ($record -match '(?im)^(?:Symbolic Link|Hard Link|Reparse(?: Point)?|Alternate Stream)\s*=' -or
+                  $record -match '(?im)^Attributes = .*\bl[rwxstST-]{9}(?:\s|$)' -or
+                  $record -match '(?im)^(?:Attributes|Characteristics) = .*\bReparse\b' -or
+                  $record -match '(?im)^Encrypted = \+') { throw 'native-asar-archive-link-or-special-entry-rejected' }
+              $sizes = [regex]::Matches($record, '(?m)^Size = (\d+)\r?$')
+              if ($sizes.Count -ne 1) { throw 'native-asar-archive-size-invalid' }
+              [long] $size = 0
+              if (-not [long]::TryParse($sizes[0].Groups[1].Value, [ref]$size) -or $size -gt 16GB) { throw 'native-asar-archive-size-invalid' }
+              $total += $size
+              if ($total -gt 16GB) { throw 'native-asar-archive-size-limit' }
+            }
+            if ($names.Count -eq 0) { throw 'native-asar-empty-archive-rejected' }
+          }
+          function Assert-NoExtractedLinks([string] $Root) {
+            foreach ($item in Get-ChildItem -LiteralPath $Root -Force -Recurse) {
+              if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'native-asar-extracted-reparse-entry-rejected' }
+            }
+          }
+          # Neither the installer, NSIS helpers nor an extracted EXE is executed here.
+          $installer = Join-Path $env:PRIVATE_ROOT ('evidence/' + $plan.installerName)
+          Assert-ArchiveListing $installer 'nsis'
+          & $sevenZip x $installer "-o$outer" -y -bd -bso0 -bsp0 > (Join-Path $env:PRIVATE_ROOT 'logs/nsis.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/nsis.stderr')
+          if ($LASTEXITCODE -ne 0) { throw 'native-asar-nsis-data-extraction-failed' }
+          Assert-NoExtractedLinks $outer
+          $payloads = @(Get-ChildItem -LiteralPath $outer -File -Recurse -Filter 'app-*.7z')
+          if ($payloads.Count -ne 1 -or $payloads[0].Name -cne 'app-64.7z' -or ($payloads[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'native-asar-nsis-payload-layout-rejected' }
+          Assert-ArchiveListing $payloads[0].FullName 'application'
+          & $sevenZip x $payloads[0].FullName "-o$applicationRoot" -y -bd -bso0 -bsp0 > (Join-Path $env:PRIVATE_ROOT 'logs/application.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/application.stderr')
+          if ($LASTEXITCODE -ne 0) { throw 'native-asar-application-data-extraction-failed' }
+          Assert-NoExtractedLinks $applicationRoot
+          & node (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --discover-application --lock (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') --confirm-version $env:CONFIRM_VERSION --extract-root $applicationRoot > (Join-Path $env:PRIVATE_ROOT 'application.json') 2> (Join-Path $env:PRIVATE_ROOT 'logs/discovery.stderr')
+          if ($LASTEXITCODE -ne 0) { throw 'native-asar-extracted-layout-rejected' }
+
+      - name: Qualify actual release fixture and Ops observer without credentials
+        id: qualification
+        env:
+          CONFIRM_VERSION: ${{ inputs.confirm_version }}
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+          DSH_TELEMETRY_DISABLED: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($entry in @(Get-ChildItem Env:)) {
+            if ($entry.Name -match '(?i)(TOKEN|SECRET|PASSWORD|CREDENTIAL|AUTH|COOKIE|API[_-]?KEY|ACCESS_KEY|^GIT_CONFIG_|^NODE_OPTIONS$|^NODE_PATH$|^DSH_)' -and
+                -not ($entry.Name -ceq 'DSH_TELEMETRY_DISABLED' -and $entry.Value -ceq '1')) { Remove-Item "Env:$($entry.Name)" -ErrorAction SilentlyContinue }
+          }
+          $env:GIT_CONFIG_NOSYSTEM = '1'
+          $env:GIT_CONFIG_GLOBAL = Join-Path $env:PRIVATE_ROOT 'git-globalconfig'
+          $source = Join-Path $env:PRIVATE_ROOT 'source'
+          $application = (Get-Content -LiteralPath (Join-Path $env:PRIVATE_ROOT 'application.json') -Raw | ConvertFrom-Json).application
+          Push-Location $source
+          try {
+            # tsx resolves from the exact verified source, not from an Ops/ambient install.
+            # The source observer awaits Ops checks before its owned-profile finally cleanup.
+            & node --import tsx/esm (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --run --lock (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') --confirm-version $env:CONFIRM_VERSION --source-root $source --application $application --output (Join-Path $env:PRIVATE_ROOT 'output') --evidence-root (Join-Path $env:PRIVATE_ROOT 'evidence') > (Join-Path $env:PRIVATE_ROOT 'logs/run.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/run.stderr')
+            if ($LASTEXITCODE -ne 0) { throw 'native-asar-real-release-qualification-failed-see-sanitized-summary' }
+          } finally { Pop-Location }
+
+      - name: Validate summary-only artifact boundary
+        id: summary
+        if: ${{ !cancelled() && (steps.qualification.outcome == 'success' || steps.qualification.outcome == 'failure') }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = Join-Path $env:PRIVATE_ROOT 'output/qualification.json'
+          $file = Get-Item -LiteralPath $path -Force
+          if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $file.Length -gt 16384) { throw 'native-asar-summary-artifact-invalid' }
+          $summary = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable
+          if ($summary.schemaVersion -ne 1 -or $summary.valid -isnot [bool] -or $summary.modelResponseVerified -cne $false -or
+              $summary.observerCalls -isnot [long] -and $summary.observerCalls -isnot [int]) { throw 'native-asar-summary-artifact-invalid' }
+          if ($summary.valid) {
+            $keys = 'descriptorSha256,executableSha256,installerSha256,installerUpgradeVerified,invalidRequests,modelResponseVerified,observerCalls,profileRemoved,publicResolver,qualification,runtimeFileCount,schemaVersion,sourceCommit,sourceTree,valid,version,wholeCarrierAttested'
+            if ($summary.qualification -cne 'locked-release-ops-observer' -or $summary.publicResolver -cne 'metadata-cjs-esm' -or
+                $summary.profileRemoved -cne $true -or $summary.wholeCarrierAttested -cne $false -or $summary.installerUpgradeVerified -cne $false -or
+                $summary.version -cnotmatch '^0\.1\.6(?:-[A-Za-z0-9.-]+)?$' -or $summary.sourceCommit -cnotmatch '^[a-f0-9]{40}$' -or
+                $summary.sourceTree -cnotmatch '^[a-f0-9]{40}$' -or $summary.observerCalls -ne 1 -or
+                ($summary.runtimeFileCount -isnot [long] -and $summary.runtimeFileCount -isnot [int]) -or
+                $summary.runtimeFileCount -le 0 -or $summary.runtimeFileCount -gt 200000) { throw 'native-asar-summary-artifact-invalid' }
+            foreach ($name in @('installerSha256', 'executableSha256', 'descriptorSha256')) { if ($summary[$name] -cnotmatch '^[a-f0-9]{64}$') { throw 'native-asar-summary-artifact-invalid' } }
+            if ((($summary.invalidRequests.psbase.Keys | Sort-Object) -join ',') -cne 'descriptorDigest,home,version' -or
+                @($summary.invalidRequests.psbase.Values | Where-Object { $_ -cne 'rejected' }).Count -ne 0) { throw 'native-asar-summary-artifact-invalid' }
+          } else {
+            $keys = 'modelResponseVerified,observerCalls,profileRemoved,qualification,reason,schemaVersion,valid'
+            if ($summary.qualification -cne 'not-ready' -or $summary.reason -cnotmatch '^native-[a-z-]{1,128}$' -or
+                ($null -ne $summary.profileRemoved -and $summary.profileRemoved -isnot [bool])) { throw 'native-asar-summary-artifact-invalid' }
+          }
+          if ((($summary.psbase.Keys | Sort-Object) -join ',') -cne $keys) { throw 'native-asar-summary-artifact-invalid' }
+
+      - name: Retain only the sanitized qualification summary
+        if: ${{ !cancelled() && steps.summary.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-asar-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.private.outputs.root }}/output/qualification.json
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+
+      - name: Remove private source, fixture payloads and raw diagnostics
+        if: ${{ always() && steps.private.outcome == 'success' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Source acceptance already has owned-home finally cleanup; this is a
+          # second private-runner boundary. Never upload raw receipts, profiles,
+          # source outputs, logs or dependencies. Preserve action tooling/config
+          # until pnpm's post step; remaining private temp dies with this runner.
+          $runner = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+          $root = [IO.Path]::GetFullPath($env:PRIVATE_ROOT).TrimEnd('\')
+          if (-not $root.StartsWith($runner + '\', [StringComparison]::OrdinalIgnoreCase) -or $root -ieq $runner) { throw 'native-asar-cleanup-root-rejected' }
+          $ancestor = Get-Item -LiteralPath $root -Force
+          if (-not $ancestor.PSIsContainer) { throw 'native-asar-cleanup-root-rejected' }
+          while ($null -ne $ancestor) {
+            if (($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'native-asar-cleanup-root-reparse' }
+            $ancestor = $ancestor.Parent
+          }
+          $script:cleanupEntries = 0
+          function Remove-PrivateEntry([string] $Path, [int] $Depth) {
+            $full = [IO.Path]::GetFullPath($Path)
+            if (-not $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or $Depth -gt 128 -or ++$script:cleanupEntries -gt 1000000) { throw 'native-asar-cleanup-boundary-rejected' }
+            $item = Get-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
+            if ($null -eq $item) { return }
+            $directory = ($item.Attributes -band [IO.FileAttributes]::Directory) -ne 0
+            # Unlink first; never enumerate or recursively delete a reparse target.
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+              if ($directory) { [IO.Directory]::Delete($full, $false) }
+              else { [IO.File]::Delete($full) }
+              return
+            }
+            # Git/pnpm can leave ordinary files read-only. Never touch attributes
+            # on a reparse entry or its target: those returned above.
+            if (($item.Attributes -band [IO.FileAttributes]::ReadOnly) -ne 0) {
+              $attributes = $item.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly)
+              [IO.File]::SetAttributes($full, [IO.FileAttributes]$attributes)
+            }
+            if ($directory) {
+              foreach ($child in Get-ChildItem -LiteralPath $full -Force) { Remove-PrivateEntry $child.FullName ($Depth + 1) }
+              [IO.Directory]::Delete($full, $false)
+            } else { [IO.File]::Delete($full) }
+          }
+          foreach ($name in @('source', 'application', 'nsis', 'evidence', 'logs', 'output', 'ops', 'application.json', 'plan.json')) {
+            Remove-PrivateEntry (Join-Path $root $name) 0
+          }

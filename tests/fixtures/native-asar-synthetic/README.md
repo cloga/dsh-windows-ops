@@ -84,7 +84,8 @@ Supply all of the following from one actual release/rehearsal fixture:
   defense against a hostile concurrent installer.
 - `resources/app.asar/dsh/desktop-runtime.json` selected by the lock, whose raw
   digest and `release.version` equal the reviewed lock descriptor and
-  `releaseChannel.upstreamVersion`. Protocol schema is the source's version 3.
+  `releaseChannel.upstreamVersion`. Runtime descriptor `schemaVersion` is 1;
+  nested `release.hostProtocolVersion` is 3.
   Include **every** real runtime file; do not materialize `resources/dsh` or
   manufacture a descriptor for an incomplete tree.
 - Exact physical `app.asar.unpacked/dsh` backing set, equal to maintained-reader
@@ -133,3 +134,84 @@ invalidate evidence, but pre/post checks do not prevent a hostile writer changin
 header allocation bytes between file opens; use the existing serialized,
 no-mutation deployment scope. No archive extraction or filesystem mutation is
 performed by the verifier itself.
+
+## Manual actual-release observer bridge (prepared; execution pending)
+
+`.github/workflows/native-asar-release.yml` has **only** `workflow_dispatch` and
+requires `confirm_version` to exactly match the checked-in Desktop lock. The
+current physical `.5` lock fails before release/source acquisition; do not change
+it to synthetic `.6` data to make this workflow green. Dispatch belongs to the
+parent/release owner after the immutable formal release and complete lock/formal
+fixtures have been reviewed and repinned. This preparation is not qualification.
+
+Offline gate and inert validation tests:
+
+```powershell
+node tests/native-asar-release-smoke.mjs --plan --lock deployments/windows-copilot.lock.json --confirm-version <exact-locked-version>
+node --test tests/native-asar-release-smoke.test.mjs
+```
+
+The workflow uses `contents:read` and the Actions token **only in acquisition
+steps**—no personal secrets, credential files or source `.env`. It verifies the
+locked immutable release ID/tag, bounded annotated-tag chain to the exact source
+commit/tree, selected asset IDs/names/URLs/sizes/API digests and downloaded
+SHA-256/SHA-512. Downloaded release/receipt/plan bytes must also agree with the
+full locked formal evidence (`nativeProvisioning.fixtureRoot`). It lists and
+extracts the verified NSIS and single `app-64.7z` payload as **data** using existing
+runner 7-Zip, rejecting unsafe paths/links and ambiguous installed layouts. The
+installer and NSIS helpers are never executed.
+
+All acquisition, source checkout, dependencies, extraction and fixture output
+live in a restricted, non-synchronized `RUNNER_TEMP` tree. The exact locked source
+HEAD/tree must match, with no tracked drift or nonignored untracked source
+shadows before/after build and acceptance. Raw `pnpm-lock.yaml` and release-plan
+hashes, manifest versions, Node and pnpm toolchain must match. Source dependencies
+use the locked HTTPS source-build registry and `pnpm install --frozen-lockfile`,
+followed only by `pnpm run build:lib:host`. Ignored dependencies/generated libraries
+remain frozen-install/source-build-derived, not independently byte-attested as
+an entire checkout; ignored caches are not scanned globally.
+No `node_modules` copy, browser download or source Electron download is needed;
+Playwright drives the actual extracted Electron renderer. Standard Node/pnpm
+setup actions are used at independently reviewed immutable action commit SHAs.
+
+The workflow runs this command **from the verified source checkout**, using its
+installed `tsx/esm` loader (not `NODE_OPTIONS` or an Ops/ambient loader):
+
+```powershell
+node --import tsx/esm <private-ops>/tests/native-asar-release-smoke.mjs --run --lock <private-ops>/deployments/windows-copilot.lock.json --confirm-version <exact-locked-version> --source-root <private-source> --application <verified-extracted-exe> --output <private-output> --evidence-root <verified-release-assets>
+```
+
+`--run` requires Windows CI and validated `RUNNER_TEMP` containment. This prevents
+accidental local/live use; `GITHUB_ACTIONS` is **not authentication or provenance**.
+There is no local-run escape. The driver imports the locked source's
+`runPackagedCopilotAcceptance({application,output,inspectProfile})`. The real
+source fixture creates its own isolated profile, passes initial and restart
+Models/account UI checks, closes both application processes, and compares
+receipts before invoking the awaited observer with five frozen read-only paths.
+
+Inside that observer, the existing `native-asar-integration.mjs` must genuinely
+pass full runtime integrity and public resolver/native-addon/production-policy
+proof. Deliberately wrong descriptor-digest, version and home **request copies**
+must then fail against the unchanged actual fixture. Ops does not modify its
+profile or runtime for negatives, load credentials/settings, or retain profiles.
+The source owns cleanup in `finally`; successful qualification requires its
+observed home to be gone. Advanced private-peer/ancestor/custom-home semantics
+are not established by these invalid-request tests; retain the source/unit
+matrix and separate real cases rather than overclaiming coverage.
+
+Only the bounded, owned `qualification.json` summary is uploaded, for seven days.
+Raw source evidence, receipts, screenshots, process/build logs, downloaded assets
+and dependencies are private runner data, never artifact-upload inputs; cleanup
+removes the run payload. Source-side failure before the observer may yield no
+summary, and missing summaries fail the upload rather than fabricate success.
+No real OAuth/model round or installer-upgrade acceptance is claimed. The earlier
+EXE-only carrier/DLL and concurrency boundaries still apply: installer acquisition
+provides archive provenance, not a new per-DLL loaded-image attestation.
+
+**Actual-run prerequisites remain:** a published immutable `.6` lock with complete
+formal fixtures; source commit containing the observer and compatible built
+Host libraries; Actions-token read access to the exact source/release (no private
+cross-repository token fallback); compatible existing Windows runner 7-Zip NSIS
+listing/extraction; credential-free native plugin provisioning network access;
+and the actual public resolver/native addon/Electron proof. None was substituted
+by the inert local tests or run during automation preparation.

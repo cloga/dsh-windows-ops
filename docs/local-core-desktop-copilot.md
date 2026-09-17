@@ -92,6 +92,45 @@ TLS connectivity or authenticated model readiness.
 
 ## Managed Desktop update behavior
 
+### Persistent update notice
+
+**Availability boundary:** [Desktop PR #58](https://github.com/cloga/deepseek-harness/pull/58)
+is merged at `7b673e48d2205940ac4699ac86ca9c6cfe58ee7d`. The planned
+`0.1.5-rc.3.cloga.8` / sequence 10 release is not yet independently verified
+for this documentation update. A merge, running publication workflow, or
+simulated screenshot does not establish publication or installation. The
+[deployment lock](../deployments/windows-copilot.lock.json) remains authoritative;
+this section does not promote a new baseline or describe the older installed
+Desktop as already having the feature. An existing `.cloga.5` installation does
+not gain the notice from publication alone: a verified Desktop containing the
+change must first be safely installed and activated by explicit user action.
+That Desktop can then show the persistent notice for future available updates.
+This publication/documentation work does not authorize local activation.
+
+- **Find it:** in a qualified Desktop containing this change, an available-update
+  notice is a narrow strip at the top of the center main content, above the chat
+  header. It survives navigation and renderer reload; it is not a transient toast.
+  Idle state and non-Desktop Web reserve no space for it.
+- **Use it:** choose **Review update** to enter Desktop's native confirmation and
+  active-work checks. Review the interruption impact before consenting; seeing
+  the strip or clicking Review is not blanket permission to interrupt Sessions.
+  Cancelling confirmation must not start an installation.
+- **Background behavior:** checks run about 10 seconds after startup and every
+  6 hours. Discovery does not automatically download, install, restart, or take
+  focus. An absent strip in an idle or non-Desktop view is not a failed update.
+- **Safety:** publication is separate from activation. Do not install over or
+  restart a running Desktop just to see this notice. Preserve other live Sessions;
+  follow the consent-gated native update flow and the restart rules below.
+
+Before promoting this release, record independently verified immutable release
+metadata, exact source/version/sequence, downloaded installer checksums, packaged
+acceptance, and update-channel visibility. Then synchronize the lock, exact-pin
+validators, new formal fixtures, tests, and current guides together, coordinating
+with the [concurrent baseline update](https://github.com/cloga/dsh-windows-ops/issues/174).
+Preserve historical fixtures. Simulated updater screenshots verify only layout
+and state handling; they are not real update discovery, download, installation,
+or installed-app acceptance. Live activation and restart need separate consent.
+
 **Older-helper recovery:** `.cloga.1` and `.cloga.2` copied helpers have an
 unresolved `semver` import and fail before ACK without `node_modules`. A new
 release cannot repair an already installed broken helper. Use the independently

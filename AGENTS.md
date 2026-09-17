@@ -34,6 +34,30 @@ Before an installation agent emits every `pwsh` tool call:
 6. Omit the keys themselves; never send them as `null`, empty strings, or the
    current sandbox mode.
 
+## Official-first Core upgrade entrypoint
+
+- Treat requests such as "做 DSH Core 新版本适配" / "adapt to a new DSH Core release"
+  as the workflow in [docs/core-upgrade.md](docs/core-upgrade.md), with component
+  scope in [deployments/core-upgrade-scope.json](deployments/core-upgrade-scope.json).
+  Do not depend on an optional Skill being installed to discover this entrypoint.
+- Start with `node tools/plan-core-upgrade.mjs --tag dsh-v<version> --commit <full-SHA>`.
+  This emits a read-only, unexecuted plan; it neither verifies the supplied target
+  nor authorizes installation, activation, restart or a deployment-lock change.
+- Before carrying any fork/plugin customization forward, inspect exact official
+  release notes and relevant source/contracts. Record purpose, official evidence,
+  complete/partial/absent/unverified parity, migrate/retain-temporarily/retire
+  decision, remaining gap, retirement condition, migration/rollback and acceptance.
+- Prefer verified official replacements. Retain only required differences; remove
+  redundant implementations safely while preserving user-requirement acceptance
+  tests. Similar names alone prove neither equivalence nor absence.
+- Coordinate open PRs, Sessions and releases first. Qualify and publish changes
+  through each repository's established workflow, independently verify artifacts,
+  then synchronize qualified Ops locks/catalog/fixtures and bilingual docs.
+  Do not create gratuitous binary releases for documentation-only planning changes.
+- Core fork work stays in its owning repository and only within user-authorized
+  scope; this workflow does not permit bypassing the locked Desktop runtime,
+  patching live Core/dependencies, rewriting immutable releases or interrupting Sessions.
+
 ## DSH Desktop integration baseline
 
 - Treat `deployments/windows-copilot.lock.json` as the authoritative Windows

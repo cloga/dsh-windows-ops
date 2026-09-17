@@ -20,6 +20,10 @@ prefer official replacements after parity and migration acceptance are proven.
 `node tools/plan-core-upgrade.mjs --tag dsh-v<version> --commit <full-SHA>` only emits
 an unexecuted plan. It does not install/restart or change the qualified deployment lock.
 
+The [0.1.6-alpha.2 assessment](docs/core-016a2-assessment.md) records exact official
+replacement evidence, retained differences and concrete API issues. It remains
+source-review evidence, not a new qualified deployment baseline.
+
 ## Copilot account-discovered route maintenance
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.

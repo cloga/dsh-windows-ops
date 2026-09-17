@@ -20,6 +20,8 @@
 
 本次 [0.1.6-alpha.2 官方对照与迁移决定](docs/core-016a2-assessment.md)记录已审视的
 官方替代、必须保留的差异和已发现的接口问题；目前仍是源码评估，不是新部署基线。
+另见[原生加载依赖与镜像验证](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification)：
+`node-addon-require-builtin@0.1.6` 属于官方启动层，不能因 Loader 的可选 peer 或镜像缺包就直接删除或降级。
 
 ## Copilot 自动识别路由维护
 

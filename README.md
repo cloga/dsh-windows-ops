@@ -90,6 +90,7 @@ confirmation instead.
 | 运行版本、配置、端口、模型和补丁自检 | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | 诊断安装问题并执行定点修复 | [`tools/README.md`](tools/README.md) |
 | 选择或评估社区插件 | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
+| 区分 Desktop 注册表包、已验证 Release 与尚未发布的源码快照安装；了解重新安装和损坏快照恢复 | [`docs/plugins/desktop-source-installation.md`](docs/plugins/desktop-source-installation.md) |
 | 理解插件验证等级 | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | 评估 Computer Use / 浏览器自动化 | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
 | 运维可选的 Session 定时调度 | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
@@ -114,6 +115,8 @@ node tools\validate-plugin-catalog.mjs
 然后在隔离 `DSH_HOME` 中验证 Cordis 激活、工具注册和代表性功能，再提升目录等级。不要直接拿维护中的 `web` Profile 做首次试装。
 
 **用户反馈候选：** [`csyangwen/dsh-memory-evolve`](https://github.com/csyangwen/dsh-memory-evolve/tree/c337dc1af7b5c8a5578e03150bf5c4d6133f66f9) 被用户评价为“对跨会话记忆/演化工作流有用”（User-reported useful for cross-session memory/evolution workflows），但本仓库仅对 commit `c337dc1af7b5c8a5578e03150bf5c4d6133f66f9` / tag `v26091501` 完成 `L1` 源码审查，目录推荐为 `experimental`。其 Release 无资产/校验清单，未声明 DSH peer 范围，也未完成隔离挂载或功能/安全验证；详见[插件选择指南](docs/plugins/choosing-a-plugin.md#user-reported-high-privilege-candidates)。它涉及长期记忆、后台演化、技能/提示词修改、自更新及可选外部 CLI、Git 同步和消息发送，首次使用必须隔离 Profile 并审查数据保留与自动修改边界；不属于 Windows locked baseline、Desktop 必需插件或默认自动安装。
+
+[Desktop 源码快照安装说明](docs/plugins/desktop-source-installation.md)记录核心 [issue #50](https://github.com/cloga/deepseek-harness/issues/50) 的尚未发布能力、固定 Memory Evolve commit 的获取/打包校验，以及隔离 renderer 和真实 pnpm fixture 的证据边界。这些结果没有激活该插件、提升其目录等级或修改正式基线；必须先取得包含该功能的已验证完整 Desktop 构建，再通过原生事务入口操作。
 
 ## 工具地图
 

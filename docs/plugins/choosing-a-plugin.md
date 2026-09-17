@@ -28,7 +28,7 @@ A `baseline` component is supported by a maintained deployment lock. An `L0` or 
 
 This plugin can persist long-term memory, manage or modify skills and prompts, write tasks, inject context, check for and apply source updates, and optionally dispatch external CLIs, search local/session data, create or wake Sessions, synchronize memory through Git, and send channel messages. Its runtime data defaults to `DSH_HOME/memories`, while skill writes can reach `~/.agents/skills`; uninstalling retains those files. Evaluate it in an isolated Profile, inspect the data-retention and automatic-modification boundaries, and enable optional capabilities individually. It is not in the Windows locked baseline, the Desktop required plugin set, default automatic installation, or the optional companion suite.
 
-Because the reviewed Release contains no immutable package asset, this repository does not publish an artifact hash or installation command for it. A source import alone is not the `L2` host-entry probe defined by this catalog.
+Because the reviewed Release contains no immutable package asset, this repository does not publish a verified Release artifact hash or recommend a production installation command for it. The [unreleased Desktop source-snapshot work](desktop-source-installation.md#evidence-recorded-for-issue-50) separately records acquisition, packing, and validation of this exact source commit without Host activation. Its local packed-byte hash is not an upstream Release checksum, and this evidence does not promote the catalog's `L1`/`experimental` classification. A source import alone is not the `L2` host-entry probe defined by this catalog.
 
 ## Safe evaluation path
 

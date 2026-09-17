@@ -55,6 +55,9 @@ UI, actual Model roles and search-routing DOM readiness, and graph/ancestor
 isolation. Both read-only settings phases list `deepseek-official` and
 `github-copilot-hosted`. Catalog registration is not provider availability or a
 search request. **Native Ops qualification for this paired release remains pending.**
+First run `35276462350` failed before the observer with an unclassified source error;
+bounded fixed-vocabulary diagnostics now distinguish phases without publishing raw
+source errors or weakening cleanup/settings guards.
 The older [run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
 qualifies only `.cloga.1`/alpha.22; it is retained as historical evidence, not
 reused as `.cloga.2` proof. See the [scoped evidence and limits](docs/local-core-desktop-copilot.md#scoped-ops-ci-qualification).

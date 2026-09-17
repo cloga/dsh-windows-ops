@@ -210,9 +210,25 @@ runtime replacement or authorize unconditional feature removal or activation.
 
 ## Scoped Ops CI qualification
 
-**Current `.cloga.2` / alpha.24 qualification is pending.** The following is the
-retained historical `.cloga.1` / alpha.22 result; its hashes, counts, source and
-code head must not be relabeled as proof of the new paired release.
+**Current `.cloga.2` / alpha.24 qualification is pending.** First genuine
+[run `35276462350`](https://github.com/cloga/dsh-windows-ops/actions/runs/35276462350)
+at Ops head `afcfff500823b7a234796582fc7d29839d53cc4c` failed before the observer:
+`native-evidence-unreadable`, `observerCalls:0`, `profileRemoved:null`. The original
+failure artifact `10521525818` is 288 bytes, SHA-256
+`6507bc9e41510622b57b870f14b751ae581aa7aa8a79c3504a8e439e1042e025`.
+This does not establish a settings-digest mismatch, failed cleanup or payload
+corruption. `profileRemoved:null` means no observer-owned home was observed.
+
+Failure summaries now preserve only fixed-vocabulary driver stage, error category,
+source-failure-file presence/readability and last recognized source phase. The
+private source JSON is read with a 128 KiB bound and at most 64 timeline records;
+raw error/visible text, paths, credentials and arbitrary fields never enter the
+summary. Source-owned cleanup and the summary-only artifact boundary remain.
+This is diagnostic instrumentation for one new qualified head, not an unchanged
+blind retry, a bypass of settings proof or a modification of the immutable source.
+
+The following is the retained historical `.cloga.1` / alpha.22 result; its hashes,
+counts, source and code head must not be relabeled as proof of the new pair.
 
 Historical genuine manual [run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
 passed at exact Ops code head `83b0303c250b62f55424be3d88347bf147c593d8`.

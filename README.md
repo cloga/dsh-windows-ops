@@ -53,7 +53,9 @@ React 单例（`dsh.client.external`），不引入私有副本或 Node React pe
 `10518683372` 记录隔离首次启动/重启的账号 UI、实际 Model roles 和搜索路由 DOM
 就绪、graph/ancestor isolation；两个只读设置阶段均列出 `deepseek-official` 和
 `github-copilot-hosted`。目录注册不等于 provider 可用或实际搜索请求。
-**这组配套 Release 的 Native Ops qualification 仍待完成。** 旧
+**这组配套 Release 的 Native Ops qualification 仍待完成。** 首次 run
+`35276462350` 在 observer 前出现尚未分类的来源错误；新增有界、固定词汇的阶段诊断，
+不发布原始来源错误，也不削弱清理或设置证据检查。旧
 [run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
 仅证明 `.cloga.1`/alpha.22，保留为历史记录，不转用为 `.cloga.2` 证据。详见
 [限定范围与排除项](docs/local-core-desktop-copilot.md#scoped-ops-ci-qualification)。

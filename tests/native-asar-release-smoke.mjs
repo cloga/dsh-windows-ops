@@ -10,6 +10,7 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { nativeLayout, preflightAsar, probeEnvironment, boundedHeader, headerRuntimeInventory } from '../tools/native-asar-runtime.mjs';
 import { hashFile, hashValid, inside, object, physical, relativeName, safeReason, sha256 } from '../tools/native-runtime-integrity.mjs';
 import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
+import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFixture = 'apps/desktop/tests/fixtures/copilot-release-smoke.ts';
@@ -283,6 +284,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
   const sourceOutput = join(output, 'source-evidence');
   need(!entryExists(sourceOutput), 'output-not-empty');
   let calls = 0; let observedHome; let positive; let completed = false;
+  let diagnosticStage = 'source-import';
   const invalidRequests = {};
   try {
     // No token, source .env, or arbitrary DSH/Node loader overrides enter the fixture.
@@ -293,7 +295,9 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     }
     const { runPackagedCopilotAcceptance } = await import(pathToFileURL(join(sourceRoot, sourceFixture)).href);
     need(typeof runPackagedCopilotAcceptance === 'function', 'observer-api-unavailable');
+    diagnosticStage = 'source-fixture';
     await runPackagedCopilotAcceptance({ application, output: sourceOutput, inspectProfile: async paths => {
+      diagnosticStage = 'observer';
       need(++calls === 1, 'observer-count-invalid');
       inspectObserverPaths(paths, sourceRoot, application, sourceOutput); observedHome = paths.home;
       const metadataPaths = ['package.json', 'desktop-plugin-receipts.json', 'desktop-plugin-provisioning-state.json'];
@@ -319,7 +323,9 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       }
       need(isDeepStrictEqual(metadataPaths.map(name => hashFile(join(paths.profile, name))), metadataBefore), 'observer-metadata-mutated');
       need(preflightAsar(lock, dirname(application)).archiveSha256 === before.archiveSha256, 'runtime-mutated');
+      diagnosticStage = 'source-fixture';
     } });
+    diagnosticStage = 'post-acceptance';
     need(calls === 1 && observedHome && !entryExists(observedHome), 'observer-cleanup-incomplete');
     const accepted = readJson(join(sourceOutput, 'acceptance.json'));
     need(accepted.sourceCommit === plan.sourceCommit && accepted.desktopVersion === plan.version &&
@@ -328,6 +334,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       accepted.realOAuth === false && accepted.realModelRound === false && accepted.installerUpgradeVerified === false,
     'source-acceptance-incomplete');
     verifyFreshSettingsEvidence(lock, accepted, sourceOutput);
+    diagnosticStage = 'final-runtime';
     verifySource(lock, confirmation, sourceRoot);
     const after = preflightAsar(lock, dirname(application));
     need(after.archiveSha256 === before.archiveSha256 &&
@@ -344,7 +351,8 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     return summary;
   } catch (error) {
     const summary = { schemaVersion: 1, valid: false, qualification: 'not-ready', reason: safeReason(error),
-      observerCalls: calls, profileRemoved: observedHome ? !entryExists(observedHome) : null, modelResponseVerified: false };
+      observerCalls: calls, profileRemoved: observedHome ? !entryExists(observedHome) : null, modelResponseVerified: false,
+      diagnostic: sourceFailureDiagnostic(sourceOutput, diagnosticStage, error) };
     writeFileSync(join(output, 'qualification.json'), JSON.stringify(summary, null, 2) + '\n', { flag: 'wx' });
     throw new Error(summary.reason);
   } finally {

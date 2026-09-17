@@ -136,7 +136,8 @@ export function runAsarProbe(snapshot, provisioning, home, diagnosticRoot = tmpd
     version: snapshot.descriptor.release.version, home, profile: provisioning.profileRoot,
     pluginRoot: provisioning.packageRoot, pluginName: provisioning.packageName,
     pluginVersion: provisioning.packageVersion, profileManifestSha256: provisioning.profileManifestSha256,
-    pluginManifestSha256: provisioning.pluginManifestSha256 };
+    pluginManifestSha256: provisioning.pluginManifestSha256, planSha256: provisioning.planSha256,
+    profileMetadataSha256: provisioning.profileMetadataSha256 };
   const input = JSON.stringify(payload);
   requireValue(Buffer.byteLength(input) <= limits.output, 'native-probe-input-limit');
   const script = fileURLToPath(new URL('./native-electron-probe.mjs', import.meta.url));
@@ -152,7 +153,10 @@ export function runAsarProbe(snapshot, provisioning, home, diagnosticRoot = tmpd
       'native-runtime-import-outside-inventory', 'native-bundle-root-mismatch', 'native-generation-invalid',
       'native-generation-root-mismatch', 'native-shared-package-mismatch', 'native-shared-peer-unresolved',
       'native-shared-peer-resolution-mismatch', 'native-resolver-unavailable', 'native-resolver-disposal-mismatch',
-      'native-inconsistent-snapshot', 'native-evidence-missing', 'native-evidence-unreadable']);
+      'native-inconsistent-snapshot', 'native-evidence-missing', 'native-evidence-unreadable',
+      'native-receipt-store-invalid', 'native-receipt-owner-invalid', 'native-release-owned-extra',
+      'native-user-dependency-metadata-invalid', 'native-package-snapshot-invalid', 'native-receipt-invalid',
+      'native-provisioning-state-invalid', 'native-profile-composition-mismatch', 'native-state-receipt-mismatch']);
     if (object(failure) && Object.keys(failure).sort().join(',') === 'reason,schemaVersion,valid' &&
       failure.schemaVersion === 1 && failure.valid === false && codes.has(failure.reason)) throw new Error(failure.reason);
   }

@@ -12,6 +12,7 @@ import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { preflightAsar, headerRuntimeInventory, probeEnvironment } from '../tools/native-asar-runtime.mjs';
 import { limits, validateDescriptor } from '../tools/native-runtime-integrity.mjs';
 import { probe as electronProbe } from '../tools/native-electron-probe.mjs';
+import { readNativeProfileMetadata } from '../tools/native-profile-metadata.mjs';
 const asarReader = createRequire(import.meta.url)('../tools/vendor/asar-reader/reader.cjs');
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
@@ -532,6 +533,84 @@ test('concurrent carrier replacement invalidates even a synthetic correlated chi
   syncBuiltinESMExports(); t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
   const result = verifyNativeDesktopFiles(f);
   assert.equal(result.valid, false); assert.equal(result.runtime.reason, 'native-carrier-hash-mismatch');
+});
+
+function changeProfile(f, change) {
+  const path = join(f.profile, 'package.json'); const manifest = JSON.parse(readFileSync(path)); change(manifest); write(path, manifest);
+}
+function explicitOwners(f, owner = 'release') {
+  const path = join(f.profile, 'desktop-plugin-receipts.json'); const store = JSON.parse(readFileSync(path));
+  store.owners = Object.fromEntries(Object.keys(store.receipts).map(name => [name, owner])); write(path, store);
+}
+function userReceipt(f, owner = 'user') {
+  const name = 'synthetic-user-extra'; const bytes = 'synthetic extra bytes, not a package';
+  const receipt = structuredClone(f.receipt);
+  Object.assign(receipt.source, { owner: 'fixture', repo: name, tag: 'v1.0.0', asset: 'extra.tgz', assetId: 42,
+    packageName: name, version: '1.0.0', size: Buffer.byteLength(bytes), sha256: hash(bytes),
+    integrity: `sha512-${hash(bytes, 'sha512', 'base64')}`, targetCommit: 'b'.repeat(40) });
+  receipt.source.checksumManifest.url = `https://github.com/fixture/${name}/releases/download/v1.0.0/SHA256SUMS`;
+  Object.assign(receipt, { releaseId: 43, assetId: 42, packageName: name, version: '1.0.0', artifactSha256: receipt.source.sha256 });
+  const path = join(f.profile, 'desktop-plugin-receipts.json'); const store = JSON.parse(readFileSync(path));
+  store.receipts[name] = receipt;
+  if (owner !== null) store.owners = { [f.source.packageName]: 'user', [name]: owner };
+  write(path, store);
+  write(join(f.profile, '.desktop-plugin-artifacts', `${receipt.artifactSha256}.tgz`), bytes);
+  changeProfile(f, manifest => { manifest.dependencies[name] = `file:.desktop-plugin-artifacts/${receipt.artifactSha256}.tgz`;
+    manifest.dsh.profile.bundles.splice(2, 0, name); });
+  return receipt;
+}
+
+for (const [name, change, owner] of [
+  ['explicit required user owner', f => explicitOwners(f, 'user'), 'user'],
+  ['user-verified receipt before required bundle', f => userReceipt(f), 'user'],
+  ['legacy extra receipt infers only required release owner', f => userReceipt(f, null), 'release'],
+  ['registry extras preserve tail order', f => changeProfile(f, m => { m.dependencies['z-user'] = '1.2.3'; m.dependencies['a-user'] = '2.0.0';
+    m.dsh.profile.bundles.splice(2, 0, 'z-user'); m.dsh.profile.bundles.push('a-user'); }), 'release'],
+  ['snapshot metadata is not archive-health proof', f => {
+    changeProfile(f, m => { m.dependencies['user-snapshot'] = `file:.desktop-plugin-artifacts/${'c'.repeat(64)}.tgz`; m.dsh.profile.bundles.push('user-snapshot'); });
+    write(join(f.profile, 'desktop-plugin-package-locks.json'), { schemaVersion: 1, packages: { 'user-snapshot': {
+      packageName: 'user-snapshot', version: '1.0.0', spec: 'github:fixture/snapshot#main', resolved: 'git+https://github.com/fixture/snapshot.git',
+      sha256: 'c'.repeat(64), integrity: `sha512-${hash('synthetic snapshot metadata', 'sha512', 'base64')}` } } });
+  }, 'release'],
+  ['corrupt user archive bytes remain explicitly unattested', f => { const r = userReceipt(f); write(join(f.profile, '.desktop-plugin-artifacts', `${r.artifactSha256}.tgz`), 'corrupt inert extra'); }, 'user'],
+]) {
+  test(`.6 metadata permits ${name}, but no synthetic runtime success claimed`, t => {
+    const f = asarFixture(t); change(f);
+    const metadata = readNativeProfileMetadata(f.profile, f.plan);
+    assert.equal(metadata.requiredPluginOwner, owner); assert.equal(metadata.userExtras.contentsAttested, false);
+    let calls = 0;
+    t.mock.method(childProcess, 'spawnSync', (exe, args, options) => {
+      calls++; const input = JSON.parse(options.input);
+      assert.equal(input.profileMetadataSha256, metadata.snapshotSha256); assert.equal(input.planSha256, metadata.planSha256);
+      return { status: 1, stderr: '', stdout: '{"schemaVersion":1,"valid":false,"reason":"native-runtime-api-invalid"}' };
+    });
+    syncBuiltinESMExports(); t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+    const result = verifyNativeDesktopFiles(f);
+    assert.equal(calls, 1); assert.equal(result.valid, false); assert.equal(result.runtime.reason, 'native-runtime-api-invalid');
+    assert.equal(result.functional.modelResponseVerified, false);
+  });
+}
+
+for (const [name, change, reason] of [
+  ['off-plan release-owned receipt', f => userReceipt(f, 'release'), 'native-release-owned-extra'],
+  ['missing required owner', f => { explicitOwners(f); const path = join(f.profile, 'desktop-plugin-receipts.json'); const s = JSON.parse(readFileSync(path)); s.owners = {}; write(path, s); }, 'native-receipt-owner-invalid'],
+  ['invalid owner value', f => explicitOwners(f, 'trusted'), 'native-receipt-owner-invalid'],
+  ['user receipt forged healthy state', f => { userReceipt(f); const path = join(f.profile, 'desktop-plugin-receipts.json'); const s = JSON.parse(readFileSync(path)); s.receipts['synthetic-user-extra'].states.verified = false; write(path, s); }, 'native-receipt-invalid'],
+  ['required disabled', f => changeProfile(f, m => { m.dsh.profile.bundles.pop(); }), 'native-profile-composition-mismatch'],
+  ['built-in prefix reordered', f => changeProfile(f, m => { [m.dsh.profile.bundles[0], m.dsh.profile.bundles[1]] = [m.dsh.profile.bundles[1], m.dsh.profile.bundles[0]]; }), 'native-profile-composition-mismatch'],
+  ['duplicate enabled bundle', f => changeProfile(f, m => { m.dsh.profile.bundles.push(m.dsh.profile.bundles[2]); }), 'native-profile-composition-mismatch'],
+  ['missing user verified backing', f => { const r = userReceipt(f); unlinkSync(join(f.profile, '.desktop-plugin-artifacts', `${r.artifactSha256}.tgz`)); }, 'native-user-dependency-metadata-invalid'],
+]) {
+  test(`.6 rejects ${name} before any child (synthetic metadata)`, t => {
+    const f = asarFixture(t); noChild(t); change(f);
+    const result = verifyNativeDesktopFiles(f);
+    assert.equal(result.valid, false); assert.equal(result.provisioning.reason, reason);
+  });
+}
+
+test('.5 retains exact receipt inventory, even when .6 would classify extra as user-owned', t => {
+  const f = fixture(t); userReceipt(f);
+  assert.equal(verifyNativeDesktopFiles(f).provisioning.reason, 'native-receipt-inventory-mismatch');
 });
 
 test('source receipt drift blocks ASAR launch with sound synthetic runtime inventory', t => {

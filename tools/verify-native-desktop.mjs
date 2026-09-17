@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { nativeLayout, preflightAsar, runAsarProbe } from './native-asar-runtime.mjs';
 import { hashFile, physical } from './native-runtime-integrity.mjs';
+import { readNativeProfileMetadata } from './native-profile-metadata.mjs';
 
 const fail = (code) => { throw new Error(code); };
 const requireValue = (condition, code) => { if (!condition) fail(code); };
@@ -218,15 +219,19 @@ function verifyProvisioning(lock, root, home, runtimeMode = false) {
     source.checksumManifest.size === checksum.size && source.checksumManifest.sha256 === checksum.sha256,
   'native-plan-checksum-mismatch');
   const profile = noLinks(join(home, 'profiles', 'desktop'));
-  const state = json(child(profile, 'desktop-plugin-provisioning-state.json'));
-  const store = json(child(profile, 'desktop-plugin-receipts.json'));
-  const manifest = json(child(profile, 'package.json'));
+  // .6 permits user-owned additions, but never promotes them into the locked
+  // release inventory. The legacy physical/link branch keeps its old contract.
+  const profileMetadata = runtimeMode ? readNativeProfileMetadata(profile, plan) : undefined;
+  const state = profileMetadata?.state ?? json(child(profile, 'desktop-plugin-provisioning-state.json'));
+  const store = profileMetadata?.store ?? json(child(profile, 'desktop-plugin-receipts.json'));
+  const manifest = profileMetadata?.manifest ?? json(child(profile, 'package.json'));
   requireValue(state.schemaVersion === 1 && isDeepStrictEqual(state.capability, provisioningCapability) &&
     state.planSha256 === planSha256 && state.composition === 'active' && state.rolledBack === false &&
     state.verified === true && Array.isArray(state.plugins) && state.plugins.length === 1 &&
     Array.isArray(state.removed) && state.removed.every((name) => typeof name === 'string'), 'native-provisioning-state-invalid');
   requireValue(store.schemaVersion === 1 && object(store.receipts) &&
-    isDeepStrictEqual(Object.keys(store.receipts), [source.packageName]), 'native-receipt-inventory-mismatch');
+    (runtimeMode ? Object.hasOwn(store.receipts, source.packageName) :
+      isDeepStrictEqual(Object.keys(store.receipts), [source.packageName])), 'native-receipt-inventory-mismatch');
   const result = state.plugins[0];
   const receipt = store.receipts[source.packageName];
   requireValue(result.name === source.packageName && result.version === source.version && result.required === true &&
@@ -241,7 +246,8 @@ function verifyProvisioning(lock, root, home, runtimeMode = false) {
   const bundles = manifest.dsh?.profile?.bundles;
   requireValue(manifest.name === '@deepseek-ai/dsh-desktop-runtime' && manifest.private === true &&
     typeof manifest.version === 'string' && Array.isArray(bundles) &&
-    isDeepStrictEqual(bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', source.packageName]) &&
+    (runtimeMode ? profileMetadata !== undefined :
+      isDeepStrictEqual(bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', source.packageName])) &&
     manifest.dependencies?.[source.packageName] === `file:.desktop-plugin-artifacts/${artifact.sha256}.tgz`,
   'native-profile-composition-mismatch');
   const artifactPath = child(profile, `.desktop-plugin-artifacts/${artifact.sha256}.tgz`);
@@ -256,7 +262,10 @@ function verifyProvisioning(lock, root, home, runtimeMode = false) {
     return { valid: true, status: 'native-metadata-verified', planSha256, artifactPath,
       packageRoot, profileRoot: profile, packageName: source.packageName, packageVersion: source.version,
       profileManifestSha256: hashFile(join(profile, 'package.json')),
-      pluginManifestSha256: hashFile(join(packageRoot, 'package.json')), sharedPeerResolution: 'pending' };
+      pluginManifestSha256: hashFile(join(packageRoot, 'package.json')),
+      profileMetadataSha256: profileMetadata.snapshotSha256,
+      ownershipSource: profileMetadata.ownershipSource, requiredPluginOwner: profileMetadata.requiredPluginOwner,
+      userExtras: profileMetadata.userExtras, sharedPeerResolution: 'pending' };
   }
   const pluginRequire = createRequire(join(profile, 'node_modules', source.packageName, 'package.json'));
   const hostRequire = createRequire(child(root, 'resources/dsh/node_modules/@deepseek-ai/dsh-desktop-host/package.json'));
@@ -308,6 +317,7 @@ export function verifyNativeDesktopFiles({ lock, installRoot, dshHome, diagnosti
         requireValue(after.archiveSha256 === snapshot.archiveSha256 &&
           isDeepStrictEqual(verifyProvisioning(lock, installRoot, dshHome, true), provisioning), 'native-inconsistent-snapshot');
         return { valid: true, status: 'runtime-tree-verified', mode: 'asar-runtime', fileCount: result.fileCount,
+          version: snapshot.descriptor.release.version, descriptorSha256: snapshot.descriptorSha256,
           unpackedCount: snapshot.unpackedCount, runtimeRoot: snapshot.runtimeRoot, hostEntry: snapshot.hostEntry,
           carrierExecutable: snapshot.executable, executableSha256: snapshot.executableSha256,
           moduleResolutionPolicyUrl: snapshot.moduleResolutionPolicyUrl, sharedPeerResolution: result.mode };

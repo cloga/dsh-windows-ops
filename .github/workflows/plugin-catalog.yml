@@ -44,14 +44,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tools\validate-plugin-catalog.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs tests\native-desktop-acceptance.test.mjs tests\native-asar-release-smoke.test.mjs
+          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs tests\native-desktop-acceptance.test.mjs tests\native-profile-metadata.test.mjs tests\native-asar-release-smoke.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($script in @(
             'tools\dsh-compat-check.mjs', 'tools\validate-plugin-catalog.mjs',
             'tools\validate-repository-content.mjs', 'tools\dsh-doctor.mjs',
             'tools\dsh-dev-tools\index.js', 'tools\dsh-dev-tools\snapshot-json.js',
             'tools\preflight-check.mjs', 'tools\native-asar-runtime.mjs',
-            'tools\native-electron-probe.mjs', 'tools\native-runtime-integrity.mjs'
+            'tools\native-electron-probe.mjs', 'tools\native-runtime-integrity.mjs',
+            'tools\native-profile-metadata.mjs'
           )) {
             node --check $script
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

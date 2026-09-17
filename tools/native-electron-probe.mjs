@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { hashFile, inside, limits, object, packageValid, physical, relativeName, requireValue,
   safeReason, sha256, validateDescriptor } from './native-runtime-integrity.mjs';
+import { readNativeProfileMetadata } from './native-profile-metadata.mjs';
 
 function inventory(root) {
   const files = []; const aliases = new Set();
@@ -54,10 +55,17 @@ export async function probe(input) {
   // Recheck the physical metadata supplied by the outer provisioning acceptance.
   const profileManifest = join(input.profile, 'package.json'); const pluginManifest = join(input.pluginRoot, 'package.json');
   requireValue(hashFile(profileManifest) === input.profileManifestSha256 && hashFile(pluginManifest) === input.pluginManifestSha256, 'native-inconsistent-snapshot');
-  const profileData = JSON.parse(readFileSync(profileManifest, 'utf8'));
+  const planPath = physical(join(dirname(dirname(input.runtimeRoot)), 'desktop-provisioning', 'plan.json'), 'file');
+  requireValue(lstatSync(planPath).size <= 4 * 1024 * 1024, 'native-probe-profile-invalid');
+  const plan = JSON.parse(readFileSync(planPath, 'utf8'));
+  const profileMetadata = readNativeProfileMetadata(input.profile, plan);
+  requireValue(profileMetadata.planSha256 === input.planSha256 && profileMetadata.snapshotSha256 === input.profileMetadataSha256,
+    'native-inconsistent-snapshot');
+  const profileData = profileMetadata.manifest;
   const pluginData = JSON.parse(readFileSync(pluginManifest, 'utf8'));
   requireValue(pluginData.name === input.pluginName && pluginData.version === input.pluginVersion &&
-    isDeepStrictEqual(profileData.dsh?.profile?.bundles, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', input.pluginName]), 'native-probe-profile-invalid');
+    plan.plugins.length === 1 && plan.plugins[0].source.packageName === input.pluginName &&
+    plan.plugins[0].source.version === input.pluginVersion, 'native-probe-profile-invalid');
   const hostManifest = join(input.runtimeRoot, 'node_modules/@deepseek-ai/dsh-desktop-host/package.json');
   const installAnchor = join(input.runtimeRoot, 'node_modules/@deepseek-ai/dsh/package.json');
   metadata(hostManifest); metadata(installAnchor);
@@ -99,9 +107,19 @@ export async function probe(input) {
       typeof resolveBundleDir === 'function' && typeof PluginPackages === 'function', 'native-runtime-api-invalid');
     const layers = profileData.dsh.profile.bundles.map(packageName => {
       const packageDir = resolveBundleDir('windows-ops-check', packageName, installAnchor, input.profile);
-      const expected = packageName === input.pluginName ? input.pluginRoot : join(input.runtimeRoot, 'node_modules', packageName);
-      requireValue(realpathSync(packageDir) === realpathSync(expected), 'native-bundle-root-mismatch');
-      if (packageName !== input.pluginName) metadata(join(packageDir, 'package.json'));
+      if (packageName === input.pluginName) {
+        requireValue(realpathSync(packageDir) === realpathSync(input.pluginRoot), 'native-bundle-root-mismatch');
+      } else if (['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'].includes(packageName)) {
+        requireValue(realpathSync(packageDir) === realpathSync(join(input.runtimeRoot, 'node_modules', packageName)), 'native-bundle-root-mismatch');
+        metadata(join(packageDir, 'package.json'));
+      } else if (inside(input.runtimeRoot, realpathSync(packageDir))) {
+        requireValue(metadata(join(packageDir, 'package.json')).name === packageName, 'native-bundle-root-mismatch');
+      } else {
+        // User additions participate in the real generation, but their code is
+        // never imported or represented as lock-attested baseline content.
+        const expected = physical(join(input.profile, 'node_modules', packageName), 'directory');
+        requireValue(realpathSync(packageDir) === realpathSync(expected), 'native-bundle-root-mismatch');
+      }
       return { packageName, packageDir, patchPath: join(packageDir, 'cordis.yml'), patches: [] };
     });
     const profile = { name: 'desktop', dir: input.profile, layers, patchPath: join(input.profile, 'cordis.patch.yml'), patches: [], patchReload: false };
@@ -161,7 +179,10 @@ export async function probe(input) {
       loadGuard.deregister();
     }
   }
-  requireValue(hashFile(profileManifest) === input.profileManifestSha256 && hashFile(pluginManifest) === input.pluginManifestSha256 &&
+  requireValue(lstatSync(planPath).size <= 4 * 1024 * 1024, 'native-inconsistent-snapshot');
+  const finalMetadata = readNativeProfileMetadata(input.profile, JSON.parse(readFileSync(planPath, 'utf8')));
+  requireValue(finalMetadata.planSha256 === input.planSha256 && finalMetadata.snapshotSha256 === input.profileMetadataSha256 &&
+    hashFile(profileManifest) === input.profileManifestSha256 && hashFile(pluginManifest) === input.pluginManifestSha256 &&
     sha256(readFileSync(descriptorPath)) === input.descriptorSha256, 'native-inconsistent-snapshot');
   return { schemaVersion: 1, valid: true, mode: 'metadata-cjs-esm', resolverDisposed: true,
     fileCount: files.length, peerCount, descriptorSha256: input.descriptorSha256, archiveSha256: input.archiveSha256 };

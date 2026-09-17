@@ -113,13 +113,53 @@ All mounted effects are disposed in `finally`; pre/post resolution snapshots
 must match. Explicit `dshHome` binds both the generation and production policy;
 no ambient DSH override or config/env loader is used.
 
-Qualification still does **not** prove a live Host/session/model round or formal
-release acceptance. The parent must retain actual source-owned initial/restart/
-ancestor-isolation release tests, and qualify Ops separately on that real
-fixture. Required integration counterexamples include private same-version
-shared targets, unresolved peers, wrong generation/home, ancestor SDK bait,
-missing native-addon/public APIs and source drift. Those real-runtime cases
-cannot be proved by the inert local fixture.
+This direct entry still does **not** prove a live Host/session/model round or
+formal release acceptance. The manual bridge below combines it with the actual
+source-owned initial/restart UI and ancestor-SDK-bait acceptance; its additional
+Ops negatives are exactly descriptor-digest, version and absent-home **request
+copies**. Private same-version shared targets, unresolved-peer failures, wrong
+generation/custom-home routing, missing-addon/API failures and induced source
+drift are **not covered by that manual summary**. Retain separately reviewed
+source/unit evidence for those cases, or mark their genuine `.6` coverage pending;
+neither inert fixtures nor legacy `.5` negatives establish it. The genuine
+positive does exercise the shipped public `PluginPackages` native-addon path,
+without an extra private API probe.
+
+### `.6` receipt ownership and user-extra boundary
+
+The `.6` checker accepts the source receipt store's `schemaVersion:1`, `receipts`
+and complete one-to-one `owners` map (`user` or `release`). Required Copilot may
+remain user-owned after an exact same-source reinstall: its locked source,
+receipt/state, archive bytes, installed identity, enabled bundle and required
+shared-peer proof remain mandatory. Off-plan **release-owned** receipts fail.
+The `.5` physical checker retains its prior exact inventory behavior.
+
+Absent legacy `owners` are inferred only in memory: default to user, assigning
+release ownership only when the canonical active state plan hash, normalized
+receipt and profile artifact spec agree. Incomplete evidence never grants
+release ownership; it also cannot satisfy the required current baseline. CHECK
+never migrates, writes, removes or reconstructs profile data.
+
+Bundles must start with the built-in base/Web pair, contain valid unique names,
+and keep required Copilot enabled somewhere in the tail. User tail order is
+preserved when constructing the real public resolution generation. User-owned
+verified receipts, exact registry dependencies, and source-snapshot metadata may
+coexist. Their metadata must match the inspected source codec, but acceptance is
+**not** a health/content proof: `userExtras.contentsAttested` remains `false`.
+Receipt artifact dependency specs require ordinary backing-file presence, not
+user-extra byte verification; source-snapshot dependency specs follow the source's
+metadata-only branch and do not establish that the snapshot archive exists or is
+healthy. Missing required Copilot bytes still fail full locked attestation.
+
+The shared builtins-only helper bounds each of four metadata files to 4 MiB and
+binds their raw hashes: `package.json`, `desktop-plugin-receipts.json`,
+`desktop-plugin-provisioning-state.json`, and optional
+`desktop-plugin-package-locks.json` (explicitly `null` when absent). Both outer
+verification and inner Electron proof use the same ownership validation and
+raw-hash/presence aggregate, plus canonical plan identity. Rereads and the
+post-disposal check reject inconsistent snapshots; no user package code, patches,
+settings or credentials are loaded to validate ownership. Synthetic metadata
+cases and load-counter negatives are not actual `.6` runtime qualification.
 
 ### Bounds and trust boundary
 

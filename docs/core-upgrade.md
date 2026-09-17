@@ -25,6 +25,7 @@ this task's target, not a qualification claim or a mutable latest-version alias.
 
 本次版本记录 / Version-specific assessment:
 [0.1.6-alpha.2](core-016a2-assessment.md) — source review, not deployment qualification.
+Later publication and scoped acceptance: [delivery evidence](core-016a2-delivery.md).
 
 ## 必须先比较官方实现 / Official-first gate
 

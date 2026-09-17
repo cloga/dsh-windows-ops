@@ -212,10 +212,31 @@ steps**—no personal secrets, credential files or source `.env`. It verifies th
 locked immutable release ID/tag, bounded annotated-tag chain to the exact source
 commit/tree, selected asset IDs/names/URLs/sizes/API digests and downloaded
 SHA-256/SHA-512. Downloaded release/receipt/plan bytes must also agree with the
-full locked formal evidence (`nativeProvisioning.fixtureRoot`). It lists and
-extracts the verified NSIS and single `app-64.7z` payload as **data** using existing
-runner 7-Zip, rejecting unsafe paths/links and ambiguous installed layouts. The
-installer and NSIS helpers are never executed. Before the source fixture runs,
+full locked formal evidence (`nativeProvisioning.fixtureRoot`). Existing runner
+7-Zip is used only as a data decoder, forced to `-tNsis` for the outer installer.
+Every outer record still requires one Path/Size field and passes type, link,
+alias, count and depth checks. A blank NSIS Size is **unknown**, not zero; even
+known solid sizes are informational estimates, not output bounds. Only the one
+validated non-directory `app-64.7z` is selected, with literal `-spd`/`--` arguments
+and stdout-only decoding. No other outer record is extracted.
+
+The raw byte sink creates one fixed private file with `wx`, a 4-GiB actual-byte
+cap checked **before every write** using overflow-safe counters, 64-KiB buffers
+and backpressure. Commands have a 180-second deadline and bounded/drained stderr;
+success requires exit zero, EOF and sink completion. Failure checks owned PID/tree
+termination (including its termination helper) and removes only its own partial
+file. Capture-only output is capped at 32 MiB using fixed-size pages. These are
+output/parent-buffer limits, **not decoder RSS or CPU limits**; disposable CI
+runner resources and the deadline remain the execution boundary.
+
+The selected data must have the 7z magic signature and is listed/extracted only
+with `-t7z`. Its exhaustive inner listing still requires known nonnegative file
+sizes and a nonoverflowing 16-GiB total. The unchanged archive is hashed before/
+after the single controlled extraction; 7-Zip's regular-file writer clamps to the
+same item sizes exposed by its listing. Post-extraction paths/types/sizes are
+checked, with no new per-file process or quota machinery. Inner unknown sizes,
+links and unsafe paths are never accepted. The installer and NSIS helpers are
+never executed. Before the source fixture runs,
 the existing maintained read-only reader independently reads **`app.asar/package.json`**
 as data after full header bounds/path/offset checks. Its packed root entry is
 limited to 1 MiB; `name` and the **full** `version` must match the locked release

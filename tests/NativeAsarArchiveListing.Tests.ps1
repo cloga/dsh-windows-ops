@@ -1,4 +1,4 @@
-Describe 'Bounded ASAR archive-listing diagnostics (inert records only)' {
+Describe 'Controlled native archive extraction workflow boundary' {
     BeforeAll {
         $workflow = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\.github\workflows\native-asar-release.yml') -Raw
         $start = $workflow.IndexOf('      - name: Extract verified NSIS payload as data using existing runner 7-Zip')
@@ -6,67 +6,34 @@ Describe 'Bounded ASAR archive-listing diagnostics (inert records only)' {
         if ($start -lt 0 -or $end -le $start) { throw 'Extraction step not found' }
         $section = $workflow.Substring($start, $end - $start)
         $match = [regex]::Match($section, '(?s)        run: \|\r?\n(?<body>.*)')
-        $body = ([regex]::Matches($match.Groups['body'].Value, '(?m)^          (?<line>[^\r\n]*)') |
+        $script:body = ([regex]::Matches($match.Groups['body'].Value, '(?m)^          (?<line>[^\r\n]*)') |
             ForEach-Object { $_.Groups['line'].Value }) -join "`n"
+    }
+    It 'parses without executing any native tool or installer' {
         $tokens = $null; $errors = $null
-        $ast = [Management.Automation.Language.Parser]::ParseInput($body, [ref]$tokens, [ref]$errors)
-        if ($errors.Count -gt 0) { throw 'Extraction step parse failed' }
-        $function = $ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-ArchiveListing' }, $true)
-        if ($function.Count -ne 1) { throw 'Listing function not found' }
-        # Load ONLY this helper; no workflow steps, actual 7-Zip, installer or source code run.
-        Invoke-Expression $function[0].Extent.Text
+        $null = [Management.Automation.Language.Parser]::ParseInput($body, [ref]$tokens, [ref]$errors)
+        $errors.Count | Should -Be 0
     }
-    BeforeEach {
-        $script:savedPrivate = $env:PRIVATE_ROOT
-        $env:PRIVATE_ROOT = $TestDrive
-        New-Item -ItemType Directory -Path (Join-Path $TestDrive 'logs') -Force | Out-Null
-        $script:diagnostics = @()
-        Mock Write-Host { param($Object) $script:diagnostics += [string]$Object }
-        $sevenZip = { $global:LASTEXITCODE = 0; $script:listingFixture }
+    It 'passes exact reviewed identity to the controlled helper, not full NSIS unpack' {
+        $body | Should -Match 'tools/native-asar-extract\.mjs'
+        $body | Should -Match '--seven-zip \$sevenZip --installer \$installer --installer-sha256 \$lockedInstaller\[0\]\.sha256 --installer-bytes \$lockedInstaller\[0\]\.bytes --work-root \$env:PRIVATE_ROOT'
+        $body | Should -Not -Match '& \$sevenZip x \$installer|Start-Process|Assert-ArchiveListing'
+        $body | Should -Match 'Join-Path\s+\$env:ProgramFiles'
+        $body | Should -Match '7-Zip/7z.exe'
     }
-    AfterEach { $env:PRIVATE_ROOT = $script:savedPrivate }
-
-    It 'keeps the numeric file and directory size contract intact: <Label>' -TestCases @(
-        @{ Label = 'nsis'; Record = "Path = fixture/file.bin`nSize = 12`nPacked Size = 8`nAttributes = A`n" },
-        @{ Label = 'application'; Record = "Path = fixture`nSize = 0`nFolder = +`nAttributes = D`n" }
-    ) {
-        param($Label, $Record)
-        $script:listingFixture = $Record
-        { Assert-ArchiveListing 'inert-never-opened.exe' $Label } | Should -Not -Throw
-        @($script:diagnostics | Where-Object { $_ -like 'ASAR_LISTING_DIAGNOSTIC *' }).Count | Should -Be 0
+    It 'bounds helper output and reports only fixed stage and owned reason on failure' {
+        $body | Should -Match 'Length -gt 16384'
+        $body | Should -Match "'reason,schemaVersion,stage,valid'"
+        $body | Should -Match 'stage -isnot \[string\]'
+        $body | Should -Match "'preflight','nsis-listing','nsis-selected-stream','7z-listing','7z-extraction','extracted-inventory'"
+        $body | Should -Match 'ASAR_EXTRACTION_DIAGNOSTIC'
+        $body | Should -Not -Match 'Write-Host[^\r\n]*\.stderr|Get-Content[^\r\n]*extraction\.stderr'
     }
-
-    It 'still rejects unknown or malformed sizes and emits only owned shape: <Label> <Kind>' -TestCases @(
-        @{ Label = 'nsis'; Kind = 'blank-file'; SizeLine = 'Size = '; Directory = $false; Fields = 1; Blank = 1 },
-        @{ Label = 'application'; Kind = 'absent-file'; SizeLine = ''; Directory = $false; Fields = 0; Blank = 0 },
-        @{ Label = 'nsis'; Kind = 'blank-directory'; SizeLine = 'Size = '; Directory = $true; Fields = 1; Blank = 1 },
-        @{ Label = 'application'; Kind = 'nonnumeric'; SizeLine = 'Size = fixture-private-text'; Directory = $false; Fields = 1; Blank = 0 }
-    ) {
-        param($Label, $Kind, $SizeLine, $Directory, $Fields, $Blank)
-        $folder = if ($Directory) { 'Folder = +' } else { 'Folder = -' }
-        $script:listingFixture = ((@('Path = fixture-private-name/file.bin', $SizeLine, 'Packed Size = 8', $folder) | Where-Object { $_ -ne '' }) -join "`n") + "`n"
-        { Assert-ArchiveListing 'inert-never-opened.exe' $Label } | Should -Throw '*native-asar-archive-size-invalid*'
-        $records = @($script:diagnostics | Where-Object { $_ -like 'ASAR_LISTING_DIAGNOSTIC *' })
-        $records.Count | Should -Be 1
-        $records[0] | Should -Not -Match 'fixture-private|file.bin|inert-never-opened|Path =|Packed Size ='
-        $data = $records[0].Substring('ASAR_LISTING_DIAGNOSTIC '.Length) | ConvertFrom-Json
-        $data.schemaVersion | Should -Be 1
-        $data.valid | Should -BeFalse
-        $data.stage | Should -Be ($Label + '-listing')
-        $data.recordIndex | Should -Be 1
-        $data.sizeFieldCount | Should -Be $Fields
-        $data.numericSizeFieldCount | Should -Be 0
-        $data.blankSizeFieldCount | Should -Be $Blank
-        $data.directoryFlag | Should -Be $Directory
-        $data.numericPackedSizePresent | Should -BeTrue
-        $data.reason | Should -Be 'native-asar-archive-size-invalid'
-        ($data.PSObject.Properties.Name | Sort-Object) -join ',' |
-            Should -Be 'blankSizeFieldCount,directoryFlag,numericPackedSizePresent,numericSizeFieldCount,reason,recordIndex,schemaVersion,sizeFieldCount,stage,valid'
-    }
-
-    It 'still rejects unsafe paths before any shape diagnostic' {
-        $script:listingFixture = "Path = ../fixture-private-escape`nSize = `n"
-        { Assert-ArchiveListing 'inert-never-opened.exe' 'nsis' } | Should -Throw '*native-asar-archive-path-rejected*'
-        @($script:diagnostics | Where-Object { $_ -like 'ASAR_LISTING_DIAGNOSTIC *' }).Count | Should -Be 0
+    It 'requires typed bounded success before app discovery and removes private summaries' {
+        $body | Should -Match 'payloadBytes -le 0 -or \$result.payloadBytes -gt 4GB'
+        $body | Should -Match 'innerDeclaredBytes -gt 16GB'
+        $body | Should -Match 'nsisSelectedSizeKnown -isnot \[bool\]'
+        $body.IndexOf('native-asar-extraction-output-invalid') | Should -BeLessThan $body.IndexOf('--discover-application')
+        $workflow | Should -Match "'extraction.json'"
     }
 }

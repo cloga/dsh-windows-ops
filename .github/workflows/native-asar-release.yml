@@ -286,74 +286,37 @@ jobs:
           $sevenZip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
           $tool = Get-Item -LiteralPath $sevenZip
           if ($tool.PSIsContainer -or ($tool.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Existing runner 7-Zip is required' }
-          $outer = Join-Path $env:PRIVATE_ROOT 'nsis'
           $applicationRoot = Join-Path $env:PRIVATE_ROOT 'application'
-          function Assert-ArchiveListing([string] $Archive, [ValidateSet('nsis', 'application')][string] $Label) {
-            Write-Host ('ASAR_STAGE ' + $Label + '-listing')
-            $listing = Join-Path $env:PRIVATE_ROOT "logs/$Label.listing"
-            & $sevenZip l -slt -ba -bd -bsp0 $Archive > $listing 2> (Join-Path $env:PRIVATE_ROOT "logs/$Label-list.stderr")
-            if ($LASTEXITCODE -ne 0 -or (Get-Item -LiteralPath $listing).Length -gt 32MB) { throw 'native-asar-archive-listing-failed' }
-            $records = (Get-Content -LiteralPath $listing -Raw) -split '(?:\r?\n){2,}'
-            $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-            [long] $total = 0
-            $recordIndex = 0
-            foreach ($record in $records) {
-              if ([string]::IsNullOrWhiteSpace($record)) { continue }
-              $recordIndex++
-              $paths = [regex]::Matches($record, '(?m)^Path = ([^\r\n]*)\r?$')
-              if ($paths.Count -ne 1) { throw 'native-asar-archive-record-invalid' }
-              $path = $paths[0].Groups[1].Value.Replace('\', '/')
-              $parts = $path.Split('/')
-              if ($path.Length -eq 0 -or $path.Length -gt 32760 -or $parts.Count -gt 128 -or
-                  $path -match '[\x00-\x1f:"<>|?*]' -or $path.StartsWith('/') -or
-                  @($parts | Where-Object { $_ -in @('', '.', '..') -or $_ -match '[. ]$' -or $_ -match '^(?i:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)' }).Count -gt 0 -or
-                  -not $names.Add($path) -or $names.Count -gt 200000) { throw 'native-asar-archive-path-rejected' }
-              # Technical listing exposes link/reparse metadata; do not ask 7-Zip
-              # to create any link/stream, even from a checksum-verified installer.
-              if ($record -match '(?im)^(?:Symbolic Link|Hard Link|Reparse(?: Point)?|Alternate Stream)\s*=' -or
-                  $record -match '(?im)^Attributes = .*\bl[rwxstST-]{9}(?:\s|$)' -or
-                  $record -match '(?im)^(?:Attributes|Characteristics) = .*\bReparse\b' -or
-                  $record -match '(?im)^Encrypted = \+') { throw 'native-asar-archive-link-or-special-entry-rejected' }
-              $sizes = [regex]::Matches($record, '(?m)^Size = (\d+)\r?$')
-              if ($sizes.Count -ne 1) {
-                # Diagnose maintained 7-Zip format differences without printing a
-                # path, raw record/listing, parser text, stderr, or any credentials.
-                $diagnostic = [ordered]@{
-                  schemaVersion = 1; valid = $false; stage = ($Label + '-listing')
-                  reason = 'native-asar-archive-size-invalid'; recordIndex = $recordIndex
-                  sizeFieldCount = [regex]::Matches($record, '(?m)^Size = [^\r\n]*\r?$').Count
-                  numericSizeFieldCount = $sizes.Count
-                  blankSizeFieldCount = [regex]::Matches($record, '(?m)^Size = [ \t]*\r?$').Count
-                  directoryFlag = [bool]($record -match '(?im)^Folder = \+|^Attributes = D|^Attributes = .*\bd[rwxstST-]{9}(?:\s|$)')
-                  numericPackedSizePresent = [bool]($record -match '(?m)^Packed Size = \d+\r?$')
-                }
-                Write-Host ('ASAR_LISTING_DIAGNOSTIC ' + ($diagnostic | ConvertTo-Json -Compress))
-                throw 'native-asar-archive-size-invalid'
-              }
-              [long] $size = 0
-              if (-not [long]::TryParse($sizes[0].Groups[1].Value, [ref]$size) -or $size -gt 16GB) { throw 'native-asar-archive-size-invalid' }
-              $total += $size
-              if ($total -gt 16GB) { throw 'native-asar-archive-size-limit' }
-            }
-            if ($names.Count -eq 0) { throw 'native-asar-empty-archive-rejected' }
-          }
-          function Assert-NoExtractedLinks([string] $Root) {
-            foreach ($item in Get-ChildItem -LiteralPath $Root -Force -Recurse) {
-              if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'native-asar-extracted-reparse-entry-rejected' }
-            }
-          }
-          # Neither the installer, NSIS helpers nor an extracted EXE is executed here.
           $installer = Join-Path $env:PRIVATE_ROOT ('evidence/' + $plan.installerName)
-          Assert-ArchiveListing $installer 'nsis'
-          & $sevenZip x $installer "-o$outer" -y -bd -bso0 -bsp0 > (Join-Path $env:PRIVATE_ROOT 'logs/nsis.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/nsis.stderr')
-          if ($LASTEXITCODE -ne 0) { throw 'native-asar-nsis-data-extraction-failed' }
-          Assert-NoExtractedLinks $outer
-          $payloads = @(Get-ChildItem -LiteralPath $outer -File -Recurse -Filter 'app-*.7z')
-          if ($payloads.Count -ne 1 -or $payloads[0].Name -cne 'app-64.7z' -or ($payloads[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'native-asar-nsis-payload-layout-rejected' }
-          Assert-ArchiveListing $payloads[0].FullName 'application'
-          & $sevenZip x $payloads[0].FullName "-o$applicationRoot" -y -bd -bso0 -bsp0 > (Join-Path $env:PRIVATE_ROOT 'logs/application.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/application.stderr')
-          if ($LASTEXITCODE -ne 0) { throw 'native-asar-application-data-extraction-failed' }
-          Assert-NoExtractedLinks $applicationRoot
+          $lockedInstaller = @($plan.assets | Where-Object name -CEQ $plan.installerName)
+          if ($lockedInstaller.Count -ne 1) { throw 'native-asar-installer-selection-invalid' }
+          $resultPath = Join-Path $env:PRIVATE_ROOT 'extraction.json'
+          # No full NSIS unpack: exhaustive metadata gates select ONE literal member,
+          # whose raw stdout is capped before each write to a fixed private file.
+          # Forced NSIS/7z formats, 7z magic and strict known inner sizes are separate.
+          & node (Join-Path $env:OPS_ROOT 'tools/native-asar-extract.mjs') --seven-zip $sevenZip --installer $installer --installer-sha256 $lockedInstaller[0].sha256 --installer-bytes $lockedInstaller[0].bytes --work-root $env:PRIVATE_ROOT > $resultPath 2> (Join-Path $env:PRIVATE_ROOT 'logs/extraction.stderr')
+          $extractionExit = $LASTEXITCODE
+          if ((Get-Item -LiteralPath $resultPath).Length -gt 16384) { throw 'native-asar-extraction-output-invalid' }
+          $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+          if ($result.schemaVersion -ne 1 -or $result.valid -isnot [bool]) { throw 'native-asar-extraction-output-invalid' }
+          if ($extractionExit -ne 0) {
+            if ((($result.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'reason,schemaVersion,stage,valid' -or
+                $result.valid -cne $false -or $result.reason -isnot [string] -or $result.reason -cnotmatch '^native-[a-z-]{1,128}$' -or
+                $result.stage -isnot [string] -or $result.stage -cnotin @('preflight','nsis-listing','nsis-selected-stream','7z-listing','7z-extraction','extracted-inventory')) { throw 'native-asar-extraction-output-invalid' }
+            Write-Host ('ASAR_EXTRACTION_DIAGNOSTIC ' + (@{ stage = $result.stage; reason = $result.reason; valid = $false } | ConvertTo-Json -Compress))
+            throw 'native-asar-controlled-extraction-failed'
+          }
+          if ((($result.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'extraction,innerDeclaredBytes,innerEntryCount,installerSha256,nsisEntryCount,nsisSelectedSizeKnown,payloadBytes,payloadSha256,schemaVersion,valid' -or
+              $result.valid -cne $true -or $result.extraction -cne 'selected-nsis-payload-to-strict-7z' -or
+              $result.installerSha256 -isnot [string] -or $result.installerSha256 -cne $lockedInstaller[0].sha256 -or
+              $result.payloadSha256 -isnot [string] -or $result.payloadSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+              $result.nsisSelectedSizeKnown -isnot [bool]) { throw 'native-asar-extraction-output-invalid' }
+          foreach ($name in @('payloadBytes', 'innerDeclaredBytes', 'nsisEntryCount', 'innerEntryCount')) {
+            if (($result.$name -isnot [long] -and $result.$name -isnot [int]) -or $result.$name -lt 0) { throw 'native-asar-extraction-output-invalid' }
+          }
+          if ($result.payloadBytes -le 0 -or $result.payloadBytes -gt 4GB -or $result.innerDeclaredBytes -gt 16GB -or
+              $result.nsisEntryCount -le 0 -or $result.nsisEntryCount -gt 200000 -or $result.innerEntryCount -le 0 -or
+              $result.innerEntryCount -gt 200000) { throw 'native-asar-extraction-output-invalid' }
           # Maintained read-only ASAR reader independently verifies root package.json
           # name + full release version (PE ProductVersion is numeric only).
           & node (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --discover-application --lock (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') --confirm-version $env:CONFIRM_VERSION --extract-root $applicationRoot > (Join-Path $env:PRIVATE_ROOT 'application.json') 2> (Join-Path $env:PRIVATE_ROOT 'logs/discovery.stderr')
@@ -469,6 +432,6 @@ jobs:
               [IO.Directory]::Delete($full, $false)
             } else { [IO.File]::Delete($full) }
           }
-          foreach ($name in @('source', 'application', 'nsis', 'evidence', 'logs', 'output', 'ops', 'application.json', 'plan.json')) {
+          foreach ($name in @('source', 'application', 'nsis', 'evidence', 'logs', 'output', 'ops', 'application.json', 'extraction.json', 'plan.json')) {
             Remove-PrivateEntry (Join-Path $root $name) 0
           }

@@ -4,8 +4,8 @@ Describe 'Required Node workflow failure propagation' {
         @{ FailureAt = 2; ExpectedCount = 2; ExpectedExit = 17 }
         @{ FailureAt = 3; ExpectedCount = 3; ExpectedExit = 17 }
         @{ FailureAt = 4; ExpectedCount = 4; ExpectedExit = 17 }
-        @{ FailureAt = 14; ExpectedCount = 14; ExpectedExit = 17 }
-        @{ FailureAt = 0; ExpectedCount = 14; ExpectedExit = 0 }
+        @{ FailureAt = 16; ExpectedCount = 16; ExpectedExit = 17 }
+        @{ FailureAt = 0; ExpectedCount = 16; ExpectedExit = 0 }
     ) {
         param($FailureAt, $ExpectedCount, $ExpectedExit)
         $workflow = Get-Content (Join-Path $PSScriptRoot '..\.github\workflows\plugin-catalog.yml') -Raw
@@ -23,6 +23,10 @@ Describe 'Required Node workflow failure propagation' {
         $body | Should -Match 'tests\\native-asar-release-smoke\.test\.mjs'
         $body | Should -Match 'tests\\native-profile-metadata\.test\.mjs'
         $body | Should -Match 'tools\\native-profile-metadata\.mjs'
+        $body | Should -Match 'tests\\native-archive-process\.test\.mjs'
+        $body | Should -Match 'tests\\native-asar-extract\.test\.mjs'
+        $body | Should -Match 'tools\\native-archive-process\.mjs'
+        $body | Should -Match 'tools\\native-asar-extract\.mjs'
         $script = Join-Path $TestDrive "workflow-$FailureAt.ps1"
         $audit = Join-Path $TestDrive "audit-$FailureAt.txt"
         $prefix = @'

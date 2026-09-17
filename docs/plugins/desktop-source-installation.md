@@ -2,9 +2,9 @@
 
 ## Availability and ownership
 
-**Source-snapshot installation is not a released or deployed Windows Ops capability.** This guide records the implementation and acceptance work for [deepseek-harness #50](https://github.com/cloga/deepseek-harness/issues/50), proposed in [PR #53](https://github.com/cloga/deepseek-harness/pull/53) at commit [`fee04fb069b18960f0f76c7893635bbea7750812`](https://github.com/cloga/deepseek-harness/commit/fee04fb069b18960f0f76c7893635bbea7750812). That proposal is pending merge/release/activation at this evidence checkpoint. The current [deployment lock](../../deployments/windows-copilot.lock.json) is unchanged; neither a source commit nor this guide upgrades an installed Desktop. Use these source-input procedures only after a complete, source-capable Desktop build has been qualified for the target environment. Do not replace its bundled runtime independently or assume the existing npm-only plugin window accepts source inputs.
+**Source-snapshot installation is not a released or deployed Windows Ops capability.** This guide records the implementation and acceptance work for [deepseek-harness #50](https://github.com/cloga/deepseek-harness/issues/50). The complete implementation, including follow-up fixes, merged in [PR #53](https://github.com/cloga/deepseek-harness/pull/53) on 2026-09-17 at commit [`b8b94437f288fe2dce792a029cbff610101e0319`](https://github.com/cloga/deepseek-harness/commit/b8b94437f288fe2dce792a029cbff610101e0319). No released source-capable Desktop or plugin activation is established by that merge. The current [deployment lock](../../deployments/windows-copilot.lock.json) is unchanged; neither a source commit nor this guide upgrades an installed Desktop. Use these source-input procedures only after a complete, source-capable Desktop build has been qualified for the target environment. Do not replace its bundled runtime independently or assume the existing npm-only plugin window accepts source inputs.
 
-**当前状态：源码快照安装尚未发布或部署。** 本文记录核心 issue #50 的实现与验证边界，不修改正式部署锁。只有经过验证、包含此功能的完整 Desktop 构建才能使用下述来源输入；获取和校验成功不等于插件已激活、可信或纳入正式基线。
+**当前状态：源码快照安装尚未发布或部署。** 核心 issue #50 的完整实现已通过 PR #53 合并，但合并不等于 Desktop 已发布或插件已激活，正式部署锁保持不变。只有经过验证、包含此功能的完整 Desktop 构建才能使用下述来源输入；获取和校验成功不等于插件已激活、可信或纳入正式基线。
 
 The reserved `$DSH_HOME/profiles/desktop` belongs to Desktop's native transaction owner. Install, remove, and reinstall through that owner's plugin-management flow. Do not run a generic CLI, `pnpm add`, `pnpm install`, `pnpm rebuild`, or package-store repair against the reserved profile; do not copy `node_modules` into it. Windows Ops continues to delegate through the selected native provisioning mode rather than becoming a second profile writer. The [deployment guide](../local-core-desktop-copilot.md) and [native provisioning removal runbook](../official-desktop-plugin-provisioning-removal.md) retain their existing responsibilities.
 
@@ -20,7 +20,7 @@ A repository archive and a GitHub Release asset are not interchangeable. A sourc
 
 ## Inputs for a source-capable build
 
-The native plugin window's general source field follows the [pinned Desktop input and snapshot rules](https://github.com/cloga/deepseek-harness/blob/fee04fb069b18960f0f76c7893635bbea7750812/apps/desktop/README.md#plugin-sources-and-snapshots). Examples describe input syntax, not permission to install a particular package.
+The native plugin window's general source field follows the [pinned Desktop input and snapshot rules](https://github.com/cloga/deepseek-harness/blob/b8b94437f288fe2dce792a029cbff610101e0319/apps/desktop/README.md#plugin-sources-and-snapshots). Examples describe input syntax, not permission to install a particular package.
 
 | Source | Accepted examples | Important distinction |
 |---|---|---|
@@ -55,7 +55,7 @@ Desktop stages and validates the replacement graph, performs the staged health c
 
 ## Evidence recorded for issue #50
 
-These observations are deliberately separate. They do not change the [catalog validation level](plugin-validation.md), the locked baseline, or release availability.
+These observations were recorded during the pre-merge implementation at [`fee04fb069b18960f0f76c7893635bbea7750812`](https://github.com/cloga/deepseek-harness/commit/fee04fb069b18960f0f76c7893635bbea7750812) and remain deliberately separate. Updating the merged-code reference does not repeat or broaden that evidence. These observations do not change the [catalog validation level](plugin-validation.md), the locked baseline, or release availability.
 
 | Observation | Established | Not established |
 |---|---|---|

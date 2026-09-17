@@ -83,7 +83,7 @@ The `0.4.0-alpha.22` baseline checks:
 | Direct hosted search | request-owned auth and managed protocol/endpoint mismatch checks fail closed; Responses/Anthropic inline search, Responses-only `ctx.web`, and bounded proof remain separate acceptance requirements |
 | Client UI | official DSH Models provider-card authorization |
 | Desktop-managed DSH | bundled `@deepseek-ai/dsh@0.1.5-rc.2`, attested by the locked `resources\dsh\desktop-runtime.json`; no separate Core installation |
-| Desktop | fork-owned `0.1.5-rc.3.cloga.5`; executable bytes, metadata, and descriptor are checked by the installer's discovery implementation |
+| Desktop | fork-owned `0.1.5-rc.3.cloga.7`, sequence 9, source `293b5a79f533005d99cd60cb00b9ecf810187401`; executable bytes, metadata, and descriptor are checked by the installer's discovery implementation |
 | Desktop plugins | `desktopNativeVerifiedRelease` delegates ownership to Desktop; Windows Ops does not populate the reserved profile or copy its dependencies |
 
 The legacy SlotOutlet and no-open recovery patches explicitly select the
@@ -99,6 +99,8 @@ Its immutable `v0.4.0-alpha.22` Release artifact SHA-256 is
 `e749d982ac55752eeca4cf4819b9751144cda1c2dc06033e4b42240151e40e0e`.
 Local Desktop install/update additionally verifies the SHA-512/SRI contract and
 delegates this artifact through the single Desktop-native provisioning adapter.
+
+The current target is immutable [Release `390421989`](local-core-desktop-copilot.md#authoritative-baseline), published `2026-09-17T03:51:36Z`. Formal run `35178158751` built and published on attempt 1; only the remote-check job initially received HTTP 403 and succeeded on its failed-job-only rerun, attempt 2. No artifact was rebuilt or overwritten. Archived formal acceptance artifact `10479574730` proves isolated packaged Electron initial/restart Copilot Models account UI, graph/ancestor isolation, and standalone helper ACK/cancel. It does not prove OAuth, a model response, a local installer upgrade, or source-plugin activation. Publication and the updated lock are not evidence that the local machine has applied `.cloga.7`; replay must report older installed bytes as drift, not silently accept them. See the [baseline identities and evidence boundaries](local-core-desktop-copilot.md#authoritative-baseline).
 
 Replay checks package/source markers only. Credential acceptance is performed
 by the deployment/bootstrap modules and reports record key, kind, and status

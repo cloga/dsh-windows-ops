@@ -11,14 +11,14 @@ import { validateRepositoryContent } from '../tools/validate-repository-content.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const scratchRoot = path.join(root, 'tests', '.repository-content-scratch')
 const fixtureFiles = [
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/release.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/build-receipt.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/capability.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/desktop-provisioning.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/helper-acceptance.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/acceptance.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/initial-packaged-graph.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga5/restart-packaged-graph.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/release.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/build-receipt.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/capability.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/desktop-provisioning.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/helper-acceptance.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/acceptance.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/initial-packaged-graph.json',
+  'tests/fixtures/desktop-native-verified-release/formal-cloga7/restart-packaged-graph.json',
   'deployments/windows-copilot.lock.json',
   'catalog/plugins.json',
   'README.md',
@@ -139,6 +139,21 @@ test('rejects invalid checksum evidence and canonical URL drift', () => {
   assert.match(messages(result), /artifact URL is not canonical/)
   assert.match(messages(result), /checksum-manifest SHA-256 is invalid/)
 })
+
+for (const [name, mutate, expected] of [
+  ['source', (desktop) => { desktop.source.commit = '29f1863f5457470bacd12de00e987b8bdd6f4b2f' }, /Desktop fork source commit differs/],
+  ['sequence', (desktop) => { desktop.releaseChannel.sequence = 6 }, /Desktop fork release sequence differs/],
+  ['installer', (desktop) => { desktop.artifact.sha256 = 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c' }, /Desktop fork installer digest differs/],
+  ['build receipt', (desktop) => { desktop.releaseChannel.buildReceipt.sha256 = 'd083232d6ac98736935529c352259f97abe19b45cb522d730b0488b1b7777515' }, /Desktop fork build receipt raw digest differs/],
+]) {
+  test(`rejects historical cloga.5 Desktop ${name} in the cloga.7 baseline`, () => {
+    const target = copyFixture()
+    const lock = readJson(target, 'deployments/windows-copilot.lock.json')
+    mutate(lock.components.desktop)
+    writeJson(target, 'deployments/windows-copilot.lock.json', lock)
+    assert.match(messages(validateRepositoryContent(target)), expected)
+  })
+}
 
 test('rejects Desktop runtime byte and selector drift', () => {
   const target = copyFixture()

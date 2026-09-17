@@ -1,0 +1,11 @@
+{
+  "helperSha256": "54aa5767c9f993f39a21d2a8d4aa23cd8b377301d19de0cd8d379d4fad4d313e",
+  "isolatedBootstrap": "passed",
+  "validSyntheticHandoffAcknowledged": true,
+  "cancellationCompleted": true,
+  "nodePath": null,
+  "nodeOptions": null,
+  "manifestTransport": "synthetic fetch only; receipt and installer requests forbidden",
+  "liveHandoff": false,
+  "installerStarted": false
+}

@@ -250,33 +250,36 @@ function Test-WindowsCopilotLock {
         }
     } elseif ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness') {
         $channel = $desktop.releaseChannel
-        if ($desktopVersion -cne '0.1.5-rc.3.cloga.5' -or
-            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.5' -or
-            [string]$desktop.source.commit -cne '29f1863f5457470bacd12de00e987b8bdd6f4b2f' -or
-            [string]$desktop.source.reviewedHead -cne '6a6330f011ae48b9f2193026bc64c77765bdb4ec' -or
-            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe' -or
-            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.5/cloga-deepseek-harness-0.1.5-rc.3.cloga.5-win-x64.exe' -or
-            [string]$desktop.artifact.sha256 -cne 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c' -or
-            [long]$desktop.artifact.size -ne 180176641 -or
+        if ($desktopVersion -cne '0.1.5-rc.3.cloga.7' -or
+            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.7' -or
+            [string]$desktop.source.commit -cne '293b5a79f533005d99cd60cb00b9ecf810187401' -or
+            [string]$desktop.source.tree -cne 'de807cc4c582f3bb6e2829ea98758e98ec5e576c' -or
+            [string]$desktop.source.reviewedHead -cne 'acf99f2038c42cafa076d4aff69f01f43260c988' -or
+            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.7-win-x64.exe' -or
+            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.7/cloga-deepseek-harness-0.1.5-rc.3.cloga.7-win-x64.exe' -or
+            [string]$desktop.artifact.sha256 -cne '290b587cdab3ffa315ba1796ccabd436096f996abaa144652e33457fd65a3b93' -or
+            [long]$desktop.artifact.size -ne 180217778 -or
             $desktop.artifact.releaseImmutable -ne $true -or
             [int]$channel.schemaVersion -ne 3 -or
             [string]$channel.owner -cne 'cloga/deepseek-harness' -or
             [string]$channel.mode -cne 'interactive-windows-installer' -or
-            [int]$desktop.source.pullRequest -ne 49 -or
-            [long]$desktop.artifact.releaseId -ne 390292533 -or
-            [long]$desktop.artifact.assetId -ne 568852338 -or
-            [int]$channel.sequence -ne 6 -or
-            [string]$channel.manifestRawSha256 -cne 'b6fa1c79fd4a534c1ed7b5bc9caa85241e6c91d0745f07c800dad112176f161e' -or
-            [string]$channel.manifestSha256 -cne '2e5b8efbabd812b07258e0fa794ffa04a7084f84a86ac6ee3ca534c034221152') {
+            [int]$desktop.source.pullRequest -ne 57 -or
+            [long]$desktop.artifact.releaseId -ne 390421989 -or
+            [long]$desktop.artifact.assetId -ne 569397800 -or
+            [int]$channel.sequence -ne 9 -or
+            [string]$channel.manifestRawSha256 -cne 'cacc56fa4b5f4cd9e8388a85e147034f63398f0efa4203b175e4bc6eeaf166c9' -or
+            [string]$channel.manifestSha256 -cne 'fd9952367bc74a0c25d803330d185c1ce302eb0c1e587ba5b0669198b6cd6178' -or
+            [string]$channel.buildReceipt.sha256 -cne '697c937714a89e7d58fe2fc0096681ee11a493f16174e3c02e18de1eca87c8e7' -or
+            [string]$channel.buildReceipt.receiptSha256 -cne 'af982a0f5e14b0ea20f41c22d0a8ee5c0fb0d8db316626f6feb9ae18e9f69e2d') {
             throw 'Desktop identity must match the immutable cloga fork-owned 0.1.5 release.'
         }
         if ([int]$channel.managedCapability.schemaVersion -ne 3 -or
-            [int]$channel.managedCapability.currentSequence -ne 6 -or
+            [int]$channel.managedCapability.currentSequence -ne 9 -or
             [int]$channel.managedCapability.minimumSequence -ne 2 -or
             $channel.pluginCompatibility.automaticProvisioning -ne $false -or
             $channel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning -ne $true -or
             [string]$channel.nativeProvisioning.capabilitySha256 -cne
-                'd13be03ea6af8ffdec8919af45ab23efd4efa8fa5f354b1858d6267910fad88e' -or
+                'cf5c8499715bb8eae4586f0d46612439c19b9491dc29822a734dcb2ec0b7d23b' -or
             [string]$channel.nativeProvisioning.helperSha256 -cne
                 '54aa5767c9f993f39a21d2a8d4aa23cd8b377301d19de0cd8d379d4fad4d313e' -or
             [string]$channel.nativeProvisioning.plan.sha256 -cne
@@ -306,7 +309,7 @@ function Test-WindowsCopilotLock {
     if ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness' -and (
         [string]$installedDesktop.relativePath -cne 'cloga-deepseek-harness.exe' -or
         [string]$installedDesktop.sha256 -cne
-            '2ee392923d3796c9d68fbcfec675be558a3b0d68c3a68ec5dbce0f88a8212561' -or
+            '1bf4524a0779f4451d9371d40a09fb0b9a1b44e0881818afd73809a771ac7711' -or
         [string]$installedDesktop.productName -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.fileDescription -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.companyName -cne 'GitHub, Inc.' -or
@@ -314,7 +317,7 @@ function Test-WindowsCopilotLock {
         [string]$installedDesktop.authenticodeStatus -cne 'NotSigned' -or
         [string]$desktop.installedRuntimeDescriptor.relativePath -cne 'resources\dsh\desktop-runtime.json' -or
         [string]$desktop.installedRuntimeDescriptor.sha256 -cne
-            'f21d8b8fb67ed04554290acf3a48c91ea163bef7772842fd0796e0e97788d72d')) {
+            'ccb45e7c151318c0f239de2dafa64dcec05b8fdff6347cfbc7ed3b2de3264092')) {
         throw 'Installed Desktop executable identity must match the reviewed cloga fork release evidence.'
     }
     $copilotSource = $Lock.components.copilotIntegration.source
@@ -482,7 +485,7 @@ function Test-WindowsCopilotLock {
         }
     } elseif ([string]$officialSelector.id -ceq 'desktop-fork-managed') {
         if ([string]$officialSelector.source -cne 'desktop-managed-release' -or
-            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.5' -or
+            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.7' -or
             [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
             [string]$officialSelector.package.version -cne '0.1.5-rc.2' -or
             [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.5-rc.2' -or

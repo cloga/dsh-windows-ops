@@ -103,7 +103,11 @@ for this assessment.
 认定等价替代。依赖范围、原生加载器和平台二进制需一起审视；源码、锁文件与运行环境
 均不因镜像缺包而自动降级。
 
-## Qualification work still required
+## Findings at the audited starting points
+
+These findings describe the starting sources above. Later adaptation, publication
+and remaining qualification limits are recorded in the [delivery evidence](core-016a2-delivery.md).
+A fixed plugin issue does not by itself qualify the new Core/Desktop deployment.
 
 1. Copilot handwritten strict Remote codecs require `create()` on alpha.2; merely widening peer ranges leaves Client `$mount` broken. Preserve explicit owned view validation because Gateway success is not result-schema validation.
 2. Copilot role child descriptor parsing expects version 1 while official emits version 3. This predates alpha.2 (also present in alpha.1): label it as a pre-existing mismatch, rebuild the plugin projection cache safely, and do not invent migration of old durable children.

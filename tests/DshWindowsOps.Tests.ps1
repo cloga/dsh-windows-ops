@@ -258,7 +258,7 @@ Describe 'DSH replay patching' {
             'api: descriptor.api',
             'baseURL: proof.baseURL'
         )
-        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/preview-route.ts'
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/blob/e49bf7c9307cf22dd9ea720bed8750101fc986ed/src/preview-route.ts'
     }
 
     It 'locks canonical route precedence and hostname-scoped metadata in the packed shared chunk' {
@@ -305,7 +305,7 @@ Describe 'DSH replay patching' {
             'async function repairGitHubCopilotProviderProfile(ctx)',
             'normalizeGitHubCopilotOAuthCredential(record.payload)'
         )
-        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/authorization-controller.ts'
+        $patch[0].upstreamUrl | Should -Be 'https://github.com/cloga/dsh-github-copilot/blob/e49bf7c9307cf22dd9ea720bed8750101fc986ed/src/authorization-controller.ts'
     }
 
     It 'accepts components without optional root and version properties under StrictMode' {

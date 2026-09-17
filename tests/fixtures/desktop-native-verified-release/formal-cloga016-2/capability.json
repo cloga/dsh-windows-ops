@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 3,
+  "mode": "github-release-managed",
+  "owner": "cloga/deepseek-harness",
+  "tagPrefix": "dsh-desktop-v",
+  "manifestAsset": "release.json",
+  "currentSequence": 12,
+  "minimumSequence": 2,
+  "provisioning": {
+    "capability": {
+      "id": "desktopNativePluginProvisioning",
+      "schemaVersion": 1,
+      "planSchemaVersion": 1,
+      "stateSchemaVersion": 1,
+      "pluginCapability": {
+        "id": "desktopNativeVerifiedRelease",
+        "schemaVersion": 1,
+        "sourceSchemaVersion": 1,
+        "receiptSchemaVersion": 1
+      }
+    },
+    "planSha256": "d93e340df7169d5fa11558f6c4ab41171aa7cbf7cb564f177dd125d4076be01c"
+  },
+  "migration": {
+    "owner": "cloga/dsh-windows-ops",
+    "manifestUrl": "https://github.com/cloga/dsh-windows-ops/releases/download/dsh-local-0.1.5-rc.2.local.1/release.json",
+    "manifestSha256": "b13e0e7b160b84c6f001a96cd048a411384c4c4678f36457f9c596ed441fa367",
+    "assetSha256": "7c5a5359bf70ba9234d409e751929d0135a0c2a9430d5473f4b0fe3da47823d2",
+    "maximumSequence": 1,
+    "expectedSource": {
+      "version": "0.1.5-rc.2",
+      "tag": "dsh-v0.1.5-rc.2"
+    }
+  }
+}

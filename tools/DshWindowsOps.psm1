@@ -123,7 +123,7 @@ function Resolve-DshLockedReplayConfig {
     $configuredRoots = @((Get-DshPropertyValue $desktopComponent 'rootCandidates') | Where-Object { $_ })
     if ($configuredRoots.Count -gt 1) { throw 'replay-desktop-root-must-be-unambiguous' }
     if (-not $explicitRoot -and $configuredRoots.Count -eq 1) { $explicitRoot = [string]$configuredRoots[0] }
-    $desktopArgs = @{ Lock = $Lock }
+    $desktopArgs = @{ Lock = $Lock; DshHome = (Get-DshHomePath -Config $Config) }
     if ($explicitRoot) {
         $desktopArgs.Path = Join-Path (Expand-DshPath $explicitRoot) ([string]$Lock.components.desktop.installedExecutable.relativePath)
     }

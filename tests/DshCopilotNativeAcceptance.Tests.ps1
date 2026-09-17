@@ -5,7 +5,7 @@ BeforeAll {
     function New-NativeRemoteFixture {
         @{
             migrationStatus = @{
-                plugin = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.22' }
+                plugin = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.24' }
                 protocolVersion = 1
                 historyScope = 'live-agents-only'
                 observedAt = 1000
@@ -32,7 +32,7 @@ BeforeAll {
     }
     function Test-NativeFixture {
         param($Fixture, [string]$Model = 'fixture-model', [string]$Session = 'fixture-session')
-        Get-DshCopilotNativeRouteAssessment -PluginVersion '0.4.0-alpha.22' `
+        Get-DshCopilotNativeRouteAssessment -PluginVersion '0.4.0-alpha.24' `
             -MigrationStatus $Fixture.migrationStatus -AuthorizationStatus $Fixture.authorizationStatus `
             -ExpectedModelId $Model -ExpectedSessionId $Session
     }

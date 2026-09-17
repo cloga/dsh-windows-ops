@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { releasePlan, validateReleaseMetadata, validateSourceIdentity, discoverApplication, runReleaseSmoke, verifySource,
-  validateApplicationPackageMetadata, readApplicationPackageIdentity } from './native-asar-release-smoke.mjs';
+  validateApplicationPackageMetadata, readApplicationPackageIdentity, verifyFreshSettingsEvidence } from './native-asar-release-smoke.mjs';
 import { hashFile, sha256 } from '../tools/native-runtime-integrity.mjs';
 const lockPath = fileURLToPath(new URL('../deployments/windows-copilot.lock.json', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(lockPath, 'utf8'));
@@ -45,6 +45,25 @@ function forbidChildren(t) {
   t.mock.method(childProcess, 'spawnSync', () => { calls++; throw new Error('unexpected child'); });
   syncBuiltinESMExports();
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); assert.equal(calls, 0, 'validation failure must execute zero subprocesses'); });
+}
+
+for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog', 'real-search', 'initial-tamper', 'restart-tamper']) {
+  test(`fresh settings evidence ${mode} is bound to exact formal leaves without execution`, t => {
+    const lock = actualLock(), output = temporary(t); forbidChildren(t);
+    const fixture = fileURLToPath(new URL('../' + lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
+    for (const phase of ['initial', 'restart']) {
+      const name = `${phase}-settings-readonly.json`;
+      writeFileSync(join(output, name), readFileSync(join(fixture, name)));
+    }
+    const accepted = { modelRolesViewLoaded: true, searchProviderCatalogLoaded: true, realSearch: false };
+    if (mode === 'missing-contract') delete lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+    if (mode === 'false-roles') accepted.modelRolesViewLoaded = false;
+    if (mode === 'string-catalog') accepted.searchProviderCatalogLoaded = 'true';
+    if (mode === 'real-search') accepted.realSearch = true;
+    if (mode.endsWith('-tamper')) writeFileSync(join(output, `${mode.split('-')[0]}-settings-readonly.json`), '{}');
+    if (mode === 'valid') assert.equal(verifyFreshSettingsEvidence(lock, accepted, output), undefined);
+    else assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
 }
 
 test('physical .5 lock request fails the release gate before effects (inert)', async t => {

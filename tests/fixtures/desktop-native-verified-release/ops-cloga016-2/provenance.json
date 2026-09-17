@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "qualification": "locked-release-ops-observer",
+  "qualifiedOpsCommit": "243c33d286f19d9e4c608e238a52de2b9a136b9e",
+  "workflowId": 345664659,
+  "workflowPath": ".github/workflows/plugin-catalog.yml",
+  "event": "workflow_dispatch",
+  "runId": 35278350619,
+  "runAttempt": 1,
+  "jobId": 105394672036,
+  "artifactId": 10521682863,
+  "artifactName": "native-asar-qualification-35278350619-1",
+  "zip": {
+    "bytes": 733,
+    "sha256": "8cda9c1657242cefd8a0634d1b9f8f600107e80b668497008ee81700f7c4f184"
+  },
+  "summary": {
+    "file": "qualification.json",
+    "bytes": 1071,
+    "sha256": "6fcbe781c367d33d62351c40a9fd3edfdb5d0ac372dd2986f9884cc470f80524"
+  },
+  "evidence": "Authenticated Actions metadata, original ZIP size/hash and sole entry byte binding independently verified; raw summary copied unchanged.",
+  "freshSettings": "Both phases enforced by qualified driver against locked formal digests; not additional success-summary fields.",
+  "earlierFailure": {
+    "runId": 35276462350,
+    "opsCommit": "afcfff500823b7a234796582fc7d29839d53cc4c",
+    "reason": "native-evidence-unreadable",
+    "observerCalls": 0,
+    "cause": "unproven"
+  },
+  "limitations": [
+    "No whole-carrier attestation",
+    "No real OAuth, model or search",
+    "No local installation, activation or installed application upgrade",
+    "Three invalid request copies do not establish advanced private-peer/custom-home/missing-addon negatives"
+  ]
+}

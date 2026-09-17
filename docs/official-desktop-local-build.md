@@ -201,8 +201,8 @@ home, or write outside the isolated build root.
 
 The PackageLocal receipt carries the single versioned
 `desktopProvisioning` recipe from `deployments/windows-copilot.lock.json`.
-That recipe pins `dsh-github-copilot@0.4.0-alpha.22`, immutable Release/tag
-commit `479340f965c5be7b4408e4f1e6c9dda6c421d37b`, artifact name/URL/size,
+That recipe pins `dsh-github-copilot@0.4.0-alpha.24`, immutable Release/tag
+commit `e49bf7c9307cf22dd9ea720bed8750101fc986ed`, artifact name/URL/size,
 SHA-256, SHA-512/SRI, `SHA256SUMS` identity, the mode-specific registry policy,
 redirect allowlist, adapter, and active mode. PackageLocal does not put a user
 Home, Sessions, settings, credentials, or a prebuilt `node_modules` tree into

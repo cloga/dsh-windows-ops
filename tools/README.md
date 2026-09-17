@@ -12,12 +12,12 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Check or explicitly trigger an operations-owned local Desktop update | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\manage-official-desktop-update-channel.ps1 -Action Check\|Install ...` | Remote Check downloads only `release.json` to a temporary directory and is read-only for owned state. Explicit Install downloads and revalidates all declared files, atomically stages them, then starts the unsigned NSIS installer interactively with no silent arguments; Windows installer/UAC confirmation remains visible | Reuses strict Stage and Complete validation, invokes the same transactional plugin provisioner before schema-3 completion, and reports recoverable blocked state if readback/provisioning cannot complete. It never publishes, embeds `app-update.yml`, enables `electron-updater`, bypasses warnings, or stops processes. See [managed update channel](../docs/official-desktop-local-build.md#dsh-windows-ops-managed-update-channel-explicit-one-click-install) |
 | Compare the locked Copilot artifact with its immutable GitHub Release | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\sync-official-desktop-plugin-release.ps1 -Action Check` | Read-only; `Generate` prints exact follow-up commands but edits nothing | Verifies tag/release immutability, commit, asset/checksum names, sizes, and hashes. Never accepts `latest` or persists credentials |
 | Preview or apply the optional community configuration migration | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-official-desktop-local.ps1 -Migrate` / `-Apply -Migrate -AcknowledgeMigrationPlan sha256:<hash>` | Plan is read-only; Apply changes only validated non-secret target settings after exact plan-hash acknowledgement | Never copies secrets, Sessions, workspaces, `node_modules`, or Desktop profile files; plugin entries remain manual intents; requires process/session probes and keeps a target backup. See [migration stage](../docs/official-desktop-local-build.md#optional-configuration-migration-plan-first) |
-| Check the locked Desktop/Copilot deployment | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | None by default | Produces a plan; no changes without `-Apply`; attests fork-owned Desktop `0.1.5-rc.3.cloga.1`, its `desktop-runtime.json` descriptor, web/headless package coherence, and the exact active PID owning IPv4 `127.0.0.1:3080` |
-| Apply the exact locked Desktop and companion selection | Same command with `-Apply`, plugin source/Release paths, Desktop artifact, and optional `-IncludeCompanionSuite`; add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after the user accepts every listed interruption | High | One backup/rollback transaction; Copilot is required, while the switch atomically includes locked Cron 0.4.1 and Playwright Host 0.1.2; never builds, installs, or selects a DSH runtime |
-| Verify the Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Attests the fork release runtime descriptor for bundled `@deepseek-ai/dsh@0.1.5-rc.2` and the exact active PID owning IPv4 `127.0.0.1:3080`; the installer may use a custom `$INSTDIR`, so explicit Desktop executable paths override the default per-user location |
-| Roll back an installer operation | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -OperationId <id>` (add `-RestartDesktop -AcknowledgeLiveSessionIds <exact listed IDs>` only after explicit interruption approval) | Backup restore | Restores the operation's backed-up Desktop/plugin/profile state without bypassing live-Session restart safety |
+| Check the locked Desktop/Copilot target | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | Read-only | Targets published Desktop `0.1.6-alpha.1.cloga.1` / Core `0.1.6-alpha.1`; audits EXE, `resources/app.asar/dsh/desktop-runtime.json`, virtual/unpacked inventory and native profile proofs. Exact Electron parent/Node-mode Host binding is not a port-3080 check. Scoped genuine Ops observer CI [35210215981](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981) passed; no local activation or model-response proof |
+| Legacy Web deployment Apply only | Legacy-mode installer with `-Apply`, exact artifacts and optional `-IncludeCompanionSuite`; restart needs exact live-Session acknowledgement | High in supported legacy mode | The current native lock rejects external Apply/restart/companion inclusion and delegates to Desktop's separately authorized native flow. Never build, install or select a second Core to bypass this boundary |
+| Verify the Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Current descriptor SHA-256 `b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344`; exact installed EXE/custom `$INSTDIR` controls the ASAR root. Functional evidence remains `manual-verification-required`/exit 2, never a Web-listener substitute |
+| Roll back a legacy installer operation | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -OperationId <id>` | Backup restore only in supported legacy mode | Current native external rollback is refused; use the native consent-gated recovery flow. Legacy rollback never bypasses live-Session restart safety |
 | Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Historical compatibility path; installs no vision fallback. It resolves the canonical locked Release, hash-checks local tarballs, rejects registry/arbitrary specs, upgrades both profiles through the Desktop-managed official CLI, and returns `sign-in-required` until UI authorization completes |
-| Check, stage, or verify the companion suite without replacing Desktop/Core | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` / `-Action Verify` | None by default / Web Profile composition | Uses installed Core 0.1.2-rc.1, Cordis 4.0.2, and required API manifests as its compatibility gate; preserves Desktop links and never mutates globals, settings, credentials, gateway, Desktop, Core, or running processes |
+| Check, stage, or verify the companion suite without replacing Desktop/Core | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` / `-Action Verify` | None by default / Web Profile composition | Requires installed Core 0.1.6-alpha.1, compatible Cordis, and the locked API manifests; preserves existing Desktop state and never mutates globals, settings, credentials, gateway, Desktop, Core, or running processes |
 | Check versions and direct-provider replay markers | `powershell.exe -File tools\dsh-replay.ps1 -Action SelfCheck` | None | Reuses lock-selected installer discovery and runtime descriptor checks; no Tauri fallback. Reports reserved Desktop plugin markers separately from Web/headless configuration. Inspect `deployment.valid` and patch status, not exit zero alone |
 | Preview replay patches | `powershell.exe -File tools\dsh-replay.ps1 -Action Apply -DryRun` | None | Exact-marker plan only |
 | Preflight the session store | `node tools\preflight-check.mjs` / `--fix` | None by default / directory quarantine | Scans every `session-*` stable name and strictly validates the first Zstd frame before startup |
@@ -26,8 +26,8 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Validate repository/lock/doc parity | `node tools\validate-repository-content.mjs` | None | Rejects source, Release, version, fixture, capability, and README drift |
 | Validate plugin catalog metadata | `node tools\validate-plugin-catalog.mjs` | None | Rejects invalid evidence, mutable baseline Releases, and false baseline claims |
 | Detect duplicate sessions | `powershell.exe -File tools\check-session-duplicates.ps1` | None | Report only |
-| Install Playwright MCP tools for every Agent Preset | `dsh plugin --profile web add github:cloga/dsh-playwright-host#v0.1.2` | Web Profile composition; activation requires authorized Host restart | `--dump-config`, bundle tests, then post-restart tool discovery and browser smoke; remove with `dsh plugin --profile web remove dsh-playwright-host` |
-| Install the optional scheduler overlay | `dsh plugin --profile web add github:cloga/dsh-cron#v0.4.1` | Web Profile composition; activation requires restart safety check | Verify `cron_list`, create/remove a disposable task if authorized, and back up task/history files; see `docs/plugins/scheduling.md` |
+| Install Playwright MCP tools for every Agent Preset | After the companion check and artifact verification: `dsh plugin --profile web add https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/dsh-playwright-host-0.1.7.tgz` | Web Profile composition; activation requires authorized Host restart | `--dump-config`, bundle tests, then post-restart tool discovery and browser smoke; remove with `dsh plugin --profile web remove dsh-playwright-host` |
+| Install the optional scheduler overlay | After the companion check and artifact verification: `dsh plugin --profile web add https://github.com/cloga/dsh-cron/releases/download/v0.7.1/dsh-cron-0.7.1.tgz` | Web Profile composition; activation requires restart safety check | Verify `cron_list`, create/remove a disposable task if authorized, and back up task/history files; see `docs/plugins/scheduling.md` |
 | Smoke-test the existing DSH Web GUI from any coding session | `python tools\dsh-web-smoke.py --expect-text "New Session"` | Browser read/isolated profile only | Screenshot plus JSON summary with document, Console, request, and HTTP evidence |
 | Move a session safely | `node tools\dsh-move-session.mjs ...` | Session data | Backup and post-write verification |
 
@@ -37,6 +37,43 @@ Locked managed components remain fail-closed. Unmanaged dependencies are
 inventory-only and cannot make the baseline healthy; an exact active match in
 the target-Core denylist adds `profile-known-incompatible-plugin-active` and
 blocks that cutover.
+
+## ASAR entrypoint boundaries
+
+The lock selects the formally published `.6` ASAR target. Source-owned release
+acceptance and genuine [Ops observer CI `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+passed at code head `83b0303c250b62f55424be3d88347bf147c593d8`; the
+[raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json)
+records actual package full identity, 9,806 runtime files, `metadata-cjs-esm`, one
+observer and profile cleanup. The three rejected request copies do not expand
+that proof to advanced private-peer/custom-home/missing-addon negative cases.
+Publication, repinning and CI success do not install or activate it locally.
+For the selected ASAR runtime:
+
+- The native file checker remains read-only and inventory/peer proof is not a
+  live Host/model response. Host execution uses the locked Electron EXE in Node
+  mode; packaged pnpm/helper execution still uses physical bundled upstream Node.
+  User ownership metadata is preserved without migrations, and permitted user
+  extras remain `contentsAttested:false`, not baseline health. Replay runtime identity uses that audited checker,
+  not PowerShell reads of virtual files; failed prerequisites remain not-ready.
+- The optional Web installer requires an explicit **existing compatible physical
+  Web runtime** (`-RuntimeRoot`) or reports `physical-web-runtime-required`
+  before downloads, import probes or its mutex. It never supplies another Core.
+  See the [optional suite boundary](../docs/plugins/optional-companion-suite.md#physical-web-runtime-boundary).
+- Existing user Agent Presets are not silently skipped: ASAR target-wrapper
+  validation is explicitly `unsupported-asar-target-validation`/not-ready.
+  The successful no-user-presets path does not prove this unsupported validation.
+- Archive patch targets, including native `resources/app.asar.unpacked/dsh` backing files,
+  are immutable/unsupported for replay Verify and DryRun; native Apply/Rollback
+  refusal remains. No archive patching, physical fallback,
+  private boot wrapper, invented CLI flag or read-only `--dump-config` claim is made.
+- `enable-copilot-search-vision.ps1` stays historical official-only; its guard is
+  not loosened into an unqualified native Electron/ASAR launcher.
+
+The [qualification recipe](../tests/fixtures/native-asar-synthetic/README.md)
+separates synthetic checks, actual-release observer proof and outstanding cases.
+These entrypoint limits do not authorize installing, restarting or replacing a
+running Desktop, Host, Web runtime or Profile.
 
 ## Tool families
 

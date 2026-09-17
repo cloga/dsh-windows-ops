@@ -75,10 +75,16 @@ See `docs/startup-60s-timeout.md` for the launcher incident and `docs/plugins/pl
 
 ## Maintained browser-verification practice
 
-For the separately tracked newer plugin source certification, see the
-[Core 0.1.5-rc.2 compatibility record](../core-0.1.5-rc.2-plugin-compatibility.md).
-It does not replace the historical review snapshot or deployment lock below,
-and source-seam checks do not establish browser/runtime acceptance.
+The optional Web overlay now pins **dsh-playwright-host 0.1.7** for the exact
+DSH `0.1.6-alpha.1` source contract. [Release-byte evidence and the mirror
+boundary](../../tools/dsh-playwright-host/README.md) record immutable Release
+389282244, its dereferenced annotated tag, independently verified hashes/SRI
+and checksum manifest. Published tests target official commit
+`0a15e36e7f82b6ed45af6fa9759f29b40dcd965d` and MCP SDK v2. The current catalog
+is **L1**, not a carried-forward L4: no new target Host mount, browser smoke,
+OAuth or model call was performed. The [Core 0.1.5-rc.2 compatibility
+record](../core-0.1.5-rc.2-plugin-compatibility.md) remains historical source
+evidence, not activation evidence for this pin.
 
 For local DSH Web development and repair, use Microsoft's upstream
 [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) through DSH's
@@ -91,7 +97,7 @@ pass the repository validation ladder.
 
 For tools that must be visible under every Agent Preset, install the reviewed
 [`cloga/dsh-playwright-host`](https://github.com/cloga/dsh-playwright-host)
-Profile Bundle at commit `2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac`.
+Profile Bundle at commit `fdec939b48d14d66d14bef3d8f12ec68411d58fb`.
 The synchronized `tools/dsh-playwright-host/` directory is the Windows Ops
 review snapshot. The bundle mounts the MCP client in the Host composition
 without editing a shipped preset. Pin the upstream version
@@ -117,14 +123,26 @@ isolated, disposable browser profile:
       - '1440x900'
     toolCallTimeoutMs: 120000
     failOnStartupError: true
+    maxInstructionBytes: 32768
+    reconnect:
+      enabled: true
+      initialDelayMs: 500
+      maxDelayMs: 30000
+      maxAttempts: 10
 ```
+
+MCP client, MCP resources and system prompt peers must satisfy the published
+`>=0.1.6-alpha.1 <0.1.7-0` range. The Base Profile owns resources and system
+prompt; do not add duplicate provider rows. Artifact peer/import checks and a
+later authorized target mount remain required; source names alone do not prove
+that the actual packaged runtime supplies these services.
 
 Do not add unrestricted file access, attach the user's everyday browser
 profile, or disable origin controls merely for convenience. A normal isolated
 browser can navigate to loopback DSH URLs without an unrestricted filesystem
 or desktop grant.
 
-Stage the immutable bundle with `dsh plugin --profile web add github:cloga/dsh-playwright-host#v0.1.2` and inspect `dsh --profile web --dump-config`. Do not restart while other
+Stage the immutable bundle with `dsh plugin --profile web add github:cloga/dsh-playwright-host#v0.1.7` and inspect `dsh --profile web --dump-config`. Do not restart while other
 Sessions are live. After an explicitly authorized Host restart, create a new
 Session with any Preset and confirm the `mcp__playwright__*` tools are present.
 Browser launch is lazy, so successful composition is necessary but not
@@ -193,6 +211,8 @@ Until a candidate reaches at least `L4` in an isolated test environment:
 - do not install it into the maintained `web` Profile;
 - do not reuse personal browser data;
 - do not enable unrestricted desktop writes;
-- do not add it to the deployment lock.
+- do not make it a required deployment component. An explicitly authorized
+  optional identity pin may record reviewed immutable bytes before L4, but must
+  remain `required: false` and must not imply activation or functional acceptance.
 
 For ordinary web interaction, prefer isolated browser automation over full-desktop control. Use existing-browser or desktop control only when the task genuinely requires authenticated or native UI state.

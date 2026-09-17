@@ -91,7 +91,10 @@ Describe 'Native installer mode and interruption boundaries' {
         Test-Path -LiteralPath $stateRoot | Should -BeFalse
     }
 
-    It 'preserves Unicode installation paths through the real Node stdin verifier without changing caller encoding' {
+    It 'preserves Unicode installation paths through the legacy physical Node stdin fixture without changing caller encoding' {
+        # This is deliberately an inert .5 transport regression, not .6 ASAR evidence.
+        $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources\dsh\desktop-runtime.json'
+        $script:nativeLock.components.desktop.releaseChannel.upstreamVersion = '0.1.5-rc.2'
         $oldEncoding = $OutputEncoding
         $install = Join-Path $TestDrive ('native-' + [char]0x6d4b + [char]0x8bd5)
         $runtime = Join-Path $install 'resources\dsh'
@@ -116,60 +119,105 @@ Describe 'Native installer mode and interruption boundaries' {
         $OutputEncoding | Should -Be $oldEncoding
     }
 
-    It 'binds only exact parent, bundled Node and full Host arguments without requiring 3080' -ForEach @(
-        @{ Mismatch = ''; Preload = $false }, @{ Mismatch = 'parent'; Preload = $false }, @{ Mismatch = 'node'; Preload = $false },
-        @{ Mismatch = 'profile'; Preload = $false }, @{ Mismatch = 'script'; Preload = $false }, @{ Mismatch = 'flag'; Preload = $false }, @{ Mismatch = 'none'; Preload = $false }
-        @{ Mismatch = ''; Preload = $true }, @{ Mismatch = 'script'; Preload = $true },
-        @{ Mismatch = 'runtime'; Preload = $true }, @{ Mismatch = 'policy'; Preload = $true },
-        @{ Mismatch = 'missing-import'; Preload = $true }, @{ Mismatch = 'extra-import'; Preload = $true },
-        @{ Mismatch = 'flag'; Preload = $true }, @{ Mismatch = 'unattested-import'; Preload = $false }
-        @{ Mismatch = 'runtime-attestation'; Preload = $true }, @{ Mismatch = 'unknown-flag'; Preload = $true }
+    It 'binds only the locked <Layout> parent, executable and exact Host argv: <Mismatch> (preload <Preload>)' -ForEach @(
+        foreach ($layout in @('legacy', 'asar')) {
+            foreach ($mismatch in @('', 'parent', 'parent-executable', 'node', 'profile', 'script', 'runtime',
+                'policy', 'policy-case', 'import-case', 'missing-import', 'extra-import', 'flag', 'unknown-flag',
+                'runtime-attestation', 'desktop-attestation', 'none', 'duplicate', 'argv-executable',
+                'malformed-quotes', 'joined-quotes', 'unknown-layout', 'layout-case', 'layout-traversal', 'opposite-layout')) {
+                @{ Layout = $layout; Mismatch = $mismatch; Preload = $true }
+            }
+        }
+        foreach ($mismatch in @('', 'parent', 'node', 'profile', 'script', 'flag', 'none', 'unattested-import')) {
+            @{ Layout = 'legacy'; Mismatch = $mismatch; Preload = $false }
+        }
+        foreach ($mismatch in @('missing-policy-evidence', 'missing-host-evidence', 'runtime-root-evidence',
+            'parent-host', 'parent-renderer', 'parent-helper', 'parent-missing-argv', 'parent-argv-executable')) {
+            @{ Layout = 'asar'; Mismatch = $mismatch; Preload = $true }
+        }
     ) {
         $install = Join-Path $TestDrive ('Desktop Spaces % # ' + [char]0x6d4b + [char]0x8bd5)
         $script:nativeExe = Join-Path $install 'cloga-deepseek-harness.exe'
+        $script:desktopValid = $Mismatch -ne 'desktop-attestation'
         Mock Test-WindowsCopilotLock -ModuleName WindowsCopilotDeployment { $true }
         Mock Get-WindowsCopilotDesktopState -ModuleName WindowsCopilotDeployment {
-            [pscustomobject]@{ valid = $true; path = $script:nativeExe }
+            [pscustomobject]@{ valid = $script:desktopValid; path = $script:nativeExe }
         }
-        $script:policyAttested = $Preload -eq $true
-        $script:runtimeValidJson = if ($Mismatch -eq 'runtime-attestation') { 'false' } else { 'true' }
+        Mock Get-CimInstance -ModuleName WindowsCopilotDeployment { throw 'must use synthetic process inventory' }
         Mock node -ModuleName WindowsCopilotDeployment {
             $global:LASTEXITCODE = 0
-            '{"valid":false,"runtime":{"valid":' + $script:runtimeValidJson + ',"moduleResolutionPolicyUrl":' +
-                $script:policyUrlJson +
-                '},"provisioning":{"valid":false},"functional":{"valid":false,"status":"manual-verification-required"}}'
+            $script:nativeFileEvidence | ConvertTo-Json -Depth 8 -Compress
         }
-        $nodePath = Join-Path $install 'resources\runtime\node\node.exe'
-        $runtime = Join-Path $install 'resources\dsh'
+        $nodePath = if ($Layout -eq 'asar') { $script:nativeExe } else { Join-Path $install 'resources\runtime\node\node.exe' }
+        $runtimeRelative = if ($Layout -eq 'asar') { 'resources\app.asar\dsh' } else { 'resources\dsh' }
+        $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = "$runtimeRelative\desktop-runtime.json"
+        $script:nativeLock.components.desktop.releaseChannel.upstreamVersion = if ($Layout -eq 'asar') { '0.1.6-alpha.1' } else { '0.1.5-rc.2' }
+        $runtime = Join-Path $install $runtimeRelative
         $hostScript = Join-Path $runtime 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'
         $profile = Join-Path $TestDrive 'profiles\desktop'
         $policyPath = Join-Path $runtime 'node_modules\@deepseek-ai\dsh-desktop-host\register-module-resolution-policy.mjs'
         $policyUri = & (Get-Command node -CommandType Application).Source -e "console.log(require('node:url').pathToFileURL(process.argv[1]).href)" $policyPath
         $LASTEXITCODE | Should -Be 0
-        $script:policyUrlJson = if ($script:policyAttested) { ConvertTo-Json $policyUri -Compress } else { 'null' }
+        $script:nativeFileEvidence = @{
+            valid = $false
+            runtime = @{
+                valid = $Mismatch -ne 'runtime-attestation'; runtimeRoot = $runtime; hostEntry = $hostScript
+                moduleResolutionPolicyUrl = if ($Preload) { $policyUri } else { $null }
+            }
+            provisioning = @{ valid = $false }
+            functional = @{ valid = $false; status = 'manual-verification-required' }
+        }
         $parentId = 10
+        $parentExecutable = $script:nativeExe
         switch ($Mismatch) {
             parent { $parentId = 99 }
-            node { $nodePath = Join-Path $TestDrive 'node.exe' }
+            parent-executable { $parentExecutable = Join-Path $TestDrive 'cloga-deepseek-harness.exe' }
+            node { $nodePath = Join-Path $TestDrive ([IO.Path]::GetFileName($nodePath)) }
             profile { $profile = Join-Path $TestDrive 'profiles\web' }
             script { $hostScript = Join-Path $runtime 'desktop-runtime.json' }
             runtime { $runtime = Join-Path $TestDrive 'wrong-runtime' }
             policy { $policyUri = 'file:///C:/unowned/register-module-resolution-policy.mjs' }
+            policy-case { $policyUri = $policyUri.Replace('register-module', 'Register-module') }
+            unknown-layout { $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources/other/desktop-runtime.json' }
+            layout-case { $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = "$runtimeRelative\Desktop-runtime.json" }
+            layout-traversal { $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = "$runtimeRelative\..\dsh\desktop-runtime.json" }
+            opposite-layout {
+                $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = if ($Layout -eq 'asar') {
+                    'resources/dsh/desktop-runtime.json'
+                } else { 'resources/app.asar/dsh/desktop-runtime.json' }
+            }
+            missing-policy-evidence { $script:nativeFileEvidence.runtime.moduleResolutionPolicyUrl = $null }
+            missing-host-evidence { $script:nativeFileEvidence.runtime.hostEntry = $null }
+            runtime-root-evidence { $script:nativeFileEvidence.runtime.runtimeRoot = Join-Path $install 'resources\dsh' }
         }
         $arguments = @($nodePath)
-        if (($script:policyAttested -and $Mismatch -ne 'missing-import') -or $Mismatch -eq 'unattested-import') {
+        if (($Preload -and $Mismatch -ne 'missing-import') -or $Mismatch -eq 'unattested-import') {
             $arguments += @('--import', $policyUri)
         }
         if ($Mismatch -eq 'extra-import') { $arguments += @('--import', $policyUri) }
         $arguments += @($hostScript, $runtime, $profile)
+        if ($Mismatch -eq 'argv-executable') { $arguments[0] = Join-Path $TestDrive 'other.exe' }
+        if ($Mismatch -eq 'import-case') { $arguments[1] = '--IMPORT' }
         $command = '"' + ($arguments -join '" "') + '"'
         if ($Mismatch -eq 'flag') { $command += ' --allow-linked-profile' }
         if ($Mismatch -eq 'unknown-flag') { $command += ' --unknown' }
+        if ($Mismatch -eq 'malformed-quotes') { $command += '"' }
+        if ($Mismatch -eq 'joined-quotes') { $command = $command.Replace('" "', '""') }
         $processes = @(
-            [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'cloga-deepseek-harness.exe'; ExecutablePath = $script:nativeExe; CommandLine = '' },
-            [pscustomobject]@{ ProcessId = 11; ParentProcessId = $parentId; Name = 'node.exe'; ExecutablePath = $nodePath; CommandLine = $command }
+            [pscustomobject]@{ ProcessId = 10; ParentProcessId = 1; Name = 'cloga-deepseek-harness.exe'; ExecutablePath = $parentExecutable; CommandLine = '"' + $parentExecutable + '"' },
+            [pscustomobject]@{ ProcessId = 11; ParentProcessId = $parentId; Name = [IO.Path]::GetFileName($nodePath); ExecutablePath = $nodePath; CommandLine = $command }
         )
-        if ($Mismatch -eq 'none') { $processes = @() }
+        switch ($Mismatch) {
+            parent-host { $processes[0].CommandLine = $command }
+            parent-renderer { $processes[0].CommandLine += ' --type=renderer' }
+            parent-helper { $processes[0].CommandLine += ' --type=utility' }
+            parent-missing-argv { $processes[0].CommandLine = '' }
+            parent-argv-executable { $processes[0].CommandLine = '"' + (Join-Path $TestDrive 'other.exe') + '"' }
+            duplicate {
+                $processes += [pscustomobject]@{ ProcessId = 12; ParentProcessId = $parentId; Name = [IO.Path]::GetFileName($nodePath); ExecutablePath = $nodePath; CommandLine = $command }
+            }
+            none { $processes = @() }
+        }
         $result = Test-WindowsCopilotNativeInstallation -Lock $script:nativeLock -DshHome $TestDrive -DesktopProcesses $processes
         $result.runtime.activeRuntime.valid | Should -Be ($Mismatch -eq '')
         $result.runtime.listenerStatus | Should -Be 'not-applicable-native-host'

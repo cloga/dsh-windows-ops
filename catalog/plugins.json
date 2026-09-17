@@ -98,12 +98,12 @@
       "validation": {
         "level": "baseline",
         "verifiedAt": "2026-09-17",
-        "dshVersion": "fork-owned Desktop-managed 0.1.5-rc.2",
-        "nodeVersion": "24.17.0",
+        "dshVersion": "fork-owned Desktop-managed 0.1.6-alpha.1",
+        "nodeVersion": "24.18.1",
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows Copilot deployment lock pins the fork-owned Desktop, its bundled runtime descriptor and native provisioning capability together with the immutable Copilot artifact, source identity, required host peers, and required capabilities. A promoted lock does not prove local installation.",
+            "description": "The Windows Copilot deployment lock selects the published 0.1.6-alpha.1.cloga.1 Desktop, ASAR-backed runtime descriptor and native provisioning capability with the unchanged immutable Copilot alpha.22 artifact, source identity and required host peers. Scoped genuine Ops observer qualification passed in run 35210215981 at exact code head 83b0303c250b62f55424be3d88347bf147c593d8; publication, repinning and CI proof are not local installation or activation.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -118,8 +118,13 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "Formal cloga.7 packaged acceptance verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and the bundled-Node graph with ancestor SDK isolation. It did not perform OAuth, a real model request, a local installer upgrade, or source-plugin activation.",
-            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga7/acceptance.json"
+            "description": "Formal source run 35197577605 for immutable Desktop 0.1.6-alpha.1.cloga.1 verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and Electron Node-mode ASAR graph/ancestor isolation. Packaged Host evidence reports Electron 44.0.0 and Node 24.18.1; the source build toolchain remains separate. Separate genuine Ops observer run 35210215981 subsequently passed; its own evidence entry preserves the narrower proof boundary. No real OAuth/model round, local installer upgrade, or local activation was performed.",
+            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-1/acceptance.json"
+          },
+          {
+            "kind": "import-probe",
+            "description": "Genuine Ops CI run 35210215981 / called job 105165989138 passed at exact code head 83b0303c250b62f55424be3d88347bf147c593d8 against the unchanged formal .6 release. Artifact 10492165208 retains the raw locked-release-ops-observer summary: 9806 runtime files, actual app.asar package name/full version/raw SHA, shipped public PluginPackages/native-addon/production-policy metadata+CJS+ESM proof, one observer call and owned-profile cleanup. Exactly descriptor-digest, version and absent-home request copies were rejected; advanced private-peer/custom-home/missing-addon negatives are not claimed by those requests. Whole-carrier attestation, model response and installer upgrade remain false; user-extra contents and unsupported Web/preset entrypoints are not promoted. See https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208; no local activation or PR-merge claim.",
+            "path": "tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json"
           }
         ]
       },
@@ -133,7 +138,7 @@
           "Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.",
           "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.",
           "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration.",
-          "This entry pins the historical full deployment baseline, not the newer managed-route maintenance contract. See docs/copilot-managed-route.md and deployments/copilot-managed-route.policy.json for separately approved configuration-only maintenance; no implicit component upgrade or full-baseline attestation is provided."
+          "This entry pins the required plugin in the full deployment target, not the separate newer managed-route maintenance contract. See docs/copilot-managed-route.md and deployments/copilot-managed-route.policy.json for separately approved configuration-only maintenance; no implicit component upgrade or full-baseline attestation is provided."
         ]
       },
       "summary": "The locked DSH companion for Copilot sign-in, account-aware leaf-only model reconciliation, strict Host-only grant handling, provider-scoped Tool compatibility, dual-protocol inline search, and Responses-only ctx.web search through validated GitHub-hosted or Enterprise endpoints; no second adapter, embedded gateway, or ACP scope."
@@ -149,40 +154,35 @@
       "integration": "cordis",
       "source": {
         "repository": "https://github.com/cloga/dsh-playwright-host",
-        "commit": "a7f63e2c3565008e1c614023afb1c3110fd62fff",
-        "release": "0.1.2",
-        "mergeCommit": "2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac",
-        "pullRequest": 6
+        "commit": "c8f514b838516eed8cced19ef2dd514ef1f2f0a4",
+        "release": "0.1.7",
+        "mergeCommit": "fdec939b48d14d66d14bef3d8f12ec68411d58fb",
+        "pullRequest": 19
       },
       "platforms": [
         "windows"
       ],
       "recommendation": "conditional",
       "validation": {
-        "level": "L4",
-        "verifiedAt": "2026-09-03",
-        "dshVersion": "0.1.2-rc.1",
-        "nodeVersion": "24.13.0",
+        "level": "L1",
+        "verifiedAt": "2026-09-17",
+        "dshVersion": "0.1.6-alpha.1 (published source contract; no local activation)",
+        "nodeVersion": null,
         "evidence": [
           {
             "kind": "source-review",
-            "description": "The Host-wide shared-process and isolated-browser boundaries are reviewed and documented.",
+            "description": "Published 0.1.7 composition and peers preserve Host lifetime, isolated Edge and pinned MCP; exact-source tests target official 0a15e36e7f82b6ed45af6fa9759f29b40dcd965d and MCP SDK v2. No target Host mount or live smoke was performed for this repin.",
             "path": "docs/plugins/computer-use.md"
           },
           {
-            "kind": "import-probe",
-            "description": "Static bundle tests and the exact a66e470 rc.1 source-seam test verify Git commit identity, packaged Release bytes, and composed MCP lifecycle markers before activation.",
+            "kind": "source-review",
+            "description": "The local mirror contract checks the reviewed composition, 0.1.6 peer ranges, provenance and optional lock/catalog coherence; static assertions are not import or runtime evidence.",
             "path": "tests/host-playwright-bundle.test.mjs"
           },
           {
-            "kind": "composition-mount",
-            "description": "The Web profile resolves immutable v0.1.2, release artifact SHA-256, resolved commit 2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac, isolated Microsoft Edge, and the pinned MCP version.",
+            "kind": "deployment-lock",
+            "description": "Independently downloaded immutable Release 389282244 assets through the authenticated gate; verified annotated tag commit, size, SHA-256, SHA-512/SRI and SHA256SUMS. Historical L4 does not carry forward to 0.1.7.",
             "path": "tools/dsh-playwright-host/README.md"
-          },
-          {
-            "kind": "functional-smoke",
-            "description": "Host MCP navigated the existing DSH GUI, captured accessibility state, and inspected browser requests after activation.",
-            "path": "docs/plugins/computer-use.md"
           }
         ]
       },
@@ -200,14 +200,17 @@
       },
       "summary": "Optional Host-wide Playwright MCP bundle for isolated Edge testing of the existing DSH GUI.",
       "artifact": {
-        "name": "dsh-playwright-host-0.1.2.tgz",
-        "url": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/dsh-playwright-host-0.1.2.tgz",
-        "sha256": "18e4e2d29429a94f495d9507188282e6157f11c2ef75fa076b54b30c03ac0cf2",
-        "size": 3659,
-        "releaseTag": "v0.1.2",
+        "name": "dsh-playwright-host-0.1.7.tgz",
+        "url": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/dsh-playwright-host-0.1.7.tgz",
+        "sha256": "647c2112f09c9aa9aabfb6fbe3659dad32658a63eeb034a9040736695ca061f3",
+        "sha512": "6c902d923270082697877402321944ab81935a49b20e548d16403e12b5582f82541d2b851adeb9e74ca9b9d23aef07349e142e0f75d2a1fec4c02f1f56841dce",
+        "integrity": "sha512-bJAtkjJwCCaXh3QCMhlEq4GTWkmyDlSNFkA+ErVYL4JUHSuFGt6550ypudI67wc0nhQuD3XSof7EwC8fVoQdzg==",
+        "size": 8280,
+        "releaseTag": "v0.1.7",
+        "releaseCommit": "fdec939b48d14d66d14bef3d8f12ec68411d58fb",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/SHA256SUMS",
-        "checksumManifestSha256": "06647ede584dad3055508733f17cd720f4ebf149c2cd73d680497e7117247e84",
+        "checksumManifestUrl": "https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/SHA256SUMS",
+        "checksumManifestSha256": "45a32a05036595e23d22c101126c41e9f6c77ac0fe1402a2ebc9456f55952a6b",
         "checksumManifestSize": 96
       }
     },
@@ -222,29 +225,29 @@
       "integration": "cordis",
       "source": {
         "repository": "https://github.com/cloga/dsh-cron",
-        "commit": "e0ecca9e18a66fe0acecec6dfc6cc6faaa9520b2",
-        "release": "0.4.1",
-        "mergeCommit": "5f99313e110932195821d924259b2836947271f3",
-        "pullRequest": 12
+        "commit": "7628e5bb9d8b24981962548974cafd3dfa9e509c",
+        "release": "0.7.1",
+        "mergeCommit": "6dae9da71e6c36c58e04f3ca8c10cc5c4790b3bd",
+        "pullRequest": 45
       },
       "platforms": [
         "cross-platform"
       ],
       "recommendation": "conditional",
       "validation": {
-        "level": "L2",
-        "verifiedAt": "2026-09-03",
-        "dshVersion": "0.1.2-rc.1",
+        "level": "L1",
+        "verifiedAt": "2026-09-17",
+        "dshVersion": "0.1.6-alpha.1 (published source contract; no local activation)",
         "nodeVersion": "^22.19.0 || >=24.0.0",
         "evidence": [
           {
             "kind": "source-review",
-            "description": "Version 0.4.1 enforces root-Session ownership, Session-scoped tools and HTTP actions, unbound-task rejection, and deterministic host-restart reconciliation.",
+            "description": "Published 0.7.1 peers and source tests admit exact official 0.1.6-alpha.1, modern persistence handles, public Session seq freshness and optional activation. Root-Session ownership, native Sidebar fallback and Host restart reconciliation remain bounded contracts, not local live evidence.",
             "path": "docs/plugins/scheduling.md"
           },
           {
-            "kind": "import-probe",
-            "description": "The exact official rc.1 source contract, package artifact, and Host entry are verified by the release and repository tests.",
+            "kind": "deployment-lock",
+            "description": "Independently downloaded immutable Release 389294372 assets through the authenticated gate; verified annotated tag commit, size, SHA-256, SHA-512/SRI and SHA256SUMS. No new import, Web mount or scheduled-turn smoke was performed.",
             "path": "docs/plugins/scheduling.md"
           }
         ]
@@ -257,7 +260,7 @@
         "approvalGate": false,
         "notes": [
           "Scheduled prompts are sent to the configured external LLM when tasks fire.",
-          "Version 0.4.1 restricts model and HTTP operations to the owning root Session and rejects subagent or cross-Session ownership.",
+          "Version 0.7.1 restricts model tools and task HTTP operations to the owning root Session; the optional global hub exposes only owner-level counts/next-run metadata, and task transfer is a direct-human-only command.",
           "HTTP sessionId is client-supplied; loopback/trusted-host and same-origin checks provide operational separation, not authentication against a malicious local process.",
           "Nonterminal delivered/running history is closed as interrupted after Host restart; tasks and history persist under DSH_HOME.",
           "Windows native system notifications are not implemented and configured systemNotify flags are quiet no-ops.",
@@ -266,14 +269,17 @@
       },
       "summary": "Optional Web-profile scheduler with Session-bound cold wake, cron tools, and persisted run history.",
       "artifact": {
-        "name": "dsh-cron-0.4.1.tgz",
-        "url": "https://github.com/cloga/dsh-cron/releases/download/v0.4.1/dsh-cron-0.4.1.tgz",
-        "sha256": "9be9e7c6ea1b4bf8a6f354dd1533e8a920f4d397c09fb20e14a2b5c91a50ce5f",
-        "size": 34276,
-        "releaseTag": "v0.4.1",
+        "name": "dsh-cron-0.7.1.tgz",
+        "url": "https://github.com/cloga/dsh-cron/releases/download/v0.7.1/dsh-cron-0.7.1.tgz",
+        "sha256": "136ba9d66ba2f2ada87f1ce97dfb21be97474dc76504fc65ae8e01cde60768d0",
+        "sha512": "f5baf2b185dcd1abab2743c8f06abaeaaeda715ea8b3ae8a38cf3f58647425612bf1ef769984d9fbe92a63719963e785c1788aa5c8cde1bcbffc0935d5ec0ac4",
+        "integrity": "sha512-9brysYXc0aurJ0PI8Gq66q7acV6os66KOM8/WGR0JWEr8e92mYTZ++kqY3GZY+eFwXiKpcjN4by//Ak11ewKxA==",
+        "size": 64919,
+        "releaseTag": "v0.7.1",
+        "releaseCommit": "6dae9da71e6c36c58e04f3ca8c10cc5c4790b3bd",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-cron/releases/download/v0.4.1/SHA256SUMS",
-        "checksumManifestSha256": "ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf",
+        "checksumManifestUrl": "https://github.com/cloga/dsh-cron/releases/download/v0.7.1/SHA256SUMS",
+        "checksumManifestSha256": "f05eef489a31f38ee203b91808d54e2100ae18b222907fbe4125c680bac802f2",
         "checksumManifestSize": 85
       }
     },

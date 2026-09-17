@@ -2,18 +2,40 @@ name: Plugin catalog validation
 
 on:
   workflow_dispatch:
+    inputs:
+      qualify_native_asar:
+        description: Run genuine locked ASAR release qualification on this reviewed ref
+        type: boolean
+        required: false
+        default: false
+      confirm_version:
+        description: Exact locked Desktop version required when qualification is enabled
+        type: string
+        required: false
+        default: ''
   pull_request:
   push:
     branches: [master]
 
 concurrency:
-  group: plugin-catalog-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: plugin-catalog-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.qualify_native_asar && 'native-qualification' || 'checks' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.qualify_native_asar }}
 
 permissions:
   contents: read
 
 jobs:
+  # This workflow is already registered on the default branch. Dispatching its
+  # reviewed PR ref can qualify the same-commit reusable workflow before PR merge.
+  native-asar-qualification:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify_native_asar == true }}
+    needs: [validate, repository-content, repository-policy]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/native-asar-release.yml
+    with:
+      confirm_version: ${{ inputs.confirm_version }}
+
   validate:
     runs-on: windows-latest
     timeout-minutes: 15
@@ -38,17 +60,26 @@ jobs:
       - name: Validate repository, catalog, plugin, and scripts
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
           $env:DSH_016_ROOT = Join-Path $PWD 'dsh-0.1.6'
           node tools\validate-repository-content.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tools\validate-plugin-catalog.mjs
-          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs
-          node --check tools\dsh-compat-check.mjs
-          node --check tools\validate-plugin-catalog.mjs
-          node --check tools\validate-repository-content.mjs
-          node --check tools\dsh-doctor.mjs
-          node --check tools\dsh-dev-tools\index.js
-          node --check tools\dsh-dev-tools\snapshot-json.js
-          node --check tools\preflight-check.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test tests\repository-content.test.mjs tests\dsh-dev-tools.test.mjs tests\plugin-catalog.test.mjs tests\host-playwright-bundle.test.mjs tests\preflight-check.test.mjs tests\native-desktop-acceptance.test.mjs tests\native-profile-metadata.test.mjs tests\native-asar-release-smoke.test.mjs tests\native-archive-process.test.mjs tests\native-asar-extract.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($script in @(
+            'tools\dsh-compat-check.mjs', 'tools\validate-plugin-catalog.mjs',
+            'tools\validate-repository-content.mjs', 'tools\dsh-doctor.mjs',
+            'tools\dsh-dev-tools\index.js', 'tools\dsh-dev-tools\snapshot-json.js',
+            'tools\preflight-check.mjs', 'tools\native-asar-runtime.mjs',
+            'tools\native-electron-probe.mjs', 'tools\native-runtime-integrity.mjs',
+            'tools\native-profile-metadata.mjs', 'tools\native-archive-process.mjs',
+            'tools\native-asar-extract.mjs'
+          )) {
+            node --check $script
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
   repository-content:
     runs-on: ubuntu-latest

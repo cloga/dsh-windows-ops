@@ -141,7 +141,8 @@ function Resolve-DshLockedReplayConfig {
             throw 'replay-configured-executable-conflicts-with-lock'
         }
     }
-    $runtime = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock -DesktopExecutablePath ([string]$desktop.path)
+    $runtime = Get-WindowsCopilotOfficialRuntimeState -Lock $Lock -DesktopExecutablePath ([string]$desktop.path) `
+        -DshHome (Get-DshHomePath -Config $Config)
     $runtimeRoots = @((Get-DshPropertyValue $runtimeComponent 'rootCandidates') | Where-Object { $_ })
     $runtimeEnv = Get-DshPropertyValue $runtimeComponent 'rootEnv'
     if ($runtimeEnv) {
@@ -204,7 +205,26 @@ function Get-DshComponentInventory {
 
     $dshHome = Get-DshHomePath -Config $Config
 
+    $runtime = Get-DshNestedProperty $Config 'deployment.runtime'
     foreach ($component in @($Config.components)) {
+        if ([string]$component.name -ceq 'dsh-desktop-runtime' -and $runtime -and
+            (Get-DshPropertyValue $runtime 'mode') -ceq 'asar-runtime') {
+            # The audited archive is authoritative; its virtual tree is not an OS directory.
+            $valid = (Get-DshPropertyValue $runtime 'valid') -eq $true
+            [pscustomobject]@{
+                name = [string]$component.name
+                installed = [bool]$valid
+                version = if ($valid) { Get-DshPropertyValue $runtime 'version' } else { $null }
+                root = Get-DshPropertyValue $runtime 'root'
+                fileCount = if ($valid) { Get-DshPropertyValue $runtime 'fileCount' } else { $null }
+                status = Get-DshPropertyValue $runtime 'status'
+                reason = Get-DshPropertyValue $runtime 'reason'
+                mode = 'asar-runtime'
+                immutable = $true
+                source = 'native-asar-audit'
+            }
+            continue
+        }
         $root = Resolve-DshComponentRoot -Component $component -DshHome $dshHome
         [pscustomobject]@{
             name      = [string]$component.name
@@ -419,12 +439,63 @@ function Resolve-DshPatchTarget {
     return [pscustomobject]@{ root = $root; path = $null; relative = $null }
 }
 
+function Test-DshImmutableAsarPatchTarget {
+    param(
+        [Parameter(Mandatory)]$Patch,
+        [Parameter(Mandatory)]$Config
+    )
+    # Carrier classification must precede root discovery and all target filesystem reads,
+    # including when the native audit failed and the archive has no OS-visible children.
+    if ([string]$Patch.component -ceq 'dsh-desktop-runtime' -and
+        (Get-DshNestedProperty $Config 'deployment.runtime.mode') -ceq 'asar-runtime') {
+        return $true
+    }
+    $paths = @($Patch.files)
+    $roots = @()
+    foreach ($component in @($Config.components | Where-Object name -eq $Patch.component)) {
+        $roots += @(Get-DshPropertyValue $component 'rootCandidates')
+        $rootEnv = Get-DshPropertyValue $component 'rootEnv'
+        if ($rootEnv) { $roots += [Environment]::GetEnvironmentVariable([string]$rootEnv) }
+    }
+    $paths += $roots
+    # Pure string combinations catch a sidecar root plus a dsh-relative file;
+    # do not discover/resolve filesystem targets merely to classify immutability.
+    foreach ($candidate in $roots) {
+        foreach ($file in @($Patch.files)) {
+            $paths += ([string]$candidate).TrimEnd('\', '/') + '\' + [string]$file
+        }
+    }
+    $home = if ($env:DSH_HOME) { $env:DSH_HOME } else { Get-DshPropertyValue $Config 'dshHome' }
+    foreach ($path in $paths) {
+        $expanded = [Environment]::ExpandEnvironmentVariables(([string]$path).Replace('${DSH_HOME}', [string]$home))
+        # The native app.asar.unpacked/dsh backing tree is part of the same immutable
+        # runtime inventory even when a patch names the Desktop component.
+        if ($expanded -match '(^|[\\/])[^\\/]+\.asar([\\/]|$)' -or
+            $expanded -match '(^|[\\/])app\.asar\.unpacked[\\/]dsh([\\/]|$)') { return $true }
+    }
+    return $false
+}
+
 function Test-DshPatch {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]$Patch,
         [Parameter(Mandatory)]$Config
     )
+    if (Test-DshImmutableAsarPatchTarget -Patch $Patch -Config $Config) {
+        return [pscustomobject]@{
+            id = [string]$Patch.id
+            component = [string]$Patch.component
+            status = 'unsupported-immutable-asar-target'
+            supported = $false
+            applicable = $false
+            immutable = $true
+            target = $null
+            reason = 'Exact-marker replay cannot read or edit immutable ASAR targets; use the native runtime audit and updater.'
+            upstream = Get-DshPropertyValue $Patch 'upstreamStatus'
+            upstreamUrl = Get-DshPropertyValue $Patch 'upstreamUrl'
+        }
+    }
     $selectors = @(Get-DshPropertyValue $Patch 'runtimeSelectors')
     if ($selectors.Count -gt 0 -and $selectors[0]) {
         $selector = Get-DshNestedProperty $Config 'deployment.runtime.selector'
@@ -498,7 +569,8 @@ function Invoke-DshPatchSet {
     )
     Assert-DshReplayMutationAllowed -Config $Config -DryRun:$DryRun
     $operationId = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssfffZ')
-    $backupRoot = Join-Path (Expand-DshPath $StateRoot) (Join-Path 'backups' $operationId)
+    # DryRun and wholly unsupported/no-op plans do not inspect operation state.
+    $backupRoot = $null
     $results = [Collections.Generic.List[object]]::new()
     $inventory = [Collections.Generic.List[object]]::new()
     $plans = [Collections.Generic.List[object]]::new()
@@ -528,6 +600,7 @@ function Invoke-DshPatchSet {
     }
 
     if (-not $DryRun -and $plans.Count -gt 0) {
+        $backupRoot = Join-Path (Expand-DshPath $StateRoot) (Join-Path 'backups' $operationId)
         $metadata = [pscustomobject]@{
             operationId = $operationId
             createdUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -586,6 +659,17 @@ function Restore-DshPatchSet {
         [switch]$DryRun
     )
     Assert-DshReplayMutationAllowed -Config $Config -DryRun:$DryRun
+    $immutablePatches = @($Manifest.patches | Where-Object { Test-DshImmutableAsarPatchTarget -Patch $_ -Config $Config })
+    if ($immutablePatches.Count -gt 0) {
+        return [pscustomobject]@{
+            operationId = $OperationId
+            dryRun = [bool]$DryRun
+            status = 'unsupported-immutable-asar-target'
+            supported = $false
+            applicable = $false
+            results = @($immutablePatches | ForEach-Object { Test-DshPatch -Patch $_ -Config $Config })
+        }
+    }
     $backups = Join-Path (Expand-DshPath $StateRoot) 'backups'
     if (-not (Test-Path -LiteralPath $backups -PathType Container)) { throw 'No backups are available.' }
     if (-not $OperationId) {

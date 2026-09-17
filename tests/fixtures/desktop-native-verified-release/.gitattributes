@@ -1,0 +1,3 @@
+# Release evidence is attested as original bytes, including its line endings.
+# Never rewrite or normalize these files during add or checkout.
+** -text

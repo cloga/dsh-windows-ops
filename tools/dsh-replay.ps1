@@ -25,7 +25,10 @@ Import-Module (Join-Path $PSScriptRoot 'WindowsCopilotDeployment.psm1')
 $lock = Read-WindowsCopilotLock -Path $LockPath
 $resolvedConfig = Resolve-DshLockedReplayConfig -Config $resolvedConfig -Lock $lock
 if (($Action -eq 'Apply' -and -not $DryRun) -or $Action -in @('Rollback', 'RecoverDesktop')) {
-    if (-not $resolvedConfig.deployment.valid) { throw 'replay-deployment-does-not-match-lock' }
+    # Native actions must reach the module's delegation refusal even when its audit
+    # is not ready; DryRun reports immutable targets without reading backup state.
+    if ($resolvedConfig.deployment.provisioningMode -cne 'desktopNativeVerifiedRelease' -and
+        -not $resolvedConfig.deployment.valid) { throw 'replay-deployment-does-not-match-lock' }
 }
 $resolvedManifest = Get-Content -LiteralPath $PatchManifest -Raw -Encoding UTF8 | ConvertFrom-Json
 $stateArgs = @{}

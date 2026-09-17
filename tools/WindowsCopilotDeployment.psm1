@@ -221,6 +221,13 @@ function Test-WindowsCopilotLock {
         'migration.legacyGateway.routeIds',
         'migration.legacyGateway.credentialReferences'
     )) {
+        if ($path.StartsWith('acceptance.runtimeSchema.wrapper.', [StringComparison]::Ordinal)) {
+            $descriptorForSchema = Get-LockProperty -InputObject $Lock.components.desktop -Name 'installedRuntimeDescriptor'
+            if ($descriptorForSchema -and
+                [string](Get-LockProperty -InputObject $descriptorForSchema -Name 'relativePath') -ceq 'resources\app.asar\dsh\desktop-runtime.json') {
+                continue # ASAR has descriptor/package evidence, not a historical physical wrapper.
+            }
+        }
         $value = $Lock
         foreach ($segment in $path.Split('.')) {
             $value = Get-LockProperty -InputObject $value -Name $segment
@@ -250,38 +257,45 @@ function Test-WindowsCopilotLock {
         }
     } elseif ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness') {
         $channel = $desktop.releaseChannel
-        if ($desktopVersion -cne '0.1.5-rc.3.cloga.7' -or
-            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.5-rc.3.cloga.7' -or
-            [string]$desktop.source.commit -cne '293b5a79f533005d99cd60cb00b9ecf810187401' -or
-            [string]$desktop.source.tree -cne 'de807cc4c582f3bb6e2829ea98758e98ec5e576c' -or
-            [string]$desktop.source.reviewedHead -cne 'acf99f2038c42cafa076d4aff69f01f43260c988' -or
-            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.5-rc.3.cloga.7-win-x64.exe' -or
-            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.7/cloga-deepseek-harness-0.1.5-rc.3.cloga.7-win-x64.exe' -or
-            [string]$desktop.artifact.sha256 -cne '290b587cdab3ffa315ba1796ccabd436096f996abaa144652e33457fd65a3b93' -or
-            [long]$desktop.artifact.size -ne 180217778 -or
+        if ($desktopVersion -cne '0.1.6-alpha.1.cloga.1' -or
+            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.6-alpha.1.cloga.1' -or
+            [string]$desktop.source.commit -cne 'fae12b69dcd28413518f68b5770e40f8eb2ff730' -or
+            [string]$desktop.source.tree -cne '3ab1707c85ade70f7df5e33e95eb9991b53229f1' -or
+            [string]$desktop.source.reviewedHead -cne '6bf111473593dbd9b69cf50a2651b94172a75bac' -or
+            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.6-alpha.1.cloga.1-win-x64.exe' -or
+            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.1/cloga-deepseek-harness-0.1.6-alpha.1.cloga.1-win-x64.exe' -or
+            [string]$desktop.artifact.sha256 -cne '9e645df11f8f48f82f1fad512a763a07791b75f1cafe1e354d5d8d2826f2fae6' -or
+            [string]$desktop.artifact.sha512 -cne 'Sno7kDuz+1AksDFQMzxvLOapmHIcMCk8gXR6tH5iuC6dR/paCOUwsmWkSGJvPOsCpsXjTGwyEJKcKCdyYJVDpg==' -or
+            [long]$desktop.artifact.size -ne 171301423 -or
             $desktop.artifact.releaseImmutable -ne $true -or
+            [string]$channel.version -cne $desktopVersion -or
+            [string]$channel.upstreamVersion -cne '0.1.6-alpha.1' -or
+            [string]$channel.source.repository -cne 'cloga/deepseek-harness' -or
+            [string]$channel.source.commit -cne [string]$desktop.source.commit -or
+            [string]$channel.source.tree -cne [string]$desktop.source.tree -or
+            [string]$channel.source.tag -cne [string]$desktop.source.releaseTag -or
             [int]$channel.schemaVersion -ne 3 -or
             [string]$channel.owner -cne 'cloga/deepseek-harness' -or
             [string]$channel.mode -cne 'interactive-windows-installer' -or
-            [int]$desktop.source.pullRequest -ne 57 -or
-            [long]$desktop.artifact.releaseId -ne 390421989 -or
-            [long]$desktop.artifact.assetId -ne 569397800 -or
-            [int]$channel.sequence -ne 9 -or
-            [string]$channel.manifestRawSha256 -cne 'cacc56fa4b5f4cd9e8388a85e147034f63398f0efa4203b175e4bc6eeaf166c9' -or
-            [string]$channel.manifestSha256 -cne 'fd9952367bc74a0c25d803330d185c1ce302eb0c1e587ba5b0669198b6cd6178' -or
-            [string]$channel.buildReceipt.sha256 -cne '697c937714a89e7d58fe2fc0096681ee11a493f16174e3c02e18de1eca87c8e7' -or
-            [string]$channel.buildReceipt.receiptSha256 -cne 'af982a0f5e14b0ea20f41c22d0a8ee5c0fb0d8db316626f6feb9ae18e9f69e2d') {
-            throw 'Desktop identity must match the immutable cloga fork-owned 0.1.5 release.'
+            [int]$desktop.source.pullRequest -ne 45 -or
+            [long]$desktop.artifact.releaseId -ne 390539601 -or
+            [long]$desktop.artifact.assetId -ne 569806165 -or
+            [int]$channel.sequence -ne 11 -or
+            [string]$channel.manifestRawSha256 -cne '20e546c5ca5cb9152d931be023e67de1472b7a6fd6e078f97806888d57ee0d32' -or
+            [string]$channel.manifestSha256 -cne '50fa6bf1af2ae94bf7e2a032ec00665760b989c7468e514e0005ed78a616e207' -or
+            [string]$channel.buildReceipt.sha256 -cne '402cfe07a52832e87faca6754cc7a8a1ed3258480966e973160eaa46b1e56b83' -or
+            [string]$channel.buildReceipt.receiptSha256 -cne 'c3b88001c30095ca470d8c6d19ae9f027ec1c6b755ff7ca4d1b73a9ff9476b79') {
+            throw 'Desktop identity must match the immutable cloga fork-owned 0.1.6 release.'
         }
         if ([int]$channel.managedCapability.schemaVersion -ne 3 -or
-            [int]$channel.managedCapability.currentSequence -ne 9 -or
+            [int]$channel.managedCapability.currentSequence -ne 11 -or
             [int]$channel.managedCapability.minimumSequence -ne 2 -or
             $channel.pluginCompatibility.automaticProvisioning -ne $false -or
             $channel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning -ne $true -or
             [string]$channel.nativeProvisioning.capabilitySha256 -cne
-                'cf5c8499715bb8eae4586f0d46612439c19b9491dc29822a734dcb2ec0b7d23b' -or
+                'a5b980de2540bf3c5ae036a41a6e380c4f4de7394ea57b1069a62cb58bdcaf68' -or
             [string]$channel.nativeProvisioning.helperSha256 -cne
-                '54aa5767c9f993f39a21d2a8d4aa23cd8b377301d19de0cd8d379d4fad4d313e' -or
+                '2ca23e66cdf456645e1622d57759c9a37e735f758bacd93ed2c7de6af6bae424' -or
             [string]$channel.nativeProvisioning.plan.sha256 -cne
                 '81ebdcc3ed17b46ed2f794986e905ace3bfd3843bcef8e5e0a62341ed945914a' -or
             [string]$channel.nativeProvisioning.plan.planSha256 -cne
@@ -289,6 +303,22 @@ function Test-WindowsCopilotLock {
             [string]$channel.managedCapability.provisioning.planSha256 -cne
                 [string]$channel.nativeProvisioning.plan.planSha256) {
             throw 'Desktop recovery must preserve legacy update compatibility and exact native startup provisioning evidence.'
+        }
+        if ([long]$channel.manifestAssetId -ne 569806169 -or
+            [long]$channel.buildReceipt.assetId -ne 569806162 -or
+            [long]$channel.sha256Sums.assetId -ne 569806168 -or [long]$channel.sha256Sums.size -ne 379 -or
+            [string]$channel.sha256Sums.sha256 -cne '13e4087185a0e6b7b9bee2e97d3251028bf20961fa8bf26cef608eb83e6f0103' -or
+            [long]$channel.sha512Sums.assetId -ne 569806177 -or [long]$channel.sha512Sums.size -ne 475 -or
+            [string]$channel.sha512Sums.sha256 -cne 'd1882efd453c2dce209f0200f7167cff069c55f1d784f8958efb8464e829d61d' -or
+            [long]$channel.nativeProvisioning.plan.assetId -ne 569806166 -or [long]$channel.nativeProvisioning.plan.size -ne 1309 -or
+            [string]$channel.nativeProvisioning.fixtureRoot -cne 'tests\fixtures\desktop-native-verified-release\formal-cloga016-1' -or
+            [string]$channel.nativeProvisioning.ancestorIsolation.acceptanceSha256 -cne 'a50bbd79054a679fb013b603521e3497e33b45b233c455fabd01405d2a8f31d6' -or
+            [string]$channel.nativeProvisioning.ancestorIsolation.initialGraphSha256 -cne '94bf996e09e8b6e42f5237e70bf4b97211da961f1737a8bb8f5241992ac9cd18' -or
+            [string]$channel.nativeProvisioning.ancestorIsolation.restartGraphSha256 -cne '94bf996e09e8b6e42f5237e70bf4b97211da961f1737a8bb8f5241992ac9cd18' -or
+            [string]$channel.build.lockfileSha256 -cne '57bfe6c726f536b03f32217d3f8c89430e8990b25027c56bbd2d2c5c96fb87a5' -or
+            [string]$channel.build.planSha256 -cne '86d374389ad5f87b9e9c16e26cec024802393f91b790890a6e507bc02b58e859' -or
+            [string]$channel.build.runUrl -cne 'https://github.com/cloga/deepseek-harness/actions/runs/35197577605' -or [int]$channel.build.attempt -ne 1) {
+            throw 'Desktop assets and build inputs must match the exact formal 0.1.6 release.'
         }
     } else {
         throw 'Desktop source repository is not reviewed.'
@@ -309,15 +339,15 @@ function Test-WindowsCopilotLock {
     if ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness' -and (
         [string]$installedDesktop.relativePath -cne 'cloga-deepseek-harness.exe' -or
         [string]$installedDesktop.sha256 -cne
-            '1bf4524a0779f4451d9371d40a09fb0b9a1b44e0881818afd73809a771ac7711' -or
+            'ea8c801e8cef289772c5d616a25aeaa255a86b3471b7549ca958cb7708bcf41f' -or
         [string]$installedDesktop.productName -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.fileDescription -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.companyName -cne 'GitHub, Inc.' -or
-        [string]$installedDesktop.productVersion -cne '0.1.5.0' -or
+        [string]$installedDesktop.productVersion -cne '0.1.6.0' -or
         [string]$installedDesktop.authenticodeStatus -cne 'NotSigned' -or
-        [string]$desktop.installedRuntimeDescriptor.relativePath -cne 'resources\dsh\desktop-runtime.json' -or
+        [string]$desktop.installedRuntimeDescriptor.relativePath -cne 'resources\app.asar\dsh\desktop-runtime.json' -or
         [string]$desktop.installedRuntimeDescriptor.sha256 -cne
-            'ccb45e7c151318c0f239de2dafa64dcec05b8fdff6347cfbc7ed3b2de3264092')) {
+            'b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344')) {
         throw 'Installed Desktop executable identity must match the reviewed cloga fork release evidence.'
     }
     $copilotSource = $Lock.components.copilotIntegration.source
@@ -418,6 +448,33 @@ function Test-WindowsCopilotLock {
         [string]$runtimeSchema.behavior.providerCompatibilityOwner -cne 'dsh-github-copilot') {
         throw 'Runtime schema identity must match the official Desktop-managed runtime.'
     }
+    $asarSchemaDescriptor = Get-LockProperty -InputObject $desktop -Name 'installedRuntimeDescriptor'
+    if ($asarSchemaDescriptor -and [string]$asarSchemaDescriptor.relativePath -ceq 'resources\app.asar\dsh\desktop-runtime.json') {
+        $expectedAsarFiles = @(
+            [pscustomobject]@{ path = 'node_modules\@deepseek-ai\dsh-tools\lib\index.js'; size = 157018; sha256 = 'a5dad5666e38a1e16bc7b56213637621bb5a1bd5ef19337152afcf61419860c6' },
+            [pscustomobject]@{ path = 'node_modules\@deepseek-ai\dsh-tool-pwsh\lib\index.js'; size = 21451; sha256 = '02b2200ed07dd9622a63b84d1f35d5e4816e9456627a30ecfcea04f7e92ad2bf' },
+            [pscustomobject]@{ path = 'node_modules\@deepseek-ai\dsh-sandbox\lib\index.js'; size = 14674; sha256 = '87fb51a40490dbd35cd53be175798d9763a60ad47d86b3f7a4ecc649b095aa17' }
+        )
+        if (-not $forkRuntime -or
+            [string](Get-LockProperty -InputObject $runtimeSchema -Name 'layout') -cne 'electron-asar' -or
+            [string](Get-LockProperty -InputObject $runtimeSchema -Name 'descriptorSha256') -cne [string]$asarSchemaDescriptor.sha256 -or
+            $null -ne $runtimeSchema.PSObject.Properties['wrapper'] -or
+            [string]$runtimeSchema.package.name -cne [string]$runtimeSelector.package.name -or
+            [string]$runtimeSchema.package.version -cne [string]$runtimeSelector.package.version -or
+            [string]$runtimeSchema.package.manifest -cne 'node_modules\@deepseek-ai\dsh\package.json' -or
+            [string]$runtimeSchema.package.entrypoint -cne 'node_modules\@deepseek-ai\dsh\lib\bin.js' -or
+            [int64]$runtimeSchema.package.entrypointSize -ne 9165 -or
+            [string]$runtimeSchema.package.entrypointSha256 -cne 'cd47a5e19d82b3114c68ace4aeb7f8378e659a248bb7c5cfff25509f14c1c72c' -or
+            $runtimeFiles.Count -ne 3 -or @($expectedAsarFiles | Where-Object {
+                $expected = $_
+                @($runtimeFiles | Where-Object {
+                    [string]$_.path -ceq [string]$expected.path -and [int64]$_.size -eq [int64]$expected.size -and
+                    [string]$_.sha256 -ceq [string]$expected.sha256
+                }).Count -ne 1
+            }).Count -ne 0) {
+            throw 'ASAR runtime schema metadata must match the exact formal descriptor without a physical wrapper claim.'
+        }
+    }
     $copilotToolSchema = $Lock.acceptance.copilotToolSchema
     $copilotForbiddenProperties = @($copilotToolSchema.forbiddenProperties | ForEach-Object { [string]$_ })
     $copilotSuccessMarkers = @($copilotToolSchema.successMarkers | ForEach-Object { [string]$_ })
@@ -485,10 +542,12 @@ function Test-WindowsCopilotLock {
         }
     } elseif ([string]$officialSelector.id -ceq 'desktop-fork-managed') {
         if ([string]$officialSelector.source -cne 'desktop-managed-release' -or
-            [string]$officialSelector.desktopVersion -cne '0.1.5-rc.3.cloga.7' -or
+            [string]$officialSelector.desktopVersion -cne '0.1.6-alpha.1.cloga.1' -or
+            [string]$officialSelector.root -cne '%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\app.asar\dsh' -or
             [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
-            [string]$officialSelector.package.version -cne '0.1.5-rc.2' -or
-            [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.5-rc.2' -or
+            [string]$officialSelector.package.version -cne '0.1.6-alpha.1' -or
+            [string]$officialSelector.package.releaseTag -cne 'dsh-v0.1.6-alpha.1' -or
+            [string]$officialSelector.package.commit -cne [string]$Lock.components.desktop.source.commit -or
             [string]$officialSelector.descriptor.manifest -cne 'desktop-runtime.json' -or
             [string]$officialSelector.descriptor.sha256 -cne
                 [string]$Lock.components.desktop.installedRuntimeDescriptor.sha256) {
@@ -601,7 +660,7 @@ function Test-WindowsCopilotLock {
         [string]$companionCompatibility.core.manifest -cne
             'node_modules\@deepseek-ai\dsh\package.json' -or
         @($companionCompatibility.core.versions).Count -ne 1 -or
-        [string]$companionCompatibility.core.versions[0] -cne '0.1.2-rc.1' -or
+        [string]$companionCompatibility.core.versions[0] -cne '0.1.6-alpha.1' -or
         [string]$companionCompatibility.cordis.name -cne '@deepseek-ai/cordis' -or
         [string]$companionCompatibility.cordis.manifest -cne
             'node_modules\@deepseek-ai\cordis\package.json' -or
@@ -737,18 +796,18 @@ function Test-WindowsCopilotLock {
     $optionalOverlays = @($Lock.profile.optionalOverlays)
     $expectedOptionalOverlays = [ordered]@{
         'dsh-playwright-host' = [ordered]@{
-            version = '0.1.2'
-            source = 'github:cloga/dsh-playwright-host#v0.1.2'
-            sourceCommit = 'a7f63e2c3565008e1c614023afb1c3110fd62fff'
-            resolvedCommit = '2cf6edfd52b5a70b3f6af7b1f502c58718a6f5ac'
-            pullRequest = 6
+            version = '0.1.7'
+            source = 'github:cloga/dsh-playwright-host#v0.1.7'
+            sourceCommit = 'c8f514b838516eed8cced19ef2dd514ef1f2f0a4'
+            resolvedCommit = 'fdec939b48d14d66d14bef3d8f12ec68411d58fb'
+            pullRequest = 19
         }
         'dsh-cron' = [ordered]@{
-            version = '0.4.1'
-            source = 'github:cloga/dsh-cron#v0.4.1'
-            sourceCommit = 'e0ecca9e18a66fe0acecec6dfc6cc6faaa9520b2'
-            resolvedCommit = '5f99313e110932195821d924259b2836947271f3'
-            pullRequest = 12
+            version = '0.7.1'
+            source = 'github:cloga/dsh-cron#v0.7.1'
+            sourceCommit = '7628e5bb9d8b24981962548974cafd3dfa9e509c'
+            resolvedCommit = '6dae9da71e6c36c58e04f3ca8c10cc5c4790b3bd'
+            pullRequest = 45
         }
     }
     if ($optionalOverlays.Count -ne $expectedOptionalOverlays.Count) {
@@ -769,39 +828,53 @@ function Test-WindowsCopilotLock {
     }
     $playwrightOverlay = @($optionalOverlays | Where-Object { [string]$_.name -ceq 'dsh-playwright-host' })[0]
     $playwrightArtifact = $playwrightOverlay.artifact
-    if ([string]$playwrightArtifact.name -cne 'dsh-playwright-host-0.1.2.tgz' -or
+    if ([string]$playwrightArtifact.name -cne 'dsh-playwright-host-0.1.7.tgz' -or
         [string]$playwrightArtifact.url -cne
-            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/dsh-playwright-host-0.1.2.tgz' -or
+            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/dsh-playwright-host-0.1.7.tgz' -or
         [string]$playwrightArtifact.sha256 -cne
-            '18e4e2d29429a94f495d9507188282e6157f11c2ef75fa076b54b30c03ac0cf2' -or
-        [int]$playwrightArtifact.size -ne 3659 -or
-        [string]$playwrightArtifact.releaseTag -cne 'v0.1.2' -or
+            '647c2112f09c9aa9aabfb6fbe3659dad32658a63eeb034a9040736695ca061f3' -or
+        [string]$playwrightArtifact.sha512 -cne
+            '6c902d923270082697877402321944ab81935a49b20e548d16403e12b5582f82541d2b851adeb9e74ca9b9d23aef07349e142e0f75d2a1fec4c02f1f56841dce' -or
+        [string]$playwrightArtifact.integrity -cne
+            'sha512-bJAtkjJwCCaXh3QCMhlEq4GTWkmyDlSNFkA+ErVYL4JUHSuFGt6550ypudI67wc0nhQuD3XSof7EwC8fVoQdzg==' -or
+        [int]$playwrightArtifact.size -ne 8280 -or
+        [string]$playwrightArtifact.releaseTag -cne 'v0.1.7' -or
+        [long]$playwrightArtifact.releaseId -ne 389282244 -or
+        [long]$playwrightArtifact.assetId -ne 566016151 -or
         $playwrightArtifact.releaseImmutable -ne $true -or
         [string]$playwrightArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
         [string]$playwrightArtifact.checksumManifest.url -cne
-            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.2/SHA256SUMS' -or
+            'https://github.com/cloga/dsh-playwright-host/releases/download/v0.1.7/SHA256SUMS' -or
         [string]$playwrightArtifact.checksumManifest.sha256 -cne
-            '06647ede584dad3055508733f17cd720f4ebf149c2cd73d680497e7117247e84' -or
+            '45a32a05036595e23d22c101126c41e9f6c77ac0fe1402a2ebc9456f55952a6b' -or
+        [long]$playwrightArtifact.checksumManifest.assetId -ne 566016150 -or
         [int]$playwrightArtifact.checksumManifest.size -ne 96) {
-        throw 'Optional dsh-playwright-host artifact must match the immutable v0.1.2 Release and SHA256SUMS.'
+        throw 'Optional dsh-playwright-host artifact must match the immutable v0.1.7 Release and SHA256SUMS.'
     }
     $cronOverlay = @($optionalOverlays | Where-Object { [string]$_.name -ceq 'dsh-cron' })[0]
     $cronArtifact = $cronOverlay.artifact
-    if ([string]$cronArtifact.name -cne 'dsh-cron-0.4.1.tgz' -or
+    if ([string]$cronArtifact.name -cne 'dsh-cron-0.7.1.tgz' -or
         [string]$cronArtifact.url -cne
-            'https://github.com/cloga/dsh-cron/releases/download/v0.4.1/dsh-cron-0.4.1.tgz' -or
+            'https://github.com/cloga/dsh-cron/releases/download/v0.7.1/dsh-cron-0.7.1.tgz' -or
         [string]$cronArtifact.sha256 -cne
-            '9be9e7c6ea1b4bf8a6f354dd1533e8a920f4d397c09fb20e14a2b5c91a50ce5f' -or
-        [int]$cronArtifact.size -ne 34276 -or
-        [string]$cronArtifact.releaseTag -cne 'v0.4.1' -or
+            '136ba9d66ba2f2ada87f1ce97dfb21be97474dc76504fc65ae8e01cde60768d0' -or
+        [string]$cronArtifact.sha512 -cne
+            'f5baf2b185dcd1abab2743c8f06abaeaaeda715ea8b3ae8a38cf3f58647425612bf1ef769984d9fbe92a63719963e785c1788aa5c8cde1bcbffc0935d5ec0ac4' -or
+        [string]$cronArtifact.integrity -cne
+            'sha512-9brysYXc0aurJ0PI8Gq66q7acV6os66KOM8/WGR0JWEr8e92mYTZ++kqY3GZY+eFwXiKpcjN4by//Ak11ewKxA==' -or
+        [int]$cronArtifact.size -ne 64919 -or
+        [string]$cronArtifact.releaseTag -cne 'v0.7.1' -or
+        [long]$cronArtifact.releaseId -ne 389294372 -or
+        [long]$cronArtifact.assetId -ne 566045997 -or
         $cronArtifact.releaseImmutable -ne $true -or
         [string]$cronArtifact.checksumManifest.name -cne 'SHA256SUMS' -or
         [string]$cronArtifact.checksumManifest.url -cne
-            'https://github.com/cloga/dsh-cron/releases/download/v0.4.1/SHA256SUMS' -or
+            'https://github.com/cloga/dsh-cron/releases/download/v0.7.1/SHA256SUMS' -or
         [string]$cronArtifact.checksumManifest.sha256 -cne
-            'ad66a15d46072952f250001e875331b2dbc7bf2b5db615481d72a3e1e7925bbf' -or
+            'f05eef489a31f38ee203b91808d54e2100ae18b222907fbe4125c680bac802f2' -or
+        [long]$cronArtifact.checksumManifest.assetId -ne 566046029 -or
         [int]$cronArtifact.checksumManifest.size -ne 85) {
-        throw 'Optional dsh-cron artifact must match the immutable v0.4.1 Release and SHA256SUMS.'
+        throw 'Optional dsh-cron artifact must match the immutable v0.7.1 Release and SHA256SUMS.'
     }
 
     $pluginPolicy = $Lock.profile.pluginPolicy
@@ -1355,6 +1428,24 @@ function Test-WindowsCopilotSemVerRange {
     return $false
 }
 
+# Lexical carrier boundary: never probe a virtual ASAR child with PowerShell fs.
+function Test-WindowsCopilotAsarPath {
+    param([AllowNull()][string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    $expanded = [Environment]::ExpandEnvironmentVariables($Path)
+    return $expanded -match '(?i)(^|[\\/])[^\\/]*\.asar([\\/]|$)'
+}
+
+function New-WindowsCopilotPhysicalWebRuntimeRequired {
+    param([string]$RuntimeRoot, [string]$Reason = 'unsupported-asar-web-runtime')
+    return [pscustomobject]@{
+        valid = $false; status = 'physical-web-runtime-required'; runtimeRoot = $RuntimeRoot
+        core = $null; cordis = $null; pluginApis = @(); reasons = @($Reason)
+        desktopVersionChecked = $false; scope = 'optional-web-only'
+        requirement = 'Explicitly select an existing approved physical Web RuntimeRoot; no Desktop ASAR CLI or runtime-generation mode is assumed.'
+    }
+}
+
 function Test-WindowsCopilotCompanionCompatibility {
     [CmdletBinding()]
     param(
@@ -1362,12 +1453,26 @@ function Test-WindowsCopilotCompanionCompatibility {
         [string]$RuntimeRoot
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
-    if (-not $RuntimeRoot) {
-        $RuntimeRoot = [Environment]::ExpandEnvironmentVariables(
-            [string](Get-WindowsCopilotRuntimeSelector -Lock $Lock).root
-        )
+    $selector = Get-WindowsCopilotRuntimeSelector -Lock $Lock
+    $descriptor = Get-LockProperty $Lock.components.desktop 'installedRuntimeDescriptor'
+    $descriptorPath = if ($descriptor) { [string](Get-LockProperty $descriptor 'relativePath') } else { '' }
+    $asarDefault = (Test-WindowsCopilotAsarPath ([string]$selector.root)) -or (Test-WindowsCopilotAsarPath $descriptorPath)
+    $explicitRoot = -not [string]::IsNullOrWhiteSpace($RuntimeRoot)
+    if (-not $explicitRoot) {
+        $RuntimeRoot = [Environment]::ExpandEnvironmentVariables([string]$selector.root)
+    }
+    if (($asarDefault -and -not $explicitRoot) -or (Test-WindowsCopilotAsarPath $RuntimeRoot)) {
+        return New-WindowsCopilotPhysicalWebRuntimeRequired -RuntimeRoot $RuntimeRoot
     }
     $root = Resolve-DeploymentPath $RuntimeRoot
+    if ($asarDefault) {
+        try {
+            Assert-NoReparsePointAncestor -Path $root
+            if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'missing-physical-web-runtime' }
+        } catch {
+            return New-WindowsCopilotPhysicalWebRuntimeRequired -RuntimeRoot $root -Reason 'explicit-physical-web-runtime-unavailable-or-reparse'
+        }
+    }
     $contract = $Lock.companionSuite.compatibility
     $reasons = [Collections.Generic.List[string]]::new()
     $readIdentity = {
@@ -1433,6 +1538,7 @@ function Test-WindowsCopilotCompanionCompatibility {
         pluginApis = $apis
         reasons = @($reasons)
         desktopVersionChecked = $false
+        scope = if ($explicitRoot) { 'explicit-physical-web-runtime' } else { 'legacy-physical-web-runtime' }
     }
 }
 
@@ -1442,6 +1548,9 @@ function Test-WindowsCopilotCompanionArtifactCompatibility {
         [Parameter(Mandatory)][object[]]$Members,
         [Parameter(Mandatory)][string]$RuntimeRoot
     )
+    if (Test-WindowsCopilotAsarPath $RuntimeRoot) {
+        return [pscustomobject]@{ valid = $false; status = 'physical-web-runtime-required'; plugins = @(); reasons = @('unsupported-asar-web-runtime') }
+    }
     $root = Resolve-DeploymentPath $RuntimeRoot
     $states = @($Members | ForEach-Object {
         $member = $_
@@ -1472,7 +1581,7 @@ function Test-WindowsCopilotCompanionArtifactCompatibility {
         $peerStates = @($peers | ForEach-Object {
             $name = [string]$_.Name
             $range = [string]$_.Value
-            $metadataEntry = Get-LockProperty -InputObject $peerMetadata -Name $name
+            $metadataEntry = if ($peerMetadata) { Get-LockProperty -InputObject $peerMetadata -Name $name } else { $null }
             $optional = [bool](
                 $metadataEntry -and
                 (Get-LockProperty -InputObject $metadataEntry -Name 'optional')
@@ -1535,6 +1644,9 @@ function Test-WindowsCopilotCompanionImports {
         [Parameter(Mandatory)][string]$ProfileRoot,
         [Parameter(Mandatory)][string]$RuntimeRoot
     )
+    if (Test-WindowsCopilotAsarPath $RuntimeRoot) {
+        return [pscustomobject]@{ valid = $false; status = 'physical-web-runtime-required'; failure = 'unsupported-asar-web-runtime' }
+    }
     $node = Get-Command node -ErrorAction SilentlyContinue |
         Select-Object -First 1
     if (-not $node) {
@@ -3827,11 +3939,211 @@ function Get-WindowsCopilotCommandScriptPath {
     }
 }
 
+function New-WindowsCopilotNativeAuditProcess { return [Diagnostics.Process]::new() }
+
+function Invoke-WindowsCopilotNativeAuditTaskKill {
+    param([Parameter(Mandatory)][ValidateRange(1, 2147483647)][int]$ProcessId)
+    $taskkill = Join-Path ([Environment]::GetEnvironmentVariable('SystemRoot')) 'System32\taskkill.exe'
+    & $taskkill /PID $ProcessId /T /F 2>&1 | Out-Null
+    return [int]$LASTEXITCODE
+}
+
+function Stop-WindowsCopilotNativeAuditProcess {
+    param([Parameter(Mandatory)]$Process)
+    try {
+        $exited = $Process.HasExited
+        if ($exited -isnot [bool]) { throw 'native-audit-termination-failed' }
+        if (-not $exited) {
+            # Only this just-started diagnostic PID/tree, including its own Node-mode
+            # probe. Never a name-wide kill or a pre-existing Desktop/Host process.
+            $exitCode = Invoke-WindowsCopilotNativeAuditTaskKill -ProcessId $Process.Id
+            $waited = $Process.WaitForExit(5000)
+            $confirmedExit = $Process.HasExited
+            if ($exitCode -isnot [int] -or $exitCode -ne 0 -or $waited -isnot [bool] -or $waited -ne $true -or
+                $confirmedExit -isnot [bool] -or $confirmedExit -ne $true) {
+                throw 'native-audit-termination-failed'
+            }
+        }
+    } catch { throw 'native-audit-termination-failed' }
+}
+
+function Invoke-WindowsCopilotNativeAuditProcess {
+    param(
+        [Parameter(Mandatory)][string]$NodePath,
+        [Parameter(Mandatory)][string]$InputJson,
+        [Parameter(Mandatory)][string]$DiagnosticRoot,
+        [ValidateRange(1, 180)][int]$TimeoutSeconds = 180
+    )
+    $inputBytes = [Text.Encoding]::UTF8.GetBytes($InputJson)
+    if ($inputBytes.Length -gt 1MB) { return [pscustomobject]@{ valid = $false; reason = 'native-audit-input-limit' } }
+    $process = $null; $started = $false
+    try {
+        $start = [Diagnostics.ProcessStartInfo]::new()
+        $start.FileName = $NodePath
+        $start.Arguments = '--max-old-space-size=512 "' + (Join-Path $PSScriptRoot 'verify-native-desktop.mjs') + '"'
+        $start.WorkingDirectory = $DiagnosticRoot
+        $start.UseShellExecute = $false; $start.CreateNoWindow = $true
+        $start.RedirectStandardInput = $true; $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
+        $start.StandardOutputEncoding = [Text.Encoding]::UTF8; $start.StandardErrorEncoding = [Text.Encoding]::UTF8
+        $start.EnvironmentVariables.Clear()
+        foreach ($name in @('SystemRoot', 'WINDIR')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { $start.EnvironmentVariables[$name] = $value }
+        }
+        foreach ($name in @('TEMP', 'TMP', 'HOME', 'USERPROFILE')) { $start.EnvironmentVariables[$name] = $DiagnosticRoot }
+        $process = New-WindowsCopilotNativeAuditProcess
+        $process.StartInfo = $start
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        $started = $process.Start()
+        if (-not $started) { throw 'start' }
+        $outBuffer = [char[]]::new(4096); $errBuffer = [char[]]::new(4096)
+        $outTask = $process.StandardOutput.ReadAsync($outBuffer, 0, $outBuffer.Length)
+        $errTask = $process.StandardError.ReadAsync($errBuffer, 0, $errBuffer.Length)
+        $writeTask = $process.StandardInput.BaseStream.WriteAsync($inputBytes, 0, $inputBytes.Length)
+        $text = [Text.StringBuilder]::new(); $outputBytes = 0; $errorBytes = 0
+        $inputClosed = $false; $outDone = $false; $errDone = $false
+        while ($true) {
+            $progress = $false
+            if (-not $inputClosed -and $writeTask.IsCompleted) {
+                [void]$writeTask.GetAwaiter().GetResult()
+                # Raw UTF-8 bytes: closing the StreamWriter can append its own
+                # encoding preamble. Close the pipe, without a writer flush.
+                $process.StandardInput.BaseStream.Close(); $inputClosed = $true; $progress = $true
+            }
+            if (-not $outDone -and $outTask.IsCompleted) {
+                $count = $outTask.GetAwaiter().GetResult(); $progress = $true
+                if ($count -eq 0) { $outDone = $true }
+                else {
+                    $outputBytes += [Text.Encoding]::UTF8.GetByteCount($outBuffer, 0, $count)
+                    if ($outputBytes -gt 1MB) { Stop-WindowsCopilotNativeAuditProcess $process; return [pscustomobject]@{ valid = $false; reason = 'native-audit-output-limit' } }
+                    [void]$text.Append($outBuffer, 0, $count)
+                    $outTask = $process.StandardOutput.ReadAsync($outBuffer, 0, $outBuffer.Length)
+                }
+            }
+            if (-not $errDone -and $errTask.IsCompleted) {
+                $count = $errTask.GetAwaiter().GetResult(); $progress = $true
+                $errorBytes += [Text.Encoding]::UTF8.GetByteCount($errBuffer, 0, $count)
+                if ($errorBytes -gt 16384) { Stop-WindowsCopilotNativeAuditProcess $process; return [pscustomobject]@{ valid = $false; reason = 'native-audit-output-limit' } }
+                if ($count -eq 0) { $errDone = $true }
+                else { $errTask = $process.StandardError.ReadAsync($errBuffer, 0, $errBuffer.Length) }
+            }
+            $exited = $process.HasExited
+            if ($exited -isnot [bool]) { throw 'native-audit-termination-failed' }
+            if ($exited -and $inputClosed -and $outDone -and $errDone) { break }
+            if ($clock.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
+                Stop-WindowsCopilotNativeAuditProcess $process
+                return [pscustomobject]@{ valid = $false; reason = 'native-audit-timeout' }
+            }
+            if (-not $progress) { Start-Sleep -Milliseconds 10 }
+        }
+        if ($process.ExitCode -ne 0 -or $errorBytes -gt 0) { return [pscustomobject]@{ valid = $false; reason = 'native-audit-process-failed' } }
+        return [pscustomobject]@{ valid = $true; output = $text.ToString() }
+    } catch {
+        $reason = if ($_.Exception.Message -ceq 'native-audit-termination-failed') { 'native-audit-termination-failed' } else { 'native-audit-process-failed' }
+        return [pscustomobject]@{ valid = $false; reason = $reason }
+    } finally {
+        if ($process) {
+            # A failed final retry deliberately propagates the fixed cleanup
+            # failure; do not silently dispose a still-running diagnostic handle.
+            if ($started) {
+                try {
+                    $exited = $process.HasExited
+                    if ($exited -isnot [bool]) { throw 'native-audit-termination-failed' }
+                    if (-not $exited) { Stop-WindowsCopilotNativeAuditProcess $process }
+                } catch { throw 'native-audit-termination-failed' }
+            }
+            $process.Dispose()
+        }
+    }
+}
+
+function Invoke-WindowsCopilotNativeFileAudit {
+    param([Parameter(Mandatory)]$Lock, [Parameter(Mandatory)][string]$InstallRoot, [Parameter(Mandatory)][string]$DshHome)
+    try {
+        $relative = [string]$Lock.components.desktop.installedRuntimeDescriptor.relativePath
+        $exeName = [string]$Lock.components.desktop.installedExecutable.relativePath
+        if (-not (Test-WindowsCopilotNativeMode $Lock) -or $relative.Replace('\', '/') -cne 'resources/app.asar/dsh/desktop-runtime.json' -or
+            $exeName -notmatch '^[^\\/:"<>|?*]+\.exe$' -or $InstallRoot -notmatch '^[A-Za-z]:[\\/]' -or $DshHome -notmatch '^[A-Za-z]:[\\/]') { throw 'scope' }
+        $install = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
+        $homePath = [IO.Path]::GetFullPath($DshHome).TrimEnd('\')
+        if ($InstallRoot.Substring(2).Contains(':') -or $DshHome.Substring(2).Contains(':') -or
+            (Test-WindowsCopilotAsarPath $install) -or (Test-WindowsCopilotAsarPath $homePath) -or
+            $install -eq [IO.Path]::GetPathRoot($install).TrimEnd('\') -or $homePath -eq [IO.Path]::GetPathRoot($homePath).TrimEnd('\')) { throw 'scope' }
+        $executable = Join-Path $install $exeName
+        $archive = Join-Path $install 'resources\app.asar'
+        foreach ($path in @($install, $executable, $archive)) { Assert-NoReparsePointAncestor -Path $path }
+        if (-not (Test-Path -LiteralPath $install -PathType Container) -or
+            -not (Test-Path -LiteralPath $executable -PathType Leaf) -or -not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+            return [pscustomobject]@{ valid = $false; reason = 'native-audit-installed-evidence-missing' }
+        }
+        if ((Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash -ine [string]$Lock.components.desktop.installedExecutable.sha256) {
+            return [pscustomobject]@{ valid = $false; reason = 'native-audit-executable-mismatch' }
+        }
+        Assert-NoReparsePointAncestor -Path $homePath
+        if (-not (Test-Path -LiteralPath $homePath -PathType Container)) {
+            return [pscustomobject]@{ valid = $false; reason = 'native-audit-profile-prerequisite-missing' }
+        }
+        $node = Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
+        if ([string]$node.Source -notmatch '^[A-Za-z]:[\\/]' -or (Test-WindowsCopilotAsarPath ([string]$node.Source))) { throw 'tool' }
+        $nodePath = [IO.Path]::GetFullPath([string]$node.Source)
+        Assert-NoReparsePointAncestor -Path $nodePath
+        if (-not (Test-Path -LiteralPath $nodePath -PathType Leaf) -or
+            $nodePath.StartsWith($install + '\', [StringComparison]::OrdinalIgnoreCase) -or
+            $nodePath.StartsWith($homePath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'tool' }
+        $diagnosticRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+        Assert-NoReparsePointAncestor -Path $diagnosticRoot
+        if (-not (Test-Path -LiteralPath $diagnosticRoot -PathType Container) -or
+            $diagnosticRoot -match '(?i)(^|[\\/])OneDrive([\\/ ]|$)' -or $diagnosticRoot -ieq $install -or $diagnosticRoot -ieq $homePath -or
+            $diagnosticRoot.StartsWith($install + '\', [StringComparison]::OrdinalIgnoreCase) -or
+            $diagnosticRoot.StartsWith($homePath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'diagnostic' }
+        foreach ($name in @('OneDrive', 'OneDriveConsumer', 'OneDriveCommercial')) {
+            $syncRoot = [Environment]::GetEnvironmentVariable($name)
+            if ($syncRoot -and ($diagnosticRoot + '\').StartsWith($syncRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'diagnostic' }
+        }
+        $request = @{ lock = $Lock; installRoot = $install; dshHome = $homePath; diagnosticRoot = $diagnosticRoot } | ConvertTo-Json -Depth 60 -Compress
+        $result = Invoke-WindowsCopilotNativeAuditProcess -NodePath $nodePath -InputJson $request -DiagnosticRoot $diagnosticRoot
+        if ($result.valid -isnot [bool]) { throw 'protocol' }
+        if (-not $result.valid) {
+            if ($result.reason -isnot [string] -or $result.reason -cnotin @('native-audit-input-limit', 'native-audit-output-limit', 'native-audit-timeout', 'native-audit-process-failed', 'native-audit-termination-failed')) { throw 'protocol' }
+            return [pscustomobject]@{ valid = $false; reason = $result.reason }
+        }
+        if ($result.output -isnot [string] -or [Text.Encoding]::UTF8.GetByteCount($result.output) -gt 1MB) { throw 'protocol' }
+        $parsed = $result.output | ConvertFrom-Json
+        if ($parsed.valid -isnot [bool] -or $parsed.runtime.valid -isnot [bool] -or $parsed.provisioning.valid -isnot [bool] -or
+            $parsed.mutated -isnot [bool] -or $parsed.mutated -ne $false -or $parsed.functional.modelResponseVerified -isnot [bool] -or
+            $parsed.functional.modelResponseVerified -ne $false) { throw 'protocol' }
+        $runtime = [ordered]@{ valid = $parsed.runtime.valid }
+        foreach ($name in @('status', 'reason', 'mode', 'version', 'runtimeRoot', 'carrierExecutable', 'executableSha256', 'descriptorSha256', 'fileCount')) {
+            $value = Get-LockProperty $parsed.runtime $name
+            if ($name -ne 'fileCount' -and $null -ne $value -and ($value -isnot [string] -or $value.Length -gt 32768)) { throw 'protocol' }
+            if ($name -eq 'reason' -and $null -ne $value -and $value -cnotmatch '^native-[a-z-]{1,120}$') { throw 'protocol' }
+            if ($name -eq 'fileCount' -and $null -ne $value -and (
+                ($value -isnot [int] -and $value -isnot [long] -and $value -isnot [double]) -or
+                $value -lt 0 -or $value -gt 200000 -or [double]::IsNaN([double]$value) -or [double]::IsInfinity([double]$value) -or
+                [Math]::Truncate([double]$value) -ne [double]$value)) { throw 'protocol' }
+            $runtime[$name] = $value
+        }
+        $provisioningReason = Get-LockProperty $parsed.provisioning 'reason'
+        if ($null -ne $provisioningReason -and ($provisioningReason -isnot [string] -or $provisioningReason -cnotmatch '^native-[a-z-]{1,120}$')) { throw 'protocol' }
+        # Project only needed leaves. Never return metadata snapshots, manifests,
+        # receipts, user-extra names, parser contents or stderr through replay.
+        return [pscustomobject]@{
+            valid = [bool]$parsed.valid; runtime = [pscustomobject]$runtime
+            provisioning = [pscustomobject]@{ valid = $parsed.provisioning.valid; reason = Get-LockProperty $parsed.provisioning 'reason' }
+            modelResponseVerified = $false
+        }
+    } catch {
+        $reason = if ($_.Exception.Message -ceq 'native-audit-termination-failed') { 'native-audit-termination-failed' } else { 'native-audit-input-tool-or-protocol-invalid' }
+        return [pscustomobject]@{ valid = $false; reason = $reason }
+    }
+}
+
 function Get-WindowsCopilotOfficialRuntimeState {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]$Lock,
-        [string]$DesktopExecutablePath
+        [string]$DesktopExecutablePath,
+        [string]$DshHome
     )
 
     $selector = Get-WindowsCopilotRuntimeSelector -Lock $Lock
@@ -3839,6 +4151,76 @@ function Get-WindowsCopilotOfficialRuntimeState {
         [Environment]::ExpandEnvironmentVariables([string]$selector.root)
     )
     if ([string]$selector.id -ceq 'desktop-fork-managed') {
+        $identity = Get-LockProperty $Lock.components.desktop 'installedRuntimeDescriptor'
+        $identityPath = if ($identity) { [string](Get-LockProperty $identity 'relativePath') } else { '' }
+        if ((Test-WindowsCopilotAsarPath $root) -or (Test-WindowsCopilotAsarPath $identityPath)) {
+            # ASAR has no physical descriptor/CLI path for PowerShell to inspect.
+            # Use the independent full native audit, not TestNativeInstallation
+            # (which itself validates user presets and would introduce recursion).
+            $state = [ordered]@{
+                valid = $false; status = 'native-asar-audit-not-ready'; selector = 'desktop-fork-managed'
+                source = 'desktop-managed-release'; mode = 'asar-runtime'; immutable = $true
+                version = $null; root = $root; packageRoot = $root; entryPath = $null
+                descriptorPath = $null; descriptorSha256 = $null; fileCount = $null; treeSha256 = $null
+                entrypointSha256 = $null; entrypointSize = $null; wrapperFileCount = $null
+                wrapperTotalBytes = $null; wrapperTreeSha256 = $null; wrapperReparseDirectoryCount = $null
+                reason = $null; modelResponseVerified = $false
+            }
+            try {
+                $expectedHash = [string]$identity.sha256
+                $expectedVersion = [string]$Lock.components.desktop.releaseChannel.upstreamVersion
+                if ($identityPath.Replace('\', '/') -cne 'resources/app.asar/dsh/desktop-runtime.json' -or
+                    [string]$selector.descriptor.manifest -cne 'desktop-runtime.json' -or
+                    [string]$selector.descriptor.sha256 -cne $expectedHash -or
+                    [string]$selector.package.version -cne $expectedVersion -or $expectedVersion -cnotmatch '^0\.1\.6(?:-|$)' -or
+                    $expectedHash -cnotmatch '^[a-f0-9]{64}$' -or $root -notmatch '(?i)[\\/]resources[\\/]app\.asar[\\/]dsh$') {
+                    $state.status = 'native-asar-layout-unsupported'; $state.reason = 'native-runtime-layout-unsupported'
+                    return [pscustomobject]$state
+                }
+                $install = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $root))
+                if ($DesktopExecutablePath) { $install = Split-Path -Parent ([IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DesktopExecutablePath))) }
+                $executable = Join-Path $install ([string]$Lock.components.desktop.installedExecutable.relativePath)
+                if ($DesktopExecutablePath -and [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DesktopExecutablePath)) -ine $executable) {
+                    $state.reason = 'native-audit-executable-mismatch'; return [pscustomobject]$state
+                }
+                $expectedRoot = Join-Path $install 'resources\app.asar\dsh'
+                $state.root = $expectedRoot; $state.packageRoot = $expectedRoot
+                $state.descriptorPath = Join-Path $expectedRoot 'desktop-runtime.json'
+                $homePath = if ($DshHome) { [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DshHome)) }
+                    else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.dsh' }
+                $audit = Invoke-WindowsCopilotNativeFileAudit -Lock $Lock -InstallRoot $install -DshHome $homePath
+                $runtime = Get-LockProperty $audit 'runtime'; $provisioning = Get-LockProperty $audit 'provisioning'
+                if ($audit.valid -isnot [bool] -or ($runtime -and $runtime.valid -isnot [bool]) -or
+                    ($provisioning -and $provisioning.valid -isnot [bool])) { throw 'protocol' }
+                if (-not $audit.valid -or -not $runtime -or -not $runtime.valid -or -not $provisioning -or -not $provisioning.valid) {
+                    $reason = Get-LockProperty $audit 'reason'
+                    if ($reason -ceq 'native-audit-profile-prerequisite-missing') { $state.status = 'native-asar-audit-prerequisite-not-ready' }
+                    if ($provisioning -and -not $provisioning.valid -and [string]$provisioning.reason -cne 'native-runtime-prerequisite-failed') {
+                        $state.status = 'native-asar-audit-prerequisite-not-ready'; $reason = $provisioning.reason
+                    } elseif ($runtime) { $reason = $runtime.reason }
+                    $state.reason = if ($reason -is [string] -and $reason -cmatch '^native-[a-z-]{1,120}$') { $reason } else { 'native-audit-not-ready' }
+                    return [pscustomobject]$state
+                }
+                foreach ($name in @('mode', 'status', 'version', 'descriptorSha256', 'runtimeRoot', 'carrierExecutable', 'executableSha256')) {
+                    if ((Get-LockProperty $runtime $name) -isnot [string]) { throw 'protocol' }
+                }
+                $count = $runtime.fileCount
+                if ($runtime.mode -cne 'asar-runtime' -or $runtime.status -cne 'runtime-tree-verified' -or
+                    $runtime.version -cne $expectedVersion -or $runtime.descriptorSha256 -cne $expectedHash -or
+                    $runtime.runtimeRoot -ine $expectedRoot -or $runtime.carrierExecutable -ine $executable -or
+                    $runtime.executableSha256 -cne [string]$Lock.components.desktop.installedExecutable.sha256 -or
+                    ($count -isnot [int] -and $count -isnot [long] -and $count -isnot [double]) -or
+                    $count -lt 1 -or $count -gt 200000 -or [double]::IsNaN([double]$count) -or [double]::IsInfinity([double]$count) -or
+                    [Math]::Truncate([double]$count) -ne [double]$count) {
+                    $state.reason = 'native-audit-correlation-mismatch'; return [pscustomobject]$state
+                }
+                $state.valid = $true; $state.status = 'runtime-asar-verified'; $state.version = [string]$runtime.version
+                $state.fileCount = [int]$count; $state.descriptorSha256 = [string]$runtime.descriptorSha256
+                # A descriptor digest is neither a runnable entrypoint nor the
+                # legacy physical-tree hash format; keep those fields null.
+            } catch { $state.reason = 'native-audit-input-or-protocol-invalid' }
+            return [pscustomobject]$state
+        }
         if ($DesktopExecutablePath) {
             $descriptorIdentity = Get-LockProperty -InputObject $Lock.components.desktop `
                 -Name 'installedRuntimeDescriptor'
@@ -5484,6 +5866,16 @@ function Test-WindowsCopilotCompanionSuite {
         [string]$ArtifactDirectory
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock -RuntimeRoot $RuntimeRoot
+    if ((Get-LockProperty $compatibility 'status') -ceq 'physical-web-runtime-required') {
+        return [pscustomobject]@{
+            mode = 'verify-companion-suite'; valid = $false; status = 'physical-web-runtime-required'
+            compatibility = $compatibility
+            artifactCompatibility = [pscustomobject]@{ valid = $false; status = 'not-evaluated'; plugins = @() }
+            imports = [pscustomobject]@{ valid = $false; status = 'not-run'; failure = 'physical-web-runtime-required' }
+            profileReason = $null; members = @(); desktopVersionChecked = $false
+        }
+    }
     $home = Resolve-DeploymentPath $DshHome
     $profileRoot = Join-Path $home ([string]$Lock.profile.relativePath)
     $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
@@ -5591,11 +5983,10 @@ function Test-WindowsCopilotCompanionSuite {
             )
         }
     })
-    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock `
-        -RuntimeRoot $RuntimeRoot
     $artifactCompatibility = Test-WindowsCopilotCompanionArtifactCompatibility `
         -Lock $Lock -Members $members -RuntimeRoot ([string]$compatibility.runtimeRoot)
     $imports = if (
+        $compatibility.valid -and $artifactCompatibility.valid -and
         -not $profileReason -and
         @($states | Where-Object { -not $_.valid }).Count -eq 0
     ) {
@@ -6031,6 +6422,15 @@ function Invoke-WindowsCopilotCompanionSuiteApply {
         [string]$RuntimeRoot,
         [string[]]$AcknowledgeLiveSessionIds
     )
+    # Compatibility is a precondition, not an operation: reject ASAR/default and
+    # invalid physical Web targets before even acquiring the deployment mutex.
+    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock -RuntimeRoot $RuntimeRoot
+    if (-not $compatibility.valid) {
+        if ((Get-LockProperty $compatibility 'status') -ceq 'physical-web-runtime-required') {
+            throw 'physical-web-runtime-required: optional Web setup requires an explicit existing approved physical RuntimeRoot; Desktop ASAR is unsupported.'
+        }
+        throw "Companion installation requires a supported Core, Cordis, and plugin API set: $($compatibility.reasons -join ', ')."
+    }
     $mutex = Enter-WindowsCopilotDeploymentLock -BackupRoot $BackupRoot
     try {
         return Invoke-WindowsCopilotCompanionSuiteApplyLocked @PSBoundParameters
@@ -6267,27 +6667,60 @@ function Test-WindowsCopilotNativeInstallation {
             $DesktopProcesses = @(Get-CimInstance Win32_Process |
                 Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
         }
+        # Select the process contract from the locked descriptor, never an installed
+        # loose-file probe or an executable basename. Unknown layouts fail closed.
+        $descriptor = Get-LockProperty -InputObject $Lock.components.desktop -Name 'installedRuntimeDescriptor'
+        $descriptorRelativePath = [string](Get-LockProperty -InputObject $descriptor -Name 'relativePath')
+        $descriptorRelativePath = $descriptorRelativePath.Replace('\', '/')
+        $legacyLayout = $descriptorRelativePath -ceq 'resources/dsh/desktop-runtime.json'
+        $asarLayout = $descriptorRelativePath -ceq 'resources/app.asar/dsh/desktop-runtime.json'
+        $argumentPattern = '(?:^|\s+)(?:"[^"]*"|[^\s"]+)(?=\s|$)'
         $parents = @($DesktopProcesses | Where-Object {
-            $_.ExecutablePath -and [IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq [string]$desktop.path
+            if (-not $_.ExecutablePath -or [string]$_.ExecutablePath -ine [string]$desktop.path) { return $false }
+            if ($asarLayout) {
+                # Electron also carries the Host and renderer/helper processes. Only
+                # the supported bare Desktop launch can authorize a Host child.
+                $command = [string]$_.CommandLine
+                if ([regex]::Replace($command, $argumentPattern, '').Trim()) { return $false }
+                $tokens = @([regex]::Matches($command, $argumentPattern) | ForEach-Object { $_.Value.Trim().Trim('"') })
+                if ($tokens.Count -ne 1 -or $tokens[0] -ine [string]$desktop.path) { return $false }
+            }
+            return $true
         })
         $active.desktopProcessIds = @($parents | ForEach-Object { [int]$_.ProcessId })
         if ($parents.Count -gt 0) {
-            $node = Join-Path $installRoot 'resources\runtime\node\node.exe'
-            $runtimeRoot = Join-Path $installRoot 'resources\dsh'
-            $expectedArgs = @($node)
+            $hostExecutable = $null
+            $hostEntry = $null
+            $runtimeRoot = $null
             $policyUrl = Get-LockProperty -InputObject $files.runtime -Name 'moduleResolutionPolicyUrl'
-            if ($files.runtime.valid -and $policyUrl) {
+            $bindingReady = [bool]($files.runtime.valid -and ($legacyLayout -or $asarLayout))
+            if ($legacyLayout) {
+                $hostExecutable = Join-Path $installRoot 'resources\runtime\node\node.exe'
+                $runtimeRoot = Join-Path $installRoot 'resources\dsh'
+                $hostEntry = Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'
+            } elseif ($asarLayout) {
+                $hostExecutable = [string]$desktop.path
+                $runtimeRoot = Join-Path $installRoot 'resources\app.asar\dsh'
+                $attestedRuntimeRoot = [string](Get-LockProperty -InputObject $files.runtime -Name 'runtimeRoot')
+                $hostEntry = [string](Get-LockProperty -InputObject $files.runtime -Name 'hostEntry')
+                # The verifier reads hostEntry and the preload from the locked ASAR
+                # descriptor. An unattested/missing preload is not a legacy fallback.
+                $bindingReady = [bool]($bindingReady -and $attestedRuntimeRoot -ieq $runtimeRoot -and
+                    -not [string]::IsNullOrWhiteSpace($hostEntry) -and
+                    -not [string]::IsNullOrWhiteSpace([string]$policyUrl))
+            }
+            $expectedArgs = @($hostExecutable)
+            if ($bindingReady -and $policyUrl) {
                 $expectedArgs += @('--import', [string]$policyUrl)
             }
-            $expectedArgs += @((Join-Path $runtimeRoot 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'),
-                $runtimeRoot, (Join-Path $home 'profiles\desktop'))
+            $expectedArgs += @($hostEntry, $runtimeRoot, (Join-Path $home 'profiles\desktop'))
             $children = @($DesktopProcesses | Where-Object {
-                if (-not $_.ExecutablePath -or [string]$_.ExecutablePath -ine $node -or
+                if (-not $bindingReady -or -not $_.ExecutablePath -or
+                    [string]$_.ExecutablePath -ine $hostExecutable -or
                     $active.desktopProcessIds -notcontains [int]$_.ParentProcessId -or -not $_.CommandLine) { return $false }
                 $command = [string]$_.CommandLine
-                $pattern = '"[^"]*"|[^\s"]+'
-                if ([regex]::Replace($command, $pattern, '').Trim()) { return $false }
-                $tokens = @([regex]::Matches($command, $pattern) | ForEach-Object { $_.Value.Trim('"') })
+                if ([regex]::Replace($command, $argumentPattern, '').Trim()) { return $false }
+                $tokens = @([regex]::Matches($command, $argumentPattern) | ForEach-Object { $_.Value.Trim().Trim('"') })
                 if ($tokens.Count -ne $expectedArgs.Count) { return $false }
                 for ($index = 0; $index -lt $expectedArgs.Count; $index++) {
                     if ($policyUrl -and $index -in @(1, 2) -and $tokens[$index] -cne $expectedArgs[$index]) { return $false }

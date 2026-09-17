@@ -14,10 +14,11 @@ The optional companion suite is a single **installation entry**, not a merged pl
 
 Keeping the packages separate preserves focused security review, independent upgrades and rollback, and compatibility evidence. The suite installer only coordinates their installation into one Profile. It does not copy source between repositories, replace Core, or make Cron and Playwright part of the locked Copilot baseline.
 
-The authoritative whole-machine deployment path remains
-`tools\install-windows-copilot.ps1 -IncludeCompanionSuite`, with its exact
-Desktop lock. For an already installed Desktop, the authoritative plugin-only
-path is `tools\install-optional-companion-suite.ps1`. It calls the same
+For the legacy Web/headless provisioning mode, the whole-machine deployment
+path is `tools\install-windows-copilot.ps1 -IncludeCompanionSuite`, with its exact
+Desktop lock. The native Desktop mode rejects that switch and delegates native
+installation/provisioning instead. For an already-existing compatible physical
+Web runtime, the plugin-only path is `tools\install-optional-companion-suite.ps1`. It calls the same
 deployment module and lock, but deliberately does not install, downgrade, or
 attest an exact Desktop build; replace Core; mutate global packages or legacy
 gateway state; change settings or credentials; or restart a process.
@@ -42,6 +43,35 @@ part of this decision, so a newer Desktop patch does not block plugins when it
 still carries the reviewed Core/API set. Check mode does not access GitHub,
 install packages, or restart DSH.
 
+### Physical Web runtime boundary
+
+This legacy plugin-only installer requires an **existing, approved physical Web
+runtime**. An ASAR-backed Desktop runtime is not a junction target and is not a
+supported ambient-Node import/CLI target for this installer. If the locked
+default is ASAR, Check/Verify/Apply report `physical-web-runtime-required` before
+artifact downloads, import probes or the deployment mutex. Supply a compatible
+physical runtime explicitly only when one already exists:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 `
+  -RuntimeRoot C:\path\to\existing-physical-web-runtime -Profile web
+```
+
+All version, API, artifact-peer and import checks still apply. Do not install a
+second/private Core, extract/copy Desktop's Core, create a junction into
+`app.asar`, invent a resolution-mode flag, or treat an Electron CLI launch as a
+qualified workaround. This is a limitation of the current optional installer,
+not a claim that the product intrinsically requires another Core. Optional
+Cron/Playwright remain Web-only and outside native Desktop acceptance; the
+native base entry rejects `-IncludeCompanionSuite` and delegated mutations.
+The current lock now selects formally published Desktop `0.1.6-alpha.1.cloga.1`
+with ASAR Core `0.1.6-alpha.1`. Its source-owned formal acceptance and separate
+[Ops observer CI `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+passed within the [documented native scope](../local-core-desktop-copilot.md#scoped-ops-ci-qualification).
+That native proof does **not** qualify this optional ASAR Web path, attest
+user-extra package contents, or install/activate any local component; the
+physical-runtime prerequisite above is unchanged.
+
 Use a non-default DSH home or Profile explicitly when needed:
 
 ```powershell
@@ -60,7 +90,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-c
 
 ## Stage all three bundles
 
-After reviewing the check result, first ensure the target Web Profile already exists and its official Desktop-managed runtime is healthy. The installer deliberately refuses to bootstrap an absent Profile because doing so can introduce unrelated package build approvals.
+After reviewing the check result, first ensure the target Web Profile and an explicitly selected, compatible physical runtime already exist and are healthy; the selected native Desktop ASAR runtime is not that physical Web prerequisite. The installer deliberately refuses to bootstrap an absent Profile because doing so can introduce unrelated package build approvals.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 `

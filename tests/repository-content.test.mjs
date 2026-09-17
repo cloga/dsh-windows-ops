@@ -3,19 +3,19 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { tmpdir } from 'node:os'
 import { validateRepositoryContent } from '../tools/validate-repository-content.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const scratchRoot = path.join(root, 'tests', '.repository-content-scratch')
+const formalFixtureRoot = JSON.parse(fs.readFileSync(path.join(root, 'deployments/windows-copilot.lock.json'), 'utf8'))
+  .components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/')
 const fixtureFiles = [
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/release.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/build-receipt.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/capability.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/desktop-provisioning.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/helper-acceptance.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/acceptance.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/initial-packaged-graph.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/restart-packaged-graph.json',
+  ...['release.json', 'build-receipt.json', 'capability.json', 'desktop-provisioning.json', 'helper-acceptance.json',
+    'acceptance.json', 'initial-desktop-plugin-provisioning-state.json', 'initial-desktop-plugin-receipts.json',
+    'initial-package.json', 'initial-packaged-graph.json', 'restart-packaged-graph.json'].map(name => `${formalFixtureRoot}/${name}`),
   'deployments/windows-copilot.lock.json',
   'catalog/plugins.json',
   'README.md',
@@ -79,6 +79,40 @@ test('current repository content validates', () => {
   assert.deepEqual(validateRepositoryContent(root).failures, [])
 })
 
+test('preserves attested release bytes with Git autocrlf enabled and detects the unprotected control', () => {
+  const temporary = fs.mkdtempSync(path.join(tmpdir(), 'dsh-release-checkout-'))
+  const lock = readJson(root, 'deployments/windows-copilot.lock.json')
+  const relative = `${lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/')}/release.json`
+  const attributeDirectory = path.dirname(path.dirname(relative))
+  const attributes = fs.readFileSync(path.join(root, attributeDirectory, '.gitattributes'))
+  const bytes = fs.readFileSync(path.join(root, relative))
+  const expected = readJson(root, 'deployments/windows-copilot.lock.json').components.desktop.releaseChannel.manifestRawSha256
+  const digest = value => createHash('sha256').update(value).digest('hex')
+  assert.equal(digest(bytes), expected)
+  const env = Object.fromEntries(['PATH', 'Path', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP'].filter(key => process.env[key]).map(key => [key, process.env[key]]))
+  Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null', GIT_CONFIG_COUNT: '0' })
+  try {
+    for (const protectedBytes of [false, true]) {
+      const directory = path.join(temporary, protectedBytes ? 'protected' : 'control')
+      const checkout = path.join(temporary, protectedBytes ? 'protected-output' : 'control-output')
+      fs.mkdirSync(path.join(directory, path.dirname(relative)), { recursive: true })
+      fs.mkdirSync(checkout)
+      fs.writeFileSync(path.join(directory, relative), bytes)
+      if (protectedBytes) fs.writeFileSync(path.join(directory, attributeDirectory, '.gitattributes'), attributes)
+      const git = (...args) => execFileSync('git', ['-c', 'core.autocrlf=true', '-c', 'core.eol=crlf', '-c', 'core.safecrlf=false', '-C', directory, ...args],
+        { env, encoding: 'utf8', stdio: 'pipe', timeout: 30_000 })
+      git('init', '--quiet')
+      git('add', '--', 'tests')
+      git('checkout-index', `--prefix=${checkout.replaceAll('\\', '/')}/`, '--', relative)
+      const actual = fs.readFileSync(path.join(checkout, relative))
+      if (protectedBytes) { assert.deepEqual(actual, bytes); assert.equal(digest(actual), expected) }
+      else assert.notEqual(digest(actual), expected)
+    }
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true })
+  }
+})
+
 test('rejects source identity and immutable release drift', () => {
   const target = copyFixture()
   const catalog = readJson(target, 'catalog/plugins.json')
@@ -109,7 +143,7 @@ for (const [name, mutate, expected] of [
   ['installer', (desktop) => { desktop.artifact.sha256 = 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c' }, /Desktop fork installer digest differs/],
   ['build receipt', (desktop) => { desktop.releaseChannel.buildReceipt.sha256 = 'd083232d6ac98736935529c352259f97abe19b45cb522d730b0488b1b7777515' }, /Desktop fork build receipt raw digest differs/],
 ]) {
-  test(`rejects historical cloga.5 Desktop ${name} in the cloga.7 baseline`, () => {
+  test(`rejects historical cloga.5 Desktop ${name} in the formal .6 baseline`, () => {
     const target = copyFixture()
     const lock = readJson(target, 'deployments/windows-copilot.lock.json')
     mutate(lock.components.desktop)
@@ -152,6 +186,21 @@ test('rejects Desktop runtime byte and selector drift', () => {
     assert.match(messages(result), /runtime schema Desktop release tag differs/)
   }
 })
+
+for (const [label, mutate, expected] of [
+  ['missing layout', schema => { delete schema.layout }, /ASAR runtime schema layout is missing/],
+  ['legacy wrapper claim', schema => { schema.wrapper = { name: 'deepseek-harness-pkg', version: '0.1.2-alpha.5' } }, /must not claim a legacy physical wrapper/],
+  ['descriptor digest', schema => { schema.descriptorSha256 = '0'.repeat(64) }, /ASAR runtime schema descriptor digest differs/],
+  ['wrong package version', schema => { schema.package.version = '0.1.5-rc.2' }, /ASAR runtime package metadata differs/],
+  ['wrong entrypoint path', schema => { schema.package.entrypoint = 'lib/private-wrapper.js' }, /ASAR runtime package paths differ/],
+  ['missing built data record', schema => { schema.requiredBuiltFiles.pop() }, /ASAR runtime built-file data inventory is invalid/],
+]) {
+  test(`rejects ASAR metadata schema ${label} without implying preset/CLI support`, () => {
+    const target = copyFixture(); const lock = readJson(target, 'deployments/windows-copilot.lock.json')
+    mutate(lock.acceptance.runtimeSchema); writeJson(target, 'deployments/windows-copilot.lock.json', lock)
+    assert.match(messages(validateRepositoryContent(target)), expected)
+  })
+}
 
 test('rejects plugin policy drift', () => {
   const target = copyFixture()

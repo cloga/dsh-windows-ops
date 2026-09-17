@@ -1,0 +1,6 @@
+# This inert upstream-written fixture sidecar is data, not installed dependencies.
+!app.asar.unpacked/
+!app.asar.unpacked/dsh/
+!app.asar.unpacked/dsh/node_modules/
+!app.asar.unpacked/dsh/node_modules/fixture-native/
+!app.asar.unpacked/dsh/node_modules/fixture-native/fixture.node

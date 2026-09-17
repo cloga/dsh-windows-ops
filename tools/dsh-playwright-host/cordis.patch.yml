@@ -17,3 +17,9 @@
           - '1440x900'
         toolCallTimeoutMs: 120000
         failOnStartupError: true
+        maxInstructionBytes: 32768
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 30000
+          maxAttempts: 10

@@ -8,7 +8,11 @@ Describe 'Lock-selected replay discovery' {
             ConvertFrom-Json
         $script:savedDesktopRoot = $env:DSH_DESKTOP_ROOT
         $script:savedRuntimeRoot = $env:DSH_DESKTOP_RUNTIME_ROOT
-        Remove-Item Env:DSH_DESKTOP_ROOT, Env:DSH_DESKTOP_RUNTIME_ROOT -ErrorAction SilentlyContinue
+        $script:savedDshHome = $env:DSH_HOME
+        $script:savedCopilotRoot = $env:DSH_GITHUB_COPILOT_ROOT
+        $script:savedPiAiRoot = $env:PI_AI_ROOT
+        Remove-Item Env:DSH_DESKTOP_ROOT, Env:DSH_DESKTOP_RUNTIME_ROOT, Env:DSH_HOME, Env:DSH_GITHUB_COPILOT_ROOT, Env:PI_AI_ROOT -ErrorAction SilentlyContinue
+        $script:replayConfig.dshHome = Join-Path $TestDrive 'synthetic-home'
         Mock Get-WindowsCopilotDesktopState -ModuleName DshWindowsOps {
             [pscustomobject]@{
                 path = 'C:\fixture\package-install\cloga-deepseek-harness.exe'
@@ -29,6 +33,9 @@ Describe 'Lock-selected replay discovery' {
     AfterEach {
         $env:DSH_DESKTOP_ROOT = $savedDesktopRoot
         $env:DSH_DESKTOP_RUNTIME_ROOT = $savedRuntimeRoot
+        $env:DSH_HOME = $savedDshHome
+        $env:DSH_GITHUB_COPILOT_ROOT = $savedCopilotRoot
+        $env:PI_AI_ROOT = $savedPiAiRoot
     }
 
     It 'follows the installer-selected actual path and attests its bundled runtime' {
@@ -319,6 +326,7 @@ Describe 'DSH replay patching' {
     }
 
     It 'accepts model endpoints without an optional baseUrlEnv under StrictMode' {
+        Mock Invoke-WebRequest -ModuleName DshWindowsOps { throw 'synthetic-unreachable-endpoint' }
         $minimalConfig = [pscustomobject]@{
             modelEndpoints = @(
                 [pscustomobject]@{

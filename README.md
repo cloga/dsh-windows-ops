@@ -144,6 +144,8 @@ node tools\validate-plugin-catalog.mjs
 
 所有脚本的详细参数以文件头和对应文档为准。
 
+**ASAR 入口边界（准备工作，不是基线升级）：** 可选 Web 安装器针对 ASAR 默认目标会明确要求一个已存在、兼容的物理 `-RuntimeRoot`，不会额外安装或复制 Core；已有用户 Agent Presets 的 ASAR target 校验会明确报告未支持，不会跳过并宣称通过。Replay 使用受审计的只读原生状态，并拒绝不可变归档补丁和原生变更。详见[工具边界](tools/README.md#asar-entrypoint-boundaries)；真正 `.6` Release／observer 验证仍是单独门槛，本说明不代表本机安装或激活。
+
 ## 文档地图
 
 - **部署与集成**：`local-core-desktop-copilot.md`、`vision-dual-channel.md`（当前为 DSH 原生附件与 `read_image` 架构）

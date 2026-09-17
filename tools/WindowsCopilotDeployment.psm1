@@ -1369,6 +1369,24 @@ function Test-WindowsCopilotSemVerRange {
     return $false
 }
 
+# Lexical carrier boundary: never probe a virtual ASAR child with PowerShell fs.
+function Test-WindowsCopilotAsarPath {
+    param([AllowNull()][string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    $expanded = [Environment]::ExpandEnvironmentVariables($Path)
+    return $expanded -match '(?i)(^|[\\/])[^\\/]*\.asar([\\/]|$)'
+}
+
+function New-WindowsCopilotPhysicalWebRuntimeRequired {
+    param([string]$RuntimeRoot, [string]$Reason = 'unsupported-asar-web-runtime')
+    return [pscustomobject]@{
+        valid = $false; status = 'physical-web-runtime-required'; runtimeRoot = $RuntimeRoot
+        core = $null; cordis = $null; pluginApis = @(); reasons = @($Reason)
+        desktopVersionChecked = $false; scope = 'optional-web-only'
+        requirement = 'Explicitly select an existing approved physical Web RuntimeRoot; no Desktop ASAR CLI or runtime-generation mode is assumed.'
+    }
+}
+
 function Test-WindowsCopilotCompanionCompatibility {
     [CmdletBinding()]
     param(
@@ -1376,12 +1394,26 @@ function Test-WindowsCopilotCompanionCompatibility {
         [string]$RuntimeRoot
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
-    if (-not $RuntimeRoot) {
-        $RuntimeRoot = [Environment]::ExpandEnvironmentVariables(
-            [string](Get-WindowsCopilotRuntimeSelector -Lock $Lock).root
-        )
+    $selector = Get-WindowsCopilotRuntimeSelector -Lock $Lock
+    $descriptor = Get-LockProperty $Lock.components.desktop 'installedRuntimeDescriptor'
+    $descriptorPath = if ($descriptor) { [string](Get-LockProperty $descriptor 'relativePath') } else { '' }
+    $asarDefault = (Test-WindowsCopilotAsarPath ([string]$selector.root)) -or (Test-WindowsCopilotAsarPath $descriptorPath)
+    $explicitRoot = -not [string]::IsNullOrWhiteSpace($RuntimeRoot)
+    if (-not $explicitRoot) {
+        $RuntimeRoot = [Environment]::ExpandEnvironmentVariables([string]$selector.root)
+    }
+    if (($asarDefault -and -not $explicitRoot) -or (Test-WindowsCopilotAsarPath $RuntimeRoot)) {
+        return New-WindowsCopilotPhysicalWebRuntimeRequired -RuntimeRoot $RuntimeRoot
     }
     $root = Resolve-DeploymentPath $RuntimeRoot
+    if ($asarDefault) {
+        try {
+            Assert-NoReparsePointAncestor -Path $root
+            if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw 'missing-physical-web-runtime' }
+        } catch {
+            return New-WindowsCopilotPhysicalWebRuntimeRequired -RuntimeRoot $root -Reason 'explicit-physical-web-runtime-unavailable-or-reparse'
+        }
+    }
     $contract = $Lock.companionSuite.compatibility
     $reasons = [Collections.Generic.List[string]]::new()
     $readIdentity = {
@@ -1447,6 +1479,7 @@ function Test-WindowsCopilotCompanionCompatibility {
         pluginApis = $apis
         reasons = @($reasons)
         desktopVersionChecked = $false
+        scope = if ($explicitRoot) { 'explicit-physical-web-runtime' } else { 'legacy-physical-web-runtime' }
     }
 }
 
@@ -1456,6 +1489,9 @@ function Test-WindowsCopilotCompanionArtifactCompatibility {
         [Parameter(Mandatory)][object[]]$Members,
         [Parameter(Mandatory)][string]$RuntimeRoot
     )
+    if (Test-WindowsCopilotAsarPath $RuntimeRoot) {
+        return [pscustomobject]@{ valid = $false; status = 'physical-web-runtime-required'; plugins = @(); reasons = @('unsupported-asar-web-runtime') }
+    }
     $root = Resolve-DeploymentPath $RuntimeRoot
     $states = @($Members | ForEach-Object {
         $member = $_
@@ -1486,7 +1522,7 @@ function Test-WindowsCopilotCompanionArtifactCompatibility {
         $peerStates = @($peers | ForEach-Object {
             $name = [string]$_.Name
             $range = [string]$_.Value
-            $metadataEntry = Get-LockProperty -InputObject $peerMetadata -Name $name
+            $metadataEntry = if ($peerMetadata) { Get-LockProperty -InputObject $peerMetadata -Name $name } else { $null }
             $optional = [bool](
                 $metadataEntry -and
                 (Get-LockProperty -InputObject $metadataEntry -Name 'optional')
@@ -1549,6 +1585,9 @@ function Test-WindowsCopilotCompanionImports {
         [Parameter(Mandatory)][string]$ProfileRoot,
         [Parameter(Mandatory)][string]$RuntimeRoot
     )
+    if (Test-WindowsCopilotAsarPath $RuntimeRoot) {
+        return [pscustomobject]@{ valid = $false; status = 'physical-web-runtime-required'; failure = 'unsupported-asar-web-runtime' }
+    }
     $node = Get-Command node -ErrorAction SilentlyContinue |
         Select-Object -First 1
     if (-not $node) {
@@ -3841,11 +3880,211 @@ function Get-WindowsCopilotCommandScriptPath {
     }
 }
 
+function New-WindowsCopilotNativeAuditProcess { return [Diagnostics.Process]::new() }
+
+function Invoke-WindowsCopilotNativeAuditTaskKill {
+    param([Parameter(Mandatory)][ValidateRange(1, 2147483647)][int]$ProcessId)
+    $taskkill = Join-Path ([Environment]::GetEnvironmentVariable('SystemRoot')) 'System32\taskkill.exe'
+    & $taskkill /PID $ProcessId /T /F 2>&1 | Out-Null
+    return [int]$LASTEXITCODE
+}
+
+function Stop-WindowsCopilotNativeAuditProcess {
+    param([Parameter(Mandatory)]$Process)
+    try {
+        $exited = $Process.HasExited
+        if ($exited -isnot [bool]) { throw 'native-audit-termination-failed' }
+        if (-not $exited) {
+            # Only this just-started diagnostic PID/tree, including its own Node-mode
+            # probe. Never a name-wide kill or a pre-existing Desktop/Host process.
+            $exitCode = Invoke-WindowsCopilotNativeAuditTaskKill -ProcessId $Process.Id
+            $waited = $Process.WaitForExit(5000)
+            $confirmedExit = $Process.HasExited
+            if ($exitCode -isnot [int] -or $exitCode -ne 0 -or $waited -isnot [bool] -or $waited -ne $true -or
+                $confirmedExit -isnot [bool] -or $confirmedExit -ne $true) {
+                throw 'native-audit-termination-failed'
+            }
+        }
+    } catch { throw 'native-audit-termination-failed' }
+}
+
+function Invoke-WindowsCopilotNativeAuditProcess {
+    param(
+        [Parameter(Mandatory)][string]$NodePath,
+        [Parameter(Mandatory)][string]$InputJson,
+        [Parameter(Mandatory)][string]$DiagnosticRoot,
+        [ValidateRange(1, 180)][int]$TimeoutSeconds = 180
+    )
+    $inputBytes = [Text.Encoding]::UTF8.GetBytes($InputJson)
+    if ($inputBytes.Length -gt 1MB) { return [pscustomobject]@{ valid = $false; reason = 'native-audit-input-limit' } }
+    $process = $null; $started = $false
+    try {
+        $start = [Diagnostics.ProcessStartInfo]::new()
+        $start.FileName = $NodePath
+        $start.Arguments = '--max-old-space-size=512 "' + (Join-Path $PSScriptRoot 'verify-native-desktop.mjs') + '"'
+        $start.WorkingDirectory = $DiagnosticRoot
+        $start.UseShellExecute = $false; $start.CreateNoWindow = $true
+        $start.RedirectStandardInput = $true; $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
+        $start.StandardOutputEncoding = [Text.Encoding]::UTF8; $start.StandardErrorEncoding = [Text.Encoding]::UTF8
+        $start.EnvironmentVariables.Clear()
+        foreach ($name in @('SystemRoot', 'WINDIR')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { $start.EnvironmentVariables[$name] = $value }
+        }
+        foreach ($name in @('TEMP', 'TMP', 'HOME', 'USERPROFILE')) { $start.EnvironmentVariables[$name] = $DiagnosticRoot }
+        $process = New-WindowsCopilotNativeAuditProcess
+        $process.StartInfo = $start
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        $started = $process.Start()
+        if (-not $started) { throw 'start' }
+        $outBuffer = [char[]]::new(4096); $errBuffer = [char[]]::new(4096)
+        $outTask = $process.StandardOutput.ReadAsync($outBuffer, 0, $outBuffer.Length)
+        $errTask = $process.StandardError.ReadAsync($errBuffer, 0, $errBuffer.Length)
+        $writeTask = $process.StandardInput.BaseStream.WriteAsync($inputBytes, 0, $inputBytes.Length)
+        $text = [Text.StringBuilder]::new(); $outputBytes = 0; $errorBytes = 0
+        $inputClosed = $false; $outDone = $false; $errDone = $false
+        while ($true) {
+            $progress = $false
+            if (-not $inputClosed -and $writeTask.IsCompleted) {
+                [void]$writeTask.GetAwaiter().GetResult()
+                # Raw UTF-8 bytes: closing the StreamWriter can append its own
+                # encoding preamble. Close the pipe, without a writer flush.
+                $process.StandardInput.BaseStream.Close(); $inputClosed = $true; $progress = $true
+            }
+            if (-not $outDone -and $outTask.IsCompleted) {
+                $count = $outTask.GetAwaiter().GetResult(); $progress = $true
+                if ($count -eq 0) { $outDone = $true }
+                else {
+                    $outputBytes += [Text.Encoding]::UTF8.GetByteCount($outBuffer, 0, $count)
+                    if ($outputBytes -gt 1MB) { Stop-WindowsCopilotNativeAuditProcess $process; return [pscustomobject]@{ valid = $false; reason = 'native-audit-output-limit' } }
+                    [void]$text.Append($outBuffer, 0, $count)
+                    $outTask = $process.StandardOutput.ReadAsync($outBuffer, 0, $outBuffer.Length)
+                }
+            }
+            if (-not $errDone -and $errTask.IsCompleted) {
+                $count = $errTask.GetAwaiter().GetResult(); $progress = $true
+                $errorBytes += [Text.Encoding]::UTF8.GetByteCount($errBuffer, 0, $count)
+                if ($errorBytes -gt 16384) { Stop-WindowsCopilotNativeAuditProcess $process; return [pscustomobject]@{ valid = $false; reason = 'native-audit-output-limit' } }
+                if ($count -eq 0) { $errDone = $true }
+                else { $errTask = $process.StandardError.ReadAsync($errBuffer, 0, $errBuffer.Length) }
+            }
+            $exited = $process.HasExited
+            if ($exited -isnot [bool]) { throw 'native-audit-termination-failed' }
+            if ($exited -and $inputClosed -and $outDone -and $errDone) { break }
+            if ($clock.Elapsed.TotalSeconds -ge $TimeoutSeconds) {
+                Stop-WindowsCopilotNativeAuditProcess $process
+                return [pscustomobject]@{ valid = $false; reason = 'native-audit-timeout' }
+            }
+            if (-not $progress) { Start-Sleep -Milliseconds 10 }
+        }
+        if ($process.ExitCode -ne 0 -or $errorBytes -gt 0) { return [pscustomobject]@{ valid = $false; reason = 'native-audit-process-failed' } }
+        return [pscustomobject]@{ valid = $true; output = $text.ToString() }
+    } catch {
+        $reason = if ($_.Exception.Message -ceq 'native-audit-termination-failed') { 'native-audit-termination-failed' } else { 'native-audit-process-failed' }
+        return [pscustomobject]@{ valid = $false; reason = $reason }
+    } finally {
+        if ($process) {
+            # A failed final retry deliberately propagates the fixed cleanup
+            # failure; do not silently dispose a still-running diagnostic handle.
+            if ($started) {
+                try {
+                    $exited = $process.HasExited
+                    if ($exited -isnot [bool]) { throw 'native-audit-termination-failed' }
+                    if (-not $exited) { Stop-WindowsCopilotNativeAuditProcess $process }
+                } catch { throw 'native-audit-termination-failed' }
+            }
+            $process.Dispose()
+        }
+    }
+}
+
+function Invoke-WindowsCopilotNativeFileAudit {
+    param([Parameter(Mandatory)]$Lock, [Parameter(Mandatory)][string]$InstallRoot, [Parameter(Mandatory)][string]$DshHome)
+    try {
+        $relative = [string]$Lock.components.desktop.installedRuntimeDescriptor.relativePath
+        $exeName = [string]$Lock.components.desktop.installedExecutable.relativePath
+        if (-not (Test-WindowsCopilotNativeMode $Lock) -or $relative.Replace('\', '/') -cne 'resources/app.asar/dsh/desktop-runtime.json' -or
+            $exeName -notmatch '^[^\\/:"<>|?*]+\.exe$' -or $InstallRoot -notmatch '^[A-Za-z]:[\\/]' -or $DshHome -notmatch '^[A-Za-z]:[\\/]') { throw 'scope' }
+        $install = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
+        $homePath = [IO.Path]::GetFullPath($DshHome).TrimEnd('\')
+        if ($InstallRoot.Substring(2).Contains(':') -or $DshHome.Substring(2).Contains(':') -or
+            (Test-WindowsCopilotAsarPath $install) -or (Test-WindowsCopilotAsarPath $homePath) -or
+            $install -eq [IO.Path]::GetPathRoot($install).TrimEnd('\') -or $homePath -eq [IO.Path]::GetPathRoot($homePath).TrimEnd('\')) { throw 'scope' }
+        $executable = Join-Path $install $exeName
+        $archive = Join-Path $install 'resources\app.asar'
+        foreach ($path in @($install, $executable, $archive)) { Assert-NoReparsePointAncestor -Path $path }
+        if (-not (Test-Path -LiteralPath $install -PathType Container) -or
+            -not (Test-Path -LiteralPath $executable -PathType Leaf) -or -not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+            return [pscustomobject]@{ valid = $false; reason = 'native-audit-installed-evidence-missing' }
+        }
+        if ((Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash -ine [string]$Lock.components.desktop.installedExecutable.sha256) {
+            return [pscustomobject]@{ valid = $false; reason = 'native-audit-executable-mismatch' }
+        }
+        Assert-NoReparsePointAncestor -Path $homePath
+        if (-not (Test-Path -LiteralPath $homePath -PathType Container)) {
+            return [pscustomobject]@{ valid = $false; reason = 'native-audit-profile-prerequisite-missing' }
+        }
+        $node = Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
+        if ([string]$node.Source -notmatch '^[A-Za-z]:[\\/]' -or (Test-WindowsCopilotAsarPath ([string]$node.Source))) { throw 'tool' }
+        $nodePath = [IO.Path]::GetFullPath([string]$node.Source)
+        Assert-NoReparsePointAncestor -Path $nodePath
+        if (-not (Test-Path -LiteralPath $nodePath -PathType Leaf) -or
+            $nodePath.StartsWith($install + '\', [StringComparison]::OrdinalIgnoreCase) -or
+            $nodePath.StartsWith($homePath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'tool' }
+        $diagnosticRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+        Assert-NoReparsePointAncestor -Path $diagnosticRoot
+        if (-not (Test-Path -LiteralPath $diagnosticRoot -PathType Container) -or
+            $diagnosticRoot -match '(?i)(^|[\\/])OneDrive([\\/ ]|$)' -or $diagnosticRoot -ieq $install -or $diagnosticRoot -ieq $homePath -or
+            $diagnosticRoot.StartsWith($install + '\', [StringComparison]::OrdinalIgnoreCase) -or
+            $diagnosticRoot.StartsWith($homePath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'diagnostic' }
+        foreach ($name in @('OneDrive', 'OneDriveConsumer', 'OneDriveCommercial')) {
+            $syncRoot = [Environment]::GetEnvironmentVariable($name)
+            if ($syncRoot -and ($diagnosticRoot + '\').StartsWith($syncRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'diagnostic' }
+        }
+        $request = @{ lock = $Lock; installRoot = $install; dshHome = $homePath; diagnosticRoot = $diagnosticRoot } | ConvertTo-Json -Depth 60 -Compress
+        $result = Invoke-WindowsCopilotNativeAuditProcess -NodePath $nodePath -InputJson $request -DiagnosticRoot $diagnosticRoot
+        if ($result.valid -isnot [bool]) { throw 'protocol' }
+        if (-not $result.valid) {
+            if ($result.reason -isnot [string] -or $result.reason -cnotin @('native-audit-input-limit', 'native-audit-output-limit', 'native-audit-timeout', 'native-audit-process-failed', 'native-audit-termination-failed')) { throw 'protocol' }
+            return [pscustomobject]@{ valid = $false; reason = $result.reason }
+        }
+        if ($result.output -isnot [string] -or [Text.Encoding]::UTF8.GetByteCount($result.output) -gt 1MB) { throw 'protocol' }
+        $parsed = $result.output | ConvertFrom-Json
+        if ($parsed.valid -isnot [bool] -or $parsed.runtime.valid -isnot [bool] -or $parsed.provisioning.valid -isnot [bool] -or
+            $parsed.mutated -isnot [bool] -or $parsed.mutated -ne $false -or $parsed.functional.modelResponseVerified -isnot [bool] -or
+            $parsed.functional.modelResponseVerified -ne $false) { throw 'protocol' }
+        $runtime = [ordered]@{ valid = $parsed.runtime.valid }
+        foreach ($name in @('status', 'reason', 'mode', 'version', 'runtimeRoot', 'carrierExecutable', 'executableSha256', 'descriptorSha256', 'fileCount')) {
+            $value = Get-LockProperty $parsed.runtime $name
+            if ($name -ne 'fileCount' -and $null -ne $value -and ($value -isnot [string] -or $value.Length -gt 32768)) { throw 'protocol' }
+            if ($name -eq 'reason' -and $null -ne $value -and $value -cnotmatch '^native-[a-z-]{1,120}$') { throw 'protocol' }
+            if ($name -eq 'fileCount' -and $null -ne $value -and (
+                ($value -isnot [int] -and $value -isnot [long] -and $value -isnot [double]) -or
+                $value -lt 0 -or $value -gt 200000 -or [double]::IsNaN([double]$value) -or [double]::IsInfinity([double]$value) -or
+                [Math]::Truncate([double]$value) -ne [double]$value)) { throw 'protocol' }
+            $runtime[$name] = $value
+        }
+        $provisioningReason = Get-LockProperty $parsed.provisioning 'reason'
+        if ($null -ne $provisioningReason -and ($provisioningReason -isnot [string] -or $provisioningReason -cnotmatch '^native-[a-z-]{1,120}$')) { throw 'protocol' }
+        # Project only needed leaves. Never return metadata snapshots, manifests,
+        # receipts, user-extra names, parser contents or stderr through replay.
+        return [pscustomobject]@{
+            valid = [bool]$parsed.valid; runtime = [pscustomobject]$runtime
+            provisioning = [pscustomobject]@{ valid = $parsed.provisioning.valid; reason = Get-LockProperty $parsed.provisioning 'reason' }
+            modelResponseVerified = $false
+        }
+    } catch {
+        $reason = if ($_.Exception.Message -ceq 'native-audit-termination-failed') { 'native-audit-termination-failed' } else { 'native-audit-input-tool-or-protocol-invalid' }
+        return [pscustomobject]@{ valid = $false; reason = $reason }
+    }
+}
+
 function Get-WindowsCopilotOfficialRuntimeState {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]$Lock,
-        [string]$DesktopExecutablePath
+        [string]$DesktopExecutablePath,
+        [string]$DshHome
     )
 
     $selector = Get-WindowsCopilotRuntimeSelector -Lock $Lock
@@ -3853,6 +4092,76 @@ function Get-WindowsCopilotOfficialRuntimeState {
         [Environment]::ExpandEnvironmentVariables([string]$selector.root)
     )
     if ([string]$selector.id -ceq 'desktop-fork-managed') {
+        $identity = Get-LockProperty $Lock.components.desktop 'installedRuntimeDescriptor'
+        $identityPath = if ($identity) { [string](Get-LockProperty $identity 'relativePath') } else { '' }
+        if ((Test-WindowsCopilotAsarPath $root) -or (Test-WindowsCopilotAsarPath $identityPath)) {
+            # ASAR has no physical descriptor/CLI path for PowerShell to inspect.
+            # Use the independent full native audit, not TestNativeInstallation
+            # (which itself validates user presets and would introduce recursion).
+            $state = [ordered]@{
+                valid = $false; status = 'native-asar-audit-not-ready'; selector = 'desktop-fork-managed'
+                source = 'desktop-managed-release'; mode = 'asar-runtime'; immutable = $true
+                version = $null; root = $root; packageRoot = $root; entryPath = $null
+                descriptorPath = $null; descriptorSha256 = $null; fileCount = $null; treeSha256 = $null
+                entrypointSha256 = $null; entrypointSize = $null; wrapperFileCount = $null
+                wrapperTotalBytes = $null; wrapperTreeSha256 = $null; wrapperReparseDirectoryCount = $null
+                reason = $null; modelResponseVerified = $false
+            }
+            try {
+                $expectedHash = [string]$identity.sha256
+                $expectedVersion = [string]$Lock.components.desktop.releaseChannel.upstreamVersion
+                if ($identityPath.Replace('\', '/') -cne 'resources/app.asar/dsh/desktop-runtime.json' -or
+                    [string]$selector.descriptor.manifest -cne 'desktop-runtime.json' -or
+                    [string]$selector.descriptor.sha256 -cne $expectedHash -or
+                    [string]$selector.package.version -cne $expectedVersion -or $expectedVersion -cnotmatch '^0\.1\.6(?:-|$)' -or
+                    $expectedHash -cnotmatch '^[a-f0-9]{64}$' -or $root -notmatch '(?i)[\\/]resources[\\/]app\.asar[\\/]dsh$') {
+                    $state.status = 'native-asar-layout-unsupported'; $state.reason = 'native-runtime-layout-unsupported'
+                    return [pscustomobject]$state
+                }
+                $install = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $root))
+                if ($DesktopExecutablePath) { $install = Split-Path -Parent ([IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DesktopExecutablePath))) }
+                $executable = Join-Path $install ([string]$Lock.components.desktop.installedExecutable.relativePath)
+                if ($DesktopExecutablePath -and [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DesktopExecutablePath)) -ine $executable) {
+                    $state.reason = 'native-audit-executable-mismatch'; return [pscustomobject]$state
+                }
+                $expectedRoot = Join-Path $install 'resources\app.asar\dsh'
+                $state.root = $expectedRoot; $state.packageRoot = $expectedRoot
+                $state.descriptorPath = Join-Path $expectedRoot 'desktop-runtime.json'
+                $homePath = if ($DshHome) { [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($DshHome)) }
+                    else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.dsh' }
+                $audit = Invoke-WindowsCopilotNativeFileAudit -Lock $Lock -InstallRoot $install -DshHome $homePath
+                $runtime = Get-LockProperty $audit 'runtime'; $provisioning = Get-LockProperty $audit 'provisioning'
+                if ($audit.valid -isnot [bool] -or ($runtime -and $runtime.valid -isnot [bool]) -or
+                    ($provisioning -and $provisioning.valid -isnot [bool])) { throw 'protocol' }
+                if (-not $audit.valid -or -not $runtime -or -not $runtime.valid -or -not $provisioning -or -not $provisioning.valid) {
+                    $reason = Get-LockProperty $audit 'reason'
+                    if ($reason -ceq 'native-audit-profile-prerequisite-missing') { $state.status = 'native-asar-audit-prerequisite-not-ready' }
+                    if ($provisioning -and -not $provisioning.valid -and [string]$provisioning.reason -cne 'native-runtime-prerequisite-failed') {
+                        $state.status = 'native-asar-audit-prerequisite-not-ready'; $reason = $provisioning.reason
+                    } elseif ($runtime) { $reason = $runtime.reason }
+                    $state.reason = if ($reason -is [string] -and $reason -cmatch '^native-[a-z-]{1,120}$') { $reason } else { 'native-audit-not-ready' }
+                    return [pscustomobject]$state
+                }
+                foreach ($name in @('mode', 'status', 'version', 'descriptorSha256', 'runtimeRoot', 'carrierExecutable', 'executableSha256')) {
+                    if ((Get-LockProperty $runtime $name) -isnot [string]) { throw 'protocol' }
+                }
+                $count = $runtime.fileCount
+                if ($runtime.mode -cne 'asar-runtime' -or $runtime.status -cne 'runtime-tree-verified' -or
+                    $runtime.version -cne $expectedVersion -or $runtime.descriptorSha256 -cne $expectedHash -or
+                    $runtime.runtimeRoot -ine $expectedRoot -or $runtime.carrierExecutable -ine $executable -or
+                    $runtime.executableSha256 -cne [string]$Lock.components.desktop.installedExecutable.sha256 -or
+                    ($count -isnot [int] -and $count -isnot [long] -and $count -isnot [double]) -or
+                    $count -lt 1 -or $count -gt 200000 -or [double]::IsNaN([double]$count) -or [double]::IsInfinity([double]$count) -or
+                    [Math]::Truncate([double]$count) -ne [double]$count) {
+                    $state.reason = 'native-audit-correlation-mismatch'; return [pscustomobject]$state
+                }
+                $state.valid = $true; $state.status = 'runtime-asar-verified'; $state.version = [string]$runtime.version
+                $state.fileCount = [int]$count; $state.descriptorSha256 = [string]$runtime.descriptorSha256
+                # A descriptor digest is neither a runnable entrypoint nor the
+                # legacy physical-tree hash format; keep those fields null.
+            } catch { $state.reason = 'native-audit-input-or-protocol-invalid' }
+            return [pscustomobject]$state
+        }
         if ($DesktopExecutablePath) {
             $descriptorIdentity = Get-LockProperty -InputObject $Lock.components.desktop `
                 -Name 'installedRuntimeDescriptor'
@@ -5498,6 +5807,16 @@ function Test-WindowsCopilotCompanionSuite {
         [string]$ArtifactDirectory
     )
     Test-WindowsCopilotLock -Lock $Lock | Out-Null
+    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock -RuntimeRoot $RuntimeRoot
+    if ((Get-LockProperty $compatibility 'status') -ceq 'physical-web-runtime-required') {
+        return [pscustomobject]@{
+            mode = 'verify-companion-suite'; valid = $false; status = 'physical-web-runtime-required'
+            compatibility = $compatibility
+            artifactCompatibility = [pscustomobject]@{ valid = $false; status = 'not-evaluated'; plugins = @() }
+            imports = [pscustomobject]@{ valid = $false; status = 'not-run'; failure = 'physical-web-runtime-required' }
+            profileReason = $null; members = @(); desktopVersionChecked = $false
+        }
+    }
     $home = Resolve-DeploymentPath $DshHome
     $profileRoot = Join-Path $home ([string]$Lock.profile.relativePath)
     $packagePath = Join-Path $profileRoot ([string]$Lock.profile.packageManifest)
@@ -5605,11 +5924,10 @@ function Test-WindowsCopilotCompanionSuite {
             )
         }
     })
-    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock `
-        -RuntimeRoot $RuntimeRoot
     $artifactCompatibility = Test-WindowsCopilotCompanionArtifactCompatibility `
         -Lock $Lock -Members $members -RuntimeRoot ([string]$compatibility.runtimeRoot)
     $imports = if (
+        $compatibility.valid -and $artifactCompatibility.valid -and
         -not $profileReason -and
         @($states | Where-Object { -not $_.valid }).Count -eq 0
     ) {
@@ -6045,6 +6363,15 @@ function Invoke-WindowsCopilotCompanionSuiteApply {
         [string]$RuntimeRoot,
         [string[]]$AcknowledgeLiveSessionIds
     )
+    # Compatibility is a precondition, not an operation: reject ASAR/default and
+    # invalid physical Web targets before even acquiring the deployment mutex.
+    $compatibility = Test-WindowsCopilotCompanionCompatibility -Lock $Lock -RuntimeRoot $RuntimeRoot
+    if (-not $compatibility.valid) {
+        if ((Get-LockProperty $compatibility 'status') -ceq 'physical-web-runtime-required') {
+            throw 'physical-web-runtime-required: optional Web setup requires an explicit existing approved physical RuntimeRoot; Desktop ASAR is unsupported.'
+        }
+        throw "Companion installation requires a supported Core, Cordis, and plugin API set: $($compatibility.reasons -join ', ')."
+    }
     $mutex = Enter-WindowsCopilotDeploymentLock -BackupRoot $BackupRoot
     try {
         return Invoke-WindowsCopilotCompanionSuiteApplyLocked @PSBoundParameters

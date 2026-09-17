@@ -106,8 +106,13 @@ function Test-DshUserPresetConfig {
 
     try {
         $root = [Environment]::ExpandEnvironmentVariables([string]$Contract.root)
+        $canonicalRoot = [IO.Path]::GetFullPath($root).TrimEnd('\')
+        # ASAR virtual paths are not physical wrappers; do not walk or import the target.
+        if ($canonicalRoot -match '(^|[\\/])[^\\/]*\.asar([\\/]|$)') {
+            return New-PresetConfigFailure 'unsupported-asar-target-validation'
+        }
         Assert-PresetPhysicalPath $root
-        $root = [IO.Path]::GetFullPath($root).TrimEnd('\')
+        $root = $canonicalRoot
         if (-not (Test-Path -LiteralPath $root -PathType Container)) {
             return New-PresetConfigFailure 'target-artifacts-unavailable'
         }

@@ -38,6 +38,33 @@ inventory-only and cannot make the baseline healthy; an exact active match in
 the target-Core denylist adds `profile-known-incompatible-plugin-active` and
 blocks that cutover.
 
+## ASAR entrypoint boundaries
+
+ASAR preparation is not a deployment-lock upgrade or genuine `.6` qualification.
+When a reviewed lock selects an ASAR runtime:
+
+- The native file checker remains read-only and inventory/peer proof is not a
+  live Host/model response. Replay runtime identity uses that audited checker,
+  not PowerShell reads of virtual files; failed prerequisites remain not-ready.
+- The optional Web installer requires an explicit **existing compatible physical
+  Web runtime** (`-RuntimeRoot`) or reports `physical-web-runtime-required`
+  before downloads, import probes or its mutex. It never supplies another Core.
+  See the [optional suite boundary](../docs/plugins/optional-companion-suite.md#physical-web-runtime-boundary).
+- Existing user Agent Presets are not silently skipped: ASAR target-wrapper
+  validation is explicitly `unsupported-asar-target-validation`/not-ready.
+  The successful no-user-presets path does not prove this unsupported validation.
+- Archive patch targets, including native `resources/app.asar.unpacked/dsh` backing files,
+  are immutable/unsupported for replay Verify and DryRun; native Apply/Rollback
+  refusal remains. No archive patching, physical fallback,
+  private boot wrapper, invented CLI flag or read-only `--dump-config` claim is made.
+- `enable-copilot-search-vision.ps1` stays historical official-only; its guard is
+  not loosened into an unqualified native Electron/ASAR launcher.
+
+The [qualification recipe](../tests/fixtures/native-asar-synthetic/README.md)
+separates synthetic checks, actual-release observer proof and outstanding cases.
+These entrypoint limits do not authorize installing, restarting or replacing a
+running Desktop, Host, Web runtime or Profile.
+
 ## Tool families
 
 - **Deployment/build:** `install-windows-copilot.ps1`, `WindowsCopilotDeployment.psm1`, `build-official-desktop.ps1`, `DshOfficialDesktopBuild.psm1`, `install-official-desktop-local.ps1`, `Install-DshOfficialDesktopLocal.psm1`, `DshOfficialDesktopPluginProvisioning.psm1`, `sync-official-desktop-plugin-release.ps1`, `DshOfficialDesktopLocalMigration.psm1`, `manage-official-desktop-update-channel.ps1`, `DshOfficialDesktopUpdateChannel.psm1`, `enable-copilot-search-vision.ps1`

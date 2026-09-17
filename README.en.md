@@ -145,6 +145,8 @@ The [Desktop source-snapshot guide](docs/plugins/desktop-source-installation.md)
 
 Use each script's header and linked guide for full parameters.
 
+**ASAR entrypoint boundaries (preparation, not a baseline upgrade):** the optional Web installer explicitly requires an already-existing compatible physical `-RuntimeRoot` for an ASAR default and never installs or copies another Core. ASAR target validation for existing user Agent Presets is explicitly unsupported, not skipped and reported valid. Replay uses audited read-only native state and refuses immutable archive patches/native mutations. See [tool boundaries](tools/README.md#asar-entrypoint-boundaries); actual `.6` Release/observer qualification remains a separate gate, and this does not claim local installation or activation.
+
 ## Documentation map
 
 - **Deployment and integration:** `local-core-desktop-copilot.md`, `vision-dual-channel.md` (now the native DSH attachment and `read_image` architecture)

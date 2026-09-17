@@ -1,0 +1,87 @@
+{
+  "sourceCommit": "fae12b69dcd28413518f68b5770e40f8eb2ff730",
+  "desktopVersion": "0.1.6-alpha.1.cloga.1",
+  "runtimeVersion": "0.1.6-alpha.1",
+  "plugin": {
+    "schemaVersion": 1,
+    "type": "githubRelease",
+    "owner": "cloga",
+    "repo": "dsh-github-copilot",
+    "tag": "v0.4.0-alpha.22",
+    "asset": "dsh-github-copilot-0.4.0-alpha.22.tgz",
+    "assetId": 567596250,
+    "packageName": "dsh-github-copilot",
+    "version": "0.4.0-alpha.22",
+    "size": 651444,
+    "sha256": "e749d982ac55752eeca4cf4819b9751144cda1c2dc06033e4b42240151e40e0e",
+    "integrity": "sha512-HkGACgfUrTREbtbUgZJ6Sb02hqKseCtldW16ZBounQZahTpeKWW5bqj5TNb1MD6X7y4e5MI0Q5edYLCF71ybnQ==",
+    "targetCommit": "479340f965c5be7b4408e4f1e6c9dda6c421d37b",
+    "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+    "checksumManifest": {
+      "format": "sha256sums",
+      "asset": "SHA256SUMS",
+      "assetId": 567596283,
+      "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/SHA256SUMS",
+      "size": 104,
+      "sha256": "cdc2a7e8df955c9136c6c79c25adaaf929bee815308ff3ceb6c9cfb948c03546",
+      "integrity": "sha512-Q6hlYjOSZU397FlT180MK8NgkEdDct20KPEpk7q1PB19Y1HkpiTweqFenptizstFrCm6u0fTl6gDEK3mEGMD/Q=="
+    }
+  },
+  "transport": "packaged Electron dsh-app byte pipes",
+  "isolatedHome": true,
+  "onboardingNoticeDismissed": true,
+  "restartReceiptSha256": "f78f9856e08874b1cf81d962179cc18777748f5e99a038b13bb30ec84aad5b70",
+  "actualGraphVerified": true,
+  "ancestorSdkJunction": true,
+  "ancestorSdkLoaded": false,
+  "accountEntryVisible": true,
+  "realOAuth": false,
+  "realModelRound": false,
+  "installerUpgradeVerified": false,
+  "timeline": [
+    {
+      "event": "package-identity",
+      "milliseconds": 19869.490200000004
+    },
+    {
+      "event": "initial:launch",
+      "milliseconds": 19869.5039
+    },
+    {
+      "event": "initial:application",
+      "milliseconds": 59937.1639
+    },
+    {
+      "event": "initial:account",
+      "milliseconds": 60243.3119
+    },
+    {
+      "event": "initial:packaged-graph",
+      "milliseconds": 60657.5
+    },
+    {
+      "event": "initial:closed",
+      "milliseconds": 60840.4019
+    },
+    {
+      "event": "restart:launch",
+      "milliseconds": 60840.4066
+    },
+    {
+      "event": "restart:application",
+      "milliseconds": 69831.1403
+    },
+    {
+      "event": "restart:account",
+      "milliseconds": 70102.7649
+    },
+    {
+      "event": "restart:packaged-graph",
+      "milliseconds": 70578.66159999999
+    },
+    {
+      "event": "restart:closed",
+      "milliseconds": 70785.0466
+    }
+  ]
+}

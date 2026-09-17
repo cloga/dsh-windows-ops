@@ -2,18 +2,40 @@ name: Plugin catalog validation
 
 on:
   workflow_dispatch:
+    inputs:
+      qualify_native_asar:
+        description: Run genuine locked ASAR release qualification on this reviewed ref
+        type: boolean
+        required: false
+        default: false
+      confirm_version:
+        description: Exact locked Desktop version required when qualification is enabled
+        type: string
+        required: false
+        default: ''
   pull_request:
   push:
     branches: [master]
 
 concurrency:
-  group: plugin-catalog-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: plugin-catalog-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.qualify_native_asar && 'native-qualification' || 'checks' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.qualify_native_asar }}
 
 permissions:
   contents: read
 
 jobs:
+  # This workflow is already registered on the default branch. Dispatching its
+  # reviewed PR ref can qualify the same-commit reusable workflow before PR merge.
+  native-asar-qualification:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify_native_asar == true }}
+    needs: [validate, repository-content, repository-policy]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/native-asar-release.yml
+    with:
+      confirm_version: ${{ inputs.confirm_version }}
+
   validate:
     runs-on: windows-latest
     timeout-minutes: 15

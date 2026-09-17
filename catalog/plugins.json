@@ -98,12 +98,12 @@
       "validation": {
         "level": "baseline",
         "verifiedAt": "2026-09-17",
-        "dshVersion": "fork-owned Desktop-managed 0.1.5-rc.2",
-        "nodeVersion": "24.17.0",
+        "dshVersion": "fork-owned Desktop-managed 0.1.6-alpha.1",
+        "nodeVersion": "24.18.1",
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows Copilot deployment lock pins the fork-owned Desktop, its bundled runtime descriptor and native provisioning capability together with the immutable Copilot artifact, source identity, required host peers, and required capabilities. A promoted lock does not prove local installation.",
+            "description": "The Windows Copilot deployment lock selects the published 0.1.6-alpha.1.cloga.1 Desktop, ASAR-backed runtime descriptor and native provisioning capability with the unchanged immutable Copilot alpha.22 artifact, source identity and required host peers. Genuine Ops observer qualification remains pending; publication/repinning is not local installation or activation.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -118,8 +118,8 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "Formal cloga.7 packaged acceptance verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and the bundled-Node graph with ancestor SDK isolation. It did not perform OAuth, a real model request, a local installer upgrade, or source-plugin activation.",
-            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga7/acceptance.json"
+            "description": "Formal source run 35197577605 for immutable Desktop 0.1.6-alpha.1.cloga.1 verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and Electron Node-mode ASAR graph/ancestor isolation. Packaged Host evidence reports Electron 44.0.0 and Node 24.18.1; the source build toolchain remains separate. Genuine Ops observer qualification is still pending. No real OAuth/model round, local installer upgrade, or local activation was performed.",
+            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-1/acceptance.json"
           }
         ]
       },
@@ -133,7 +133,7 @@
           "Model prompts, images, and hosted-search queries are sent directly to GitHub Copilot by DSH's built-in pi-ai adapter and this plugin.",
           "The shared DSH credential record owns OAuth refresh; the plugin normalizes provider-owned grant fields to strict JSON, and deployment checks report only record metadata, never payload values.",
           "Hosted search does not add a separate local approval prompt, gateway process, or ACP integration.",
-          "This entry pins the historical full deployment baseline, not the newer managed-route maintenance contract. See docs/copilot-managed-route.md and deployments/copilot-managed-route.policy.json for separately approved configuration-only maintenance; no implicit component upgrade or full-baseline attestation is provided."
+          "This entry pins the required plugin in the full deployment target, not the separate newer managed-route maintenance contract. See docs/copilot-managed-route.md and deployments/copilot-managed-route.policy.json for separately approved configuration-only maintenance; no implicit component upgrade or full-baseline attestation is provided."
         ]
       },
       "summary": "The locked DSH companion for Copilot sign-in, account-aware leaf-only model reconciliation, strict Host-only grant handling, provider-scoped Tool compatibility, dual-protocol inline search, and Responses-only ctx.web search through validated GitHub-hosted or Enterprise endpoints; no second adapter, embedded gateway, or ACP scope."

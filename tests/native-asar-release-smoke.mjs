@@ -2,17 +2,19 @@
 // Source-owned UI/restart fixture is imported ONLY after reviewed release/source/file checks.
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { closeSync, lstatSync, openSync, readFileSync, readSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
-import { nativeLayout, preflightAsar, probeEnvironment } from '../tools/native-asar-runtime.mjs';
-import { hashFile, hashValid, inside, object, physical, relativeName, safeReason } from '../tools/native-runtime-integrity.mjs';
+import { nativeLayout, preflightAsar, probeEnvironment, boundedHeader, headerRuntimeInventory } from '../tools/native-asar-runtime.mjs';
+import { hashFile, hashValid, inside, object, physical, relativeName, safeReason, sha256 } from '../tools/native-runtime-integrity.mjs';
 import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFixture = 'apps/desktop/tests/fixtures/copilot-release-smoke.ts';
 const sourcePlan = 'apps/desktop/release/cloga-windows-x64.json';
+const asarReader = createRequire(import.meta.url)('../tools/vendor/asar-reader/reader.cjs');
 const fail = code => { throw new Error(`native-release-smoke-${code}`); };
 const need = (ok, code) => { if (!ok) fail(code); };
 const commit = value => typeof value === 'string' && /^[a-f0-9]{40}$/u.test(value);
@@ -123,6 +125,8 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
   // Full reviewed release evidence, including self-hashes, receipts, capabilities,
   // helper and ancestor acceptance. Labels such as fixtureKind establish no origin.
   verifyNativeReleaseEvidence(lock, fixtureRoot);
+  need(isDeepStrictEqual(readJson(join(evidenceRoot, 'release.json')).identity,
+    lock.components.desktop.releaseChannel.identity), 'application-release-identity-mismatch');
   for (const name of ['release.json', 'build-receipt.json', 'desktop-provisioning.json']) {
     need(hashFile(join(evidenceRoot, name)) === hashFile(join(fixtureRoot, name)), 'formal-evidence-mismatch');
   }
@@ -162,6 +166,33 @@ export function verifySource(lock, confirmation, sourceRoot) {
   });
 }
 
+/** Read package identity as DATA. PE ProductVersion alone omits the release suffix. */
+export function validateApplicationPackageMetadata(bytes, lock) {
+  need(Buffer.isBuffer(bytes) && bytes.length > 0 && bytes.length <= 1024 * 1024, 'application-package-invalid');
+  let value; try { value = JSON.parse(bytes.toString('utf8')); } catch { fail('application-package-invalid'); }
+  const expectedName = lock.components.desktop.releaseChannel.identity.packageName;
+  const expectedVersion = lock.components.desktop.version;
+  need(object(value) && typeof expectedName === 'string' && expectedName !== '' &&
+    value.name === expectedName && value.version === expectedVersion, 'application-package-identity-mismatch');
+  return { applicationPackageName: value.name, applicationPackageVersion: value.version, applicationPackageSha256: sha256(bytes) };
+}
+
+export function readApplicationPackageIdentity(lock, snapshot) {
+  const archive = physical(snapshot.archive, 'file');
+  need(hashFile(archive) === snapshot.archiveSha256, 'application-archive-changed');
+  const raw = boundedHeader(archive);
+  // Reuse maintained header-driven bounds/path checks before allocating any file.
+  headerRuntimeInventory(raw, lstatSync(archive).size);
+  const entry = raw.header.files['package.json'];
+  need(object(entry) && !Object.hasOwn(entry, 'files') && !Object.hasOwn(entry, 'link') && entry.unpacked !== true &&
+    Number.isSafeInteger(entry.size) && entry.size > 0 && entry.size <= 1024 * 1024, 'application-package-invalid');
+  let bytes;
+  try { bytes = asarReader.extractFile(archive, 'package.json', false); }
+  finally { asarReader.uncache(archive); }
+  need(bytes.length === entry.size && hashFile(archive) === snapshot.archiveSha256, 'application-archive-changed');
+  return validateApplicationPackageMetadata(bytes, lock);
+}
+
 export function discoverApplication(lock, confirmation, extractRoot) {
   releasePlan(lock, confirmation); physical(extractRoot, 'directory');
   const candidates = []; let count = 0;
@@ -182,8 +213,8 @@ export function discoverApplication(lock, confirmation, extractRoot) {
     }
   };
   visit(extractRoot, 0); need(candidates.length === 1, 'application-inventory-mismatch');
-  const application = candidates[0]; preflightAsar(lock, dirname(application));
-  return { application };
+  const application = candidates[0]; const snapshot = preflightAsar(lock, dirname(application));
+  return { application, ...readApplicationPackageIdentity(lock, snapshot) };
 }
 
 function inspectObserverPaths(paths, sourceRoot, application, output) {
@@ -234,6 +265,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     !inside(opsRoot, output) && !entryExists(join(output, 'qualification.json')), 'output-or-cwd-invalid');
   need(application === join(dirname(application), lock.components.desktop.installedExecutable.relativePath), 'application-path-invalid');
   const before = preflightAsar(lock, dirname(application));
+  const applicationIdentity = readApplicationPackageIdentity(lock, before);
   const sourceOutput = join(output, 'source-evidence');
   need(!entryExists(sourceOutput), 'output-not-empty');
   let calls = 0; let observedHome; let positive; let completed = false;
@@ -282,12 +314,15 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       accepted.realOAuth === false && accepted.realModelRound === false && accepted.installerUpgradeVerified === false,
     'source-acceptance-incomplete');
     verifySource(lock, confirmation, sourceRoot);
-    need(preflightAsar(lock, dirname(application)).archiveSha256 === before.archiveSha256, 'runtime-mutated');
+    const after = preflightAsar(lock, dirname(application));
+    need(after.archiveSha256 === before.archiveSha256 &&
+      isDeepStrictEqual(readApplicationPackageIdentity(lock, after), applicationIdentity), 'runtime-mutated');
     completed = true;
     const summary = { schemaVersion: 1, valid: true, qualification: 'locked-release-ops-observer',
       version: plan.version, sourceCommit: plan.sourceCommit, sourceTree: plan.sourceTree,
       installerSha256: lock.components.desktop.artifact.sha256, executableSha256: before.executableSha256,
       descriptorSha256: before.descriptorSha256, runtimeFileCount: positive.runtime.fileCount,
+      ...applicationIdentity,
       publicResolver: 'metadata-cjs-esm', observerCalls: calls, profileRemoved: true, invalidRequests,
       wholeCarrierAttested: false, modelResponseVerified: false, installerUpgradeVerified: false };
     writeFileSync(join(output, 'qualification.json'), JSON.stringify(summary, null, 2) + '\n', { flag: 'wx' });

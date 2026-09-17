@@ -10,15 +10,12 @@ import { validateRepositoryContent } from '../tools/validate-repository-content.
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const scratchRoot = path.join(root, 'tests', '.repository-content-scratch')
+const formalFixtureRoot = JSON.parse(fs.readFileSync(path.join(root, 'deployments/windows-copilot.lock.json'), 'utf8'))
+  .components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/')
 const fixtureFiles = [
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/release.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/build-receipt.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/capability.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/desktop-provisioning.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/helper-acceptance.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/acceptance.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/initial-packaged-graph.json',
-  'tests/fixtures/desktop-native-verified-release/formal-cloga7/restart-packaged-graph.json',
+  ...['release.json', 'build-receipt.json', 'capability.json', 'desktop-provisioning.json', 'helper-acceptance.json',
+    'acceptance.json', 'initial-desktop-plugin-provisioning-state.json', 'initial-desktop-plugin-receipts.json',
+    'initial-package.json', 'initial-packaged-graph.json', 'restart-packaged-graph.json'].map(name => `${formalFixtureRoot}/${name}`),
   'deployments/windows-copilot.lock.json',
   'catalog/plugins.json',
   'README.md',
@@ -146,7 +143,7 @@ for (const [name, mutate, expected] of [
   ['installer', (desktop) => { desktop.artifact.sha256 = 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c' }, /Desktop fork installer digest differs/],
   ['build receipt', (desktop) => { desktop.releaseChannel.buildReceipt.sha256 = 'd083232d6ac98736935529c352259f97abe19b45cb522d730b0488b1b7777515' }, /Desktop fork build receipt raw digest differs/],
 ]) {
-  test(`rejects historical cloga.5 Desktop ${name} in the cloga.7 baseline`, () => {
+  test(`rejects historical cloga.5 Desktop ${name} in the formal .6 baseline`, () => {
     const target = copyFixture()
     const lock = readJson(target, 'deployments/windows-copilot.lock.json')
     mutate(lock.components.desktop)
@@ -189,6 +186,21 @@ test('rejects Desktop runtime byte and selector drift', () => {
     assert.match(messages(result), /runtime schema Desktop release tag differs/)
   }
 })
+
+for (const [label, mutate, expected] of [
+  ['missing layout', schema => { delete schema.layout }, /ASAR runtime schema layout is missing/],
+  ['legacy wrapper claim', schema => { schema.wrapper = { name: 'deepseek-harness-pkg', version: '0.1.2-alpha.5' } }, /must not claim a legacy physical wrapper/],
+  ['descriptor digest', schema => { schema.descriptorSha256 = '0'.repeat(64) }, /ASAR runtime schema descriptor digest differs/],
+  ['wrong package version', schema => { schema.package.version = '0.1.5-rc.2' }, /ASAR runtime package metadata differs/],
+  ['wrong entrypoint path', schema => { schema.package.entrypoint = 'lib/private-wrapper.js' }, /ASAR runtime package paths differ/],
+  ['missing built data record', schema => { schema.requiredBuiltFiles.pop() }, /ASAR runtime built-file data inventory is invalid/],
+]) {
+  test(`rejects ASAR metadata schema ${label} without implying preset/CLI support`, () => {
+    const target = copyFixture(); const lock = readJson(target, 'deployments/windows-copilot.lock.json')
+    mutate(lock.acceptance.runtimeSchema); writeJson(target, 'deployments/windows-copilot.lock.json', lock)
+    assert.match(messages(validateRepositoryContent(target)), expected)
+  })
+}
 
 test('rejects plugin policy drift', () => {
   const target = copyFixture()

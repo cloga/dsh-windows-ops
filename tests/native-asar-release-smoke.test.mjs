@@ -7,7 +7,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { releasePlan, validateReleaseMetadata, validateSourceIdentity, discoverApplication, runReleaseSmoke, verifySource } from './native-asar-release-smoke.mjs';
+import { releasePlan, validateReleaseMetadata, validateSourceIdentity, discoverApplication, runReleaseSmoke, verifySource,
+  validateApplicationPackageMetadata, readApplicationPackageIdentity } from './native-asar-release-smoke.mjs';
+import { hashFile, sha256 } from '../tools/native-runtime-integrity.mjs';
 const lockPath = fileURLToPath(new URL('../deployments/windows-copilot.lock.json', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(lockPath, 'utf8'));
 function inertLock() {
@@ -166,10 +168,55 @@ test('a CI label cannot authorize paths outside private runner temp (inert)', as
   }
 });
 
+test('application package full identity is data-only, not PE numeric version or runtime proof', t => {
+  forbidChildren(t); const lock = inertLock();
+  const bytes = Buffer.from(JSON.stringify({ name: lock.components.desktop.releaseChannel.identity.packageName,
+    version: lock.components.desktop.version, private: true, extra: 'fixture-do-not-report' }));
+  const result = validateApplicationPackageMetadata(bytes, lock);
+  assert.deepEqual(result, { applicationPackageName: lock.components.desktop.releaseChannel.identity.packageName,
+    applicationPackageVersion: lock.components.desktop.version, applicationPackageSha256: sha256(bytes) });
+  assert.ok(!JSON.stringify(result).includes('fixture-do-not-report'));
+});
+for (const [label, data] of [
+  ['PE-only numeric version', { name: 'cloga-deepseek-harness-desktop', version: '0.1.6.0' }],
+  ['wrong full suffix', { name: 'cloga-deepseek-harness-desktop', version: '0.1.6-inert-unit.2' }],
+  ['wrong package name', { name: 'unreviewed-package', version: '0.1.6-inert-unit.1' }],
+  ['missing name/version', {}], ['non-object', []],
+]) {
+  test(`root package identity rejects ${label} before any child (inert)`, t => {
+    forbidChildren(t);
+    assert.throws(() => validateApplicationPackageMetadata(Buffer.from(JSON.stringify(data)), inertLock()), /application-package-identity-mismatch/);
+  });
+}
+test('root package parser rejects malformed/oversized data without reporting contents', t => {
+  forbidChildren(t);
+  for (const bytes of [Buffer.from('fixture-private-malformed'), Buffer.alloc(1024 * 1024 + 1), Buffer.alloc(0)]) {
+    assert.throws(() => validateApplicationPackageMetadata(bytes, inertLock()), { message: 'native-release-smoke-application-package-invalid' });
+  }
+});
+test('maintained ASAR reader rejects missing root package metadata without extracting or launching', t => {
+  forbidChildren(t);
+  const archive = fileURLToPath(new URL('./fixtures/native-asar-synthetic/app.asar', import.meta.url));
+  assert.throws(() => readApplicationPackageIdentity(inertLock(), { archive, archiveSha256: hashFile(archive) }), /application-package-invalid/);
+  assert.throws(() => readApplicationPackageIdentity(inertLock(), { archive, archiveSha256: '0'.repeat(64) }), /application-archive-changed/);
+});
+
 test('manual workflow preserves acquisition, token and source-loader boundaries (static)', () => {
   const workflow = readFileSync(new URL('../.github/workflows/native-asar-release.yml', import.meta.url), 'utf8');
   assert.match(workflow, /^on:\s*\n\s+workflow_dispatch:/m);
+  assert.match(workflow, /^  workflow_call:/m);
+  assert.ok(workflow.includes("if: ${{ github.event_name == 'workflow_dispatch' }}"));
   assert.ok(!/^\s*(push|pull_request|pull_request_target|release|workflow_run|schedule):/m.test(workflow));
+  const caller = readFileSync(new URL('../.github/workflows/plugin-catalog.yml', import.meta.url), 'utf8');
+  assert.ok(caller.includes("if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify_native_asar == true }}"));
+  assert.ok(caller.includes('uses: ./.github/workflows/native-asar-release.yml'));
+  assert.ok(caller.includes('needs: [validate, repository-content, repository-policy]'));
+  assert.match(caller, /qualify_native_asar:[\s\S]*?type: boolean[\s\S]*?default: false/u);
+  assert.ok(!caller.includes('secrets: inherit'));
+  assert.ok(caller.includes("cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.qualify_native_asar }}"));
+  assert.ok(caller.includes("&& 'native-qualification' || 'checks'"));
+  assert.ok(workflow.includes('group: native-asar-release-${{ github.ref }}'));
+  assert.ok(!workflow.includes('group: plugin-catalog-'));
   assert.match(workflow, /permissions:\s*\n\s+contents: read/);
   assert.ok(!/contents: write|write-all|secrets\./u.test(workflow));
   for (const action of ['actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803',

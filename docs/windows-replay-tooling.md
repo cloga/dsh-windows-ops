@@ -1,7 +1,8 @@
 # Windows replay tooling
 
 For the native Desktop lock, replay is a read-only inspection surface:
-SelfCheck and exact-marker DryRun remain available, but real Apply, Rollback and
+SelfCheck and DryRun remain read-only, with ASAR/archive-backed patch targets
+explicitly unsupported rather than readable marker files. Real Apply, Rollback and
 RecoverDesktop delegate to the native updater and fail before file/process
 mutation. RecoverDesktop DryRun reports that native Session evidence is
 unavailable; it does not promise a restart. Service/config/endpoint diagnostics
@@ -14,8 +15,12 @@ does not mutate the active deployment in `SelfCheck`, `Inventory`, or
 
 ## Configuration
 
-The default config delegates Desktop discovery and bundled runtime descriptor
-verification to the same lock-selected functions used by the installer.
+The default config delegates Desktop discovery and runtime identity to the
+lock-selected functions. For the selected `.6` ASAR target, it uses the bounded,
+read-only native JS audit rather than PowerShell Test-Path/Get-Content against
+virtual files. Validated root/version/count and descriptor SHA are projected as
+leaves; missing profile/audit prerequisites remain explicitly not-ready, never
+fake runtime success or an invented runnable descriptor/CLI path.
 It follows the actual installed executable (including the installer package
 directory), never the old Tauri registry entries. `-LockPath` defaults to
 `deployments\windows-copilot.lock.json`. A missing locked shell remains missing;
@@ -61,9 +66,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 process exit means the action completed, not that the machine matches a newly
 promoted lock. Inspect `deployment.valid`, `deployment.desktop.status`,
 `deployment.runtime.status`, component paths, and every patch `status`.
-SelfCheck and DryRun include the same deployment evidence. Real Apply,
-Rollback, and recovery fail closed if Desktop/runtime do not match the lock;
-real Apply still requires exact source markers and backs up changed files.
+SelfCheck and DryRun include the same deployment evidence. ASAR and canonical
+`resources/app.asar.unpacked/dsh` backing targets report
+`unsupported-immutable-asar-target` before marker/state reads, including Verify
+and Apply/Rollback DryRun. Native real Apply/Rollback/recovery remain delegated
+and refused; only the separate supported physical legacy path uses exact-marker
+writes and backups. Do not extract Core or invent an Electron CLI mode to bypass
+these limits.
 
 ## Direct Copilot markers
 
@@ -82,8 +91,8 @@ The `0.4.0-alpha.22` baseline checks:
 | Authorization service | existing official Desktop service reuse without duplicate registration |
 | Direct hosted search | request-owned auth and managed protocol/endpoint mismatch checks fail closed; Responses/Anthropic inline search, Responses-only `ctx.web`, and bounded proof remain separate acceptance requirements |
 | Client UI | official DSH Models provider-card authorization |
-| Desktop-managed DSH | bundled `@deepseek-ai/dsh@0.1.5-rc.2`, attested by the locked `resources\dsh\desktop-runtime.json`; no separate Core installation |
-| Desktop | fork-owned `0.1.5-rc.3.cloga.7`, sequence 9, source `293b5a79f533005d99cd60cb00b9ecf810187401`; executable bytes, metadata, and descriptor are checked by the installer's discovery implementation |
+| Desktop-managed DSH | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`, virtual `resources\app.asar\dsh\desktop-runtime.json`, SHA-256 `b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344`; audited virtual plus unpacked backing inventory, no separate Core |
+| Desktop | fork-owned `0.1.6-alpha.1.cloga.1`, sequence 11, source `fae12b69dcd28413518f68b5770e40f8eb2ff730`; exact locked EXE and native audit identity, with genuine Ops observer qualification still pending |
 | Desktop plugins | `desktopNativeVerifiedRelease` delegates ownership to Desktop; Windows Ops does not populate the reserved profile or copy its dependencies |
 
 The legacy SlotOutlet and no-open recovery patches explicitly select the
@@ -100,15 +109,18 @@ Its immutable `v0.4.0-alpha.22` Release artifact SHA-256 is
 Local Desktop install/update additionally verifies the SHA-512/SRI contract and
 delegates this artifact through the single Desktop-native provisioning adapter.
 
-The current target is immutable [Release `390421989`](local-core-desktop-copilot.md#authoritative-baseline), published `2026-09-17T03:51:36Z`. Formal run `35178158751` built and published on attempt 1; only the remote-check job initially received HTTP 403 and succeeded on its failed-job-only rerun, attempt 2. No artifact was rebuilt or overwritten. Archived formal acceptance artifact `10479574730` proves isolated packaged Electron initial/restart Copilot Models account UI, graph/ancestor isolation, and standalone helper ACK/cancel. It does not prove OAuth, a model response, a local installer upgrade, or source-plugin activation. Publication and the updated lock are not evidence that the local machine has applied `.cloga.7`; replay must report older installed bytes as drift, not silently accept them. See the [baseline identities and evidence boundaries](local-core-desktop-copilot.md#authoritative-baseline).
+The current target is immutable [Release `390539601`](local-core-desktop-copilot.md#authoritative-baseline), `0.1.6-alpha.1.cloga.1`, sequence 11, from source PR #45. All three jobs of formal run `35197577605` passed on attempt 1; six Release assets and eleven new `formal-cloga016-1` fixture files were independently byte-verified. Source-owned acceptance artifact `10486794570` records isolated initial/restart Copilot Models UI, graph/ancestor isolation and helper ACK/cancel. **Genuine Ops observer/manual qualification remains pending** and is not replaced by that source acceptance or synthetic tests. Historical `.cloga.7` / run `35178158751` evidence remains historical. No real OAuth/model round, local installer upgrade or local activation was performed; replay must report old installed bytes as drift. See the [exact target and evidence boundaries](local-core-desktop-copilot.md#authoritative-baseline).
 
-Replay checks package/source markers only. Credential acceptance is performed
-by the deployment/bootstrap modules and reports record key, kind, and status
-without exposing the grant payload.
+Replay projects audited native runtime identity and read-only marker status;
+it does not read credentials or establish live account/model readiness. User
+extras permitted by ownership metadata remain `contentsAttested:false`, not
+baseline health. Historical physical deployment/bootstrap credential checks are
+a separate surface and must never expose grant payloads.
 
 The installer `-Action Verify` requires no DSH path. It attests the official
-Desktop executable/runtime descriptor and the exact Electron parent/bundled Node
-Host arguments. Native mode does not require port 3080 and returns
+Desktop executable/runtime descriptor and the exact Electron parent/Node-mode
+Electron Host argv. Physical bundled upstream Node remains the pnpm/helper carrier,
+not the Host. Native mode does not require port 3080 and returns
 `manual-verification-required` rather than a functional pass. Only separate
 Web/headless diagnostics inspect HTTP listeners. Native Apply is blocked;
 it never builds, installs, or selects another DSH runtime.

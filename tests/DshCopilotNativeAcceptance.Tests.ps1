@@ -91,7 +91,10 @@ Describe 'Native installer mode and interruption boundaries' {
         Test-Path -LiteralPath $stateRoot | Should -BeFalse
     }
 
-    It 'preserves Unicode installation paths through the real Node stdin verifier without changing caller encoding' {
+    It 'preserves Unicode installation paths through the legacy physical Node stdin fixture without changing caller encoding' {
+        # This is deliberately an inert .5 transport regression, not .6 ASAR evidence.
+        $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources\dsh\desktop-runtime.json'
+        $script:nativeLock.components.desktop.releaseChannel.upstreamVersion = '0.1.5-rc.2'
         $oldEncoding = $OutputEncoding
         $install = Join-Path $TestDrive ('native-' + [char]0x6d4b + [char]0x8bd5)
         $runtime = Join-Path $install 'resources\dsh'
@@ -148,6 +151,7 @@ Describe 'Native installer mode and interruption boundaries' {
         $nodePath = if ($Layout -eq 'asar') { $script:nativeExe } else { Join-Path $install 'resources\runtime\node\node.exe' }
         $runtimeRelative = if ($Layout -eq 'asar') { 'resources\app.asar\dsh' } else { 'resources\dsh' }
         $script:nativeLock.components.desktop.installedRuntimeDescriptor.relativePath = "$runtimeRelative\desktop-runtime.json"
+        $script:nativeLock.components.desktop.releaseChannel.upstreamVersion = if ($Layout -eq 'asar') { '0.1.6-alpha.1' } else { '0.1.5-rc.2' }
         $runtime = Join-Path $install $runtimeRelative
         $hostScript = Join-Path $runtime 'node_modules\@deepseek-ai\dsh-desktop-host\lib\index.js'
         $profile = Join-Path $TestDrive 'profiles\desktop'

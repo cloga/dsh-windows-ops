@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep, win32 } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { nativeLayout, preflightAsar, runAsarProbe } from './native-asar-runtime.mjs';
@@ -136,10 +136,23 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
     const graph = read(file, hash);
     requireValue(graph.valid === true && graph.runtimeSha256 === desktop.installedRuntimeDescriptor.sha256 &&
-      graph.nodePath === null && graph.nodeOptionsPresent === false &&
-      graph.google.sdkPeerOptional === true && typeof graph.sdk.target === 'string' &&
-      !graph.sdk.target.toLowerCase().startsWith(`${graph.profile.toLowerCase()}\\`),
-    'native-release-ancestor-graph-mismatch');
+      graph.nodePath === null && graph.nodeOptionsPresent === false, 'native-release-ancestor-graph-mismatch');
+    if (nativeLayout(lock) === 'asar-runtime') {
+      // Actual .6 source fixture records packaged graph inventory/Node-mode facts;
+      // it no longer emits the legacy google/sdk lookup object. Host/UI ancestor
+      // acceptance above and the separate genuine Ops resolver proof own that evidence.
+      requireValue(graph.resolutionMode === 'runtime' && graph.runAsNode === '1' && graph.electronNoAsarPresent === false &&
+        typeof graph.nodeVersion === 'string' && /^\d+\.\d+\.\d+$/u.test(graph.nodeVersion) &&
+        typeof graph.electronVersion === 'string' && /^\d+\.\d+\.\d+$/u.test(graph.electronVersion) &&
+        typeof graph.executable === 'string' && win32.isAbsolute(graph.executable) &&
+        win32.basename(graph.executable) === desktop.installedExecutable.relativePath &&
+        typeof graph.runtimeRoot === 'string' && win32.normalize(graph.runtimeRoot) === win32.join(win32.dirname(graph.executable), 'resources', 'app.asar', 'dsh') &&
+        typeof graph.profile === 'string' && win32.isAbsolute(graph.profile) && graph.cwd === graph.profile &&
+        /[\\/]profiles[\\/]desktop$/u.test(graph.profile), 'native-release-ancestor-graph-mismatch');
+    } else {
+      requireValue(graph.google.sdkPeerOptional === true && typeof graph.sdk.target === 'string' &&
+        !graph.sdk.target.toLowerCase().startsWith(`${graph.profile.toLowerCase()}\\`), 'native-release-ancestor-graph-mismatch');
+    }
   }
   requireValue(plan.plugins.length === 1 && plan.plugins[0].required === true &&
     plan.plugins[0].source.sha256 === plugin.package.artifact.sha256 &&

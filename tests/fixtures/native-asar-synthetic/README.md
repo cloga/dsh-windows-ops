@@ -177,12 +177,28 @@ performed by the verifier itself.
 
 ## Manual actual-release observer bridge (prepared; execution pending)
 
-`.github/workflows/native-asar-release.yml` has **only** `workflow_dispatch` and
-requires `confirm_version` to exactly match the checked-in Desktop lock. The
-current physical `.5` lock fails before release/source acquisition; do not change
-it to synthetic `.6` data to make this workflow green. Dispatch belongs to the
-parent/release owner after the immutable formal release and complete lock/formal
-fixtures have been reviewed and repinned. This preparation is not qualification.
+`.github/workflows/native-asar-release.yml` permits **manual execution only** and
+requires `confirm_version` to exactly match the checked-in Desktop lock. It also
+exposes `workflow_call` to the already-registered `plugin-catalog.yml` manual
+entrypoint, with explicit manual-event guards in caller and callee. Legacy
+physical `.5` inputs still fail before acquisition. The current target is the
+actual immutable `0.1.6-alpha.1.cloga.1` release (formal run `35197577605`), with
+11 byte-preserved formal fixtures; source-owned UI/restart/ancestor acceptance is
+published evidence, not yet the separate Ops observer qualification. Never use
+synthetic `.6` data to make the workflow green. Dispatch and final qualification
+belong to the reviewed release flow; repinning alone is not qualification.
+
+Before PR176 merges, dispatch the **registered** Plugin catalog validation
+workflow (`345664659`) at the exact reviewed `cloga-dsh-0-1-6-baseline` ref, with
+`qualify_native_asar=true` and `confirm_version=0.1.6-alpha.1.cloga.1`, through the
+approved `cloga` GitHub identity gate. Its relative reusable-workflow reference
+uses the same commit as the caller. Default manual runs and all PR/push events
+skip the genuine job; qualifying runs have a separate non-canceling concurrency
+group. No default-branch bootstrap, premature PR merge or inherited personal
+secrets are required. Record and verify the returned run's head SHA and called
+qualification job; an API rejection is a real blocker, not qualification.
+See GitHub's [manual branch dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+and [same-commit reusable workflow](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows) contracts.
 
 Offline gate and inert validation tests:
 
@@ -199,7 +215,15 @@ SHA-256/SHA-512. Downloaded release/receipt/plan bytes must also agree with the
 full locked formal evidence (`nativeProvisioning.fixtureRoot`). It lists and
 extracts the verified NSIS and single `app-64.7z` payload as **data** using existing
 runner 7-Zip, rejecting unsafe paths/links and ambiguous installed layouts. The
-installer and NSIS helpers are never executed.
+installer and NSIS helpers are never executed. Before the source fixture runs,
+the existing maintained read-only reader independently reads **`app.asar/package.json`**
+as data after full header bounds/path/offset checks. Its packed root entry is
+limited to 1 MiB; `name` and the **full** `version` must match the locked release
+identity, not numeric PE `ProductVersion`. The observed name, full version and
+raw package SHA-256 are rechecked after the observer and included as bounded
+`applicationPackageName`, `applicationPackageVersion` and
+`applicationPackageSha256` summary fields. This does not attest adjacent loaded
+DLLs or execute the package/CLI.
 
 All acquisition, source checkout, dependencies, extraction and fixture output
 live in a restricted, non-synchronized `RUNNER_TEMP` tree. The exact locked source
@@ -248,10 +272,10 @@ No real OAuth/model round or installer-upgrade acceptance is claimed. The earlie
 EXE-only carrier/DLL and concurrency boundaries still apply: installer acquisition
 provides archive provenance, not a new per-DLL loaded-image attestation.
 
-**Actual-run prerequisites remain:** a published immutable `.6` lock with complete
-formal fixtures; source commit containing the observer and compatible built
-Host libraries; Actions-token read access to the exact source/release (no private
-cross-repository token fallback); compatible existing Windows runner 7-Zip NSIS
-listing/extraction; credential-free native plugin provisioning network access;
-and the actual public resolver/native addon/Electron proof. None was substituted
-by the inert local tests or run during automation preparation.
+**Actual-run gates remain:** the published immutable `.6` target and complete
+formal fixtures now exist, but the Ops run must still verify its exact source
+checkout/build, Actions-token access to the selected source/release (no private
+cross-repository token fallback), existing runner 7-Zip NSIS listing/extraction,
+actual archive-root package identity, credential-free native provisioning, and
+the public resolver/native addon/Electron proof. Inert unit tests substitute for
+none of these execution gates; actual Ops observer execution is still pending.

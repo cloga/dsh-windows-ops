@@ -8,6 +8,13 @@ on:
         description: Exact reviewed Desktop version in the checked-in ASAR deployment lock
         required: true
         type: string
+  # Same-repository caller resolves this file at the exact reviewed caller commit.
+  # The job guard below retains manual-only execution even when called elsewhere.
+  workflow_call:
+    inputs:
+      confirm_version:
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,6 +25,7 @@ concurrency:
 
 jobs:
   qualify:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -329,6 +337,8 @@ jobs:
           & $sevenZip x $payloads[0].FullName "-o$applicationRoot" -y -bd -bso0 -bsp0 > (Join-Path $env:PRIVATE_ROOT 'logs/application.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/application.stderr')
           if ($LASTEXITCODE -ne 0) { throw 'native-asar-application-data-extraction-failed' }
           Assert-NoExtractedLinks $applicationRoot
+          # Maintained read-only ASAR reader independently verifies root package.json
+          # name + full release version (PE ProductVersion is numeric only).
           & node (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --discover-application --lock (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') --confirm-version $env:CONFIRM_VERSION --extract-root $applicationRoot > (Join-Path $env:PRIVATE_ROOT 'application.json') 2> (Join-Path $env:PRIVATE_ROOT 'logs/discovery.stderr')
           if ($LASTEXITCODE -ne 0) { throw 'native-asar-extracted-layout-rejected' }
 
@@ -369,14 +379,19 @@ jobs:
           if ($summary.schemaVersion -ne 1 -or $summary.valid -isnot [bool] -or $summary.modelResponseVerified -cne $false -or
               $summary.observerCalls -isnot [long] -and $summary.observerCalls -isnot [int]) { throw 'native-asar-summary-artifact-invalid' }
           if ($summary.valid) {
-            $keys = 'descriptorSha256,executableSha256,installerSha256,installerUpgradeVerified,invalidRequests,modelResponseVerified,observerCalls,profileRemoved,publicResolver,qualification,runtimeFileCount,schemaVersion,sourceCommit,sourceTree,valid,version,wholeCarrierAttested'
+            $keys = 'applicationPackageName,applicationPackageSha256,applicationPackageVersion,descriptorSha256,executableSha256,installerSha256,installerUpgradeVerified,invalidRequests,modelResponseVerified,observerCalls,profileRemoved,publicResolver,qualification,runtimeFileCount,schemaVersion,sourceCommit,sourceTree,valid,version,wholeCarrierAttested'
+            $lock = Get-Content -LiteralPath (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') -Raw | ConvertFrom-Json
             if ($summary.qualification -cne 'locked-release-ops-observer' -or $summary.publicResolver -cne 'metadata-cjs-esm' -or
                 $summary.profileRemoved -cne $true -or $summary.wholeCarrierAttested -cne $false -or $summary.installerUpgradeVerified -cne $false -or
-                $summary.version -cnotmatch '^0\.1\.6(?:-[A-Za-z0-9.-]+)?$' -or $summary.sourceCommit -cnotmatch '^[a-f0-9]{40}$' -or
+                $summary.version -isnot [string] -or $summary.version -cnotmatch '^0\.1\.6(?:-[A-Za-z0-9.-]+)?$' -or $summary.version -cne $lock.components.desktop.version -or
+                $summary.applicationPackageName -isnot [string] -or $summary.applicationPackageVersion -isnot [string] -or
+                $summary.applicationPackageSha256 -isnot [string] -or
+                $summary.applicationPackageName -cne $lock.components.desktop.releaseChannel.identity.packageName -or
+                $summary.applicationPackageVersion -cne $summary.version -or $summary.sourceCommit -cnotmatch '^[a-f0-9]{40}$' -or
                 $summary.sourceTree -cnotmatch '^[a-f0-9]{40}$' -or $summary.observerCalls -ne 1 -or
                 ($summary.runtimeFileCount -isnot [long] -and $summary.runtimeFileCount -isnot [int]) -or
                 $summary.runtimeFileCount -le 0 -or $summary.runtimeFileCount -gt 200000) { throw 'native-asar-summary-artifact-invalid' }
-            foreach ($name in @('installerSha256', 'executableSha256', 'descriptorSha256')) { if ($summary[$name] -cnotmatch '^[a-f0-9]{64}$') { throw 'native-asar-summary-artifact-invalid' } }
+            foreach ($name in @('installerSha256', 'executableSha256', 'descriptorSha256', 'applicationPackageSha256')) { if ($summary[$name] -cnotmatch '^[a-f0-9]{64}$') { throw 'native-asar-summary-artifact-invalid' } }
             if ((($summary.invalidRequests.psbase.Keys | Sort-Object) -join ',') -cne 'descriptorDigest,home,version' -or
                 @($summary.invalidRequests.psbase.Values | Where-Object { $_ -cne 'rejected' }).Count -ne 0) { throw 'native-asar-summary-artifact-invalid' }
           } else {

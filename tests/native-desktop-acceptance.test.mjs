@@ -16,8 +16,8 @@ import { readNativeProfileMetadata } from '../tools/native-profile-metadata.mjs'
 const asarReader = createRequire(import.meta.url)('../tools/vendor/asar-reader/reader.cjs');
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
-const formalRoot = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga7/', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
+const formalRoot = fileURLToPath(new URL('../' + actualLock().components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
 
 for (const bom of ['', '\uFEFF']) {
   test(`CLI waits for fragmented UTF-8 stdin${bom ? ' with BOM' : ''}`, async (t) => {
@@ -56,6 +56,11 @@ for (const [name, mutate, code] of [
   ['historical cloga.5 installer', (l) => { l.components.desktop.artifact.sha256 = 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c'; }, 'installed-identity'],
   ['historical cloga.5 receipt bytes', (l) => { l.components.desktop.releaseChannel.buildReceipt.sha256 = 'd083232d6ac98736935529c352259f97abe19b45cb522d730b0488b1b7777515'; }, 'file-hash'],
   ['historical cloga.5 receipt self digest', (l) => { l.components.desktop.releaseChannel.buildReceipt.receiptSha256 = 'f25b04be3ce7718fbecb6398115fdf311aa804271f8bfedfbc38c3d1b51cd98b'; }, 'source'],
+  ['historical cloga.7 source', (l) => { l.components.desktop.source.commit = '293b5a79f533005d99cd60cb00b9ecf810187401'; }, 'source'],
+  ['historical cloga.7 sequence', (l) => { l.components.desktop.releaseChannel.sequence = 9; }, 'source'],
+  ['historical cloga.7 installer', (l) => { l.components.desktop.artifact.sha256 = '290b587cdab3ffa315ba1796ccabd436096f996abaa144652e33457fd65a3b93'; }, 'installed-identity'],
+  ['historical cloga.7 receipt bytes', (l) => { l.components.desktop.releaseChannel.buildReceipt.sha256 = '697c937714a89e7d58fe2fc0096681ee11a493f16174e3c02e18de1eca87c8e7'; }, 'file-hash'],
+  ['historical cloga.7 descriptor', (l) => { l.components.desktop.installedRuntimeDescriptor.sha256 = 'ccb45e7c151318c0f239de2dafa64dcec05b8fdff6347cfbc7ed3b2de3264092'; }, 'installed-identity'],
   ['candidate descriptor', (l) => { l.components.desktop.installedRuntimeDescriptor.sha256 = 'f012735da203eacca31ff4ee0df7f2dc7e0a0df5ee16df77845ab7a0062f242c'; }, 'installed-identity'],
   ['manifest provisioning upgraded in lock', (l) => { l.components.desktop.releaseChannel.pluginCompatibility.automaticProvisioning = true; }, 'capability'],
   ['startup provisioning disabled', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning = false; }, 'capability'],
@@ -94,7 +99,7 @@ test('formal plugin dependency registry differs from the frozen workspace build 
   assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.22');
-  assert.equal(read('release.json').upstreamVersion, '0.1.5-rc.2');
+  assert.equal(read('release.json').upstreamVersion, '0.1.6-alpha.1');
 });
 
 // Use primitive wide-path APIs: Node 24.13 recursive cp/rm can corrupt Unicode
@@ -127,6 +132,25 @@ for (const [field, value] of [['ancestorSdkJunction', false], ['ancestorSdkLoade
     assert.throws(() => verifyNativeReleaseEvidence(lock, directory), /native-release-ancestor-isolation-mismatch/);
   });
 }
+test('formal .6 graph records actual ASAR inventory and Node mode, not legacy SDK fields', () => {
+  const graph = JSON.parse(readFileSync(join(formalRoot, 'initial-packaged-graph.json')));
+  assert.equal(graph.resolutionMode, 'runtime'); assert.equal(graph.runAsNode, '1');
+  assert.equal(graph.electronVersion, '44.0.0'); assert.equal(graph.nodeVersion, '24.18.1');
+  assert.equal(graph.google, undefined); assert.equal(graph.sdk, undefined);
+  assert.equal(verifyNativeReleaseEvidence(actualLock(), formalRoot).valid, true);
+});
+for (const [field, value] of [['resolutionMode', 'link'], ['runAsNode', '0'], ['electronNoAsarPresent', true],
+  ['nodeVersion', null], ['electronVersion', null], ['runtimeRoot', 'C:\\wrong-runtime'], ['cwd', 'C:\\wrong-profile']]) {
+  test(`formal .6 graph rejects malformed ${field} in an altered data copy`, t => {
+    const root = mkdtempSync(join(tmpdir(), 'native-formal-graph-negative-'));
+    t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
+    const path = join(root, 'initial-packaged-graph.json'); const graph = JSON.parse(readFileSync(path));
+    graph[field] = value; write(path, graph);
+    const lock = actualLock(); lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.initialGraphSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-ancestor-graph-mismatch/);
+  });
+}
+
 function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/', withPolicy = false) {
   const root = mkdtempSync(join(tmpdir(), 'native-desktop-acceptance-'));
   t.after(() => removeFixturePath(root, { recursive: true, force: true }));
@@ -134,6 +158,12 @@ function fixture(t, dependencyRegistry = 'https://registry.npmjs.org/', withPoli
   const dshHome = join(root, 'home');
   const profile = join(dshHome, 'profiles', 'desktop');
   const lock = JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
+  // This fixture deliberately exercises the legacy .5 physical contract even
+  // after the reviewed deployment lock advances to the genuine .6 ASAR release.
+  lock.components.desktop.version = '0.1.5-synthetic-local.1';
+  lock.components.desktop.releaseChannel.version = '0.1.5-synthetic-local.1';
+  lock.components.desktop.releaseChannel.upstreamVersion = '0.1.5-rc.2';
+  lock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources/dsh/desktop-runtime.json';
   const bytes = 'synthetic archive for the filesystem-only test; payload attestation is separate';
   const artifact = lock.components.copilotIntegration.package.artifact;
   artifact.size = Buffer.byteLength(bytes);
@@ -346,6 +376,8 @@ function asarFixture(t) {
   const identity = JSON.parse(readFileSync(join(syntheticRoot, 'identity.json'), 'utf8'));
   assert.equal(identity.syntheticOnly, true); assert.equal(identity.runtimeProof, false);
   input.lock.components.desktop.installedRuntimeDescriptor = { relativePath: 'resources\\app.asar\\dsh\\desktop-runtime.json', sha256: identity.descriptorSha256 };
+  input.lock.components.desktop.version = identity.version;
+  input.lock.components.desktop.releaseChannel.version = identity.version;
   input.lock.components.desktop.releaseChannel.upstreamVersion = identity.version;
   const executable = join(input.installRoot, input.lock.components.desktop.installedExecutable.relativePath);
   write(executable, 'SYNTHETIC CARRIER BYTES - NEVER EXECUTED');

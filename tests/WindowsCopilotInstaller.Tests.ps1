@@ -1601,6 +1601,58 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         $lock.migration.legacyGateway.active | Should -Be $false
     }
 
+    It 'pins actual formal .6 ASAR metadata without claiming a physical wrapper or observer success' {
+        Test-WindowsCopilotLock -Lock $lock | Should -BeTrue
+        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.1'
+        $lock.components.desktop.source.pullRequest | Should -Be 45
+        $lock.components.desktop.artifact.releaseId | Should -Be 390539601
+        $lock.components.desktop.installedExecutable.productVersion | Should -Be '0.1.6.0'
+        $lock.components.desktop.installedRuntimeDescriptor.relativePath | Should -Be 'resources\app.asar\dsh\desktop-runtime.json'
+        $lock.acceptance.runtimeSchema.layout | Should -Be 'electron-asar'
+        $lock.acceptance.runtimeSchema.descriptorSha256 | Should -Be $lock.components.desktop.installedRuntimeDescriptor.sha256
+        $lock.acceptance.runtimeSchema.root | Should -Be $lock.components.desktop.runtimeSelectors[0].root
+        $lock.acceptance.runtimeSchema.package.version | Should -Be '0.1.6-alpha.1'
+        $lock.acceptance.runtimeSchema.package.entrypointSize | Should -Be 9165
+        $lock.acceptance.runtimeSchema.PSObject.Properties['wrapper'] | Should -BeNullOrEmpty
+        $lock.components.copilotIntegration.package.version | Should -Be '0.4.0-alpha.22'
+    }
+
+    It 'rejects formal .6 pin or ASAR metadata drift: <Field>' -TestCases @(
+        @{ Field = 'layout' }, @{ Field = 'descriptor' }, @{ Field = 'wrapper' }, @{ Field = 'package-version' },
+        @{ Field = 'entrypoint-path' }, @{ Field = 'entrypoint-size' }, @{ Field = 'entrypoint-hash' },
+        @{ Field = 'built-size' }, @{ Field = 'built-hash' }, @{ Field = 'built-inventory' },
+        @{ Field = 'source-pr' }, @{ Field = 'reviewed-head' }, @{ Field = 'asset-id' }, @{ Field = 'build-input' },
+        @{ Field = 'channel-version' }, @{ Field = 'upstream-version' }, @{ Field = 'channel-source' },
+        @{ Field = 'physical-root' }
+    ) {
+        param($Field)
+        $changed = $lock | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        switch ($Field) {
+            layout { $changed.acceptance.runtimeSchema.PSObject.Properties.Remove('layout') }
+            descriptor { $changed.acceptance.runtimeSchema.descriptorSha256 = '0' * 64 }
+            wrapper { $changed.acceptance.runtimeSchema | Add-Member wrapper ([pscustomobject]@{ name = 'deepseek-harness-pkg' }) }
+            package-version { $changed.acceptance.runtimeSchema.package.version = '0.1.5-rc.2' }
+            entrypoint-path { $changed.acceptance.runtimeSchema.package.entrypoint = 'node_modules\@deepseek-ai\dsh\lib\other.js' }
+            entrypoint-size { $changed.acceptance.runtimeSchema.package.entrypointSize++ }
+            entrypoint-hash { $changed.acceptance.runtimeSchema.package.entrypointSha256 = '0' * 64 }
+            built-size { $changed.acceptance.runtimeSchema.requiredBuiltFiles[0].size++ }
+            built-hash { $changed.acceptance.runtimeSchema.requiredBuiltFiles[1].sha256 = '0' * 64 }
+            built-inventory { $changed.acceptance.runtimeSchema.requiredBuiltFiles = @($changed.acceptance.runtimeSchema.requiredBuiltFiles[0]) }
+            source-pr { $changed.components.desktop.source.pullRequest = 57 }
+            reviewed-head { $changed.components.desktop.source.reviewedHead = '0' * 40 }
+            asset-id { $changed.components.desktop.releaseChannel.manifestAssetId++ }
+            build-input { $changed.components.desktop.releaseChannel.build.lockfileSha256 = '0' * 64 }
+            channel-version { $changed.components.desktop.releaseChannel.version = '0.1.5-rc.3.cloga.7' }
+            upstream-version { $changed.components.desktop.releaseChannel.upstreamVersion = '0.1.5-rc.2' }
+            channel-source { $changed.components.desktop.releaseChannel.source.commit = '0' * 40 }
+            physical-root {
+                $changed.components.desktop.runtimeSelectors[0].root = '%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh'
+                $changed.acceptance.runtimeSchema.root = $changed.components.desktop.runtimeSelectors[0].root
+            }
+        }
+        { Test-WindowsCopilotLock -Lock $changed } | Should -Throw
+    }
+
 It 'rejects tampered runtime and Copilot plugin identity metadata' {
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.desktop.runtimeSelectors[0].id = 'controlled-fork'
@@ -1928,18 +1980,32 @@ It 'rejects modified same-version Desktop executables by exact bytes metadata an
         }
     }
 
-It 'discovers the fork Desktop package root and accepts normalized Windows file versions' {
+It 'preserves historical physical fork discovery and normalized Windows file versions' {
+        # Keep this .5 physical regression independent of the new ASAR baseline.
+        $historical = Get-Content (Join-Path $PSScriptRoot 'fixtures\desktop-native-verified-release\formal-cloga7\release.json') -Raw | ConvertFrom-Json
+        $legacyLock = $lock | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+        $legacyLock.components.desktop.version = $historical.version
+        $legacyLock.components.desktop.installedExecutable.productVersion = '0.1.5.0'
+        $legacyLock.components.desktop.installedExecutable.sha256 = $historical.installedEvidence.executableSha256
+        $legacyLock.components.desktop.installedRuntimeDescriptor.relativePath = 'resources\dsh\desktop-runtime.json'
+        $legacyLock.components.desktop.installedRuntimeDescriptor.sha256 = $historical.installedEvidence.runtimeSha256
+        $legacyLock.components.desktop.releaseChannel.version = $historical.version
+        $legacyLock.components.desktop.releaseChannel.upstreamVersion = $historical.upstreamVersion
+        $legacyLock.components.desktop.runtimeSelectors[0].desktopVersion = $historical.version
+        $legacyLock.components.desktop.runtimeSelectors[0].root = '%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh'
+        $legacyLock.components.desktop.runtimeSelectors[0].package.version = $historical.upstreamVersion
+        $legacyLock.components.desktop.runtimeSelectors[0].descriptor.sha256 = $historical.installedEvidence.runtimeSha256
         $caseRoot = Join-Path $TestDrive 'fork-desktop-discovery'
         $localAppData = Join-Path $caseRoot 'LocalAppData'
         $packageRoot = Join-Path $localAppData 'Programs\cloga-deepseek-harness'
-        $executable = Join-Path $packageRoot ([string]$lock.components.desktop.installedExecutable.relativePath)
-        $descriptor = Join-Path $packageRoot ([string]$lock.components.desktop.installedRuntimeDescriptor.relativePath)
+        $executable = Join-Path $packageRoot ([string]$legacyLock.components.desktop.installedExecutable.relativePath)
+        $descriptor = Join-Path $packageRoot ([string]$legacyLock.components.desktop.installedRuntimeDescriptor.relativePath)
         New-Item -ItemType Directory -Path (Split-Path -Parent $descriptor) -Force | Out-Null
         Set-Content -LiteralPath $executable -Value 'fixture' -Encoding UTF8
         Set-Content -LiteralPath $descriptor -Value '{}' -Encoding UTF8
 
         InModuleScope WindowsCopilotDeployment -Parameters @{
-            FixtureLock = $lock
+            FixtureLock = $legacyLock
             LocalAppData = $localAppData
             PackageRoot = $packageRoot
             Executable = $executable

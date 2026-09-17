@@ -64,8 +64,11 @@ qualified workaround. This is a limitation of the current optional installer,
 not a claim that the product intrinsically requires another Core. Optional
 Cron/Playwright remain Web-only and outside native Desktop acceptance; the
 native base entry rejects `-IncludeCompanionSuite` and delegated mutations.
-ASAR preparation does not repin the current deployment lock or establish genuine
-`.6` qualification.
+The current lock now selects formally published Desktop `0.1.6-alpha.1.cloga.1`
+with ASAR Core `0.1.6-alpha.1`. Its source-owned formal acceptance passed, but
+separate genuine Ops observer qualification remains pending. That publication
+and repin neither qualify this optional ASAR Web path nor install/activate any
+local component.
 
 Use a non-default DSH home or Profile explicitly when needed:
 
@@ -85,7 +88,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-c
 
 ## Stage all three bundles
 
-After reviewing the check result, first ensure the target Web Profile already exists and its official Desktop-managed runtime is healthy. The installer deliberately refuses to bootstrap an absent Profile because doing so can introduce unrelated package build approvals.
+After reviewing the check result, first ensure the target Web Profile and an explicitly selected, compatible physical runtime already exist and are healthy; the selected native Desktop ASAR runtime is not that physical Web prerequisite. The installer deliberately refuses to bootstrap an absent Profile because doing so can introduce unrelated package build approvals.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-optional-companion-suite.ps1 `

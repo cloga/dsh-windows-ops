@@ -3,6 +3,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { tmpdir } from 'node:os'
 import { validateRepositoryContent } from '../tools/validate-repository-content.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -77,6 +80,40 @@ function messages(result) {
 
 test('current repository content validates', () => {
   assert.deepEqual(validateRepositoryContent(root).failures, [])
+})
+
+test('preserves attested release bytes with Git autocrlf enabled and detects the unprotected control', () => {
+  const temporary = fs.mkdtempSync(path.join(tmpdir(), 'dsh-release-checkout-'))
+  const lock = readJson(root, 'deployments/windows-copilot.lock.json')
+  const relative = `${lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/')}/release.json`
+  const attributeDirectory = path.dirname(path.dirname(relative))
+  const attributes = fs.readFileSync(path.join(root, attributeDirectory, '.gitattributes'))
+  const bytes = fs.readFileSync(path.join(root, relative))
+  const expected = readJson(root, 'deployments/windows-copilot.lock.json').components.desktop.releaseChannel.manifestRawSha256
+  const digest = value => createHash('sha256').update(value).digest('hex')
+  assert.equal(digest(bytes), expected)
+  const env = Object.fromEntries(['PATH', 'Path', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP'].filter(key => process.env[key]).map(key => [key, process.env[key]]))
+  Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null', GIT_CONFIG_COUNT: '0' })
+  try {
+    for (const protectedBytes of [false, true]) {
+      const directory = path.join(temporary, protectedBytes ? 'protected' : 'control')
+      const checkout = path.join(temporary, protectedBytes ? 'protected-output' : 'control-output')
+      fs.mkdirSync(path.join(directory, path.dirname(relative)), { recursive: true })
+      fs.mkdirSync(checkout)
+      fs.writeFileSync(path.join(directory, relative), bytes)
+      if (protectedBytes) fs.writeFileSync(path.join(directory, attributeDirectory, '.gitattributes'), attributes)
+      const git = (...args) => execFileSync('git', ['-c', 'core.autocrlf=true', '-c', 'core.eol=crlf', '-c', 'core.safecrlf=false', '-C', directory, ...args],
+        { env, encoding: 'utf8', stdio: 'pipe', timeout: 30_000 })
+      git('init', '--quiet')
+      git('add', '--', 'tests')
+      git('checkout-index', `--prefix=${checkout.replaceAll('\\', '/')}/`, '--', relative)
+      const actual = fs.readFileSync(path.join(checkout, relative))
+      if (protectedBytes) { assert.deepEqual(actual, bytes); assert.equal(digest(actual), expected) }
+      else assert.notEqual(digest(actual), expected)
+    }
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true })
+  }
 })
 
 test('rejects source identity and immutable release drift', () => {

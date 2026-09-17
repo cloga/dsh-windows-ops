@@ -133,6 +133,20 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
   return plan;
 }
 
+// Exact immutable source emits deterministic read-only settings leaves. This
+// gate binds freshly executed phases to formal proof, never real search success.
+export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
+  const channel = lock.components.desktop.releaseChannel;
+  const proof = channel.nativeProvisioning.settingsAcceptance;
+  if (proof === undefined && !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
+  need(proof && accepted.modelRolesViewLoaded === true && accepted.searchProviderCatalogLoaded === true &&
+    accepted.realSearch === false, 'source-settings-acceptance-incomplete');
+  for (const [phase, digest] of [['initial', proof.initialSha256], ['restart', proof.restartSha256]]) {
+    need(hashFile(physical(join(sourceOutput, `${phase}-settings-readonly.json`), 'file')) === digest,
+      'source-settings-acceptance-incomplete');
+  }
+}
+
 export function validateSourceIdentity(lock, confirmation, identity) {
   const plan = releasePlan(lock, confirmation); const build = lock.components.desktop.releaseChannel.build;
   need(identity.head === plan.sourceCommit && identity.tree === plan.sourceTree && identity.dirty === '', 'checkout-mismatch');
@@ -313,6 +327,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       accepted.accountEntryVisible === true && accepted.ancestorSdkJunction === true && accepted.ancestorSdkLoaded === false &&
       accepted.realOAuth === false && accepted.realModelRound === false && accepted.installerUpgradeVerified === false,
     'source-acceptance-incomplete');
+    verifyFreshSettingsEvidence(lock, accepted, sourceOutput);
     verifySource(lock, confirmation, sourceRoot);
     const after = preflightAsar(lock, dirname(application));
     need(after.archiveSha256 === before.archiveSha256 &&

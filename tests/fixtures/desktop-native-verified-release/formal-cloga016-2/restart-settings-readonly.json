@@ -1,0 +1,9 @@
+{
+  "modelRolesViewLoaded": true,
+  "searchProviderCatalogLoaded": true,
+  "registeredSearchProviders": [
+    "deepseek-official",
+    "github-copilot-hosted"
+  ],
+  "realSearch": false
+}

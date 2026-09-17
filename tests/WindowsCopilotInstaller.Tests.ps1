@@ -375,14 +375,14 @@ function New-TestFingerprint {
         $caseRoot = Join-Path $TestDrive 'profile-coherence'
         New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
         $dshHome = Join-Path $caseRoot '.dsh'
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.22.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.24.tgz'
         $stage = Join-Path $caseRoot 'stage'
         $package = Join-Path $stage 'package'
         New-Item -ItemType Directory -Path $package -Force | Out-Null
-        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.22' } |
+        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.24' } |
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package 'package.json') `
                 -Encoding UTF8
-        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.22' } } |
+        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.24' } } |
             ConvertTo-Json -Depth 5 |
                 Set-Content -LiteralPath (Join-Path $package 'deployment-baseline.json') `
                     -Encoding UTF8
@@ -408,11 +408,11 @@ importers:
     dependencies:
       dsh-github-copilot:
         specifier: $dependency
-        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz
+        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.24.tgz
 packages:
-  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz:
-    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz}
-    version: 0.4.0-alpha.22
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.24.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.24.tgz}
+    version: 0.4.0-alpha.24
 "@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
         }
 
@@ -421,7 +421,7 @@ packages:
         @($coherent.profiles).Count | Should -Be 2
         (Get-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Raw).
             Replace(
-                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.22.tgz',
+                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.24.tgz',
                 'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.17.tgz'
             ) |
             Set-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Encoding UTF8
@@ -709,8 +709,8 @@ packages:
         }
 
         $rejected = @(
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.17/dsh-github-copilot-0.4.0-alpha.22.tgz'
-            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/not-dsh-github-copilot-0.4.0-alpha.22.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.17/dsh-github-copilot-0.4.0-alpha.24.tgz'
+            'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.24/not-dsh-github-copilot-0.4.0-alpha.24.tgz'
             "file:../../artifacts/wrong-commit/$($lock.components.copilotIntegration.package.artifact.name)"
             "file:../../arbitrary/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
             "https://example.test/$($lock.components.copilotIntegration.source.commit)/$($lock.components.copilotIntegration.package.artifact.name)"
@@ -1565,12 +1565,12 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         $runtimeSchema.behavior.providerCompatibilityOwner | Should -Be 'dsh-github-copilot'
         $runtimeSchema.releaseStatus | Should -Be 'official-desktop-managed'
         $copilot = $lock.components.copilotIntegration
-        $copilot.source.pullRequest | Should -Be 133
-        $copilot.source.commit | Should -Be '479340f965c5be7b4408e4f1e6c9dda6c421d37b'
-        $copilot.source.mergeCommit | Should -Be '479340f965c5be7b4408e4f1e6c9dda6c421d37b'
-        $copilot.source.reviewedHead | Should -Be '52a7428fc68b05c34d7a3066787703527788e98d'
+        $copilot.source.pullRequest | Should -Be 138
+        $copilot.source.commit | Should -Be 'e49bf7c9307cf22dd9ea720bed8750101fc986ed'
+        $copilot.source.mergeCommit | Should -Be 'e49bf7c9307cf22dd9ea720bed8750101fc986ed'
+        $copilot.source.reviewedHead | Should -Be 'd572fbf764fdca3355ad905263de8c3cb51d2be5'
         $copilot.package.artifact.releaseCommit |
-            Should -Be '479340f965c5be7b4408e4f1e6c9dda6c421d37b'
+            Should -Be 'e49bf7c9307cf22dd9ea720bed8750101fc986ed'
         $officialProfileLinks = @(
             'dsh-tauri',
             'dsh-tauri-panel',
@@ -1603,9 +1603,14 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
 
     It 'pins actual formal .6 ASAR metadata without claiming a physical wrapper or observer success' {
         Test-WindowsCopilotLock -Lock $lock | Should -BeTrue
-        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.1'
-        $lock.components.desktop.source.pullRequest | Should -Be 45
-        $lock.components.desktop.artifact.releaseId | Should -Be 390539601
+        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.2'
+        $lock.components.desktop.source.pullRequest | Should -Be 63
+        $lock.components.desktop.source.commit | Should -Be '65a236bd65f2971f98b11a0efd020b8860144924'
+        $lock.components.desktop.source.reviewedHead | Should -Be 'c8af5b6cb3ccf651a5ff1a285ff7bf0ac95f487a'
+        $lock.components.desktop.source.tree | Should -Be 'b219bd1baa93433e9449dc72905d7980e7943a05'
+        $lock.components.desktop.releaseChannel.sequence | Should -Be 12
+        $lock.components.desktop.artifact.releaseId | Should -Be 391052820
+        $lock.components.desktop.artifact.assetId | Should -Be 571106914
         $lock.components.desktop.installedExecutable.productVersion | Should -Be '0.1.6.0'
         $lock.components.desktop.installedRuntimeDescriptor.relativePath | Should -Be 'resources\app.asar\dsh\desktop-runtime.json'
         $lock.acceptance.runtimeSchema.layout | Should -Be 'electron-asar'
@@ -1614,7 +1619,7 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         $lock.acceptance.runtimeSchema.package.version | Should -Be '0.1.6-alpha.1'
         $lock.acceptance.runtimeSchema.package.entrypointSize | Should -Be 9165
         $lock.acceptance.runtimeSchema.PSObject.Properties['wrapper'] | Should -BeNullOrEmpty
-        $lock.components.copilotIntegration.package.version | Should -Be '0.4.0-alpha.22'
+        $lock.components.copilotIntegration.package.version | Should -Be '0.4.0-alpha.24'
     }
 
     It 'rejects formal .6 pin or ASAR metadata drift: <Field>' -TestCases @(
@@ -1689,7 +1694,7 @@ It 'rejects tampered runtime and Copilot plugin identity metadata' {
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.source.reviewedHead = ('0' * 40) -join ''
         { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*reviewed PR #133*'
+            Should -Throw '*reviewed PR #138*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.package.artifact.releaseCommit = ('0' * 40) -join ''

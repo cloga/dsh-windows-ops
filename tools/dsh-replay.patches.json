@@ -70,7 +70,7 @@
         "createGitHubCopilotTokenResolver(ctx, async () =>"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/copilot-auth.ts"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/e49bf7c9307cf22dd9ea720bed8750101fc986ed/src/copilot-auth.ts"
     },
     {
       "id": "github-copilot-per-model-api-route-materialization",
@@ -84,7 +84,7 @@
         "baseURL: proof.baseURL"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/preview-route.ts"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/e49bf7c9307cf22dd9ea720bed8750101fc986ed/src/preview-route.ts"
     },
     {
       "id": "github-copilot-optional-tool-arguments",
@@ -98,7 +98,7 @@
         "installCopilotToolSchemaCompatibility(ctx)"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/tool-schema-compat.ts"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/e49bf7c9307cf22dd9ea720bed8750101fc986ed/src/tool-schema-compat.ts"
     },
     {
       "id": "github-copilot-existing-grant-route-self-healing",
@@ -113,7 +113,7 @@
         "normalizeGitHubCopilotOAuthCredential(record.payload)"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/authorization-controller.ts"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/e49bf7c9307cf22dd9ea720bed8750101fc986ed/src/authorization-controller.ts"
     },
     {
       "id": "github-copilot-strict-json-oauth-grant-normalization",
@@ -140,11 +140,11 @@
         "api.individual.githubcopilot.com"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/479340f965c5be7b4408e4f1e6c9dda6c421d37b/src/index.ts"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/blob/e49bf7c9307cf22dd9ea720bed8750101fc986ed/src/index.ts"
     },
     {
       "id": "github-copilot-shared-routing-chunk",
-      "description": "Verify canonical route API precedence and trusted-host request metadata in the exact alpha.22 packed shared chunk.",
+      "description": "Verify canonical route API precedence and trusted-host request metadata in the exact alpha.24 packed shared chunk.",
       "component": "dsh-github-copilot",
       "files": ["lib\\search-routing-pFLux0W7.js"],
       "verifyMarkers": [
@@ -154,7 +154,7 @@
         "headers[\"Openai-Intent\"] = \"conversation-edits\";"
       ],
       "upstreamStatus": "upstreamed",
-      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/tree/479340f965c5be7b4408e4f1e6c9dda6c421d37b"
+      "upstreamUrl": "https://github.com/cloga/dsh-github-copilot/tree/e49bf7c9307cf22dd9ea720bed8750101fc986ed"
     },
     {
       "id": "github-copilot-models-ui",

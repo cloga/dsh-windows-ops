@@ -70,26 +70,26 @@
       ],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.4.0-alpha.22.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/dsh-github-copilot-0.4.0-alpha.22.tgz",
-        "sha256": "e749d982ac55752eeca4cf4819b9751144cda1c2dc06033e4b42240151e40e0e",
-        "sha512": "1e41800a07d4ad34446ed6d481927a49bd3686a2ac782b65756d7a641a2e9d065a853a5e2965b96ea8f94cd6f5303e97ef2e1ee4c23443979d60b085ef5c9b9d",
-        "integrity": "sha512-HkGACgfUrTREbtbUgZJ6Sb02hqKseCtldW16ZBounQZahTpeKWW5bqj5TNb1MD6X7y4e5MI0Q5edYLCF71ybnQ==",
-        "releaseTag": "v0.4.0-alpha.22",
-        "releaseCommit": "479340f965c5be7b4408e4f1e6c9dda6c421d37b",
+        "name": "dsh-github-copilot-0.4.0-alpha.24.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.24/dsh-github-copilot-0.4.0-alpha.24.tgz",
+        "sha256": "f28dd95e136e203948be8af43745c43ed32bd0bb9b84a44107c4b11ebf7e75cd",
+        "sha512": "17492a7b6c32da41e0a1d0f0ebd3aecf51a6fcc49612490d96836cdb28ac9181f4efdd2b327b6f44ef32b49152af7dceb066c99325c6c7fa16979c5794f4e71a",
+        "integrity": "sha512-F0kqe2wy2kHgodDw69Ouz1Gm/MSWEkkNloNs2yiskYH0790rMntvRO8ytJFSr33OsGbJkyXGx/oWl5xXlPTnGg==",
+        "releaseTag": "v0.4.0-alpha.24",
+        "releaseCommit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.22/SHA256SUMS",
-        "size": 651444,
-        "checksumManifestSha256": "cdc2a7e8df955c9136c6c79c25adaaf929bee815308ff3ceb6c9cfb948c03546",
+        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.24/SHA256SUMS",
+        "size": 660977,
+        "checksumManifestSha256": "2480327ffa2b6154ad8d151db97329c26b680f898a0c823f9706ec1131b6c0aa",
         "checksumManifestSize": 104
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "commit": "479340f965c5be7b4408e4f1e6c9dda6c421d37b",
-        "reviewedHead": "52a7428fc68b05c34d7a3066787703527788e98d",
-        "mergeCommit": "479340f965c5be7b4408e4f1e6c9dda6c421d37b",
-        "pullRequest": 133,
-        "release": "0.4.0-alpha.22"
+        "pullRequest": 138,
+        "commit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed",
+        "reviewedHead": "d572fbf764fdca3355ad905263de8c3cb51d2be5",
+        "mergeCommit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed",
+        "release": "0.4.0-alpha.24"
       },
       "platforms": [
         "cross-platform"
@@ -103,7 +103,7 @@
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows Copilot deployment lock selects the published 0.1.6-alpha.1.cloga.1 Desktop, ASAR-backed runtime descriptor and native provisioning capability with the unchanged immutable Copilot alpha.22 artifact, source identity and required host peers. Scoped genuine Ops observer qualification passed in run 35210215981 at exact code head 83b0303c250b62f55424be3d88347bf147c593d8; publication, repinning and CI proof are not local installation or activation.",
+            "description": "The Windows Copilot deployment lock selects immutable Desktop 0.1.6-alpha.1.cloga.2, Core 0.1.6-alpha.1, and Copilot 0.4.0-alpha.24 with the repaired Client search-routing Remote grant. ASAR descriptor, release-owned provisioning and exact package/source evidence are correlated. Genuine Ops native-ASAR qualification for this paired target remains pending; prior .cloga.1 evidence is historical, not transferable. No local installation or activation is claimed.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -118,12 +118,12 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "Formal source run 35197577605 for immutable Desktop 0.1.6-alpha.1.cloga.1 verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and Electron Node-mode ASAR graph/ancestor isolation. Packaged Host evidence reports Electron 44.0.0 and Node 24.18.1; the source build toolchain remains separate. Separate genuine Ops observer run 35210215981 subsequently passed; its own evidence entry preserves the narrower proof boundary. No real OAuth/model round, local installer upgrade, or local activation was performed.",
-            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-1/acceptance.json"
+            "description": "Formal source run 35271210350 verified isolated packaged Electron initial/restart provisioning, signed-out account entry, Model roles Host view and registered search-provider catalog, and ASAR graph/ancestor isolation for 0.1.6-alpha.1.cloga.2/0.4.0-alpha.24. This is read-only settings and structural evidence, not real OAuth/model/search, installer upgrade or local activation.",
+            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-2/acceptance.json"
           },
           {
             "kind": "import-probe",
-            "description": "Genuine Ops CI run 35210215981 / called job 105165989138 passed at exact code head 83b0303c250b62f55424be3d88347bf147c593d8 against the unchanged formal .6 release. Artifact 10492165208 retains the raw locked-release-ops-observer summary: 9806 runtime files, actual app.asar package name/full version/raw SHA, shipped public PluginPackages/native-addon/production-policy metadata+CJS+ESM proof, one observer call and owned-profile cleanup. Exactly descriptor-digest, version and absent-home request copies were rejected; advanced private-peer/custom-home/missing-addon negatives are not claimed by those requests. Whole-carrier attestation, model response and installer upgrade remain false; user-extra contents and unsupported Web/preset entrypoints are not promoted. See https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208; no local activation or PR-merge claim.",
+            "description": "HISTORICAL .cloga.1/alpha.22 ONLY: Genuine Ops CI run 35210215981 / called job 105165989138 passed at exact code head 83b0303c250b62f55424be3d88347bf147c593d8 against the unchanged formal .6 release. Artifact 10492165208 retains the raw locked-release-ops-observer summary: 9806 runtime files, actual app.asar package name/full version/raw SHA, shipped public PluginPackages/native-addon/production-policy metadata+CJS+ESM proof, one observer call and owned-profile cleanup. Exactly descriptor-digest, version and absent-home request copies were rejected; advanced private-peer/custom-home/missing-addon negatives are not claimed by those requests. Whole-carrier attestation, model response and installer upgrade remain false; user-extra contents and unsupported Web/preset entrypoints are not promoted. See https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981/artifacts/10492165208; no local activation or PR-merge claim.",
             "path": "tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json"
           }
         ]

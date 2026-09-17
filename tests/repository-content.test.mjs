@@ -15,7 +15,8 @@ const formalFixtureRoot = JSON.parse(fs.readFileSync(path.join(root, 'deployment
 const fixtureFiles = [
   ...['release.json', 'build-receipt.json', 'capability.json', 'desktop-provisioning.json', 'helper-acceptance.json',
     'acceptance.json', 'initial-desktop-plugin-provisioning-state.json', 'initial-desktop-plugin-receipts.json',
-    'initial-package.json', 'initial-packaged-graph.json', 'restart-packaged-graph.json'].map(name => `${formalFixtureRoot}/${name}`),
+    'initial-package.json', 'initial-packaged-graph.json', 'restart-packaged-graph.json',
+    'initial-settings-readonly.json', 'restart-settings-readonly.json'].map(name => `${formalFixtureRoot}/${name}`),
   'deployments/windows-copilot.lock.json',
   'catalog/plugins.json',
   'README.md',
@@ -230,8 +231,8 @@ test('rejects stale README versions and missing repository entry points', () => 
   const target = copyFixture()
   const readmePath = path.join(target, 'README.en.md')
   fs.writeFileSync(readmePath, fs.readFileSync(readmePath, 'utf8')
-    .replaceAll('0.4.0-alpha.22', '0.4.0-alpha.17')
-    .replaceAll('479340f9', '00000000'))
+    .replaceAll('0.4.0-alpha.24', '0.4.0-alpha.17')
+    .replaceAll('e49bf7c9', '00000000'))
   fs.rmSync(path.join(target, 'SECURITY.md'))
   const result = validateRepositoryContent(target)
   assert.match(messages(result), /README\.en\.md does not name/)

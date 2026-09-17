@@ -1,0 +1,98 @@
+{
+  "sourceCommit": "65a236bd65f2971f98b11a0efd020b8860144924",
+  "desktopVersion": "0.1.6-alpha.1.cloga.2",
+  "runtimeVersion": "0.1.6-alpha.1",
+  "plugin": {
+    "schemaVersion": 1,
+    "type": "githubRelease",
+    "owner": "cloga",
+    "repo": "dsh-github-copilot",
+    "tag": "v0.4.0-alpha.24",
+    "asset": "dsh-github-copilot-0.4.0-alpha.24.tgz",
+    "assetId": 570924251,
+    "packageName": "dsh-github-copilot",
+    "version": "0.4.0-alpha.24",
+    "size": 660977,
+    "sha256": "f28dd95e136e203948be8af43745c43ed32bd0bb9b84a44107c4b11ebf7e75cd",
+    "integrity": "sha512-F0kqe2wy2kHgodDw69Ouz1Gm/MSWEkkNloNs2yiskYH0790rMntvRO8ytJFSr33OsGbJkyXGx/oWl5xXlPTnGg==",
+    "targetCommit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed",
+    "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+    "checksumManifest": {
+      "format": "sha256sums",
+      "asset": "SHA256SUMS",
+      "assetId": 570924385,
+      "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.24/SHA256SUMS",
+      "size": 104,
+      "sha256": "2480327ffa2b6154ad8d151db97329c26b680f898a0c823f9706ec1131b6c0aa",
+      "integrity": "sha512-4XktFQTeZ7ZYfI9X6Y7jrVS2+G34FExWoEnsBDHxhN5BtClc0ZedV/LOw6zHDYZQeQ7yHAo+40+EOVT5jHGKHg=="
+    }
+  },
+  "transport": "packaged Electron dsh-app byte pipes",
+  "isolatedHome": true,
+  "onboardingNoticeDismissed": true,
+  "restartReceiptSha256": "d8f4301d77d663d3834780443bd945d413d8b2e3b92758bcc971e5e31de57d12",
+  "actualGraphVerified": true,
+  "ancestorSdkJunction": true,
+  "ancestorSdkLoaded": false,
+  "accountEntryVisible": true,
+  "modelRolesViewLoaded": true,
+  "searchProviderCatalogLoaded": true,
+  "realOAuth": false,
+  "realModelRound": false,
+  "realSearch": false,
+  "installerUpgradeVerified": false,
+  "timeline": [
+    {
+      "event": "package-identity",
+      "milliseconds": 27971.0504
+    },
+    {
+      "event": "initial:launch",
+      "milliseconds": 27971.069799999997
+    },
+    {
+      "event": "initial:application",
+      "milliseconds": 81079.30930000001
+    },
+    {
+      "event": "initial:account",
+      "milliseconds": 81343.04490000001
+    },
+    {
+      "event": "initial:settings-readonly",
+      "milliseconds": 81785.3904
+    },
+    {
+      "event": "initial:packaged-graph",
+      "milliseconds": 82042.1588
+    },
+    {
+      "event": "initial:closed",
+      "milliseconds": 82249.2866
+    },
+    {
+      "event": "restart:launch",
+      "milliseconds": 82249.29060000001
+    },
+    {
+      "event": "restart:application",
+      "milliseconds": 93080.2662
+    },
+    {
+      "event": "restart:account",
+      "milliseconds": 93361.3328
+    },
+    {
+      "event": "restart:settings-readonly",
+      "milliseconds": 93878.1043
+    },
+    {
+      "event": "restart:packaged-graph",
+      "milliseconds": 94129.9036
+    },
+    {
+      "event": "restart:closed",
+      "milliseconds": 94331.8638
+    }
+  ]
+}

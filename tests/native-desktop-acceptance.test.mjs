@@ -98,7 +98,7 @@ test('formal plugin dependency registry differs from the frozen workspace build 
   assert.equal(read('release.json').build.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
-  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.22');
+  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.24');
   assert.equal(read('release.json').upstreamVersion, '0.1.6-alpha.1');
 });
 
@@ -132,6 +132,74 @@ for (const [field, value] of [['ancestorSdkJunction', false], ['ancestorSdkLoade
     assert.throws(() => verifyNativeReleaseEvidence(lock, directory), /native-release-ancestor-isolation-mismatch/);
   });
 }
+test('formal paired .6 release proves read-only settings views before and after isolated restart', () => {
+  const read = name => JSON.parse(readFileSync(join(formalRoot, name), 'utf8'));
+  const acceptance = read('acceptance.json');
+  assert.equal(acceptance.modelRolesViewLoaded, true);
+  assert.equal(acceptance.searchProviderCatalogLoaded, true);
+  assert.equal(acceptance.realSearch, false);
+  const initial = read('initial-settings-readonly.json');
+  const restart = read('restart-settings-readonly.json');
+  for (const settings of [initial, restart]) {
+    assert.deepEqual(settings, { modelRolesViewLoaded: true, searchProviderCatalogLoaded: true,
+      registeredSearchProviders: ['deepseek-official', 'github-copilot-hosted'], realSearch: false });
+  }
+  const contract = actualLock().components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+  assert.equal(contract.initialSha256, hash(readFileSync(join(formalRoot, 'initial-settings-readonly.json'))));
+  assert.equal(contract.restartSha256, hash(readFileSync(join(formalRoot, 'restart-settings-readonly.json'))));
+  assert.equal(verifyNativeReleaseEvidence(actualLock(), formalRoot).valid, true);
+});
+
+for (const [name, mutate] of [
+  ['missing settings contract', native => { delete native.settingsAcceptance; }],
+  ['false settings contract', native => { native.settingsAcceptance = false; }],
+]) {
+  test(`formal paired settings reject ${name}`, () => {
+    const lock = actualLock(); mutate(lock.components.desktop.releaseChannel.nativeProvisioning);
+    assert.throws(() => verifyNativeReleaseEvidence(lock, formalRoot), /native-release-settings-mismatch/);
+  });
+}
+for (const [field, value] of [['modelRolesViewLoaded', false], ['searchProviderCatalogLoaded', 'true'], ['realSearch', true]]) {
+  test(`formal paired acceptance rejects settings flag ${field}=${JSON.stringify(value)}`, t => {
+    const root = mkdtempSync(join(tmpdir(), 'native-settings-acceptance-negative-'));
+    t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
+    const path = join(root, 'acceptance.json'); const acceptance = JSON.parse(readFileSync(path));
+    acceptance[field] = value; write(path, acceptance);
+    const lock = actualLock();
+    lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+  });
+}
+for (const phase of ['initial', 'restart']) {
+  test(`formal paired settings reject tampered ${phase} bytes before semantic checks`, t => {
+    const root = mkdtempSync(join(tmpdir(), 'native-settings-hash-negative-'));
+    t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
+    const path = join(root, `${phase}-settings-readonly.json`);
+    write(path, readFileSync(path, 'utf8') + '\n');
+    assert.throws(() => verifyNativeReleaseEvidence(actualLock(), root), /native-release-file-hash-mismatch/);
+  });
+}
+for (const [name, mutate] of [
+  ['model roles not loaded', settings => { settings.modelRolesViewLoaded = false; }],
+  ['string catalog flag', settings => { settings.searchProviderCatalogLoaded = 'true'; }],
+  ['real search claim', settings => { settings.realSearch = true; }],
+  ['missing hosted registration', settings => { settings.registeredSearchProviders = ['deepseek-official']; }],
+  ['duplicate registration', settings => { settings.registeredSearchProviders.push('github-copilot-hosted'); }],
+  ['empty registration', settings => { settings.registeredSearchProviders.push(''); }],
+  ['non-string registration', settings => { settings.registeredSearchProviders.push(7); }],
+  ['different restart catalog', settings => { settings.registeredSearchProviders.push('synthetic-extra-provider'); }],
+]) {
+  test(`formal paired settings reject rehashed ${name}`, t => {
+    const root = mkdtempSync(join(tmpdir(), 'native-settings-semantic-negative-'));
+    t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
+    const path = join(root, 'restart-settings-readonly.json'); const settings = JSON.parse(readFileSync(path));
+    mutate(settings); write(path, settings);
+    const lock = actualLock();
+    lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+  });
+}
+
 test('formal .6 graph records actual ASAR inventory and Node mode, not legacy SDK fields', () => {
   const graph = JSON.parse(readFileSync(join(formalRoot, 'initial-packaged-graph.json')));
   assert.equal(graph.resolutionMode, 'runtime'); assert.equal(graph.runAsNode, '1');

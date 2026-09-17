@@ -12,9 +12,9 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Check or explicitly trigger an operations-owned local Desktop update | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\manage-official-desktop-update-channel.ps1 -Action Check\|Install ...` | Remote Check downloads only `release.json` to a temporary directory and is read-only for owned state. Explicit Install downloads and revalidates all declared files, atomically stages them, then starts the unsigned NSIS installer interactively with no silent arguments; Windows installer/UAC confirmation remains visible | Reuses strict Stage and Complete validation, invokes the same transactional plugin provisioner before schema-3 completion, and reports recoverable blocked state if readback/provisioning cannot complete. It never publishes, embeds `app-update.yml`, enables `electron-updater`, bypasses warnings, or stops processes. See [managed update channel](../docs/official-desktop-local-build.md#dsh-windows-ops-managed-update-channel-explicit-one-click-install) |
 | Compare the locked Copilot artifact with its immutable GitHub Release | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\sync-official-desktop-plugin-release.ps1 -Action Check` | Read-only; `Generate` prints exact follow-up commands but edits nothing | Verifies tag/release immutability, commit, asset/checksum names, sizes, and hashes. Never accepts `latest` or persists credentials |
 | Preview or apply the optional community configuration migration | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-official-desktop-local.ps1 -Migrate` / `-Apply -Migrate -AcknowledgeMigrationPlan sha256:<hash>` | Plan is read-only; Apply changes only validated non-secret target settings after exact plan-hash acknowledgement | Never copies secrets, Sessions, workspaces, `node_modules`, or Desktop profile files; plugin entries remain manual intents; requires process/session probes and keeps a target backup. See [migration stage](../docs/official-desktop-local-build.md#optional-configuration-migration-plan-first) |
-| Check the locked Desktop/Copilot target | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | Read-only | Targets published Desktop `0.1.6-alpha.1.cloga.1` / Core `0.1.6-alpha.1`; audits EXE, `resources/app.asar/dsh/desktop-runtime.json`, virtual/unpacked inventory and native profile proofs. Exact Electron parent/Node-mode Host binding is not a port-3080 check. Scoped genuine Ops observer CI [35210215981](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981) passed; no local activation or model-response proof |
+| Check the locked Desktop/Copilot target | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | Read-only | Targets published Desktop `0.1.6-alpha.1.cloga.2` / Core `0.1.6-alpha.1` / Copilot alpha.24; audits EXE, `resources/app.asar/dsh/desktop-runtime.json`, virtual/unpacked inventory and native profile proofs. Exact Electron parent/Node-mode Host binding is not a port-3080 check. Current native Ops qualification remains pending; formal source settings DOM/catalog proof is not local activation, real search or model-response proof |
 | Legacy Web deployment Apply only | Legacy-mode installer with `-Apply`, exact artifacts and optional `-IncludeCompanionSuite`; restart needs exact live-Session acknowledgement | High in supported legacy mode | The current native lock rejects external Apply/restart/companion inclusion and delegates to Desktop's separately authorized native flow. Never build, install or select a second Core to bypass this boundary |
-| Verify the Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Current descriptor SHA-256 `b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344`; exact installed EXE/custom `$INSTDIR` controls the ASAR root. Functional evidence remains `manual-verification-required`/exit 2, never a Web-listener substitute |
+| Verify the Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Current descriptor SHA-256 `f0de4a61ead7105c41f1576a2f01617908e80e214c6c5383c9b79a13d50a14d1`; exact installed EXE/custom `$INSTDIR` controls the ASAR root. Functional evidence remains `manual-verification-required`/exit 2, never a Web-listener substitute |
 | Roll back a legacy installer operation | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -OperationId <id>` | Backup restore only in supported legacy mode | Current native external rollback is refused; use the native consent-gated recovery flow. Legacy rollback never bypasses live-Session restart safety |
 | Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Historical compatibility path; installs no vision fallback. It resolves the canonical locked Release, hash-checks local tarballs, rejects registry/arbitrary specs, upgrades both profiles through the Desktop-managed official CLI, and returns `sign-in-required` until UI authorization completes |
 | Check, stage, or verify the companion suite without replacing Desktop/Core | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` / `-Action Verify` | None by default / Web Profile composition | Requires installed Core 0.1.6-alpha.1, compatible Cordis, and the locked API manifests; preserves existing Desktop state and never mutates globals, settings, credentials, gateway, Desktop, Core, or running processes |
@@ -40,14 +40,21 @@ blocks that cutover.
 
 ## ASAR entrypoint boundaries
 
-The lock selects the formally published `.6` ASAR target. Source-owned release
-acceptance and genuine [Ops observer CI `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
-passed at code head `83b0303c250b62f55424be3d88347bf147c593d8`; the
-[raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json)
-records actual package full identity, 9,806 runtime files, `metadata-cjs-esm`, one
-observer and profile cleanup. The three rejected request copies do not expand
-that proof to advanced private-peer/custom-home/missing-addon negative cases.
+The lock selects formally published Desktop `.6.cloga.2` (full version
+`0.1.6-alpha.1.cloga.2`, sequence 12), unchanged Core `.6`, and Copilot alpha.24.
+Formal source run [35271210350](../docs/local-core-desktop-copilot.md#authoritative-baseline)
+records actual initial/restart Model roles and search-routing DOM readiness and
+read-only registration catalogs (`deepseek-official`, `github-copilot-hosted`).
+Alpha.24 supplies the Client `remote.githubCopilotSearchRouting` injection missing
+from alpha.23; catalog loading is not a real search, OAuth or model request.
+**Current native Ops qualification remains pending.** Historical
+[Ops run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+and its retained [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json)
+qualify only `.cloga.1`/alpha.22, not this paired release. Its three rejected request
+copies did not establish advanced private-peer/custom-home/missing-addon negatives.
 Publication, repinning and CI success do not install or activate it locally.
+Apply the [official-first upgrade checklist](../docs/local-core-desktop-copilot.md#official-first-upgrade-checklist)
+before carrying custom code forward; preserve required behavior until parity is verified.
 For the selected ASAR runtime:
 
 - The native file checker remains read-only and inventory/peer proof is not a

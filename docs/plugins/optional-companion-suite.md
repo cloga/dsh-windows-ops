@@ -64,13 +64,15 @@ qualified workaround. This is a limitation of the current optional installer,
 not a claim that the product intrinsically requires another Core. Optional
 Cron/Playwright remain Web-only and outside native Desktop acceptance; the
 native base entry rejects `-IncludeCompanionSuite` and delegated mutations.
-The current lock now selects formally published Desktop `0.1.6-alpha.1.cloga.1`
-with ASAR Core `0.1.6-alpha.1`. Its source-owned formal acceptance and separate
-[Ops observer CI `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
-passed within the [documented native scope](../local-core-desktop-copilot.md#scoped-ops-ci-qualification).
-That native proof does **not** qualify this optional ASAR Web path, attest
-user-extra package contents, or install/activate any local component; the
-physical-runtime prerequisite above is unchanged.
+The current lock selects formally published Desktop `0.1.6-alpha.1.cloga.2`
+(sequence 12), ASAR Core `0.1.6-alpha.1` and Copilot alpha.24. Formal source
+acceptance includes actual initial/restart settings DOM and read-only search
+catalog loading, not a real search/OAuth/model request. Current native Ops
+qualification is pending; [historical run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
+qualifies only `.cloga.1`/alpha.22 within the [documented native scope](../local-core-desktop-copilot.md#scoped-ops-ci-qualification).
+Neither source acceptance nor that historical native proof qualifies this optional
+ASAR Web path, attests user-extra contents, or installs/activates a local component;
+the physical-runtime prerequisite above is unchanged.
 
 Use a non-default DSH home or Profile explicitly when needed:
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-15",
+  "updatedAt": "2026-09-17",
   "validationLevels": [
     {
       "id": "L0",
@@ -97,9 +97,9 @@
       "recommendation": "recommended",
       "validation": {
         "level": "baseline",
-        "verifiedAt": "2026-09-14",
-        "dshVersion": "official Desktop-managed 0.1.5-rc.2",
-        "nodeVersion": "24.19.0",
+        "verifiedAt": "2026-09-17",
+        "dshVersion": "fork-owned Desktop-managed 0.1.5-rc.2",
+        "nodeVersion": "24.17.0",
         "evidence": [
           {
             "kind": "deployment-lock",
@@ -118,8 +118,8 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "The guide defines required post-upgrade Models, sign-in, transport, hosted-search, and fresh-Session acceptance. Published alpha.22 metadata adds Desktop shared-package ownership; package admission and fixture tests do not substitute for live functional evidence.",
-            "path": "docs/local-core-desktop-copilot.md"
+            "description": "Formal cloga.7 packaged acceptance verified isolated Electron initial/restart provisioning, the signed-out Copilot Models account entry, and the bundled-Node graph with ancestor SDK isolation. It did not perform OAuth, a real model request, a local installer upgrade, or source-plugin activation.",
+            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga7/acceptance.json"
           }
         ]
       },

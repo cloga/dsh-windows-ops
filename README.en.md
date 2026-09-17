@@ -24,8 +24,10 @@ The [0.1.6-alpha.2 assessment](docs/core-016a2-assessment.md) records exact offi
 replacement evidence, retained differences and concrete API issues. It remains
 source-review evidence, not a new qualified deployment baseline.
 Later merges, releases, hashes and acceptance limits are recorded in the
-[delivery evidence](docs/core-016a2-delivery.md); plugin publication is not new
-Core/Desktop qualification or local activation.
+[delivery evidence](docs/core-016a2-delivery.md). Cron 0.7.3, Playwright 0.1.8 and
+Copilot alpha.25 are published and verified; the latter's GitHub/npm bytes match.
+Plugin publication is not new Core/Desktop qualification or local activation,
+and does not promote the deployment lock below.
 See also [native loader dependency and mirror qualification](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification):
 `node-addon-require-builtin@0.1.6` belongs to official boot; an optional Loader peer
 or a missing mirror artifact does not justify silently removing or downgrading it.

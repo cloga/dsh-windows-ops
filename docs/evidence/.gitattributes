@@ -1,0 +1,2 @@
+# Preserve original CI receipt bytes under Windows autocrlf checkouts.
+core-016a2-copilot-npm.json -text

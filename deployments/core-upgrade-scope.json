@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Official-first planning inventory, not a deployment or compatibility lock",
+  "trigger": "DSH Core 新版本适配 / adapt to a new DSH Core release",
+  "officialRepository": "deepseek-ai/deepseek-harness",
+  "components": [
+    {"id": "core", "repository": "cloga/deepseek-harness", "reviewAreas": ["Desktop plugin installation and source snapshots", "runtime dependency resolution and unload", "Windows shell, sandbox and process lifecycle", "managed update and release provenance"]},
+    {"id": "copilot", "repository": "cloga/dsh-github-copilot", "reviewAreas": ["official pi-ai account discovery and OAuth", "model roles and native delegation", "native and independent web search", "Models UI, Remote contracts and Client session slots"]},
+    {"id": "cron", "repository": "cloga/dsh-cron", "reviewAreas": ["official scheduling and reminders", "persistent jobs, time zones and missed-run behavior", "Session lifecycle and cancellation", "tool registration and runtime unload"]},
+    {"id": "playwright", "repository": "cloga/dsh-playwright-host", "reviewAreas": ["official Browser Use and Playwright MCP", "browser profile isolation and downloads", "permissions, cancellation and process cleanup", "tool registration and runtime unload"]},
+    {"id": "ops", "repository": "cloga/dsh-windows-ops", "reviewAreas": ["deployment locks and plugin catalog", "native installation ownership and recovery", "published artifacts versus installed and loaded versions", "bilingual upgrade entry points and regression fixtures"]}
+  ],
+  "parityStates": ["complete", "partial", "absent", "unverified"],
+  "decisions": ["migrate", "retain-temporarily", "retire"],
+  "decisionFields": ["customization", "purpose", "officialTag", "officialCommit", "evidence", "parity", "decision", "remainingGap", "retirementCondition", "migrationAndRollback", "acceptanceEvidence"],
+  "gates": ["coordinate-open-work", "pin-official-target", "official-first-feature-review", "migration-and-rollback-review", "isolated-compatibility-tests", "repository-ci-and-pr", "verify-published-artifacts", "sync-qualified-ops-locks"],
+  "safety": {"plannerOnly": true, "installAuthorized": false, "restartAuthorized": false, "rewriteImmutableReleases": false}
+}

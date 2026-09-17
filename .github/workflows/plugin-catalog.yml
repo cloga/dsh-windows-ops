@@ -91,7 +91,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - run: node tools/validate-repository-content.mjs
-      - run: node --test tests/repository-content.test.mjs
+      - run: node --test tests/repository-content.test.mjs tests/core-upgrade.test.mjs
 
   repository-policy:
     runs-on: ubuntu-latest

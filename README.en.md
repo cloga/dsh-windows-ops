@@ -10,6 +10,20 @@
 
 This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
+## DSH Core upgrade entrypoint
+
+For "adapt to a new DSH Core release", start with the [official-first upgrade
+workflow](docs/core-upgrade.md). Review Core fork, Copilot, cron and Playwright
+customizations against exact official source/contracts before carrying them forward;
+prefer official replacements after parity and migration acceptance are proven.
+[`core-upgrade-scope.json`](deployments/core-upgrade-scope.json) defines the scope.
+`node tools/plan-core-upgrade.mjs --tag dsh-v<version> --commit <full-SHA>` only emits
+an unexecuted plan. It does not install/restart or change the qualified deployment lock.
+
+The [0.1.6-alpha.2 assessment](docs/core-016a2-assessment.md) records exact official
+replacement evidence, retained differences and concrete API issues. It remains
+source-review evidence, not a new qualified deployment baseline.
+
 ## Copilot account-discovered route maintenance
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.

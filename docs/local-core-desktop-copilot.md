@@ -121,18 +121,32 @@ activation or restart is part of this baseline documentation update.
 
 ### Persistent update notice
 
-**Availability boundary:** [Desktop PR #58](https://github.com/cloga/deepseek-harness/pull/58)
-is merged at `7b673e48d2205940ac4699ac86ca9c6cfe58ee7d`. The planned
-`0.1.5-rc.3.cloga.8` / sequence 10 release is not yet independently verified
-for this documentation update. A merge, running publication workflow, or
-simulated screenshot does not establish publication or installation. The
-[deployment lock](../deployments/windows-copilot.lock.json) remains authoritative;
-this section does not promote a new baseline or describe the older installed
-Desktop as already having the feature. An existing `.cloga.5` installation does
-not gain the notice from publication alone: a verified Desktop containing the
-change must first be safely installed and activated by explicit user action.
-That Desktop can then show the persistent notice for future available updates.
-This publication/documentation work does not authorize local activation.
+**Verified release, not local activation:** immutable
+[Desktop `0.1.5-rc.3.cloga.8`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.5-rc.3.cloga.8),
+sequence 10, Release ID `390444859`, was published on **2026-09-17** from
+[source `2ecd65dc2205d89c878dbe19f9b1663f9c9ffc46`](https://github.com/cloga/deepseek-harness/commit/2ecd65dc2205d89c878dbe19f9b1663f9c9ffc46).
+It includes [feature PR #58](https://github.com/cloga/deepseek-harness/pull/58)
+and the test-only [PR #61](https://github.com/cloga/deepseek-harness/pull/61).
+[Formal run `35183054212`](https://github.com/cloga/deepseek-harness/actions/runs/35183054212)
+passed packaged acceptance and the source-owned remote channel Check, which
+confirmed `.cloga.8` / sequence 10 discovery.
+
+Independent downloads verified all six assets' sizes and GitHub digests,
+[`SHA256SUMS`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.8/SHA256SUMS),
+base64 `SHA512SUMS`, canonical manifest/receipt hashes, commit/tree/tag provenance,
+and source plan/lock bindings. The Windows x64 installer is **180,220,653 bytes**,
+SHA-256 `a972f49279a4427e0b47b4d3fa376e29e892689937b18a10e7d948d19803ea49`.
+The [`build-receipt.json`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.5-rc.3.cloga.8/build-receipt.json)
+SHA-256 is `34a56d9d8bf8d2ffcd584b90b4af1e1140c388eb5c7ddb35e99c02f00600d27b`.
+
+The [deployment lock](../deployments/windows-copilot.lock.json) remains the
+separately reviewed `.cloga.7` baseline from [ops PR #178](https://github.com/cloga/dsh-windows-ops/pull/178).
+This additive release guidance does not repin that contract or claim a local
+installation. An existing `.cloga.5` installation does not gain the notice from
+publication alone: a verified Desktop containing the change must first be safely
+installed and activated by explicit user action. That Desktop can then show the
+persistent notice for future available updates. This documentation update does
+not authorize local activation.
 
 - **Find it:** in a qualified Desktop containing this change, an available-update
   notice is a narrow strip at the top of the center main content, above the chat
@@ -149,14 +163,13 @@ This publication/documentation work does not authorize local activation.
   restart a running Desktop just to see this notice. Preserve other live Sessions;
   follow the consent-gated native update flow and the restart rules below.
 
-Before promoting this release, record independently verified immutable release
-metadata, exact source/version/sequence, downloaded installer checksums, packaged
-acceptance, and update-channel visibility. Then synchronize the lock, exact-pin
-validators, new formal fixtures, tests, and current guides together, coordinating
-with the [concurrent baseline update](https://github.com/cloga/dsh-windows-ops/issues/174).
-Preserve historical fixtures. Simulated updater screenshots verify only layout
-and state handling; they are not real update discovery, download, installation,
-or installed-app acceptance. Live activation and restart need separate consent.
+Any later baseline promotion must separately synchronize the lock, exact-pin
+validators, new formal fixtures, tests, and current guides using that release's
+verified evidence; preserve historical fixtures. Simulated updater screenshots
+verify only layout and state handling, not real discovery, download, installation,
+or installed-app acceptance. The formal remote Check above proves channel
+visibility, not an upgrade of a running Desktop. Live activation and restart
+still need separate consent.
 
 **Older-helper recovery:** `.cloga.1` and `.cloga.2` copied helpers have an
 unresolved `semver` import and fail before ACK without `node_modules`. A new

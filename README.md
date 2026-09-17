@@ -94,7 +94,7 @@ confirmation instead.
 | 目标 | 从这里开始 |
 |---|---|
 | 检查或安装锁定的 Windows + Copilot 基线 | [`docs/local-core-desktop-copilot.md`](docs/local-core-desktop-copilot.md) |
-| 查找 Desktop 持久更新提示并安全使用 **Review update**（实现已合并，发布与基线验证待完成） | [提示位置、使用方式与安全边界](docs/local-core-desktop-copilot.md#persistent-update-notice) |
+| 查找 Desktop 持久更新提示并安全使用 **Review update**（`.cloga.8` 发布已验证；与 `.cloga.7` 部署锁分开） | [提示位置、使用方式与安全边界](docs/local-core-desktop-copilot.md#persistent-update-notice) |
 | 从官方 `dsh-v0.1.5-rc.2` 源码构建并并排安装 Electron Desktop 本地构建；选择默认隔离 Home 或显式复用已有 Home，并了解手动更新通道 | [`docs/official-desktop-local-build.md`](docs/official-desktop-local-build.md) |
 | 运行版本、配置、端口、模型和补丁自检 | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | 诊断安装问题并执行定点修复 | [`tools/README.md`](tools/README.md) |

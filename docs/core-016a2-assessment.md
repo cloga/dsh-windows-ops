@@ -60,6 +60,49 @@ All links below point to the same immutable target commit, not mutable master:
 - [Scheduler runtime](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/schedule/schedule/src/runtime.ts), [types](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/schedule/schedule/src/types.ts), [semantics](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/docs/subsystems/schedule.md).
 - [Official Playwright provider](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/experimental/browser-use-playwright-mcp/src/index.ts), [browser runtime](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/experimental/browser-use-runtime/src/index.ts), [MCP lifecycle](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/experimental/browser-use-runtime/src/mcp.ts).
 
+## Native loader dependency and mirror qualification
+
+`node-addon-require-builtin` belongs to official Core boot/module resolution, not
+an extra dependency introduced by the maintained cron, Copilot or Playwright
+plugins. At the exact alpha.2 target:
+
+- [app-boot](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/boot/app-boot/package.json#L34-L39)
+  and [CLI](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/apps/cli/package.json#L104)
+  declare the direct dependency `^0.1.6`.
+- [Cordis Loader](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/vendor/loader/package.json#L32-L39)
+  declares an optional peer. Its optional internal-loader path does **not** make
+  the entire DSH boot dependency optional.
+- [Profile resolution](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/boot/app-boot/src/profile-resolution/resolver.ts#L520-L549)
+  directly loads the addon to reach Node internal ESM/CJS loaders and helpers;
+  this path has no missing-addon fallback.
+- Comparing those three manifests with official alpha.1 commit
+  `0a15e36e7f82b6ed45af6fa9759f29b40dcd965d` confirms the same `^0.1.6`
+  declarations already existed. Do not describe this as an alpha.2-new dependency.
+
+During local qualification, the configured approved mirror returned E404 for
+`0.1.6`, while its version metadata listed versions through `0.1.5`. This is a
+point-in-time mirror availability observation, not evidence that upstream never
+published `0.1.6` or that every CI environment is blocked. The official lock pins
+`0.1.6` with SRI
+`sha512-P9ZGMDkloktirLJSggfpxsJ9jog5FItE1Omxpj50UBn3LhD6TS6/yx0jEBXsCGK3P9EtW1EpQVA1QL5gb11GaQ==`.
+
+Prefer approved mirror synchronization or an approved original artifact verified
+against that integrity. `0.1.5` is only an **unqualified fork-override candidate**:
+it does not satisfy `^0.1.6`, and no source comparison has established that the
+`0.1.6` changes are unnecessary. Its metadata also requires
+`node-addon-native-custom-loader@0.1.5` and platform-specific optional binary
+packages; the top-level package alone does not prove a usable native installation.
+Any proposed override needs its own reviewed dependency/lock change and target
+Node/Electron startup, ESM/CJS, plugin lifecycle and Worker qualification. Do not
+silently rewrite the official lock, relabel/repack an older tarball, bypass
+registry/TLS policy, or patch the running application. No override was applied
+for this assessment.
+
+中文摘要：这是官方启动层依赖，alpha.1 已要求 `^0.1.6`。Loader 的可选 peer
+不代表 Profile 启动可以缺包；镜像现有 `0.1.5` 只可作为独立验证候选，不能直接
+认定等价替代。依赖范围、原生加载器和平台二进制需一起审视；源码、锁文件与运行环境
+均不因镜像缺包而自动降级。
+
 ## Qualification work still required
 
 1. Copilot handwritten strict Remote codecs require `create()` on alpha.2; merely widening peer ranges leaves Client `$mount` broken. Preserve explicit owned view validation because Gateway success is not result-schema validation.

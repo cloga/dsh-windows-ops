@@ -30,8 +30,10 @@ Plugin publication is not new Core/Desktop qualification or local activation,
 and does not promote the deployment lock below.
 See also [native loader dependency and mirror qualification](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification):
 `node-addon-require-builtin@0.1.6` belongs to official boot. Candidate 0.1.5 passed
-standalone Node smoke but failed an actual native call under Electron 44, so it
-must not replace this Desktop dependency. The same section distinguishes optional
+standalone Node smoke but failed an actual native call under Electron 44. Historically
+attested deployed 0.1.6 bytes passed main/two-Worker probes in the same carrier,
+supporting retention of 0.1.6—not npm-archive equivalence or full Core qualification.
+The same section distinguishes optional
 CUA test dependencies and pnpm 11's workspace-root inclusion during filtered installs.
 
 ## Copilot account-discovered route maintenance

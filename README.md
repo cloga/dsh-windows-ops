@@ -22,7 +22,7 @@
 官方替代、必须保留的差异和已发现的接口问题；源码评估不是新部署基线。
 后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron 0.7.3、Playwright 0.1.8 和 Copilot alpha.25 已发布核验，后者的 GitHub/npm 原始字节一致。插件发布不代表新 Core/Desktop 已合格或本机已激活，下方部署锁未因此提升。
 另见[原生加载依赖与镜像验证](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification)：
-`node-addon-require-builtin@0.1.6` 属于官方启动层；旧版 `0.1.5` 虽通过独立 Node 测试，却在 Electron 44 的实际原生调用中失败，不能直接替代。该节也区分可选 CUA 测试依赖与 Desktop 运行需要，并记录 pnpm 11 筛选安装仍包含根项目的限制。
+`node-addon-require-builtin@0.1.6` 属于官方启动层；旧版 `0.1.5` 虽通过独立 Node 测试，却在 Electron 44 的实际原生调用中失败；历史已验证部署中的 `0.1.6` 文件在同一载体通过主线程及两个 Worker 对照，因此保留 `0.1.6`。这不等于取得 npm 原始包或完成整个 Core 验收。该节也区分可选 CUA 测试依赖与 Desktop 运行需要，并记录 pnpm 11 筛选安装仍包含根项目的限制。
 
 ## Copilot 自动识别路由维护
 

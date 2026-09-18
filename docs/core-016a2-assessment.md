@@ -112,16 +112,48 @@ The [official bump](https://github.com/deepseek-ai/deepseek-harness/commit/0bade
 changed the locked version from 0.1.4 to 0.1.6 without a detailed native-change
 explanation. The later [addon-managed cache change](https://github.com/deepseek-ai/deepseek-harness/commit/c3a66d9cd23f149370e45ae8e114173c0d2eff3c)
 is not proof of a 0.1.6-only capability: reviewed 0.1.5 loader source already has
-native-cache management. No 0.1.5-to-0.1.6 implementation diff or 0.1.6 execution
-was available, so **do not claim 0.1.6 fixes the observed failure without testing**.
-Node 22/26, full Profile resolver/Worker bootstrap/HMR and packaged activation
-remain outside these probes. Never relabel an older archive, bypass registry/TLS
-policy, or silently rewrite the official lock.
+native-cache management. The initial 0.1.5-only probe record did not establish
+0.1.6 behavior. Subsequent comparison below supplies actual positive evidence,
+while the native implementation/source-level reason remains unavailable.
 
-中文摘要：旧版已实际验证：独立 Node 24.13 的主线程和两个 Worker 通过，但
-Electron 44 / Node 24.18.1 在首次原生 require 调用失败。因此本次 Desktop
-不能直接换成 0.1.5；同名 API、N-API 版本或普通 Node 成功都不足以证明嵌入环境兼容。
-这不证明 0.1.6 必然修复，仍需获取获准的原始制品并验证。未改正式依赖或运行环境。
+### Subsequent attested 0.1.6 comparison
+
+The existing cloga.1 installation already contained the 0.1.6 entry, shared loader
+and Windows x64 platform package. Its `dsh/desktop-runtime.json` SHA-256 matched
+`b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344`, pinned by the
+[historically qualified Ops lock](https://github.com/cloga/dsh-windows-ops/blob/529d3f26ffb2a0379ea230ee5e66d2e06b352d8d/deployments/windows-copilot.lock.json).
+All 14 selected package files, including the unpacked native binary, matched
+that descriptor's byte counts and hashes, then matched again after copying into
+an isolated test fixture. This is stronger than trusting an adjacent ASAR header
+or package version string alone. Native 0.1.6 is 343552 bytes, SHA-256
+`e23ba1b0c33c63940625aa954011b53c66d855f7dfac75b29c829b25e06f20df`.
+
+| Same isolated Windows x64 carrier | Mirror-original 0.1.5 | Attested deployed 0.1.6 |
+|---|---|---|
+| Standalone Node 24.13.0 | PASS: main + two Workers | PASS: main + two Workers |
+| Electron 44.0.0 Node mode / Node 24.18.1 | FAIL on first native require | PASS: main + two Workers |
+
+Both 0.1.6 runs verified all five DSH internal modules, ESM v2 methods, actual
+builtin resolution through ESM and CJS, the exact native-cache hash and shared
+cache-path identity, and natural process/Worker exit 0. The entry, shared loader
+and platform-entry JavaScript were byte-identical across the two reviewed
+versions; their native binaries differed. Therefore retain 0.1.6 for this target:
+its tested native bytes work where 0.1.5 fails in the **same** Electron embedding.
+The [separate comparison summary](evidence/core-016a2-addon-comparison.json) records
+this later evidence; the earlier 0.1.5-only record remains historical.
+
+These are **attested deployed runtime bytes**, not reconstructed npm archives or
+proof of original npm SRI equivalence. No registry tarball was supplied by this
+comparison, no package-manager store populated, and no Core or live profile
+modified. The mirror install problem is not thereby fixed. Node 22/26, full
+Profile resolver/Worker bootstrap/HMR, Electron browser/main-process behavior
+and complete alpha.2 packaged activation remain outside the probes. Never
+relabel an archive, bypass registry/TLS policy or silently rewrite the lock.
+
+中文摘要：同一载体的对照已完成：0.1.5 在 Electron 44 / Node 24.18.1 失败，
+而逐文件匹配历史已验证描述符的 0.1.6 在该环境的主线程与两个 Worker 均通过。
+因此保留 0.1.6 不只是遵循版本声明，也有实际兼容性证据。该证据来自现有部署文件，
+不等于拿到了 npm 原始包，也没有恢复镜像缺失依赖；未改正式依赖或运行环境。
 
 ### Distinguish optional test closure from runtime requirements
 

@@ -67,6 +67,53 @@ artifacts; then synchronize qualified Ops locks/catalog/tests and bilingual docs
 Installation and restart are separate approvals. Never rewrite immutable releases,
 weaken integrity/TLS gates, patch a live Core, or silently interrupt Sessions.
 
+## Remote qualification checklist
+
+本地镜像缺包不等于远端失败；漂亮的日志不等于完整诊断；制品生成成功不等于
+已接受或可发布。以下检查补充官方优先决策，不降低 CI、供应链或激活门槛。
+
+- **Dependencies and hooks:** an approved local npm mirror missing exact original
+  versions is not itself a merge/release blocker if normal remote frozen install,
+  full checks, build and artifact qualification succeed in an approved environment.
+  Record the local limitation separately. Never fabricate archives, downgrade to
+  make a check green, or bypass TLS/registry policy. A local hook bypass requires
+  actual failed-hook evidence and explicit user authorization for that one PR;
+  it never waives remote CI or release gates.
+- **Complete lint evidence:** native pretty output can suppress diagnostics with
+  `File is too long to fit on the screen` / `seems like a minified file`. Run the
+  official `scripts/run-oxlint.ts . --format=json` via the repository's declared
+  script runner, keeping the whole rule set and actual nonzero process exit.
+  Parse machine JSON, not the visible pretty-output count; do not turn parsing or
+  log capture into a successful exit for failed lint.
+- **Remote generator boundary:** bind a result to exact source head, generator
+  inputs and lockfile identity; use real official generators, not synthesized
+  replacements. Allowlist actual generated changes and review content as well as
+  paths. Preserve authored prose and archived notes. Never upload a rejected whole
+  `git diff`, assertion text containing rejected content, or arbitrary sidecar
+  bytes; never follow symlinks. Negative tests must assert sentinel absence from
+  both artifacts and logs, not merely exit 1. Treat every artifact as unaccepted
+  until its identity and allowed diff are reviewed; remove temporary workflows
+  before final approval and requalify the resulting exact head.
+- **Decoded PowerShell:** parse the decoded `run` scripts with the PowerShell
+  parser, not only their surrounding YAML. In double-quoted here-strings,
+  Markdown backticks can escape `$` or the closing newline. Prefer literal string
+  arrays plus explicit formatting for interpolated values; verify the emitted
+  Markdown as well as parser success.
+- **Acceptance levels:** report syntax, unit, mock, exact-source fixture, build,
+  packaged-runtime and native-installer results separately. `PREPARED` is not
+  active/healthy; a graph inventory does not prove module loading. A signed-out
+  Copilot state cannot establish a writable composer. Exercise the actual official
+  UI install (initially disabled), then enable and restart as a distinct acceptance
+  step; source fixtures do not stand in for that transition.
+- **Isolation and activation:** installer tests belong only on guarded, disposable
+  GitHub-hosted Windows with an isolated test profile and explicit runner/path
+  guards, never implicitly on the current Desktop. Preserve local Sessions and
+  data. Remote acceptance does not authorize local install, activation or restart.
+
+Version-bound observations and outstanding gates belong in the existing
+[alpha.2 delivery record](core-016a2-delivery.md#core-candidate-remote-evidence),
+not in a second competing runbook.
+
 ## 完成标准 / Completion evidence
 
 报告每个组件的处理结论、Issue/PR、源码提交、发布版本/链接、哈希和测试范围。

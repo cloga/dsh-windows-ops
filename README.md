@@ -27,6 +27,12 @@
 另见 [pnpm 11.7 调度与离线策略边界](docs/core-016a2-assessment.md#pnpm-117-dispatch-and-offline-policy-boundaries)：
 `pm` 必须是首参数，`--offline` 不保证供应链校验不请求 registry 元数据；不得靠关闭校验来消除失败。
 
+远端适配时使用[资格验证清单](docs/core-upgrade.md#remote-qualification-checklist)：
+区分本地镜像限制与远端完整 CI，保留完整 lint JSON 与退出码，审查精确 head 的生成制品，
+解析解码后的 PowerShell，并区分 fixture/build 与隔离原生安装验收。
+[Core 候选证据](docs/core-016a2-delivery.md#core-candidate-remote-evidence)仍未达到发布资格；
+不得因此更新锁、安装或重启当前 Desktop。
+
 ## Copilot 自动识别路由维护
 
 已有新版 Copilot、需要从两条路由统一到账号自动识别目录时，使用[先检查的配置维护流程](docs/copilot-managed-route.md)与独立的 [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json)。它只允许经过确认的路径级配置 CAS，不安装组件、不重启、不自动修改 Session 或默认模型；不会为了下述独立部署目标替换或降级现有 Desktop。策略中的 Release 必须已验证、指定插件版本必须实际加载；冷历史影响需明确确认。该维护策略不是新的完整 Desktop/Core 验证声明。

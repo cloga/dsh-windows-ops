@@ -128,10 +128,44 @@ immutable-asset replacement or automatic dist-tag repair is permitted.
 Public component receipts: [Cron](https://github.com/cloga/dsh-cron/pull/50#issuecomment-5722223645),
 [Playwright](https://github.com/cloga/dsh-playwright-host/issues/20#issuecomment-5722219209).
 
+## Core candidate remote evidence
+
+Snapshot for [Core Issue #67](https://github.com/cloga/deepseek-harness/issues/67)
+and [Draft PR #68](https://github.com/cloga/deepseek-harness/pull/68), not a current
+release receipt. The planned candidate is `0.1.6-alpha.2.cloga.1`, sequence 13,
+with Copilot alpha.25; **not published or installed** at this checkpoint. Separate
+plugin publications above do not promote the deployment lock.
+
+| Evidence | What it establishes / limit |
+|---|---|
+| [Merged-candidate CI 35337031063](https://github.com/cloga/deepseek-harness/actions/runs/35337031063), head `0de805da6063f013764a678c19c924b8f1327cd1` | Successful Windows build, Node 22/24.9/26, benchmarks and Linux/Windows installed-wheel checks; overall **failure**, not release-qualified. “Merged-candidate” is a test description, not proof PR #68 merged. |
+| [CI 35343590153](https://github.com/cloga/deepseek-harness/actions/runs/35343590153), head `3fe0f8476950abdd0bafcb68a9e7de12022b0b68` | Actual catalog freshness failure after role fixes; run later cancelled. Source/runtime qualification remained ongoing, not all-green. |
+| [Corrected catalog generation 35345437655](https://github.com/cloga/deepseek-harness/actions/runs/35345437655), head `a9dd6bce1cd477c516615a47a5061c4f57ecfc89` | Generator run **success**; artifact not yet accepted at this checkpoint. Neither full CI nor release acceptance follows from generator success. |
+
+Native lint summaries reported **680 vs 467 visible** diagnostics, then **218 vs
+3 visible** in a later observation. Pretty-output suppression is not evidence that
+all remaining errors were fixed. Use the official JSON runner and preserve its
+nonzero exit as specified in the [checklist](core-upgrade.md#remote-qualification-checklist).
+
+Earlier temporary [run 35343590155](https://github.com/cloga/deepseek-harness/actions/runs/35343590155)
+was cancelled; its unreviewed artifact `10545991575` was deleted and never used.
+Review found boundary defects; this is **not a confirmed sensitive-data leak**.
+A replacement artifact must meet the exact-head/input/lock, generated-content,
+symlink and log/artifact sentinel checks before acceptance.
+
 ## Remaining promotion gates
 
-Complete Core/Desktop implementation, exact-head tests, UI/runtime acceptance,
-release and artifact verification. Then
+- [ ] Accept only reviewed official generator output; preserve authored/archived
+  notes, remove temporary workflows, and qualify the final exact head.
+- [ ] Complete normal frozen install, full source/runtime checks and build/artifact
+  qualification; local mirror gaps alone neither fail nor satisfy these gates.
+- [ ] Record packaged/module-loading and actual official UI disabled-install ->
+  enable/restart acceptance separately on guarded disposable GitHub-hosted Windows.
+  `PREPARED`, graph inventory and signed-out Copilot are not active-runtime or
+  writable-composer evidence; never use the current Desktop implicitly.
+- [ ] Complete Core/Desktop release and independent published-artifact verification.
+
+Then
 qualify the intended combined deployment through its normal Ops workflow before
 updating deployment locks, catalog and fixtures together. Do not substitute earlier
 alpha.1 native qualification or a plugin CI result for alpha.2 Desktop acceptance.

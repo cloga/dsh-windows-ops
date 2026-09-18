@@ -36,6 +36,10 @@ supporting retention of 0.1.6—not npm-archive equivalence or full Core qualifi
 The same section distinguishes optional
 CUA test dependencies and pnpm 11's workspace-root inclusion during filtered installs.
 
+See [pnpm 11.7 dispatch and offline-policy boundaries](docs/core-016a2-assessment.md#pnpm-117-dispatch-and-offline-policy-boundaries):
+`pm` must be the first argument, and `--offline` does not guarantee that supply-chain
+verification avoids registry metadata requests. Do not disable verification to hide failures.
+
 ## Copilot account-discovered route maintenance
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.

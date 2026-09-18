@@ -180,6 +180,57 @@ scoped resolver evidence separate from full dependency, typecheck and pre-push
 qualification. No unavailable dependency may be silently substituted. A local
 hook exception still requires explicit user agreement; none was granted here.
 
+### pnpm 11.7 dispatch and offline-policy boundaries
+
+Two additional assumptions were disproved by actual candidate tests and inspection
+of the pinned pnpm 11.7.0 `dist/pnpm.mjs`. These are tool-version-specific findings,
+not new authorization to install or relax policy:
+
+- **`pm` must be the first pnpm argument.** `parseCliArgs2` checks
+  `inputArgv[0] === 'pm'` (lines 285469-285471). Prepending even a notifier setting
+  before this sentinel loses built-in-only dispatch. In the adaptation candidate,
+  that mistake caused source packing to enter fallback `run` and dependency
+  materialization, attempting public-registry requests for fixture dependencies.
+  The runner was corrected to keep `pm` first. Actual pinned-pnpm regressions then
+  packed sources with an unavailable dependency and `pm`/lifecycle traps without
+  running those scripts or creating source `node_modules`/lock files. A successful
+  dependency-free pack alone would not have caught this bug. This is scoped test
+  evidence, not publication of the candidate Core implementation.
+- **`--offline` does not prove zero registry traffic.** A later, separate test
+  successfully packed and seeded a private package store, then printed both
+  `Already up to date` and registry GET/retry diagnostics before its 60-second
+  deadline. The package store and ordinary metadata cache were present. The pinned
+  verifier performs tarball-URL binding before optional age/trust checks
+  (`createNpmResolutionVerifier`, lines 64293-64310), calling
+  `runTarballUrlCheck` -> `fetchAbbreviatedMeta` -> `fetchMetadataCached`.
+  That last function reads disk headers but performs a conditional registry GET
+  before using a cached body after HTTP 304 (lines 64224-64242). The verifier's
+  construction does not forward the install's offline option. A valid verification
+  cache can avoid rechecking; ordinary cached package bytes/metadata alone do not
+  establish that condition. The verification promise runs alongside installation,
+  so progress output is not a successful process exit or completed policy check.
+
+Do not respond by disabling TLS/integrity/supply-chain checks, automatically adding
+`--trust-lockfile`, fabricating verifier-cache records, or extending timeouts to
+hide the cause. If zero egress is required, do not rely on a CLI flag alone: use an
+approved environment that enforces the restriction, or stop until the required
+policy evidence can be obtained without violating it. Registry restrictions remain
+in force even when ordinary package files are locally available.
+
+A controlled test may instead keep an explicitly trusted **nonproduction HTTPS
+loopback registry** available for policy metadata, while verifying that package
+archives are read from its private cache and are not fetched after seeding. Such
+a result must be labelled "cached artifact materialization with local policy
+metadata traffic", not "all requests offline" or external-registry acceptance.
+Any fixture CA is child-process-only, never system/global trust; TLS verification
+stays enabled. It does not supply missing approved-registry artifacts or qualify
+real packaged Electron/ASAR behavior.
+
+中文：pnpm 11.7 的 `pm` 必须放在参数首位，前置配置参数可能误走脚本/依赖安装路径。
+`--offline` 也不等于绝对不联网：锁文件供应链校验仍可能发起 registry 元数据请求。
+应核对实际退出结果和请求范围，不能关闭校验、伪造缓存或把进度输出当作成功。
+测试中的本地 HTTPS 元数据流量与包内容离线缓存必须分开说明。
+
 ## Findings at the audited starting points
 
 These findings describe the starting sources above. Later adaptation, publication

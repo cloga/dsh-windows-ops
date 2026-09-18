@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "kind": "owned-summary-of-attested-deployed-native-comparison",
+  "officialTarget": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+  "olderProbeEvidence": "core-016a2-addon-015.json",
+  "artifactOrigin": {
+    "kind": "already-installed-historically-attested-runtime-files",
+    "packageVersion": "0.1.6",
+    "packages": [
+      "node-addon-require-builtin",
+      "node-addon-native-custom-loader",
+      "node-addon-require-builtin-win32-x64-msvc"
+    ],
+    "historicalOpsCommit": "529d3f26ffb2a0379ea230ee5e66d2e06b352d8d",
+    "desktopReleaseTag": "dsh-desktop-v0.1.6-alpha.1.cloga.1",
+    "desktopSourceCommit": "fae12b69dcd28413518f68b5770e40f8eb2ff730",
+    "runtimeDescriptorSha256": "b388ddee840f7de08ac391d4faf7a526ebd40b3bfe0ced8525cf8ac2c9fab344",
+    "selectedFilesVerifiedBeforeAndAfterCopy": 14,
+    "nativeBinaryBytes": 343552,
+    "nativeBinarySha256": "e23ba1b0c33c63940625aa954011b53c66d855f7dfac75b29c829b25e06f20df",
+    "originalNpmTarballOrSriEquivalenceClaimed": false
+  },
+  "javascriptComparison": {
+    "byteIdenticalBetween015And016": [
+      "node-addon-require-builtin/lib/index.js",
+      "node-addon-native-custom-loader/lib/index.js",
+      "node-addon-require-builtin-win32-x64-msvc/index.js"
+    ],
+    "nativeBinaryDiffers": true,
+    "nativeImplementationDiffAvailable": false
+  },
+  "probes": [
+    {
+      "carrier": "standalone-node",
+      "node": "24.13.0",
+      "modulesAbi": "137",
+      "napi": "10",
+      "platform": "win32",
+      "arch": "x64",
+      "packageVersion": "0.1.6",
+      "backend": "napi",
+      "bindingAbi": "napi-v9",
+      "mainPassed": true,
+      "workersPassed": 2,
+      "internalModulesPerThread": 5,
+      "esmLoaderShape": "v2",
+      "actualBuiltinResolutionPassed": true,
+      "nativeCacheHashAndSharedPathPassed": true,
+      "workerNaturalExitCodes": [0, 0],
+      "processNaturalExitCode": 0
+    },
+    {
+      "carrier": "electron-run-as-node",
+      "electron": "44.0.0",
+      "node": "24.18.1",
+      "modulesAbi": "149",
+      "napi": "10",
+      "platform": "win32",
+      "arch": "x64",
+      "carrierSha256": "ea8c801e8cef289772c5d616a25aeaa255a86b3471b7549ca958cb7708bcf41f",
+      "packageVersion": "0.1.6",
+      "backend": "napi",
+      "bindingAbi": "napi-v9",
+      "mainPassed": true,
+      "workersPassed": 2,
+      "internalModulesPerThread": 5,
+      "esmLoaderShape": "v2",
+      "actualBuiltinResolutionPassed": true,
+      "nativeCacheHashAndSharedPathPassed": true,
+      "workerNaturalExitCodes": [0, 0],
+      "processNaturalExitCode": 0
+    }
+  ],
+  "decision": "Retain the official 0.1.6 requirement; tested attested 0.1.6 bytes work where 0.1.5 fails in the same Electron 44 Node-mode carrier",
+  "limits": [
+    "Owned summary, not a raw transcript or npm publisher attestation",
+    "Does not restore the missing approved-registry tarballs or populate a package-manager store",
+    "No full DSH alpha.2 Profile resolver, HMR or packaged activation qualification",
+    "No Node 22, Node 26, other platforms or Electron browser/main-process coverage",
+    "No Core dependency, lockfile, live profile, installed package or existing process modification"
+  ]
+}

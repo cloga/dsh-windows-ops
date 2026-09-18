@@ -87,21 +87,66 @@ published `0.1.6` or that every CI environment is blocked. The official lock pin
 `sha512-P9ZGMDkloktirLJSggfpxsJ9jog5FItE1Omxpj50UBn3LhD6TS6/yx0jEBXsCGK3P9EtW1EpQVA1QL5gb11GaQ==`.
 
 Prefer approved mirror synchronization or an approved original artifact verified
-against that integrity. `0.1.5` is only an **unqualified fork-override candidate**:
-it does not satisfy `^0.1.6`, and no source comparison has established that the
-`0.1.6` changes are unnecessary. Its metadata also requires
-`node-addon-native-custom-loader@0.1.5` and platform-specific optional binary
-packages; the top-level package alone does not prove a usable native installation.
-Any proposed override needs its own reviewed dependency/lock change and target
-Node/Electron startup, ESM/CJS, plugin lifecycle and Worker qualification. Do not
-silently rewrite the official lock, relabel/repack an older tarball, bypass
-registry/TLS policy, or patch the running application. No override was applied
-for this assessment.
+against that integrity. **Do not substitute `0.1.5` for this Desktop target:**
+subsequent isolated testing established an actual Electron compatibility failure,
+not merely an unmet `^0.1.6` range. The entry, shared native loader and Windows x64
+platform archives were obtained from the approved mirror, checked against their
+metadata SHA-1 values, and left unmodified in a disposable test fixture. No Core
+or live-profile dependency was replaced.
 
-中文摘要：这是官方启动层依赖，alpha.1 已要求 `^0.1.6`。Loader 的可选 peer
-不代表 Profile 启动可以缺包；镜像现有 `0.1.5` 只可作为独立验证候选，不能直接
-认定等价替代。依赖范围、原生加载器和平台二进制需一起审视；源码、锁文件与运行环境
-均不因镜像缺包而自动降级。
+| Isolated carrier | Result for addon 0.1.5 | Actual coverage |
+|---|---|---|
+| Standalone Node 24.13.0, Windows x64, module ABI 137 | PASS, exit 0 | Main plus two Workers: native binding/cache hash, five DSH internal modules, ESM v2 shape and actual `node:path` resolution; worker exits awaited |
+| Electron 44.0.0 in Node mode, Node 24.18.1, Windows x64, module ABI 149 | FAIL, natural exit 1 | Native binding/cache hash passed; first `requireBuiltin('path')` failed. Five internal-module calls and Workers were **not reached** |
+
+The Electron error was:
+`Unsupported/no-realm (no compatible GetAlignedPointerFromEmbedderData symbol found)`.
+The tested carrier was an existing hash-verified cloga.1 executable; this is an
+embedding smoke test, not a complete official alpha.2 application test. No
+existing Desktop/Host process was stopped. The
+[owned probe summary](evidence/core-016a2-addon-015.json) records runtime identities,
+artifact hashes, actual results and limits without private paths or raw stack data.
+It is not an independent publisher attestation.
+
+The [official bump](https://github.com/deepseek-ai/deepseek-harness/commit/0bade5a01012f0355837f556b75adcab27f2c3c9)
+changed the locked version from 0.1.4 to 0.1.6 without a detailed native-change
+explanation. The later [addon-managed cache change](https://github.com/deepseek-ai/deepseek-harness/commit/c3a66d9cd23f149370e45ae8e114173c0d2eff3c)
+is not proof of a 0.1.6-only capability: reviewed 0.1.5 loader source already has
+native-cache management. No 0.1.5-to-0.1.6 implementation diff or 0.1.6 execution
+was available, so **do not claim 0.1.6 fixes the observed failure without testing**.
+Node 22/26, full Profile resolver/Worker bootstrap/HMR and packaged activation
+remain outside these probes. Never relabel an older archive, bypass registry/TLS
+policy, or silently rewrite the official lock.
+
+中文摘要：旧版已实际验证：独立 Node 24.13 的主线程和两个 Worker 通过，但
+Electron 44 / Node 24.18.1 在首次原生 require 调用失败。因此本次 Desktop
+不能直接换成 0.1.5；同名 API、N-API 版本或普通 Node 成功都不足以证明嵌入环境兼容。
+这不证明 0.1.6 必然修复，仍需获取获准的原始制品并验证。未改正式依赖或运行环境。
+
+### Distinguish optional test closure from runtime requirements
+
+`@trycua/cua-driver@0.28.0` is a separate dependency of the
+[experimental native computer-use provider](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/experimental/computer-use-cua-driver-native/README.md),
+which requires an explicit composition choice. It is pulled into the repository's
+root development closure, not declared as a direct Desktop-shell dependency.
+The approved mirror returned E404 for 0.28.0 and exposed 0.26.1 during this review;
+no replacement compatibility is established or downgrade performed.
+
+An explicit `pnpm --filter @deepseek-ai/dsh-desktop install --frozen-lockfile`
+still requested that root dependency. The installed pnpm 11.7.0 implementation
+(`dist/pnpm.mjs`, recursive install, lines 194818-194822 in the inspected build)
+adds the workspace-root importer even when it is outside the filter under the
+shared-lockfile path. This does **not** prove CUA is required to run Desktop.
+The failed root-only and Desktop-only attempts retained the exact lock hash.
+Do not keep retrying the same filters or rewrite the lock to make them succeed.
+
+Also, pnpm 11 `run`/`exec` attempted automatic dependency materialization before
+starting checks in this incomplete workspace. A timeout there is **not a test
+failure or a test pass**: no selected tests ran. Inspect the intended scope and
+use an already available direct tool entry where legitimate; keep any exact-cache
+scoped resolver evidence separate from full dependency, typecheck and pre-push
+qualification. No unavailable dependency may be silently substituted. A local
+hook exception still requires explicit user agreement; none was granted here.
 
 ## Findings at the audited starting points
 

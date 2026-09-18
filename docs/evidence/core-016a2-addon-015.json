@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "owned-summary-of-isolated-native-probes",
+  "officialTarget": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+  "candidate": {
+    "name": "node-addon-require-builtin",
+    "version": "0.1.5",
+    "sharedLoaderVersion": "0.1.5",
+    "platformPackage": "node-addon-require-builtin-win32-x64-msvc",
+    "platformPackageVersion": "0.1.5",
+    "archiveMetadataSha1": {
+      "entry": "42858cd0864771d16a96a36b140664613dc40357",
+      "sharedLoader": "cabb6ec58ac61e26a25fcbacf1512280966edda8",
+      "platform": "2b3b7a8619577a30f2730f4f663bf0f1e36022a8"
+    },
+    "nativeBinary": {
+      "relativePath": "prebuilt/win32-x64-msvc-napi-v9.node",
+      "bytes": 338432,
+      "sha256": "57845c9e7c184b564b35a59c9012f7682f06f33877bb01c550e01f48210f98d5",
+      "backend": "napi",
+      "abi": "napi-v9"
+    }
+  },
+  "standaloneNode": {
+    "node": "24.13.0",
+    "platform": "win32",
+    "arch": "x64",
+    "modulesAbi": "137",
+    "napi": "10",
+    "exitCode": 0,
+    "mainThread": "passed",
+    "workersPassed": 2,
+    "internalModulesPerThread": 5,
+    "loaderShape": "v2",
+    "builtinResolution": "node:path resolved through ESM resolveSync, ESM defaultResolve and CJS _resolveFilename",
+    "cache": "owned test cache; native binary hash checked; both worker exits awaited"
+  },
+  "electronNodeMode": {
+    "carrierApplicationVersion": "0.1.6-alpha.1.cloga.1",
+    "carrierSha256": "ea8c801e8cef289772c5d616a25aeaa255a86b3471b7549ca958cb7708bcf41f",
+    "electron": "44.0.0",
+    "node": "24.18.1",
+    "platform": "win32",
+    "arch": "x64",
+    "modulesAbi": "149",
+    "napi": "10",
+    "mode": "ELECTRON_RUN_AS_NODE=1",
+    "exitCode": 1,
+    "nativeLoadIdentityAndCacheHash": "passed",
+    "failedCall": "requireBuiltin('path')",
+    "error": "node-addon-require-builtin unsupported: Unsupported/no-realm (no compatible GetAlignedPointerFromEmbedderData symbol found)",
+    "internalModuleProbes": "not reached",
+    "workerProbes": "not reached",
+    "termination": "natural exit; no timeout or forced termination"
+  },
+  "decision": "Do not substitute 0.1.5 for the Desktop/Electron 44 target",
+  "limits": [
+    "Not a raw log or independent publisher attestation",
+    "No 0.1.6 execution or implementation comparison; no claim it fixes this failure",
+    "No complete DSH Profile resolver, HMR or packaged application acceptance",
+    "No Node 22, Node 26, other platforms or Electron browser/main-process coverage",
+    "No Core dependency or lockfile substitution, live installation, activation or restart"
+  ]
+}

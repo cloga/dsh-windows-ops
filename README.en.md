@@ -29,8 +29,10 @@ Copilot alpha.25 are published and verified; the latter's GitHub/npm bytes match
 Plugin publication is not new Core/Desktop qualification or local activation,
 and does not promote the deployment lock below.
 See also [native loader dependency and mirror qualification](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification):
-`node-addon-require-builtin@0.1.6` belongs to official boot; an optional Loader peer
-or a missing mirror artifact does not justify silently removing or downgrading it.
+`node-addon-require-builtin@0.1.6` belongs to official boot. Candidate 0.1.5 passed
+standalone Node smoke but failed an actual native call under Electron 44, so it
+must not replace this Desktop dependency. The same section distinguishes optional
+CUA test dependencies and pnpm 11's workspace-root inclusion during filtered installs.
 
 ## Copilot account-discovered route maintenance
 

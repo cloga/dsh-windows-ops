@@ -24,10 +24,16 @@ The [0.1.6-alpha.2 assessment](docs/core-016a2-assessment.md) records exact offi
 replacement evidence, retained differences and concrete API issues. It remains
 source-review evidence, not a new qualified deployment baseline.
 Later merges, releases, hashes and acceptance limits are recorded in the
-[delivery evidence](docs/core-016a2-delivery.md). Cron 0.7.3, Playwright 0.1.8 and
-Copilot alpha.25 are published and verified; the latter's GitHub/npm bytes match.
-Plugin publication is not new Core/Desktop qualification or local activation,
-and does not promote the deployment lock below.
+[delivery evidence](docs/core-016a2-delivery.md). Historical Cron 0.7.3, Playwright
+0.1.8 and Copilot alpha.25 publication receipts remain intact.
+[Copilot alpha.28 publication](docs/core-016a2-delivery.md#copilot-alpha28-publication-checkpoint)
+is independently verified in both channels: npm integrity/SHA-1 match original
+GitHub archive bytes; read-only readback resolved the initial publisher uncertainty
+without republishing. The deployment lock still selects Desktop
+`0.1.6-alpha.1.cloga.2` / Core alpha.1 / Copilot alpha.24. The Core alpha.2 candidate
+plan still pins alpha.25 and remains blocked on staging-cleanup EPERM. Plugin
+publication neither qualifies that Desktop pair nor installs/activates it locally,
+and does not guarantee chunked compaction rescue for oversized context.
 See also [native loader dependency and mirror qualification](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification):
 `node-addon-require-builtin@0.1.6` belongs to official boot. Candidate 0.1.5 passed
 standalone Node smoke but failed an actual native call under Electron 44. Historically

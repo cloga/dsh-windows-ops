@@ -11,7 +11,11 @@ not a replacement deployment lock or an installed-state report.
 Core/Desktop 已合格；现有部署锁仍权威，未执行安装、激活或重启。Cron 和
 Playwright 仍是可选 overlays，不自动升级为 Desktop 必需组件。
 
-## Component status
+## Initial adaptation component status
+
+The initial releases below remain historical evidence. See the later
+[alpha.28 publication checkpoint](#copilot-alpha28-publication-checkpoint) for
+Copilot's subsequent release; the qualified Ops deployment target is unchanged.
 
 | Component | Reviewed head | Merged source | Delivery |
 |---|---|---|---|
@@ -94,6 +98,84 @@ immutable-asset replacement or automatic dist-tag repair is permitted.
 中文：Copilot alpha.25 的 GitHub/npm 双渠道已经核验，npm SRI、SHA-1 和 alpha
 标签与原始 GitHub 制品一致。首次流水线的回读错误已由独立只读证据消除不确定性，
 未通过重复发布来试错；这不代表本机已安装，也不证明实时模型或搜索请求。
+
+## Copilot alpha.28 publication checkpoint
+
+On 2026-09-19, [PR #147](https://github.com/cloga/dsh-github-copilot/pull/147),
+reviewed head `27be0429d180a01fe99b013a8f101c188a1e7cb8`, merged by squash as
+`355e0d5e2efc2bddc46e420f4c8f0daa29055d5b`, tree
+`f87bbc6eb6e860d3ff929167d2f97ed093ef659e`, closing
+[Copilot #146](https://github.com/cloga/dsh-github-copilot/issues/146).
+This later publication supplements the historical alpha.25 receipt above; it
+neither replaces that evidence nor promotes the deployment lock.
+
+Immutable, non-draft prerelease
+[v0.4.0-alpha.28](https://github.com/cloga/dsh-github-copilot/releases/tag/v0.4.0-alpha.28)
+is Release `391916061`. Annotated tag object
+`cded166e82b1b8e895c1355d4952a08ec8bbdb5b` dereferences to the squash commit above.
+Independently downloaded original bytes match authenticated asset metadata:
+
+| Artifact | Asset ID | Bytes | SHA-256 |
+|---|---:|---:|---|
+| [dsh-github-copilot-0.4.0-alpha.28.tgz](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.28/dsh-github-copilot-0.4.0-alpha.28.tgz) | 574079604 | 689841 | `38ed22f50630d50165b8f52bf235326a127def10724475d006ae584cada0c858` |
+| [SHA256SUMS](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.28/SHA256SUMS) | 574079611 | 104 | `4e0e49d9d01c36c4bdfafb20e4190c5a87e0d1686fa2838bea3d82e30e8e0af6` |
+
+The archive's 96 files match the reviewed build. Independently computed SHA-512
+SRI is `sha512-RFOehiBUwnVIf97hEjHhlQw/iMx5QtQQSBoWt3udJ1C4e7qmdfaQFrpA/D7IcjAXNvBWaS++OpPtggZn2ptIBA==`;
+SHA-1 is `7f10c197de039c4cc76fd3084015fc64e9f3de78`. Both match authoritative
+[npm version metadata](https://www.npmjs.com/package/dsh-github-copilot/v/0.4.0-alpha.28),
+and the observed `alpha` tag points to `0.4.0-alpha.28`.
+The npm tarball was not separately downloaded; registry-integrity agreement with
+the original GitHub archive establishes the recorded byte identity. No provenance
+attestation verification is claimed.
+
+[Main run 35421622238](https://github.com/cloga/dsh-github-copilot/actions/runs/35421622238)
+passed all 21 qualification jobs and the release-plan gate. Its publisher failed
+at immediate npm readback with `npm version integrity differs or is not yet observable`;
+that result alone established neither absence, conflicting bytes nor a latency
+root cause. Successful independent **read-only**
+[run 35422023029](https://github.com/cloga/dsh-github-copilot/actions/runs/35422023029),
+[artifact 10577299585](https://github.com/cloga/dsh-github-copilot/actions/runs/35422023029/artifacts/10577299585),
+returned the [original public receipt](evidence/copilot-alpha28-npm.json).
+The receipt was compared with the downloaded original archive and checksum bytes,
+not accepted merely because the workflow passed. **Both publication channels are
+verified; no republish, overwrite, publisher retry or dist-tag repair was needed.**
+The initial failed publisher remains historical evidence, not an unresolved
+publication failure.
+
+### Desired pins and installed-state boundary
+
+- **Qualified Ops target remains unchanged:**
+  `deployments/windows-copilot.lock.json` and `catalog/plugins.json` select
+  Desktop `0.1.6-alpha.1.cloga.2` / Core `0.1.6-alpha.1` / Copilot alpha.24.
+  Existing formal/native acceptance fixtures qualify only that exact pair.
+- **Core candidate remains separate:** [PR #68](https://github.com/cloga/deepseek-harness/pull/68),
+  source `739d5eb9553eb57aabe18e245e1926bfd40618f4`, tree
+  `114e8536a5ee6f0b6262d5afe4fa8023b533aa6f`, still selects
+  `0.1.6-alpha.2.cloga.1`, sequence 15, and Copilot alpha.25 in
+  `apps/desktop/release/cloga-windows-x64.json`.
+  [CI 35416471945](https://github.com/cloga/deepseek-harness/actions/runs/35416471945)
+  passed 18/18 jobs, but [rehearsal 35418074485](https://github.com/cloga/deepseek-harness/actions/runs/35418074485)
+  failed on staging-cleanup EPERM. At this checkpoint that failure still blocks
+  release qualification; alpha.28 publication neither resolves it nor authorizes
+  another rehearsal. A later alpha.28 plan change requires coordinated review and
+  new exact-source/plan qualification.
+- **Installed state is not inferred:** the release plan and Ops lock are desired
+  inputs, not machine receipts. Actual state belongs to Desktop's reserved profile
+  package/lock, installed files, `desktop-plugin-receipts.json` and
+  `desktop-plugin-provisioning-state.json`, correlated with installed Desktop/Host
+  identity. No local Desktop/profile install, activation, restart or application
+  call was performed for this publication record.
+- **Acceptance limits remain:** publication and source tests are not combined
+  Desktop qualification, live OAuth/model/search acceptance, or a guarantee that
+  oversized contexts can be rescued by chunked compaction. No live-session content
+  or credentials are included in this evidence.
+
+中文：alpha.28 的不可变 GitHub Release 和 npm 发布均已独立核验；首次流水线的
+即时 npm 回读失败由后续只读 receipt 与原始制品比对消除，未重复发布或修复标签。
+历史 alpha.25 证据、当前 alpha.24 配套部署锁及 Core 候选的 alpha.25 计划均未改动；
+Core staging cleanup EPERM 仍阻塞配套资格，不授权重复 rehearsal。未安装、激活或
+重启本机 Desktop，也不把发布成功表述为超长上下文分块压缩救援保证。
 
 ## Qualification and acceptance scope
 

@@ -153,6 +153,61 @@ Review found boundary defects; this is **not a confirmed sensitive-data leak**.
 A replacement artifact must meet the exact-head/input/lock, generated-content,
 symlink and log/artifact sentinel checks before acceptance.
 
+## Later source-bound checkpoint
+
+This supplements, rather than rewrites, the earlier explicit checkpoint. Candidate
+`0.1.6-alpha.2.cloga.1` now plans **sequence 15**: concurrent immutable
+[alpha.1.cloga.4](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.4)
+occupies 14; earlier alpha.2 sequence-13/14 plans were not published. The three
+plugin receipts above remain unchanged. **Alpha.2 Core/Desktop is not fully
+qualified, published or installed; no deployment pin is promoted here.**
+
+- **Exact source:** `a6c60538ad95e26c99ec0c8c4f42354f544f24d8` contains only two
+  test-typing corrections over `5e02051765e41b8d218b68177c530f69af15b904`.
+  [CI 35411804559](https://github.com/cloga/deepseek-harness/actions/runs/35411804559)
+  and [nonpublishing rehearsal 35411844354](https://github.com/cloga/deepseek-harness/actions/runs/35411844354)
+  were in progress at this checkpoint, not accepted evidence. The existing dispatch
+  guard requires full `expected_source_sha`; recheck actual head, master, sequence,
+  tag and concurrent runs before dispatch. Earlier-head success cannot qualify a
+  corrected source, and the aggregate does not replace a separate Windows coverage check.
+- **Established prior scope:** exact `5e020517…`
+  [Windows coverage](https://github.com/cloga/deepseek-harness/actions/runs/35409693619/job/105806650392)
+  passed all three gate wrappers, SQLite 60/60, staging 97/97 and graph 27/27 under
+  unchanged budgets. Overall CI remained red on five test-only lint findings.
+  Its [rehearsal](https://github.com/cloga/deepseek-harness/actions/runs/35409736630)
+  passed NSIS build, actual ASAR inventory/skills, copied-helper synthetic checks
+  and packaged Copilot initial launch/restart. The separate fresh-home observer
+  then received HTTP 403 during baseline acquisition: missing provisioning left
+  onboarding blocking Settings and the intended observer was never reached.
+  Without response headers/body, do not call this rate limiting or infer a transport
+  cause. Installer upgrade and official package-install UI stages did not execute;
+  no click bypass, credential/TLS change or weakened assertion follows from this failure.
+- **Three Node identities:** Windows coverage selected actual **24.21.0**, with
+  `check-latest` and a stable-major-24 minimum-24.21 guard after a logged 24.20 libuv
+  assertion; the release builder remains **24.13.0**; the observed packaged carrier
+  is **Electron 44.0.0 / embedded Node 24.18.1**. These are different owners, not a
+  runtime-pin upgrade. Later passing cases do not establish the earlier timeout,
+  EPERM or lost-runner root causes; CI Node success is not embedded-Host health.
+- **Evidence ownership:** the earlier catalog/snapshot outputs were subsequently
+  audited and accepted, with temporary generation tooling removed; this does not
+  waive final-source freshness checks. Preserve sealed `archived/` notes unchanged;
+  maintain current realization facts in `implemented/` with reviewed bilingual
+  updates, and use a new note for decision reversals. Do not treat both directories
+  as frozen history or silently rewrite an earlier evidence checkpoint.
+- **Qualification, not local workarounds:** an approved local mirror missing exact
+  dependencies is not itself a hosted merge/release blocker when normal frozen
+  install, full checks, build and artifact qualification pass remotely. Never fake
+  archives or bypass TLS/registry policy. The existing acceptance path already
+  copies raw packaged `capability.json` alongside `desktop-runtime.json`; bind and
+  hash the original bytes from the successful final formal run as independent
+  observations, not values copied from its build receipt or an old rehearsal.
+  Missing local dependencies do not require a new adapter/CI field. Final merged
+  source, installer hashes and receipts remain unfilled until actually verified.
+
+中文：以上是精确源码的阶段性证据，不是完整发布资格。CI、构建器和 Electron
+内嵌 Node 必须分开；本地镜像缺包不替代远端完整门禁，也不授权绕过策略。
+部署锁仍表示原有已验证目标，不代表本机安装状态；保留所有本地会话，不安装或重启。
+
 ## Remaining promotion gates
 
 - [ ] Accept only reviewed official generator output; preserve authored/archived

@@ -47,6 +47,7 @@ silently included or declared qualified by this upgrade.
 | Playwright Session/browser isolation and lifecycle | Complete source support; Windows runtime acceptance unverified | Prefer official Browser Use foundation, not new custom session-isolation machinery | Qualify simultaneous Sessions, tabs/cookies/refs, one-owner disposal, attached-browser survival, namespace/allowlist migration and first native/PTC catalogs |
 | Edge/headed/caps/viewport expectations | Partial: explicit executablePath/headless exists; legacy caps and viewport controls absent | Retain the thin existing entry temporarily until required testing/devtools/vision and viewport behavior is accepted | Compare actual tool catalog and screenshot/console/network behavior; do not silently remove capabilities just to shrink the fork |
 | Browser automatic reconnect | Intentionally absent officially | Prefer failure-transparent official lifecycle over copying reconnect flags | Migrate only with clear state-loss reporting and user-visible recovery; never reuse stale snapshot references |
+| Bundled Cordis skills through Electron/ASAR | Partial: official alpha.2 has the bundled reader, but its preset row classifies deployment-owned skills as custom | Correct only the deployment-owned row to use the existing official `bundledSkillDir` reader; do not add a parallel reader or widen user custom-root trusted-host access | Retire after the official row is corrected and packaged discovery/tool execution plus user-root precedence pass; preserve user skills and profile ownership |
 
 ## Exact official evidence
 
@@ -59,6 +60,13 @@ All links below point to the same immutable target commit, not mutable master:
 - [Remote codec types](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/typert/protocol/src/types.ts) and [registry validation](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/typert/registry/src/service.ts).
 - [Scheduler runtime](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/schedule/schedule/src/runtime.ts), [types](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/schedule/schedule/src/types.ts), [semantics](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/docs/subsystems/schedule.md).
 - [Official Playwright provider](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/experimental/browser-use-playwright-mcp/src/index.ts), [browser runtime](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/experimental/browser-use-runtime/src/index.ts), [MCP lifecycle](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/experimental/browser-use-runtime/src/mcp.ts).
+
+The bundled-skill decision compares the exact official
+[Cordis preset](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/preset/agent-presets/presets/cordis/agent.cordis.yml)
+(`customSkillDirs`) with its existing
+[skill-filesystem reader](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/skill/skill-filesystem/src/index.ts)
+(`bundledSkillDir`). Source classification is not itself packaged acceptance; see
+the [later checkpoint](core-016a2-delivery.md#later-source-bound-checkpoint).
 
 ## Native loader dependency and mirror qualification
 

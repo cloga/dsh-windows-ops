@@ -222,6 +222,7 @@ Use each script's header and linked guide for full parameters. Desktop identity 
 - **Plugin governance and optional overlays:** `docs/plugins/`, including `computer-use.md`, `scheduling.md`, and `better-sidebar.md`, plus `catalog/`
 - **Diagnostics and migration:** `tools/README.md`, `windows-replay-tooling.md`, `session-move-workspace-groups.md`
 - **Incidents and platform issues:** `startup-60s-timeout.md`, `powershell-5.1-pitfalls.md`, `github-network.md`
+- **Git push / PR delivery entrypoint:** [Verified profiles and safe diagnosis](docs/git-delivery-playbook.md), with the machine-specific executable lookup, bounded attempts and uncertain-write reconciliation.
 - **Maintenance status:** `improvement-portfolio.md`, `windows-replay-tooling.md`
 
 ## Security rules

@@ -46,6 +46,12 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 
 已有新版 Copilot、需要从两条路由统一到账号自动识别目录时，使用[先检查的配置维护流程](docs/copilot-managed-route.md)与独立的 [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json)。它只允许经过确认的路径级配置 CAS，不安装组件、不重启、不自动修改 Session 或默认模型；不会为了下述独立部署目标替换或降级现有 Desktop。策略中的 Release 必须已验证、指定插件版本必须实际加载；冷历史影响需明确确认。该维护策略不是新的完整 Desktop/Core 验证声明。
 
+## 识别正在运行的 Desktop 版本
+
+参见 [Desktop 版本识别](docs/local-core-desktop-copilot.md#identify-the-running-desktop-version)：
+记录原生“关于”菜单中的完整版本，区分 Core 与可用更新，并为旧版提供只读的可执行文件
+元数据检查。该功能首次随已验证的不可变 [Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12) 发布；正式来源证据不代表本机安装或激活。
+
 ## 当前已发布部署目标
 
 机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-09-20**：

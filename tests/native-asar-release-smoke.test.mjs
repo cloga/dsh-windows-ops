@@ -47,9 +47,13 @@ function forbidChildren(t) {
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); assert.equal(calls, 0, 'validation failure must execute zero subprocesses'); });
 }
 
-for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog', 'real-search', 'initial-tamper', 'restart-tamper']) {
-  test(`fresh settings evidence ${mode} is bound to exact formal leaves without execution`, t => {
+for (const upstream of ['0.1.6-alpha.1', '0.1.6-alpha.2'])
+for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles', 'string-catalog', 'real-search', 'initial-tamper', 'restart-tamper']) {
+  test(`fresh settings gate ${upstream}/${mode} binds copied leaves without execution (inert inputs)`, t => {
     const lock = actualLock(), output = temporary(t); forbidChildren(t);
+    lock.components.desktop.releaseChannel.upstreamVersion = upstream;
+    // alpha.2 must require settings even below alpha.1's historical sequence threshold.
+    if (upstream === '0.1.6-alpha.2') lock.components.desktop.releaseChannel.sequence = 1;
     const fixture = fileURLToPath(new URL('../' + lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
     for (const phase of ['initial', 'restart']) {
       const name = `${phase}-settings-readonly.json`;
@@ -57,6 +61,7 @@ for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog'
     }
     const accepted = { modelRolesViewLoaded: true, searchProviderCatalogLoaded: true, realSearch: false };
     if (mode === 'missing-contract') delete lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+    if (mode === 'false-contract') lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance = false;
     if (mode === 'false-roles') accepted.modelRolesViewLoaded = false;
     if (mode === 'string-catalog') accepted.searchProviderCatalogLoaded = 'true';
     if (mode === 'real-search') accepted.realSearch = true;
@@ -65,6 +70,15 @@ for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog'
     else assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
   });
 }
+
+test('historical alpha.1 below sequence 12 keeps optional fresh settings gate (inert)', t => {
+  const lock = actualLock(); const channel = lock.components.desktop.releaseChannel; forbidChildren(t);
+  channel.upstreamVersion = '0.1.6-alpha.1'; channel.sequence = 11;
+  delete channel.nativeProvisioning.settingsAcceptance;
+  assert.equal(verifyFreshSettingsEvidence(lock, {}, join(temporary(t), 'absent')), undefined);
+  channel.nativeProvisioning.settingsAcceptance = false;
+  assert.throws(() => verifyFreshSettingsEvidence(lock, {}, join(temporary(t), 'absent')), /source-settings-acceptance-incomplete/);
+});
 
 test('physical .5 lock request fails the release gate before effects (inert)', async t => {
   const lock = actualLock();

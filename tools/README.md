@@ -40,6 +40,17 @@ blocks that cutover.
 
 ## ASAR entrypoint boundaries
 
+**Alpha.2 preparation is not promotion.** `native-runtime-integrity.mjs` selects
+Host protocol 4 only from the independently pinned exact Core version
+`0.1.6-alpha.2`, never from the descriptor or a generic `[3, 4]` allowlist.
+Other versions retain protocol 3; `0.1.6-synthetic-local.1` remains synthetic-only.
+Both native ASAR preflight and Electron probe reuse that validator. Release and
+fresh-source acceptance require alpha.2 initial/restart read-only settings proof,
+without changing `installerUpgradeVerified:false` or runtime trust. Descriptor/release
+schemas remain 1, provisioning plan/state/store 1, managed capability/manifest 3.
+See [pre-publication limits and later promotion](../docs/core-016a2-assessment.md#strict-native-compatibility-preparation);
+the published alpha.1.cloga.2/alpha.24 pins and qualified evidence below are unchanged.
+
 The lock selects formally published Desktop `.6.cloga.2` (full version
 `0.1.6-alpha.1.cloga.2`, sequence 12), unchanged Core `.6`, and Copilot alpha.24.
 Formal source run [35271210350](../docs/local-core-desktop-copilot.md#authoritative-baseline)

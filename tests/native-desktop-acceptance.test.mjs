@@ -200,6 +200,40 @@ for (const [name, mutate] of [
   });
 }
 
+for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles', 'string-catalog', 'real-search',
+  'initial-tamper', 'restart-tamper', 'missing-hosted-provider', 'installer-upgrade-claim']) {
+  test(`alpha.2 settings gate ${mode} (inert rehashed copy, not release evidence)`, t => {
+    const root = mkdtempSync(join(tmpdir(), 'native-alpha2-settings-unit-'));
+    t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true }); noChild(t);
+    const lock = actualLock(); const channel = lock.components.desktop.releaseChannel;
+    channel.upstreamVersion = '0.1.6-alpha.2';
+    const native = channel.nativeProvisioning;
+    const path = join(root, 'acceptance.json'); const acceptance = JSON.parse(readFileSync(path));
+    acceptance.runtimeVersion = channel.upstreamVersion;
+    if (mode === 'missing-contract') delete native.settingsAcceptance;
+    if (mode === 'false-contract') native.settingsAcceptance = false;
+    if (mode === 'false-roles') acceptance.modelRolesViewLoaded = false;
+    if (mode === 'string-catalog') acceptance.searchProviderCatalogLoaded = 'true';
+    if (mode === 'real-search') acceptance.realSearch = true;
+    if (mode === 'installer-upgrade-claim') acceptance.installerUpgradeVerified = true;
+    write(path, acceptance); native.ancestorIsolation.acceptanceSha256 = hash(readFileSync(path));
+    if (mode.endsWith('-tamper')) write(join(root, `${mode.split('-')[0]}-settings-readonly.json`), '{}');
+    if (mode === 'missing-hosted-provider') {
+      const settingsPath = join(root, 'restart-settings-readonly.json');
+      const settings = JSON.parse(readFileSync(settingsPath)); settings.registeredSearchProviders = ['deepseek-official'];
+      write(settingsPath, settings); native.settingsAcceptance.restartSha256 = hash(readFileSync(settingsPath));
+    }
+    if (mode === 'valid') {
+      assert.equal(acceptance.installerUpgradeVerified, false);
+      assert.equal(verifyNativeReleaseEvidence(lock, root).valid, true);
+    } else {
+      const reason = mode.endsWith('-tamper') ? 'file-hash' :
+        mode === 'installer-upgrade-claim' ? 'ancestor-isolation' : 'settings';
+      assert.throws(() => verifyNativeReleaseEvidence(lock, root), new RegExp(`native-release-${reason}-mismatch`));
+    }
+  });
+}
+
 test('formal .6 graph records actual ASAR inventory and Node mode, not legacy SDK fields', () => {
   const graph = JSON.parse(readFileSync(join(formalRoot, 'initial-packaged-graph.json')));
   assert.equal(graph.resolutionMode, 'runtime'); assert.equal(graph.runAsNode, '1');
@@ -542,6 +576,52 @@ for (const [name, mutate] of [
     const f = asarFixture(t); const snapshot = preflightAsar(f.lock, f.installRoot);
     const d = structuredClone(snapshot.descriptor); mutate(d); const bytes = Buffer.from(JSON.stringify(d));
     assert.throws(() => validateDescriptor(bytes, hash(bytes), snapshot.descriptor.release.version), /native-/);
+  });
+}
+
+// Rework only a temporary SYNTHETIC descriptor, preserving the archive envelope.
+// This is validator/pre-launch coverage, never alpha.2 package or runtime proof.
+for (const [version, protocol, valid] of [
+  ['0.1.6-alpha.1', 3, true], ['0.1.6-alpha.1', 4, false],
+  ['0.1.6-alpha.2', 4, true], ['0.1.6-alpha.2', 3, false],
+  ['0.1.6-alpha.3', 4, false], ['0.1.6-alpha.2.cloga1', 4, false],
+  ['0.1.6-alpha.2+build', 4, false],
+  ['0.1.6-synthetic-local.1', 3, true], ['0.1.6-synthetic-local.1', 4, false],
+  ...[undefined, '4', null, false, 4.5, {}, [4]].map(protocol => ['0.1.6-alpha.2', protocol, false]),
+]) {
+  test(`exact Core ${version}/protocol ${JSON.stringify(protocol)} ${valid ? 'passes integrity only' : 'rejects before launch'} (synthetic)`, t => {
+    const f = asarFixture(t); noChild(t);
+    const archive = archivePath(f); const raw = asarReader.getRawHeader(archive);
+    const entry = raw.header.files.dsh.files['desktop-runtime.json'];
+    const descriptor = JSON.parse(asarReader.extractFile(archive, 'dsh/desktop-runtime.json', false));
+    descriptor.release.version = version; descriptor.release.hostProtocolVersion = protocol;
+    for (const shared of descriptor.sharedPackages) {
+      if (['@deepseek-ai/dsh', '@deepseek-ai/dsh-desktop-host'].includes(shared.name)) shared.version = version;
+    }
+    const bytes = Buffer.from(JSON.stringify(descriptor));
+    assert.ok(bytes.length <= entry.size);
+    const padded = Buffer.alloc(entry.size, ' '); bytes.copy(padded);
+    const contents = readFileSync(archive); padded.copy(contents, 8 + raw.headerSize + Number(entry.offset));
+    writeFileSync(archive, contents); asarReader.uncache(archive);
+    f.lock.components.desktop.releaseChannel.upstreamVersion = version;
+    f.lock.components.desktop.installedRuntimeDescriptor.sha256 = hash(padded);
+    if (valid) {
+      assert.equal(validateDescriptor(padded, hash(padded), version).release.hostProtocolVersion, protocol);
+      assert.equal(preflightAsar(f.lock, f.installRoot).descriptor.release.hostProtocolVersion, protocol);
+      // Neither a different independently pinned version nor hash may select this descriptor.
+      assert.throws(() => validateDescriptor(padded, hash(padded), '0.1.6-mismatched'), /native-runtime-descriptor-invalid/);
+      assert.throws(() => validateDescriptor(padded, '0'.repeat(64), version), /native-runtime-descriptor-mismatch/);
+      f.lock.components.desktop.releaseChannel.upstreamVersion = '0.1.6-mismatched';
+      assert.equal(verifyNativeDesktopFiles(f).runtime.reason, 'native-runtime-descriptor-invalid');
+      f.lock.components.desktop.releaseChannel.upstreamVersion = version;
+      f.lock.components.desktop.installedRuntimeDescriptor.sha256 = '0'.repeat(64);
+      assert.equal(verifyNativeDesktopFiles(f).runtime.reason, 'native-runtime-descriptor-mismatch');
+    } else {
+      assert.throws(() => validateDescriptor(padded, hash(padded), version), /native-runtime-descriptor-invalid/);
+      const result = verifyNativeDesktopFiles(f);
+      assert.equal(result.valid, false); assert.equal(result.runtime.reason, 'native-runtime-descriptor-invalid');
+      assert.equal(result.functional.modelResponseVerified, false);
+    }
   });
 }
 

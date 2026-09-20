@@ -14,10 +14,13 @@ Do not copy candidate or rehearsal bytes into the lock or formal fixture tree.
   inspection result.
 - Standalone Copilot alpha.30 is independently reported verified. It remains a
   plugin; do not describe it as “official Core”.
-- Desktop candidate `0.1.6-alpha.1.cloga.11`, sequence 21, bundled Core
+- Desktop candidate moved to `0.1.6-alpha.1.cloga.12`, sequence 22, bundled Core
   `0.1.6-alpha.1`, Copilot alpha.30, exact candidate commit
-  `7e67cceab47e7d1a84a9b6a5a20d896bf2b90939` has reported green source CI and a
-  successful packaged rehearsal. Rehearsal is not an immutable formal Release.
+  `11de96bca5ecf3e4da0cd56ba07ea5e20c9e33b1`. Concurrent PR #84 was found to
+  own `.cloga.11` / sequence 21, so this lane advanced rather than racing its
+  version/tag. Prior run `35519234773` successfully rehearsed the same alpha.30
+  UI/receipt behavior at the superseded `.cloga.11` identity; it is historical
+  evidence only. Fresh `.cloga.12` CI/rehearsal remains required before merge.
 - The repository lock/catalog/formal fixtures therefore remain on their existing
   historical baseline. No version, URL, asset ID, checksum or raw formal fixture
   is predicted in this planning change.

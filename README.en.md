@@ -20,6 +20,8 @@ prefer official replacements after parity and migration acceptance are proven.
 `node tools/plan-core-upgrade.mjs --tag dsh-v<version> --commit <full-SHA>` only emits
 an unexecuted plan. It does not install/restart or change the qualified deployment lock.
 
+See the [Desktop release boundary](docs/core-upgrade.md#desktop-release-boundary) for product/channel-first acceptance and safe immutable-release withdrawal.
+
 The [0.1.6-alpha.2 assessment](docs/core-016a2-assessment.md) records exact official
 replacement evidence, retained differences and concrete API issues. It remains
 source-review evidence, not a new qualified deployment baseline.

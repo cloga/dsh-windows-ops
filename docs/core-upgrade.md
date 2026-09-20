@@ -67,6 +67,37 @@ artifacts; then synchronize qualified Ops locks/catalog/tests and bilingual docs
 Installation and restart are separate approvals. Never rewrite immutable releases,
 weaken integrity/TLS gates, patch a live Core, or silently interrupt Sessions.
 
+## Desktop release boundary
+
+`cloga/deepseek-harness` 默认公开交付是 `dsh-desktop-v<version>` 通道的 Windows
+Desktop installer，连同既有 manifest、receipt 和校验文件。先对照用户批准的产品与通道，
+再验哈希：raw Core/Web tarball、制品自述或资产数量不能授权替代；CI artifacts 不是安装交付。
+非 Desktop 类型和通道需要用户单独明确授权，并记录在 Issue/PR 或 release plan。
+此规则只约束该 Core fork；独立维护的插件保留各自已定发布渠道。
+
+For `cloga/deepseek-harness`, public delivery defaults to the Windows Desktop installer
+under `dsh-desktop-v<version>`, with its existing manifest, receipts and checksums.
+Check the user-approved product and channel before hashes: raw Core/Web tarballs,
+an artifact's self-description or asset count cannot authorize a substitute; CI
+artifacts are not installer delivery. A non-Desktop type/channel needs separate,
+explicit user authorization recorded in its Issue/PR or release plan. Independently
+maintained plugins retain their own agreed channels; this rule is specific to the Core fork.
+
+确认交付类型错误后，先在标题/说明标记 `WITHDRAWN`，保留并记录原 source、tag 和资产证据。
+[GitHub 不可变 Release 规则](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)
+允许改标题/说明以及删除整个 Release，但不能修改或单独删除资产，也不能在 Release 存在时移动 tag。
+先独立验证合格的 Desktop 替代，再按已获授权删除错误 Release；保留原 tag/source，
+不移动或复用 tag，不覆盖资产、不绕过 immutable 保护。此流程不授权本机安装或重启。
+
+For a confirmed delivery-type mismatch, first mark the title/notes `WITHDRAWN` and
+retain and record the original source, tag and asset evidence.
+[GitHub's immutable-release rules](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)
+permit title/notes edits and deletion of the entire Release, not asset changes or
+individual asset deletion, nor moving its tag while the Release exists. Independently
+verify a qualified Desktop replacement before authorized deletion of the wrong Release;
+retain its original tag/source, never move or reuse the tag, overwrite assets or bypass
+immutability. This procedure does not authorize local installation or restart.
+
 ## Remote qualification checklist
 
 公司策略限制本机 npm 是预期环境边界，不要求用户解禁或提供包，也不反复本地重试。
@@ -124,11 +155,9 @@ weaken integrity/TLS gates, patch a live Core, or silently interrupt Sessions.
   Copilot state cannot establish a writable composer. Exercise the actual official
   UI install (initially disabled), then enable and restart as a distinct acceptance
   step; source fixtures do not stand in for that transition.
-- **Distribution contract before asset integrity:** for the maintained
-  `cloga/deepseek-harness` fork, Core/Web product changes ship through its existing
-  Windows Desktop installer channel, `dsh-desktop-v<version>`. Raw tarballs or
-  developer CI bundles are not substitutes; separately maintained plugins keep
-  their own established channels. Ordinary Desktop installation/startup must not
+- **Distribution contract before asset integrity:** apply the
+  [Desktop release boundary](#desktop-release-boundary) before checking bytes.
+  Ordinary Desktop installation/startup must not
   silently gain a requirement for company-blocked public npm. Declare and test
   legitimate external runtime dependencies against the intended contract; an
   archive is not automatically offline, and this is no blanket offline promise

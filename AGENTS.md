@@ -58,6 +58,31 @@ Before an installation agent emits every `pwsh` tool call:
   scope; this workflow does not permit bypassing the locked Desktop runtime,
   patching live Core/dependencies, rewriting immutable releases or interrupting Sessions.
 
+## Restricted local npm: CI-first qualification
+
+- Treat company-restricted workstation npm access as an expected local limitation,
+  not a release blocker or evidence of global package unavailability. Do not
+  repeatedly retry local npm or ask the user to unblock it or supply packages.
+- Use approved GitHub CI for normal frozen dependency installation, dependent
+  generators, full type/tests/build checks, packaging and applicable publication;
+  continue local source review and checks supported by existing tools/caches.
+- Standing authorization permits only a demonstrated environment-blocked local
+  dependency-consuming hook/check to move to an equivalent **required** remote
+  check for that task/PR. Record the failed command/evidence, narrow process-scoped
+  deferral and replacing check; do not repeatedly request the same permission.
+  Retain other local hooks. This never excuses source failures, globally disables
+  hooks or weakens remote CI, approval, signing, integrity or release gates.
+- Do not downgrade/substitute dependencies, alter locks to hide failures, copy
+  arbitrary `node_modules`, or bypass TLS, credentials, registry or proxy policy.
+  Diagnose actual approved-CI failures separately; local npm alone must not block
+  a release-inclusive goal. Bind generated artifacts to exact source/lock/inputs.
+- Preserve the fork's established Desktop installer channel, not raw tarball
+  substitutes or hidden ordinary-startup access to company-blocked public npm.
+  Declare and qualify external runtime dependencies; no blanket plugin-offline
+  guarantee. Independently verify intended published assets from qualified merged
+  source; publication still does not authorize installation, activation or restart.
+  See the [remote qualification checklist](docs/core-upgrade.md#remote-qualification-checklist).
+
 ## DSH Desktop integration baseline
 
 - Treat `deployments/windows-copilot.lock.json` as the authoritative Windows

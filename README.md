@@ -18,6 +18,8 @@
 `node tools/plan-core-upgrade.mjs --tag dsh-v<version> --commit <full-SHA>` 只输出计划，
 不安装或重启。此入口不是新版本已通过兼容验证的声明，也不修改当前部署锁。
 
+产品/通道优先验收与不可变 Release 安全撤回，见 [Desktop 发布边界](docs/core-upgrade.md#desktop-release-boundary)。
+
 本次 [0.1.6-alpha.2 官方对照与迁移决定](docs/core-016a2-assessment.md)记录已审视的
 官方替代、必须保留的差异和已发现的接口问题；源码评估不是新部署基线。
 后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron 0.7.3、Playwright 0.1.8 和 Copilot alpha.25 的历史发布证据保留。[Copilot alpha.28 双渠道发布](docs/core-016a2-delivery.md#copilot-alpha28-publication-checkpoint)已独立核验：npm integrity/SHA-1 与原始 GitHub 制品一致，只读回读消除了首次发布流水线的不确定性，未重复发布。当前部署锁仍是 Desktop `0.1.6-alpha.1.cloga.2` / Core alpha.1 / Copilot alpha.24；Core alpha.2 候选计划仍锁 alpha.25，并受 staging cleanup EPERM 阻塞。插件发布不代表配套 Desktop 已合格、本机已安装或激活，也不保证超长上下文的分块压缩救援。
@@ -28,8 +30,10 @@
 `pm` 必须是首参数，`--offline` 不保证供应链校验不请求 registry 元数据；不得靠关闭校验来消除失败。
 
 远端适配时使用[资格验证清单](docs/core-upgrade.md#remote-qualification-checklist)：
-区分本地镜像限制与远端完整 CI，保留完整 lint JSON 与退出码，审查精确 head 的生成制品，
-解析解码后的 PowerShell，并区分 fixture/build 与隔离原生安装验收。
+公司本机 npm 限制不单独阻断发布，不反复重试或要求用户解禁/供包；依赖型检查与发布走获准 CI。
+有真实环境失败证据的本地 hook/check 已获长期授权按 PR 窄范围转至等价必需远端检查，
+不豁免代码错误或远端门禁。保留完整 lint/精确 head 与 lock 制品证据及隔离原生验收；
+Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时访问受限 public npm 的要求。
 [Core 候选证据](docs/core-016a2-delivery.md#core-candidate-remote-evidence)仍未达到发布资格；
 不得因此更新锁、安装或重启当前 Desktop。
 

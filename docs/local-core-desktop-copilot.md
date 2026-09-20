@@ -6,10 +6,16 @@ For the V3 account/Session model separation and removal of an existing extra nat
 
 ## Identify the running Desktop version
 
-**Pending release:** the native version-menu feature is tracked by
-[Desktop PR #91](https://github.com/cloga/deepseek-harness/pull/91). Its first
-published release has not yet been verified here. This guidance does not promote
-the deployment baseline below or mean the feature is installed on your machine.
+**First verified release:** the native version-menu feature from
+[Desktop PR #91](https://github.com/cloga/deepseek-harness/pull/91) ships in
+[Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12).
+[Formal run `35528552640`](https://github.com/cloga/deepseek-harness/actions/runs/35528552640)
+passed build, immutable publication, and remote managed discovery from merged source
+`d19be3ff5524948c40cb9929cdd4d67d5cb35059`. All six published assets were independently
+verified against their sizes, remote digests, both checksum manifests, and source
+records. This is release evidence, not an Ops baseline promotion: the deployment
+lock below remains unchanged. No installer execution or local activation accompanied
+this verification.
 
 On a Desktop build containing that feature, open **Application → About Desktop
 `<version>`…** (Chinese: **应用 → 关于 Desktop `<version>`…**). The menu shows the
@@ -45,9 +51,11 @@ for an exact older release identity. A newly installed file can also differ from
 an application that has not yet been restarted. Version identification does not
 authorize installation, activation, or interruption of live Sessions.
 
-The feature's packaged acceptance checks the real menu/version and About callback
-dispatch while intercepting the modal call. It does not prove that the native
-About window rendered or that an operator's live installation was activated.
+The formal release's isolated initial/restart acceptance records the full
+`About Desktop 0.1.6-alpha.1.cloga.12…` menu label and one About callback dispatch
+in each phase. The modal call is intercepted (`nativeModalOpened: false`): this
+proves neither native About window rendering nor an installer upgrade or activation
+of the operator's live application.
 
 ## Authoritative baseline
 

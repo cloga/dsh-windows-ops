@@ -51,8 +51,8 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 
 参见 [Desktop 版本识别](docs/local-core-desktop-copilot.md#identify-the-running-desktop-version)：
 记录原生“关于”菜单中的完整版本，区分 Core 与可用更新，并为旧版提供只读的可执行文件
-元数据检查。[Desktop PR #91](https://github.com/cloga/deepseek-harness/pull/91) 的菜单功能
-**尚待验证正式发布**；这不改变部署 pins，也不代表本机已激活。
+元数据检查。该功能首次随已验证的不可变 [Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12) 发布。
+这些发布证据不提升 Ops 基线，也不改变部署 pins；验证期间未执行安装程序或进行本机激活。
 
 ## 当前已发布部署目标（Native Ops qualification 已通过 run `35278350619`）
 

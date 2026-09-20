@@ -74,9 +74,10 @@ For a newer Copilot installation moving from two routes to the account-discovere
 
 See [Desktop version identification](docs/local-core-desktop-copilot.md#identify-the-running-desktop-version)
 for the complete native About-menu version, the distinction from Core and update
-candidates, and read-only executable metadata for older builds. The menu feature
-in [Desktop PR #91](https://github.com/cloga/deepseek-harness/pull/91) is **pending
-verified release**; this does not change deployment pins or imply local activation.
+candidates, and read-only executable metadata for older builds. The feature first
+ships in verified immutable [Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12).
+This release evidence does not promote the Ops baseline or change deployment pins;
+no installer execution or local activation accompanied verification.
 
 ## Current published deployment target (native Ops qualification passed in run `35278350619`)
 

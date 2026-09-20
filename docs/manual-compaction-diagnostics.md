@@ -41,7 +41,7 @@ change the header.
 
 | Observation | Supported interpretation | Do not infer |
 |---|---|---|
-| Summary error leaf reports `MAX_TOKENS` | The summary output was truncated at its output limit | Provider input/context overflow, exact failed prompt size, or hidden reasoning-token consumption |
+| Core summary termination is `finish.kind = max-tokens`, or its owned diagnostic says "summarization truncated at the token cap (incomplete checkpoint)" | The summary output was truncated at its output limit | An arbitrary provider error/abort with code `MAX_TOKENS` alone proves truncation; input overflow, exact failed prompt size, or hidden reasoning-token consumption |
 | Provider explicitly reports input/context overflow | Investigate that request's input budget and route | Every compaction failure has the same cause |
 | Generic "could not produce useful summary" message | Compaction did not yield an accepted usable result; inspect its underlying error | A semantic-quality evaluator rejected an otherwise complete summary |
 | `compactionRetries` is configured | It repeats **successful reductions** that still leave context above the threshold | Failed or truncated summaries are automatically retried or rescued |
@@ -60,13 +60,13 @@ from the generic message or a neighboring request.
    that can actually be established. Keep published, installed and loaded evidence
    separate; if loaded activation cannot be attested, say so. Do not restart to
    make an assumed version match the files on disk.
-2. **Identify the latest canonical Session format generation.** Read the relevant
-   version's persistence contract first, then identify the latest canonical
-   generation for the affected history. Do not assume a stale export, legacy
-   format or older generation represents current state. Use a matching read-only
-   reader; never replay/import/migrate or rewrite live history to inspect it. If
-   the format or latest complete generation cannot be established, report that
-   evidence gap rather than treating a parse failure as a compaction failure.
+2. **Identify the highest canonical Session format generation.** Read the relevant
+   version's persistence contract first. Use a matching read-only reader; official
+   in-memory logical migration is acceptable, but do not publish migrated
+   descendants, repair/rewrite source logs or replay/import live history. If the
+   highest canonical generation is unsupported or corrupt, report that evidence
+   gap; do not downgrade to an older generation or stale export as current state,
+   or treat a parse failure as a compaction failure.
 3. **Extract only selected leaves.** Inspect the manual compaction event, its
    underlying error classification/message and available route metadata, plus the
    immediately relevant selection and durable request/header records. Keep raw

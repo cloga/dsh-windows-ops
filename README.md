@@ -207,6 +207,7 @@ node tools\validate-plugin-catalog.mjs
 - **插件治理与可选 overlays**：`docs/plugins/`（包括 `computer-use.md`、`scheduling.md`、`better-sidebar.md`）及 `catalog/`
 - **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
 - **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`
+- **Git 推送／PR 交付经验入口**：[已验证调用组合与安全排查](docs/git-delivery-playbook.md)（先查本机 Git 路径，保留重试预算及不确定写入对账）
 - **维护状态**：`improvement-portfolio.md`、`windows-replay-tooling.md`
 
 ## 安全铁律

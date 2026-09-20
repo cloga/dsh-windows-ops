@@ -133,8 +133,9 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     isDeepStrictEqual(acceptance.plugin, plan.plugins[0].source),
   'native-release-ancestor-isolation-mismatch');
   // New paired releases carry exact read-only settings proof. Legacy fixtures
-  // remain historical; a current .6 maintenance target must not omit this gate.
-  if (native.settingsAcceptance !== undefined || (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) {
+  // remain historical; exact alpha.2 requires this gate regardless of sequence.
+  if (native.settingsAcceptance !== undefined || channel.upstreamVersion === '0.1.6-alpha.2' ||
+    (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) {
     const settingsProof = native.settingsAcceptance;
     requireValue(object(settingsProof) && (settingsProof.schemaVersion === undefined || settingsProof.schemaVersion === 2) &&
       acceptance.modelRolesViewLoaded === true && acceptance.searchProviderCatalogLoaded === true &&

@@ -53,6 +53,13 @@ distinguish fixture/build from isolated native-installer acceptance.
 The [Core candidate evidence](docs/core-016a2-delivery.md#core-candidate-remote-evidence)
 is not release-qualified; it authorizes no lock promotion or current Desktop install/restart.
 
+**Pre-publication compatibility preparation only:** the native descriptor validator
+requires Host protocol 4 only for exact Core `0.1.6-alpha.2`; legacy protocol 3
+and synthetic-only checks remain intact. Alpha.2 also requires initial/restart
+read-only settings evidence. This is **not** an alpha.2 qualified/deployed baseline:
+Desktop `0.1.6-alpha.1.cloga.2` / Core alpha.1 / Copilot alpha.24 pins stay unchanged
+pending Core publication and fresh hosted qualification. See [strict preparation boundaries](docs/core-016a2-assessment.md#strict-native-compatibility-preparation).
+
 ## Copilot account-discovered route maintenance
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.
@@ -173,6 +180,7 @@ confirmation instead.
 | Check or explicitly trigger a verified one-click local Desktop update without enabling silent/native updates | [`docs/official-desktop-local-build.md#dsh-windows-ops-managed-update-channel-explicit-one-click-install`](docs/official-desktop-local-build.md#dsh-windows-ops-managed-update-channel-explicit-one-click-install) |
 | Check versions, configuration, services, models, and replay patches | [`docs/windows-replay-tooling.md`](docs/windows-replay-tooling.md) |
 | Diagnose installation problems and apply targeted repairs | [`tools/README.md`](tools/README.md) |
+| Diagnose recurring manual compaction read-only: selection/header routing, output truncation and evidence limits (not a shipped fix) | [`docs/manual-compaction-diagnostics.md`](docs/manual-compaction-diagnostics.md) |
 | Choose or evaluate a community plugin | [`docs/plugins/choosing-a-plugin.md`](docs/plugins/choosing-a-plugin.md) |
 | Distinguish Desktop registry packages, verified Releases, and published source-snapshot installation not yet locally activated; reinstall or recover a damaged snapshot | [`docs/plugins/desktop-source-installation.md`](docs/plugins/desktop-source-installation.md) |
 | Understand plugin validation levels | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |

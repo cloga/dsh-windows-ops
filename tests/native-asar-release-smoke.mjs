@@ -139,7 +139,8 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
 export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
   const channel = lock.components.desktop.releaseChannel;
   const proof = channel.nativeProvisioning.settingsAcceptance;
-  if (proof === undefined && !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
+  if (proof === undefined && channel.upstreamVersion !== '0.1.6-alpha.2' &&
+    !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
   need(proof && (proof.schemaVersion === undefined || proof.schemaVersion === 2) &&
     accepted.modelRolesViewLoaded === true && accepted.searchProviderCatalogLoaded === true &&
     accepted.realSearch === false, 'source-settings-acceptance-incomplete');

@@ -53,6 +53,13 @@ distinguish fixture/build from isolated native-installer acceptance.
 The [Core candidate evidence](docs/core-016a2-delivery.md#core-candidate-remote-evidence)
 is not release-qualified; it authorizes no lock promotion or current Desktop install/restart.
 
+**Pre-publication compatibility preparation only:** the native descriptor validator
+requires Host protocol 4 only for exact Core `0.1.6-alpha.2`; legacy protocol 3
+and synthetic-only checks remain intact. Alpha.2 also requires initial/restart
+read-only settings evidence. This is **not** an alpha.2 qualified/deployed baseline:
+Desktop `0.1.6-alpha.1.cloga.2` / Core alpha.1 / Copilot alpha.24 pins stay unchanged
+pending Core publication and fresh hosted qualification. See [strict preparation boundaries](docs/core-016a2-assessment.md#strict-native-compatibility-preparation).
+
 ## Copilot account-discovered route maintenance
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.

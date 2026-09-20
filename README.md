@@ -33,6 +33,12 @@
 [Core 候选证据](docs/core-016a2-delivery.md#core-candidate-remote-evidence)仍未达到发布资格；
 不得因此更新锁、安装或重启当前 Desktop。
 
+**仅作发布前兼容准备：** native descriptor 校验仅对精确 Core `0.1.6-alpha.2`
+要求 Host protocol 4，保留旧版 protocol 3 与 synthetic-only 检查；alpha.2 也必须提供
+首次启动/重启的只读设置证据。这**不是** alpha.2 已合格或已部署的基线：Desktop
+`0.1.6-alpha.1.cloga.2` / Core alpha.1 / Copilot alpha.24 的精确 pins 不变，等待 Core
+发布及新的 hosted qualification。详见[严格准备边界](docs/core-016a2-assessment.md#strict-native-compatibility-preparation)。
+
 ## Copilot 自动识别路由维护
 
 已有新版 Copilot、需要从两条路由统一到账号自动识别目录时，使用[先检查的配置维护流程](docs/copilot-managed-route.md)与独立的 [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json)。它只允许经过确认的路径级配置 CAS，不安装组件、不重启、不自动修改 Session 或默认模型；不会为了下述独立部署目标替换或降级现有 Desktop。策略中的 Release 必须已验证、指定插件版本必须实际加载；冷历史影响需明确确认。该维护策略不是新的完整 Desktop/Core 验证声明。

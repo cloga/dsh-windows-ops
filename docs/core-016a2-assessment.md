@@ -15,6 +15,41 @@ by this document. Follow [the upgrade workflow](core-upgrade.md).
 优先官方实现，但不能因为功能同名就丢失日历调度、冷会话恢复、完整性校验或账号权限保证。
 现有部署锁保持不变；安装和重启仍另行授权。
 
+## Strict native compatibility preparation
+
+Ops #181 prepares the shared native descriptor validator for exact Core
+`0.1.6-alpha.2` → Host protocol **4**, matching the exact official
+[host-protocol source](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/apps/desktop/src/host-protocol.ts).
+The independently pinned caller version selects the expectation; the descriptor
+cannot select its own policy. Alpha.1/protocol 3 remains valid, alpha.1/4 and
+alpha.2/3 fail closed, and future versions do not inherit protocol-4 acceptance.
+The `0.1.6-synthetic-local.1`/3 fixture proves only synthetic integrity, not a
+release or runtime. Hash/version rejection still occurs before child launch.
+
+Descriptor and embedded release schemas stay **1**, provisioning plan/state/store
+stay **1**, and managed capability/release manifest stay **3**. Both
+`native-asar-runtime.mjs` and `native-electron-probe.mjs` share the validator;
+public resolution APIs and the existing Host/PluginManager ownership are unchanged.
+The formal evidence verifier and fresh release smoke require alpha.2's initial
+and restart read-only Model roles/search-provider evidence regardless of sequence;
+alpha.1's historical sequence-12 threshold is preserved. Settings readiness is not
+real search, OAuth or model proof; `installerUpgradeVerified:false` stays false.
+No legacy rc.2 build/install tooling or runtime trust boundary is changed.
+
+**This is pre-publication preparation, not a qualified or deployed alpha.2 baseline.**
+Exact published Desktop `0.1.6-alpha.1.cloga.2` / Core `0.1.6-alpha.1` / Copilot
+alpha.24 pins remain authoritative. Unit tests use temporary inert copies, never
+relabeled formal evidence. After Core publication, a separate reviewed promotion
+must independently verify immutable assets/source/hashes, update
+`deployments/windows-copilot.lock.json`, `catalog/plugins.json`, formal release
+fixtures and their dependent assertions/docs, and obtain fresh hosted Native Ops
+qualification. Old source/qualification receipts cannot certify the new pair.
+This preparation neither installs/activates/restarts nor changes profiles or state.
+
+本节仅记录发布前严格兼容准备，不宣称 alpha.2 已发布、已通过正式验收或已部署。
+保留 alpha.1.cloga.2/alpha.24 的不可变 pins、现有 schema 与真实证据字段；发布后另行
+核验制品、评审提升 lock/catalog/fixtures，并执行新的 hosted qualification。
+
 ## Audited starting points
 
 | Component | Audited source | Starting release | Adaptation tracking |

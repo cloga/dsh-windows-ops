@@ -200,6 +200,55 @@ for (const [name, mutate] of [
   });
 }
 
+function providerNavigationFixture(t) {
+  const root = mkdtempSync(join(tmpdir(), 'native-provider-navigation-evidence-'));
+  t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
+  const lock = actualLock();
+  const proof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+  proof.schemaVersion = 2;
+  const acceptancePath = join(root, 'acceptance.json');
+  const acceptance = JSON.parse(readFileSync(acceptancePath));
+  Object.assign(acceptance, { manageCompatibilityDisclosureAbsent: true, providerOnlySearchRouting: true });
+  write(acceptancePath, acceptance);
+  lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(acceptancePath));
+  for (const phase of ['initial', 'restart']) {
+    const path = join(root, `${phase}-settings-readonly.json`);
+    const settings = JSON.parse(readFileSync(path));
+    Object.assign(settings, { currentWorkspaceReadOnly: true, providerOnlySearchRouting: true, fallbackProviderLabel: true });
+    write(path, settings); proof[`${phase}Sha256`] = hash(readFileSync(path));
+  }
+  return { root, lock };
+}
+
+test('schema 2 accepts hash-bound provider-only navigation evidence without real calls', t => {
+  const { root, lock } = providerNavigationFixture(t);
+  assert.equal(verifyNativeReleaseEvidence(lock, root).valid, true);
+});
+
+for (const field of ['manageCompatibilityDisclosureAbsent', 'providerOnlySearchRouting']) {
+  test(`schema 2 rejects main acceptance ${field}=false`, t => {
+    const { root, lock } = providerNavigationFixture(t);
+    const path = join(root, 'acceptance.json'); const acceptance = JSON.parse(readFileSync(path));
+    acceptance[field] = false; write(path, acceptance);
+    lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+  });
+}
+for (const field of ['currentWorkspaceReadOnly', 'providerOnlySearchRouting', 'fallbackProviderLabel']) {
+  test(`schema 2 rejects per-phase ${field}=false`, t => {
+    const { root, lock } = providerNavigationFixture(t);
+    const path = join(root, 'restart-settings-readonly.json'); const settings = JSON.parse(readFileSync(path));
+    settings[field] = false; write(path, settings);
+    lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+  });
+}
+test('settings evidence rejects an unknown schema version', t => {
+  const { root, lock } = providerNavigationFixture(t);
+  lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = 3;
+  assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+});
+
 test('formal .6 graph records actual ASAR inventory and Node mode, not legacy SDK fields', () => {
   const graph = JSON.parse(readFileSync(join(formalRoot, 'initial-packaged-graph.json')));
   assert.equal(graph.resolutionMode, 'runtime'); assert.equal(graph.runAsNode, '1');

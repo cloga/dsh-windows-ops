@@ -66,6 +66,42 @@ for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog'
   });
 }
 
+function providerNavigationSourceEvidence(t) {
+  const lock = actualLock(), output = temporary(t), proof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+  proof.schemaVersion = 2;
+  for (const phase of ['initial', 'restart']) {
+    const settings = { modelRolesViewLoaded: true, currentWorkspaceReadOnly: true,
+      searchProviderCatalogLoaded: true, providerOnlySearchRouting: true, fallbackProviderLabel: true,
+      registeredSearchProviders: ['deepseek-official', 'github-copilot-hosted'], realSearch: false };
+    const path = join(output, `${phase}-settings-readonly.json`); writeFileSync(path, JSON.stringify(settings));
+    proof[`${phase}Sha256`] = hashFile(path);
+  }
+  const accepted = { modelRolesViewLoaded: true, searchProviderCatalogLoaded: true,
+    manageCompatibilityDisclosureAbsent: true, providerOnlySearchRouting: true,
+    realOAuth: false, realModelRound: false, realSearch: false };
+  return { lock, output, accepted };
+}
+
+test('fresh schema 2 provider-navigation evidence is exact and call-free', t => {
+  forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+  assert.equal(verifyFreshSettingsEvidence(lock, accepted, output), undefined);
+});
+for (const field of ['manageCompatibilityDisclosureAbsent', 'providerOnlySearchRouting']) {
+  test(`fresh schema 2 rejects main ${field}=false`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t); accepted[field] = false;
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
+}
+for (const field of ['currentWorkspaceReadOnly', 'providerOnlySearchRouting', 'fallbackProviderLabel']) {
+  test(`fresh schema 2 rejects per-phase ${field}=false`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+    const path = join(output, 'restart-settings-readonly.json'); const settings = JSON.parse(readFileSync(path));
+    settings[field] = false; writeFileSync(path, JSON.stringify(settings));
+    lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartSha256 = hashFile(path);
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
+}
+
 test('physical .5 lock request fails the release gate before effects (inert)', async t => {
   const lock = actualLock();
   lock.components.desktop.version = '0.1.5-inert-unit.1';

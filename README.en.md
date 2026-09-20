@@ -139,6 +139,13 @@ neither authorizes local activation.
 
 Every upgrade must follow the [official-first checklist and decision table](docs/local-core-desktop-copilot.md#official-first-upgrade-checklist). Current exact `.6` [Desktop](docs/official-first-desktop-016.md) and [Copilot](docs/official-first-copilot-024.md) source reviews credit official ASAR/public resolution, OAuth/chat/subagent and extension primitives already consumed, retaining only documented gaps with sunset conditions. Prefer official behavior where requirements are met; unverified official-only runtime parity is not absence, and no feature is automatically deleted.
 
+The [Copilot alpha.30 managed-upgrade acceptance plan](docs/copilot-alpha30-upgrade-plan.md)
+adds a version-independent provider-navigation evidence schema and records
+synthetic/downstream boundaries without changing the current lock, catalog or
+formal fixtures. Candidate/rehearsal output is not a formal Release. Core alpha.2
+compatibility does not promote the bundled Core or qualify separately owned draft
+Desktop PR 68, and the Copilot plugin is not “official Core”.
+
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
 release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.2` installer,

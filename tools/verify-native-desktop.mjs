@@ -135,10 +135,18 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   // New paired releases carry exact read-only settings proof. Legacy fixtures
   // remain historical; a current .6 maintenance target must not omit this gate.
   if (native.settingsAcceptance !== undefined || (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) {
-    requireValue(object(native.settingsAcceptance) && acceptance.modelRolesViewLoaded === true &&
-      acceptance.searchProviderCatalogLoaded === true && acceptance.realSearch === false,
-    'native-release-settings-mismatch');
-    const phases = [['initial', native.settingsAcceptance.initialSha256], ['restart', native.settingsAcceptance.restartSha256]];
+    const settingsProof = native.settingsAcceptance;
+    requireValue(object(settingsProof) && (settingsProof.schemaVersion === undefined || settingsProof.schemaVersion === 2) &&
+      acceptance.modelRolesViewLoaded === true && acceptance.searchProviderCatalogLoaded === true &&
+      acceptance.realSearch === false, 'native-release-settings-mismatch');
+    const providerNavigation = settingsProof.schemaVersion === 2;
+    if (providerNavigation) {
+      requireValue(acceptance.manageCompatibilityDisclosureAbsent === true &&
+        acceptance.providerOnlySearchRouting === true && acceptance.realOAuth === false &&
+        acceptance.realModelRound === false && acceptance.realSearch === false,
+      'native-release-settings-mismatch');
+    }
+    const phases = [['initial', settingsProof.initialSha256], ['restart', settingsProof.restartSha256]];
     let providers;
     for (const [phase, digest] of phases) {
       const settings = read(`${phase}-settings-readonly.json`, digest);
@@ -146,7 +154,10 @@ export function verifyNativeReleaseEvidence(lock, directory) {
       requireValue(settings.modelRolesViewLoaded === true && settings.searchProviderCatalogLoaded === true &&
         settings.realSearch === false && Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) &&
         new Set(ids).size === ids.length && ids.includes('github-copilot-hosted') &&
-        (providers === undefined || isDeepStrictEqual(providers, ids)), 'native-release-settings-mismatch');
+        (providers === undefined || isDeepStrictEqual(providers, ids)) &&
+        (!providerNavigation || (settings.currentWorkspaceReadOnly === true &&
+          settings.providerOnlySearchRouting === true && settings.fallbackProviderLabel === true)),
+      'native-release-settings-mismatch');
       providers = ids;
     }
   }

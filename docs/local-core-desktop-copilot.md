@@ -149,6 +149,14 @@ files, not the formal Actions ZIPs. Its fresh source-owned settings observations
 must match both locked deterministic settings digests. This acquisition history
 is not a claim of local application activation or a fresh model response.
 
+The version-independent [Copilot alpha.30 managed-upgrade acceptance plan](copilot-alpha30-upgrade-plan.md)
+defines the next provider-navigation evidence schema, synthetic/downstream test
+boundaries, immutable formal-asset transaction and official-first decisions. It
+does not repin this baseline: candidate/rehearsal output is not a formal Release,
+and no lock/catalog/formal fixture changes occur before authenticated immutable
+assets are supplied. The plan keeps bundled Core alpha.1; separately owned draft
+Desktop alpha.2 PR 68 is unqualified and out of scope.
+
 The build toolchain remains Node `24.13.0` / pnpm `11.7.0`, not the Host engine
 identity. Current native Ops qualification must independently bind this exact
 paired release. Historical acceptance stays historical, not activation permission.

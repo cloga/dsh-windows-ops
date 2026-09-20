@@ -118,6 +118,11 @@ alpha.24 配套 provisioning plan 使用新的精确 hash
 仅为已记录缺口暂留定制，并列出迁移/移除条件。需求满足时优先官方；官方独立运行替换
 尚未验证不等于官方缺失，不能自动删除仍需要的功能。
 
+[Copilot alpha.30 托管升级验收计划](docs/copilot-alpha30-upgrade-plan.md)新增与版本无关的
+provider-navigation 证据 schema，并记录 synthetic/downstream 边界；当前 lock、catalog 与正式
+fixtures 均不变。Candidate/rehearsal 不是正式 Release。支持 Core alpha.2 不代表提升 bundled Core，
+也不代表另行负责、仍为 draft 的 Desktop PR 68 已合格；Copilot 插件不是“官方 Core”。
+
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
 release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.2` installer,

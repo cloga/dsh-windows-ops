@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "qualification": "locked-release-ops-observer",
+  "qualifiedOpsCommit": "954f8efef5af2cccfa477d82c3e70ab36317fd7a",
+  "workflowId": 345664659,
+  "workflowPath": ".github/workflows/plugin-catalog.yml",
+  "event": "workflow_dispatch",
+  "runId": 35533165802,
+  "runAttempt": 1,
+  "jobId": 106137555656,
+  "artifactId": 10611762434,
+  "artifactName": "native-asar-qualification-35533165802-1",
+  "zip": {
+    "bytes": 733,
+    "sha256": "15f95033c8f52adfcf80548761f2c05b76dffac612168db52a14b515f8917168"
+  },
+  "summary": {
+    "file": "qualification.json",
+    "bytes": 1073,
+    "sha256": "883debb82c1a0064ea2d97b0d10be255b0803d285f659983f434cd7bf13f3fce"
+  },
+  "evidence": "Authenticated Actions metadata, original ZIP size/hash and sole entry byte binding independently verified; raw summary copied unchanged.",
+  "freshAcceptance": "Schema-2 settings and version-menu phases were enforced by the qualified exact-source driver against locked formal digests; they are not invented success-summary fields.",
+  "limitations": [
+    "No whole-carrier attestation",
+    "No real OAuth, external-navigation success, model response or search",
+    "No local installation, activation or installed application upgrade",
+    "Three invalid request copies do not establish advanced private-peer/custom-home/missing-addon negatives"
+  ]
+}

@@ -76,12 +76,24 @@ Release does not qualify same-window external navigation.
 
 ## Native Ops qualification transaction
 
-The registered same-commit caller workflow `345664659` must run against the exact
-PR head and `.cloga.12` lock after local validators/tests pass. Record the exact
-Ops commit, run/attempt/job/artifact identities and byte hashes in a follow-up
-commit. A green state alone is insufficient. Until that record exists, formal
-source acceptance is complete but genuine current native Ops qualification is
-pending. Parent release operations own the watcher and final activation.
+Registered same-commit caller workflow `345664659` passed in
+[run `35533165802`](https://github.com/cloga/dsh-windows-ops/actions/runs/35533165802),
+at exact Ops head `954f8efef5af2cccfa477d82c3e70ab36317fd7a`; called job
+`106137555656` completed all steps and private cleanup. Artifact `10611762434`
+is the original 733-byte ZIP (SHA-256
+`15f95033c8f52adfcf80548761f2c05b76dffac612168db52a14b515f8917168`).
+Its sole [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-12/qualification.json)
+is copied byte-for-byte: 1,073 bytes, SHA-256
+`883debb82c1a0064ea2d97b0d10be255b0803d285f659983f434cd7bf13f3fce`.
+
+The summary binds `.cloga.12`, exact source/tree, installer/EXE/descriptor,
+9,806 runtime files, application package SHA-256
+`eb51a903a0f2aa40a8cc52845ff9856b06f3e8783db0c5cd2ffe6da3b58f45e0`,
+public `metadata-cjs-esm` resolution, one observer, profile cleanup and three
+rejected descriptor/version/absent-home request copies. Fresh schema-2 settings
+and version menus were checked by the source driver rather than invented as
+summary leaves. Whole-carrier, model-response and installed-upgrade claims remain
+false; external-navigation success and local activation remain unperformed.
 
 Never run a current-machine Check against this future lock while the installed
 managed Desktop remains `.cloga.10`; that expected drift is not a release defect.

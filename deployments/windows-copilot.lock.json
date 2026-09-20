@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "deploymentId": "windows-copilot-2026-09-15",
-  "verifiedDate": "2026-09-17",
+  "verifiedDate": "2026-09-20",
   "platform": {
     "os": "windows",
     "architecture": "x64",
@@ -21,30 +21,30 @@
   },
   "components": {
     "desktop": {
-      "version": "0.1.6-alpha.1.cloga.2",
+      "version": "0.1.6-alpha.1.cloga.12",
       "source": {
         "repository": "https://github.com/cloga/deepseek-harness",
-        "releaseTag": "dsh-desktop-v0.1.6-alpha.1.cloga.2",
-        "commit": "65a236bd65f2971f98b11a0efd020b8860144924",
-        "tree": "b219bd1baa93433e9449dc72905d7980e7943a05",
-        "pullRequest": 63,
-        "reviewedHead": "c8af5b6cb3ccf651a5ff1a285ff7bf0ac95f487a",
+        "releaseTag": "dsh-desktop-v0.1.6-alpha.1.cloga.12",
+        "commit": "d19be3ff5524948c40cb9929cdd4d67d5cb35059",
+        "tree": "681980cf0d3448679529628477d9ff79ea927cc4",
+        "pullRequest": 87,
+        "reviewedHead": "3e277c3f0821264d4becca825636b5fcd8112bcd",
         "repairPullRequest": 43,
         "repairReviewedHead": "45ae3d3647e5bc2b517b1e5af7a4606150cb0d77"
       },
       "artifact": {
-        "name": "cloga-deepseek-harness-0.1.6-alpha.1.cloga.2-win-x64.exe",
-        "url": "https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.2/cloga-deepseek-harness-0.1.6-alpha.1.cloga.2-win-x64.exe",
-        "sha256": "cf140d49b8df9096b52fba365066ef4eeee06eed57ca0f16c2fc319f1e5f0970",
-        "sha512": "AzDSnhao/33/Lems7XU6QmgWLqm2o0shvp2U9lyGtiHGvo+Z9ITf86JOV9dIdM8AdXSqLSXMSQ5CofXy7klJqA==",
-        "size": 171301229,
+        "name": "cloga-deepseek-harness-0.1.6-alpha.1.cloga.12-win-x64.exe",
+        "url": "https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.12/cloga-deepseek-harness-0.1.6-alpha.1.cloga.12-win-x64.exe",
+        "sha256": "f1fadab2922b9a2f56d72e07b3072c8b871d5ccce9696b82fcc62c22824fcd16",
+        "sha512": "AgU39uOIxrFFAmvNZxfE2Qa7kec2/teEURT84zVzn+SFfNu2HmRYLWcpdG/OJm+rYM+/EvCuOnb2hGFuNxIC+A==",
+        "size": 171323022,
         "releaseImmutable": true,
-        "releaseId": 391052820,
-        "assetId": 571106914
+        "releaseId": 392534651,
+        "assetId": 577349351
       },
       "installedExecutable": {
         "relativePath": "cloga-deepseek-harness.exe",
-        "sha256": "3406cf490050168cc3b38f78c354bafabf7b7a05f3ded2331d82b55300f2bb88",
+        "sha256": "ef6d3b63d2e495d7fb421327c5f7d9fb48970dbb44f55b1ff245890b52d4dada",
         "productName": "DeepSeek Harness (cloga)",
         "fileDescription": "DeepSeek Harness (cloga)",
         "companyName": "GitHub, Inc.",
@@ -73,17 +73,17 @@
         {
           "id": "desktop-fork-managed",
           "source": "desktop-managed-release",
-          "desktopVersion": "0.1.6-alpha.1.cloga.2",
+          "desktopVersion": "0.1.6-alpha.1.cloga.12",
           "root": "%LOCALAPPDATA%\\Programs\\DeepSeek Harness (cloga)\\resources\\app.asar\\dsh",
           "package": {
             "name": "@deepseek-ai/dsh",
             "version": "0.1.6-alpha.1",
             "releaseTag": "dsh-v0.1.6-alpha.1",
-            "commit": "65a236bd65f2971f98b11a0efd020b8860144924"
+            "commit": "d19be3ff5524948c40cb9929cdd4d67d5cb35059"
           },
           "descriptor": {
             "manifest": "desktop-runtime.json",
-            "sha256": "f0de4a61ead7105c41f1576a2f01617908e80e214c6c5383c9b79a13d50a14d1"
+            "sha256": "3e20cd0ace516569c9ead2403acffe16ed0a3e99b1ef45d17e0bca3cc7bd06f3"
           }
         }
       ],
@@ -91,52 +91,52 @@
       "shippedDependencies": [],
       "installedRuntimeDescriptor": {
         "relativePath": "resources\\app.asar\\dsh\\desktop-runtime.json",
-        "sha256": "f0de4a61ead7105c41f1576a2f01617908e80e214c6c5383c9b79a13d50a14d1"
+        "sha256": "3e20cd0ace516569c9ead2403acffe16ed0a3e99b1ef45d17e0bca3cc7bd06f3"
       },
       "releaseChannel": {
         "schemaVersion": 3,
         "owner": "cloga/deepseek-harness",
         "mode": "interactive-windows-installer",
         "channel": "cloga-windows-x64",
-        "version": "0.1.6-alpha.1.cloga.2",
+        "version": "0.1.6-alpha.1.cloga.12",
         "upstreamVersion": "0.1.6-alpha.1",
-        "sequence": 12,
-        "manifestUrl": "https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.2/release.json",
+        "sequence": 22,
+        "manifestUrl": "https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.12/release.json",
         "manifestAsset": "release.json",
-        "manifestRawSha256": "724214036567ddea1d6fb79bbfd4daa6c87eada4c00022ef4b0fa9170d93ff59",
-        "manifestSha256": "52a2f43210cd694c06ff38452353473fc0cea47ba758959c573d1fbb66324090",
+        "manifestRawSha256": "7b6d0ff3394f72b8d50587a7f014b9c0bcbfc42570f7fee0bfbc5e4f7de4a7b1",
+        "manifestSha256": "4c76bdd67a0f021cc6375418d985877a9da82794f5dd1b037c2ea63ffe3d5bea",
         "buildReceipt": {
           "file": "build-receipt.json",
-          "sha256": "09307d85f8679308c424a9ea98aba89b1a80d97e914ea6cba385d7265170666c",
-          "receiptSha256": "ec0229f180feb40afcd1da652cabf750f68dce823f525fc243d215b9c27e4fc8",
-          "assetId": 571106877
+          "sha256": "160e30810f24314d539de2ce7eeb25c81b527f558b10bfbe9972595fe69e7165",
+          "receiptSha256": "d0b74b9a1ba42dcd31a2c0c46ac4d060c2944fc45ebec529023efb5a6d1b08e0",
+          "assetId": 577349343
         },
         "sha256Sums": {
           "name": "SHA256SUMS",
-          "sha256": "0d8e6b9dc0390825220872d5e795ec726b39c5d53ec0542b0cf88b534e788a5e",
-          "size": 379,
-          "assetId": 571106881
+          "sha256": "2812f89ad4c997f35de558ab2c3cd928c0b188a71c07059930fe12e8674b4333",
+          "size": 380,
+          "assetId": 577349315
         },
         "sha512Sums": {
           "name": "SHA512SUMS",
-          "sha256": "08d3e4b1802e091344b273073dff05ee6efac44ebfc13b83da416a12aaa75ce6",
-          "size": 475,
-          "assetId": 571106911
+          "sha256": "ee1dd6e9ab918ef92889aa19bd14faecf0b0f0413bcb9724720ffc94a210146e",
+          "size": 476,
+          "assetId": 577349331
         },
         "source": {
           "repository": "cloga/deepseek-harness",
-          "commit": "65a236bd65f2971f98b11a0efd020b8860144924",
-          "tree": "b219bd1baa93433e9449dc72905d7980e7943a05",
-          "tag": "dsh-desktop-v0.1.6-alpha.1.cloga.2"
+          "commit": "d19be3ff5524948c40cb9929cdd4d67d5cb35059",
+          "tree": "681980cf0d3448679529628477d9ff79ea927cc4",
+          "tag": "dsh-desktop-v0.1.6-alpha.1.cloga.12"
         },
         "build": {
           "workflow": ".github/workflows/desktop-fork-release.yml",
-          "lockfileSha256": "57bfe6c726f536b03f32217d3f8c89430e8990b25027c56bbd2d2c5c96fb87a5",
-          "planSha256": "574b8534e4b87566fa90c25bbf26fa3427d0daa0a8045397e4aa874295aab809",
+          "lockfileSha256": "f14668d76eee14646543910878fc400fcbfa2a848b1ea177f2fc1cb2d0f21322",
+          "planSha256": "0c69e0845d2b356013b7e1a6a5a299d34386551baeffd8f1a10ddf1a9070e43c",
           "nodeVersion": "v24.13.0",
           "pnpmVersion": "11.7.0",
           "packageRegistry": "https://registry.npmjs.org/",
-          "runUrl": "https://github.com/cloga/deepseek-harness/actions/runs/35271210350",
+          "runUrl": "https://github.com/cloga/deepseek-harness/actions/runs/35528552640",
           "attempt": 1
         },
         "identity": {
@@ -151,7 +151,7 @@
           "owner": "cloga/deepseek-harness",
           "tagPrefix": "dsh-desktop-v",
           "manifestAsset": "release.json",
-          "currentSequence": 12,
+          "currentSequence": 22,
           "minimumSequence": 2,
           "provisioning": {
             "capability": {
@@ -166,7 +166,7 @@
                 "receiptSchemaVersion": 1
               }
             },
-            "planSha256": "d93e340df7169d5fa11558f6c4ab41171aa7cbf7cb564f177dd125d4076be01c"
+            "planSha256": "9ad8a0b6d88ba5bd1d20f747bdd97c83f48ba7bc374e4850bb424d15155801d9"
           },
           "migration": {
             "owner": "cloga/dsh-windows-ops",
@@ -206,15 +206,15 @@
           "nativeUpdaterEnabled": false,
           "appUpdateYmlPresent": false
         },
-        "manifestAssetId": 571106876,
+        "manifestAssetId": 577349522,
         "nativeProvisioning": {
-          "capabilitySha256": "d098b882ddf95d3ad14a3d518b993d7f2dab46074950f348c7176028314f1437",
+          "capabilitySha256": "4b5b95609f65ba7e74221ded8d9b3a5f7fe98a82a5473a90b1c5262229637545",
           "plan": {
             "name": "desktop-provisioning.json",
-            "assetId": 571106879,
+            "assetId": 577349512,
             "size": 1309,
-            "sha256": "5efee5a07c2639789ae4c6440e79d554d8c679e389e64ce49788da72234e7a8b",
-            "planSha256": "d93e340df7169d5fa11558f6c4ab41171aa7cbf7cb564f177dd125d4076be01c"
+            "sha256": "6e18f1b61f2c6f0f8bc7bd9003b605e64e2215d5f31629bd50719aebfb4a52fa",
+            "planSha256": "9ad8a0b6d88ba5bd1d20f747bdd97c83f48ba7bc374e4850bb424d15155801d9"
           },
           "buildReceiptCompatibility": {
             "capability": {
@@ -237,18 +237,18 @@
                   "receiptSchemaVersion": 1
                 }
               },
-              "planSha256": "d93e340df7169d5fa11558f6c4ab41171aa7cbf7cb564f177dd125d4076be01c"
+              "planSha256": "9ad8a0b6d88ba5bd1d20f747bdd97c83f48ba7bc374e4850bb424d15155801d9"
             }
           },
-          "fixtureRoot": "tests\\fixtures\\desktop-native-verified-release\\formal-cloga016-2",
+          "fixtureRoot": "tests\\fixtures\\desktop-native-verified-release\\formal-cloga016-12",
           "ancestorIsolation": {
-            "acceptanceSha256": "133e1b780fb9d74de1f51248b6f0a1e190355807ae9556e7dbe963fba766a4ec",
-            "initialGraphSha256": "358d4e95e124d008ed7b1ca8f9caa30248f60843965be6f0f53df9c9744ee044",
-            "restartGraphSha256": "358d4e95e124d008ed7b1ca8f9caa30248f60843965be6f0f53df9c9744ee044"
+            "acceptanceSha256": "81aac2b2fdff06b967e48ee402c84d866bc250f2e869dec90c1287a5c5f33add",
+            "initialGraphSha256": "3c44cb1e01c6dbd6a8147565594eda6dcb28115363c9814107b2a06b86770a9f",
+            "restartGraphSha256": "3c44cb1e01c6dbd6a8147565594eda6dcb28115363c9814107b2a06b86770a9f"
           },
-          "helperSha256": "2ca23e66cdf456645e1622d57759c9a37e735f758bacd93ed2c7de6af6bae424",
+          "helperSha256": "9819e8f7c7ee8ed6343b412cab4456a1eed13e04dc7764666de0ef7ceb8a1b70",
           "helperAcceptance": {
-            "helperSha256": "2ca23e66cdf456645e1622d57759c9a37e735f758bacd93ed2c7de6af6bae424",
+            "helperSha256": "9819e8f7c7ee8ed6343b412cab4456a1eed13e04dc7764666de0ef7ceb8a1b70",
             "isolatedBootstrap": "passed",
             "validSyntheticHandoffAcknowledged": true,
             "cancellationCompleted": true,
@@ -259,8 +259,11 @@
             "installerStarted": false
           },
           "settingsAcceptance": {
-            "initialSha256": "f02de160cb7bd420ab73bfc2eea3e77ed83b6ee6468e66d40544138537122d45",
-            "restartSha256": "f02de160cb7bd420ab73bfc2eea3e77ed83b6ee6468e66d40544138537122d45"
+            "schemaVersion": 2,
+            "initialSha256": "7a9d9b1497f3cba2e5867aa2ce16b40e3fce90b043905d48e54b67e2feba40d4",
+            "restartSha256": "7a9d9b1497f3cba2e5867aa2ce16b40e3fce90b043905d48e54b67e2feba40d4",
+            "initialVersionMenuSha256": "ccfa1cfaa02e8a6f726f9b36537dbad88dea5fc30ee5df95907c902c1ae29383",
+            "restartVersionMenuSha256": "ccfa1cfaa02e8a6f726f9b36537dbad88dea5fc30ee5df95907c902c1ae29383"
           }
         }
       }
@@ -268,14 +271,14 @@
     "copilotIntegration": {
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "pullRequest": 138,
-        "commit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed",
-        "reviewedHead": "d572fbf764fdca3355ad905263de8c3cb51d2be5",
-        "mergeCommit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed"
+        "pullRequest": 151,
+        "commit": "b75eac570cd418497c52e80a3ce47958cdcc6b26",
+        "reviewedHead": "c4d7e0d19a26a775472d34d4d499340c67a24ea3",
+        "mergeCommit": "b75eac570cd418497c52e80a3ce47958cdcc6b26"
       },
       "package": {
         "name": "dsh-github-copilot",
-        "version": "0.4.0-alpha.24",
+        "version": "0.4.0-alpha.30",
         "packageManager": "pnpm@11.7.0",
         "main": "lib/index.js",
         "types": "lib/types/index.d.ts",
@@ -289,24 +292,24 @@
           "lib/web-delegate.js"
         ],
         "artifact": {
-          "name": "dsh-github-copilot-0.4.0-alpha.24.tgz",
-          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.24/dsh-github-copilot-0.4.0-alpha.24.tgz",
-          "sha256": "f28dd95e136e203948be8af43745c43ed32bd0bb9b84a44107c4b11ebf7e75cd",
-          "sha512": "17492a7b6c32da41e0a1d0f0ebd3aecf51a6fcc49612490d96836cdb28ac9181f4efdd2b327b6f44ef32b49152af7dceb066c99325c6c7fa16979c5794f4e71a",
-          "integrity": "sha512-F0kqe2wy2kHgodDw69Ouz1Gm/MSWEkkNloNs2yiskYH0790rMntvRO8ytJFSr33OsGbJkyXGx/oWl5xXlPTnGg==",
-          "releaseTag": "v0.4.0-alpha.24",
-          "releaseCommit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed",
+          "name": "dsh-github-copilot-0.4.0-alpha.30.tgz",
+          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.30/dsh-github-copilot-0.4.0-alpha.30.tgz",
+          "sha256": "12af04aa61caef9a8c8e92526d6e3d9ec94b1d624097138540bcd5fd7cc29207",
+          "sha512": "32e90b9a84122146ece16955545db830953de1bfc7a317a612416dacfeb0922585a11c22898a8a0ea2c19de956e311889556719ffcae227b757bf3c62d3be67b",
+          "integrity": "sha512-MukLmoQSIUbs4WlVVF24MJU94b/HoxemEkFtrP6wkiWFoRwiiYqKDqLBnelW4xGIlVZxn/yuInt1e/PGLTvmew==",
+          "releaseTag": "v0.4.0-alpha.30",
+          "releaseCommit": "b75eac570cd418497c52e80a3ce47958cdcc6b26",
           "releaseImmutable": true,
-          "releaseId": 390996252,
-          "assetId": 570924251,
+          "releaseId": 392419629,
+          "assetId": 576752000,
           "checksumManifest": {
             "name": "SHA256SUMS",
-            "assetId": 570924385,
-            "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.24/SHA256SUMS",
-            "sha256": "2480327ffa2b6154ad8d151db97329c26b680f898a0c823f9706ec1131b6c0aa",
+            "assetId": 576752015,
+            "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.30/SHA256SUMS",
+            "sha256": "af6c4c5d2b54027c36600b4b199e64d9a004b2392c1657753e3f119b541e437e",
             "size": 104
           },
-          "size": 660977
+          "size": 694316
         },
         "deploymentBaseline": {
           "schemaVersion": 1,
@@ -318,9 +321,9 @@
             "linux"
           ],
           "node": ">=22.19.0",
-          "dshRelease": "0.1.6-alpha.1",
+          "dshRelease": "0.1.6-alpha.2",
           "dshDevelopmentRelease": "0.1.2-rc.1",
-          "dshPeerRange": "0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2 || 0.1.6-alpha.1",
+          "dshPeerRange": "0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2 || 0.1.6-alpha.1 || 0.1.6-alpha.2",
           "piAi": "0.85.1",
           "runtimeDependencies": {
             "@earendil-works/pi-ai": "0.85.1",
@@ -330,7 +333,9 @@
             "desktop-shared-package-ownership",
             "readonly-search-composition-preflight",
             "session-model-search-routing",
+            "provider-only-search-settings",
             "explicit-deepseek-search-fallback",
+            "managed-request-budget-and-compaction-policy",
             "account-driven-provider-metadata",
             "account-scoped-discovery-snapshot",
             "public-adapter-account-model-route",
@@ -361,7 +366,7 @@
             "compact-account-row-and-auth-disclosure"
           ],
           "sharedPeerDependencies": {
-            "@deepseek-ai/dsh-authorization": "0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2 || 0.1.6-alpha.1",
+            "@deepseek-ai/dsh-authorization": "0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.3-alpha.1 || 0.1.5-alpha.1 || 0.1.5-alpha.2 || 0.1.5-rc.1 || 0.1.5-rc.2 || 0.1.6-alpha.1 || 0.1.6-alpha.2",
             "@deepseek-ai/schemastery": "^3.18.2"
           },
           "clientExternals": {
@@ -374,7 +379,7 @@
         }
       },
       "build": {
-        "artifactPattern": "dist\\dsh-github-copilot-0.4.0-alpha.24.tgz",
+        "artifactPattern": "dist\\dsh-github-copilot-0.4.0-alpha.30.tgz",
         "commands": [
           [
             "install",
@@ -403,9 +408,9 @@
         ],
         "nativeCapability": {
           "verified": true,
-          "coreCommit": "65a236bd65f2971f98b11a0efd020b8860144924",
-          "desktopCommit": "65a236bd65f2971f98b11a0efd020b8860144924",
-          "fixture": "tests\\fixtures\\desktop-native-verified-release\\formal-cloga016-2\\release.json",
+          "coreCommit": "d19be3ff5524948c40cb9929cdd4d67d5cb35059",
+          "desktopCommit": "d19be3ff5524948c40cb9929cdd4d67d5cb35059",
+          "fixture": "tests\\fixtures\\desktop-native-verified-release\\formal-cloga016-12\\release.json",
           "capability": {
             "id": "desktopNativeVerifiedRelease",
             "schemaVersion": 1,
@@ -607,7 +612,7 @@
     "plugins": [
       {
         "name": "dsh-github-copilot",
-        "version": "0.4.0-alpha.24",
+        "version": "0.4.0-alpha.30",
         "source": "desktop-native-verified-release",
         "materialize": false,
         "preserve": true
@@ -904,12 +909,12 @@
     "runtimeSchema": {
       "scope": "desktop-fork-managed",
       "layout": "electron-asar",
-      "descriptorSha256": "f0de4a61ead7105c41f1576a2f01617908e80e214c6c5383c9b79a13d50a14d1",
+      "descriptorSha256": "3e20cd0ace516569c9ead2403acffe16ed0a3e99b1ef45d17e0bca3cc7bd06f3",
       "root": "%LOCALAPPDATA%\\Programs\\DeepSeek Harness (cloga)\\resources\\app.asar\\dsh",
       "source": {
         "repository": "github.com/cloga/deepseek-harness",
-        "releaseTag": "dsh-desktop-v0.1.6-alpha.1.cloga.2",
-        "commit": "65a236bd65f2971f98b11a0efd020b8860144924"
+        "releaseTag": "dsh-desktop-v0.1.6-alpha.1.cloga.12",
+        "commit": "d19be3ff5524948c40cb9929cdd4d67d5cb35059"
       },
       "package": {
         "name": "@deepseek-ai/dsh",
@@ -950,12 +955,12 @@
       "provider": "github-copilot",
       "package": {
         "name": "dsh-github-copilot",
-        "version": "0.4.0-alpha.24"
+        "version": "0.4.0-alpha.30"
       },
       "source": {
-        "pullRequest": 138,
-        "commit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed",
-        "mergeCommit": "e49bf7c9307cf22dd9ea720bed8750101fc986ed"
+        "pullRequest": 151,
+        "commit": "b75eac570cd418497c52e80a3ce47958cdcc6b26",
+        "mergeCommit": "b75eac570cd418497c52e80a3ce47958cdcc6b26"
       },
       "forbiddenProperties": [
         "sandbox_permissions",

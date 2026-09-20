@@ -14,13 +14,13 @@ Describe 'Official Desktop plugin provisioning contract' {
         $contract.nativeCapability.verified | Should -BeTrue
         $contract.nativeCapability.capability.id | Should -Be 'desktopNativeVerifiedRelease'
         $contract.nativeCapability.capability.automaticProvisioning | Should -BeFalse
-        $contract.package.version | Should -Be '0.4.0-alpha.24'
+        $contract.package.version | Should -Be '0.4.0-alpha.30'
         $contract.artifact.releaseImmutable | Should -BeTrue
-        $contract.artifact.releaseTag | Should -Be 'v0.4.0-alpha.24'
-        $contract.artifact.releaseCommit | Should -Be 'e49bf7c9307cf22dd9ea720bed8750101fc986ed'
-        $contract.artifact.sha256 | Should -Be 'f28dd95e136e203948be8af43745c43ed32bd0bb9b84a44107c4b11ebf7e75cd'
-        $contract.artifact.sha512 | Should -Be '17492a7b6c32da41e0a1d0f0ebd3aecf51a6fcc49612490d96836cdb28ac9181f4efdd2b327b6f44ef32b49152af7dceb066c99325c6c7fa16979c5794f4e71a'
-        $contract.artifact.integrity | Should -Be 'sha512-F0kqe2wy2kHgodDw69Ouz1Gm/MSWEkkNloNs2yiskYH0790rMntvRO8ytJFSr33OsGbJkyXGx/oWl5xXlPTnGg=='
+        $contract.artifact.releaseTag | Should -Be 'v0.4.0-alpha.30'
+        $contract.artifact.releaseCommit | Should -Be 'b75eac570cd418497c52e80a3ce47958cdcc6b26'
+        $contract.artifact.sha256 | Should -Be '12af04aa61caef9a8c8e92526d6e3d9ec94b1d624097138540bcd5fd7cc29207'
+        $contract.artifact.sha512 | Should -Be '32e90b9a84122146ece16955545db830953de1bfc7a317a612416dacfeb0922585a11c22898a8a0ea2c19de956e311889556719ffcae227b757bf3c62d3be67b'
+        $contract.artifact.integrity | Should -Be 'sha512-MukLmoQSIUbs4WlVVF24MJU94b/HoxemEkFtrP6wkiWFoRwiiYqKDqLBnelW4xGIlVZxn/yuInt1e/PGLTvmew=='
 
         $forged = Get-Content $lockPath -Raw | ConvertFrom-Json
         $forged.components.copilotIntegration.desktopProvisioning.mode = 'windowsOpsVerifiedRelease'
@@ -43,9 +43,9 @@ Describe 'Official Desktop plugin provisioning contract' {
             Should -Throw '*native-provisioning-capability-unverified*'
     }
 
-    It 'rejects incomplete version-only lock updates' {
+    It 'rejects a stale alpha24 version-only lock regression' {
         $forged = Get-Content $lockPath -Raw | ConvertFrom-Json
-        $forged.components.copilotIntegration.package.version = '0.4.0-alpha.19'
+        $forged.components.copilotIntegration.package.version = '0.4.0-alpha.24'
         $path = Join-Path $TestDrive 'version-only.json'
         $forged | ConvertTo-Json -Depth 60 | Set-Content $path
         { Get-DshOfficialDesktopPluginContract -LockPath $path } |
@@ -55,7 +55,7 @@ Describe 'Official Desktop plugin provisioning contract' {
     It 'rejects checksum manifest and SRI drift in the authoritative contract' {
         $forged = Get-Content $lockPath -Raw | ConvertFrom-Json
         $path = Join-Path $TestDrive 'artifact-drift.json'
-        $forged.components.copilotIntegration.package.artifact.checksumManifest.url = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.24/OTHER'
+        $forged.components.copilotIntegration.package.artifact.checksumManifest.url = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.30/OTHER'
         $forged | ConvertTo-Json -Depth 60 | Set-Content $path
         { Get-DshOfficialDesktopPluginContract -LockPath $path } |
             Should -Throw '*checksum-manifest-contract-invalid*'
@@ -80,7 +80,7 @@ Describe 'Official Desktop plugin artifact and transaction' {
         $script:data = Join-Path $root 'data'
         $script:seed = Join-Path $install 'resources\seed'
         $script:artifactRoot = Join-Path $root 'artifact-source'
-        $script:artifact = Join-Path $root 'dsh-github-copilot-0.4.0-alpha.24.tgz'
+        $script:artifact = Join-Path $root 'dsh-github-copilot-0.4.0-alpha.30.tgz'
         New-Item -ItemType Directory -Path $seed,(Join-Path $seed 'desktop-packages'),(Join-Path $artifactRoot 'package'),(Join-Path $install 'resources\runtime\node'),(Join-Path $install 'resources\runtime\pnpm\bin') -Force | Out-Null
         foreach ($file in @('desktop-release.json','desktop-packages.json','integrity.json')) {
             '{}' | Set-Content (Join-Path $seed $file)
@@ -100,7 +100,7 @@ Describe 'Official Desktop plugin artifact and transaction' {
         @'
 {
   "name": "dsh-github-copilot",
-  "version": "0.4.0-alpha.24",
+  "version": "0.4.0-alpha.30",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
@@ -117,13 +117,13 @@ Describe 'Official Desktop plugin artifact and transaction' {
         $ops.GetProcesses = { [pscustomobject]@{ unavailable = $false; items = @() } }
         $ops.IsCurrentUserOwner = { param($path) $true }
         $ops.TestReparse = { param($path) $false }
-        $ops.GetLength = { param($path) 660977 }
+        $ops.GetLength = { param($path) 694316 }
         $ops.GetHash = {
             param($path,$algorithm)
             if ($algorithm -ceq 'SHA512') {
-                '17492a7b6c32da41e0a1d0f0ebd3aecf51a6fcc49612490d96836cdb28ac9181f4efdd2b327b6f44ef32b49152af7dceb066c99325c6c7fa16979c5794f4e71a'
+                '32e90b9a84122146ece16955545db830953de1bfc7a317a612416dacfeb0922585a11c22898a8a0ea2c19de956e311889556719ffcae227b757bf3c62d3be67b'
             } else {
-                'f28dd95e136e203948be8af43745c43ed32bd0bb9b84a44107c4b11ebf7e75cd'
+                '12af04aa61caef9a8c8e92526d6e3d9ec94b1d624097138540bcd5fd7cc29207'
             }
         }
         $runLog = [Collections.Generic.List[object]]::new()
@@ -145,11 +145,11 @@ Describe 'Official Desktop plugin artifact and transaction' {
                     New-Item -ItemType Directory -Path $target -Force|Out-Null
                     @{name=$package[1];version=$package[2]}|ConvertTo-Json|Set-Content (Join-Path $target 'package.json')
                 }
-                if (@($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.24.tgz' }).Count -eq 1) {
+                if (@($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.30.tgz' }).Count -eq 1) {
                     $target=Join-Path $workingDirectory 'node_modules\dsh-github-copilot'
                     New-Item -ItemType Directory -Path $target -Force|Out-Null
                     @{
-                        name='dsh-github-copilot';version='0.4.0-alpha.24'
+                        name='dsh-github-copilot';version='0.4.0-alpha.30'
                         dsh=@{bundle=@{patch='./cordis.patch.yml'}}
                     }|ConvertTo-Json -Depth 5|Set-Content (Join-Path $target 'package.json')
                     '[]'|Set-Content (Join-Path $target 'cordis.patch.yml')
@@ -240,7 +240,7 @@ Describe 'Official Desktop plugin artifact and transaction' {
         $ops.Run = {
             param($file,$arguments,$workingDirectory,$environment)
             if ($arguments[0] -like '*pnpm.mjs' -and
-                @($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.24.tgz' }).Count -eq 1) {
+                @($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.30.tgz' }).Count -eq 1) {
                 return [pscustomobject]@{ExitCode=1}
             }
             &$baseRun $file $arguments $workingDirectory $environment

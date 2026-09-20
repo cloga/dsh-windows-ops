@@ -64,15 +64,12 @@ qualified workaround. This is a limitation of the current optional installer,
 not a claim that the product intrinsically requires another Core. Optional
 Cron/Playwright remain Web-only and outside native Desktop acceptance; the
 native base entry rejects `-IncludeCompanionSuite` and delegated mutations.
-The current lock selects formally published Desktop `0.1.6-alpha.1.cloga.2`
-(sequence 12), ASAR Core `0.1.6-alpha.1` and Copilot alpha.24. Formal source
-acceptance includes actual initial/restart settings DOM and read-only search
-catalog loading, not a real search/OAuth/model request. Genuine native Ops
-[run `35278350619`](https://github.com/cloga/dsh-windows-ops/actions/runs/35278350619)
-passed at `243c33d286f19d9e4c608e238a52de2b9a136b9e` within the
-[documented native scope](../local-core-desktop-copilot.md#scoped-ops-ci-qualification),
-without whole-carrier or installed-upgrade proof. Earlier pre-observer failure
-`35276462350` remains unexplained, not proven repaired by this success.
+The current lock selects published Desktop `0.1.6-alpha.1.cloga.12` (sequence
+22), ASAR Core `0.1.6-alpha.1` and Copilot alpha.30. Formal run `35528552640`
+includes initial/restart schema-2 settings and version-menu evidence, not real
+OAuth/navigation/model/search. Genuine registered native Ops qualification is
+pending for the exact PR head; older `.cloga.2` runs remain historical and do not
+qualify this optional Web path.
 [Historical run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
 qualifies only `.cloga.1`/alpha.22. Neither source acceptance nor either native proof qualifies this optional
 ASAR Web path, attests user-extra contents, or installs/activates a local component;

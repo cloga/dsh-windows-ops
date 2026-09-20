@@ -136,20 +136,45 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   // remain historical; exact alpha.2 requires this gate regardless of sequence.
   if (native.settingsAcceptance !== undefined || channel.upstreamVersion === '0.1.6-alpha.2' ||
     (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) {
-    requireValue(object(native.settingsAcceptance) && acceptance.modelRolesViewLoaded === true &&
-      acceptance.searchProviderCatalogLoaded === true && acceptance.realSearch === false,
-    'native-release-settings-mismatch');
-    const phases = [['initial', native.settingsAcceptance.initialSha256], ['restart', native.settingsAcceptance.restartSha256]];
-    let providers;
-    for (const [phase, digest] of phases) {
+    const settingsProof = native.settingsAcceptance;
+    requireValue(object(settingsProof) && (settingsProof.schemaVersion === undefined || settingsProof.schemaVersion === 2) &&
+      acceptance.modelRolesViewLoaded === true && acceptance.searchProviderCatalogLoaded === true &&
+      acceptance.realSearch === false, 'native-release-settings-mismatch');
+    const providerNavigation = settingsProof.schemaVersion === 2;
+    if (providerNavigation) {
+      requireValue(acceptance.manageCompatibilityDisclosureAbsent === true &&
+        acceptance.providerOnlySearchRouting === true && acceptance.realOAuth === false &&
+        acceptance.verificationNavigationExercised === false &&
+        acceptance.manualVerificationAddressObserved === false &&
+        acceptance.realModelRound === false && acceptance.realSearch === false,
+      'native-release-settings-mismatch');
+    }
+    const phases = [['initial', settingsProof.initialSha256, settingsProof.initialVersionMenuSha256],
+      ['restart', settingsProof.restartSha256, settingsProof.restartVersionMenuSha256]];
+    let providers; const versionMenus = [];
+    for (const [phase, digest, versionDigest] of phases) {
       const settings = read(`${phase}-settings-readonly.json`, digest);
       const ids = settings.registeredSearchProviders;
       requireValue(settings.modelRolesViewLoaded === true && settings.searchProviderCatalogLoaded === true &&
         settings.realSearch === false && Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) &&
         new Set(ids).size === ids.length && ids.includes('github-copilot-hosted') &&
-        (providers === undefined || isDeepStrictEqual(providers, ids)), 'native-release-settings-mismatch');
+        (providers === undefined || isDeepStrictEqual(providers, ids)) &&
+        (!providerNavigation || (settings.currentWorkspaceReadOnly === true &&
+          settings.providerOnlySearchRouting === true && settings.fallbackProviderLabel === true)),
+      'native-release-settings-mismatch');
       providers = ids;
+      if (providerNavigation) {
+        const versionMenu = read(`${phase}-version-menu.json`, versionDigest);
+        requireValue(versionMenu.applicationMenuLabel === 'Application' &&
+          versionMenu.aboutMenuLabel === `About Desktop ${desktop.version}…` &&
+          versionMenu.desktopVersion === desktop.version && versionMenu.aboutDispatchCount === 1 &&
+          versionMenu.nativeModalOpened === false &&
+          (versionMenus.length === 0 || isDeepStrictEqual(versionMenus[0], versionMenu)),
+        'native-release-settings-mismatch');
+        versionMenus.push(versionMenu);
+      }
     }
+    if (providerNavigation) requireValue(isDeepStrictEqual(acceptance.versionMenus, versionMenus), 'native-release-settings-mismatch');
   }
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {

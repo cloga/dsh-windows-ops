@@ -1,0 +1,17 @@
+{
+  "name": "@deepseek-ai/dsh-desktop-runtime",
+  "private": true,
+  "version": "0.0.0",
+  "dependencies": {
+    "dsh-github-copilot": "file:.desktop-plugin-artifacts/12af04aa61caef9a8c8e92526d6e3d9ec94b1d624097138540bcd5fd7cc29207.tgz"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "dsh-github-copilot"
+      ]
+    }
+  }
+}

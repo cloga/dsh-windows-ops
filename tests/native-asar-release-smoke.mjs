@@ -141,12 +141,44 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
   const proof = channel.nativeProvisioning.settingsAcceptance;
   if (proof === undefined && channel.upstreamVersion !== '0.1.6-alpha.2' &&
     !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
-  need(proof && accepted.modelRolesViewLoaded === true && accepted.searchProviderCatalogLoaded === true &&
+  need(proof && (proof.schemaVersion === undefined || proof.schemaVersion === 2) &&
+    accepted.modelRolesViewLoaded === true && accepted.searchProviderCatalogLoaded === true &&
     accepted.realSearch === false, 'source-settings-acceptance-incomplete');
-  for (const [phase, digest] of [['initial', proof.initialSha256], ['restart', proof.restartSha256]]) {
-    need(hashFile(physical(join(sourceOutput, `${phase}-settings-readonly.json`), 'file')) === digest,
-      'source-settings-acceptance-incomplete');
+  if (proof.schemaVersion === 2) {
+    need(accepted.manageCompatibilityDisclosureAbsent === true && accepted.providerOnlySearchRouting === true &&
+      accepted.realOAuth === false && accepted.verificationNavigationExercised === false &&
+      accepted.manualVerificationAddressObserved === false && accepted.realModelRound === false &&
+      accepted.realSearch === false, 'source-settings-acceptance-incomplete');
   }
+  let providers; const versionMenus = [];
+  const phases = [['initial', proof.initialSha256, proof.initialVersionMenuSha256],
+    ['restart', proof.restartSha256, proof.restartVersionMenuSha256]];
+  for (const [phase, digest, versionDigest] of phases) {
+    const path = physical(join(sourceOutput, `${phase}-settings-readonly.json`), 'file');
+    need(hashFile(path) === digest, 'source-settings-acceptance-incomplete');
+    if (proof.schemaVersion === 2) {
+      const settings = readJson(path); const ids = settings.registeredSearchProviders;
+      need(settings.modelRolesViewLoaded === true && settings.currentWorkspaceReadOnly === true &&
+        settings.searchProviderCatalogLoaded === true && settings.providerOnlySearchRouting === true &&
+        settings.fallbackProviderLabel === true && settings.realSearch === false &&
+        Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) &&
+        new Set(ids).size === ids.length && ids.includes('github-copilot-hosted') &&
+        (providers === undefined || isDeepStrictEqual(providers, ids)),
+      'source-settings-acceptance-incomplete');
+      providers = ids;
+      const versionPath = physical(join(sourceOutput, `${phase}-version-menu.json`), 'file');
+      need(hashFile(versionPath) === versionDigest, 'source-settings-acceptance-incomplete');
+      const versionMenu = readJson(versionPath);
+      need(versionMenu.applicationMenuLabel === 'Application' &&
+        versionMenu.aboutMenuLabel === `About Desktop ${channel.version}…` &&
+        versionMenu.desktopVersion === channel.version && versionMenu.aboutDispatchCount === 1 &&
+        versionMenu.nativeModalOpened === false &&
+        (versionMenus.length === 0 || isDeepStrictEqual(versionMenus[0], versionMenu)),
+      'source-settings-acceptance-incomplete');
+      versionMenus.push(versionMenu);
+    }
+  }
+  if (proof.schemaVersion === 2) need(isDeepStrictEqual(accepted.versionMenus, versionMenus), 'source-settings-acceptance-incomplete');
 }
 
 export function validateSourceIdentity(lock, confirmation, identity) {

@@ -98,7 +98,7 @@ test('formal plugin dependency registry differs from the frozen workspace build 
   assert.equal(read('release.json').build.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
-  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.24');
+  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.30');
   assert.equal(read('release.json').upstreamVersion, '0.1.6-alpha.1');
 });
 
@@ -141,7 +141,8 @@ test('formal paired .6 release proves read-only settings views before and after 
   const initial = read('initial-settings-readonly.json');
   const restart = read('restart-settings-readonly.json');
   for (const settings of [initial, restart]) {
-    assert.deepEqual(settings, { modelRolesViewLoaded: true, searchProviderCatalogLoaded: true,
+    assert.deepEqual(settings, { modelRolesViewLoaded: true, currentWorkspaceReadOnly: true,
+      searchProviderCatalogLoaded: true, providerOnlySearchRouting: true, fallbackProviderLabel: true,
       registeredSearchProviders: ['deepseek-official', 'github-copilot-hosted'], realSearch: false });
   }
   const contract = actualLock().components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
@@ -199,6 +200,74 @@ for (const [name, mutate] of [
     assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
   });
 }
+
+function providerNavigationFixture(t) {
+  const root = mkdtempSync(join(tmpdir(), 'native-provider-navigation-evidence-'));
+  t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
+  const lock = actualLock();
+  const proof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+  proof.schemaVersion = 2;
+  const acceptancePath = join(root, 'acceptance.json');
+  const acceptance = JSON.parse(readFileSync(acceptancePath)); const versionMenus = [];
+  Object.assign(acceptance, { manageCompatibilityDisclosureAbsent: true, providerOnlySearchRouting: true,
+    verificationNavigationExercised: false, manualVerificationAddressObserved: false });
+  for (const phase of ['initial', 'restart']) {
+    const path = join(root, `${phase}-settings-readonly.json`);
+    const settings = JSON.parse(readFileSync(path));
+    Object.assign(settings, { currentWorkspaceReadOnly: true, providerOnlySearchRouting: true, fallbackProviderLabel: true });
+    write(path, settings); proof[`${phase}Sha256`] = hash(readFileSync(path));
+    const versionMenu = { applicationMenuLabel: 'Application', aboutMenuLabel: `About Desktop ${lock.components.desktop.version}…`,
+      desktopVersion: lock.components.desktop.version, aboutDispatchCount: 1, nativeModalOpened: false };
+    const versionPath = join(root, `${phase}-version-menu.json`); write(versionPath, versionMenu);
+    proof[`${phase}VersionMenuSha256`] = hash(readFileSync(versionPath)); versionMenus.push(versionMenu);
+  }
+  acceptance.versionMenus = versionMenus; write(acceptancePath, acceptance);
+  lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(acceptancePath));
+  return { root, lock };
+}
+
+test('schema 2 accepts hash-bound provider-only navigation evidence without real calls', t => {
+  const { root, lock } = providerNavigationFixture(t);
+  assert.equal(verifyNativeReleaseEvidence(lock, root).valid, true);
+});
+
+for (const [field, value] of [['manageCompatibilityDisclosureAbsent', false], ['providerOnlySearchRouting', false],
+  ['verificationNavigationExercised', true], ['manualVerificationAddressObserved', true]]) {
+  test(`schema 2 rejects main acceptance ${field}=${value}`, t => {
+    const { root, lock } = providerNavigationFixture(t);
+    const path = join(root, 'acceptance.json'); const acceptance = JSON.parse(readFileSync(path));
+    acceptance[field] = value; write(path, acceptance);
+    lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+  });
+}
+for (const field of ['currentWorkspaceReadOnly', 'providerOnlySearchRouting', 'fallbackProviderLabel']) {
+  test(`schema 2 rejects per-phase ${field}=false`, t => {
+    const { root, lock } = providerNavigationFixture(t);
+    const path = join(root, 'restart-settings-readonly.json'); const settings = JSON.parse(readFileSync(path));
+    settings[field] = false; write(path, settings);
+    lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+  });
+}
+for (const [mode, mutate, rehash] of [
+  ['tampered bytes', (path) => write(path, readFileSync(path, 'utf8') + '\n'), false],
+  ['typed dispatch count', (path) => { const value = JSON.parse(readFileSync(path)); value.aboutDispatchCount = '1'; write(path, value); }, true],
+  ['wrong version', (path) => { const value = JSON.parse(readFileSync(path)); value.desktopVersion = '0.1.6-wrong'; write(path, value); }, true],
+  ['phase mismatch', (path) => { const value = JSON.parse(readFileSync(path)); value.aboutMenuLabel += ' mismatch'; write(path, value); }, true],
+]) {
+  test(`schema 2 rejects version-menu ${mode}`, t => {
+    const { root, lock } = providerNavigationFixture(t);
+    const path = join(root, 'restart-version-menu.json'); mutate(path);
+    if (rehash) lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartVersionMenuSha256 = hash(readFileSync(path));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-(?:file-hash|settings)-mismatch/);
+  });
+}
+test('settings evidence rejects an unknown schema version', t => {
+  const { root, lock } = providerNavigationFixture(t);
+  lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = 3;
+  assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
+});
 
 for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles', 'string-catalog', 'real-search',
   'initial-tamper', 'restart-tamper', 'missing-hosted-provider', 'installer-upgrade-claim']) {

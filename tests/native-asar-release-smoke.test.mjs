@@ -51,6 +51,8 @@ for (const upstream of ['0.1.6-alpha.1', '0.1.6-alpha.2'])
 for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles', 'string-catalog', 'real-search', 'initial-tamper', 'restart-tamper']) {
   test(`fresh settings gate ${upstream}/${mode} binds copied leaves without execution (inert inputs)`, t => {
     const lock = actualLock(), output = temporary(t); forbidChildren(t);
+    const legacyProof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+    delete legacyProof.schemaVersion; delete legacyProof.initialVersionMenuSha256; delete legacyProof.restartVersionMenuSha256;
     lock.components.desktop.releaseChannel.upstreamVersion = upstream;
     // alpha.2 must require settings even below alpha.1's historical sequence threshold.
     if (upstream === '0.1.6-alpha.2') lock.components.desktop.releaseChannel.sequence = 1;
@@ -72,18 +74,24 @@ for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles'
 }
 
 function providerNavigationSourceEvidence(t) {
-  const lock = actualLock(), output = temporary(t), proof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
-  proof.schemaVersion = 2;
+  const lock = actualLock(), output = temporary(t), channel = lock.components.desktop.releaseChannel;
+  const proof = channel.nativeProvisioning.settingsAcceptance; proof.schemaVersion = 2;
+  const versionMenus = [];
   for (const phase of ['initial', 'restart']) {
     const settings = { modelRolesViewLoaded: true, currentWorkspaceReadOnly: true,
       searchProviderCatalogLoaded: true, providerOnlySearchRouting: true, fallbackProviderLabel: true,
       registeredSearchProviders: ['deepseek-official', 'github-copilot-hosted'], realSearch: false };
     const path = join(output, `${phase}-settings-readonly.json`); writeFileSync(path, JSON.stringify(settings));
     proof[`${phase}Sha256`] = hashFile(path);
+    const versionMenu = { applicationMenuLabel: 'Application', aboutMenuLabel: `About Desktop ${channel.version}…`,
+      desktopVersion: channel.version, aboutDispatchCount: 1, nativeModalOpened: false };
+    const versionPath = join(output, `${phase}-version-menu.json`); writeFileSync(versionPath, JSON.stringify(versionMenu));
+    proof[`${phase}VersionMenuSha256`] = hashFile(versionPath); versionMenus.push(versionMenu);
   }
-  const accepted = { modelRolesViewLoaded: true, searchProviderCatalogLoaded: true,
+  const accepted = { versionMenus, modelRolesViewLoaded: true, searchProviderCatalogLoaded: true,
     manageCompatibilityDisclosureAbsent: true, providerOnlySearchRouting: true,
-    realOAuth: false, realModelRound: false, realSearch: false };
+    realOAuth: false, verificationNavigationExercised: false, manualVerificationAddressObserved: false,
+    realModelRound: false, realSearch: false };
   return { lock, output, accepted };
 }
 
@@ -91,9 +99,10 @@ test('fresh schema 2 provider-navigation evidence is exact and call-free', t => 
   forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
   assert.equal(verifyFreshSettingsEvidence(lock, accepted, output), undefined);
 });
-for (const field of ['manageCompatibilityDisclosureAbsent', 'providerOnlySearchRouting']) {
-  test(`fresh schema 2 rejects main ${field}=false`, t => {
-    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t); accepted[field] = false;
+for (const [field, value] of [['manageCompatibilityDisclosureAbsent', false], ['providerOnlySearchRouting', false],
+  ['verificationNavigationExercised', true], ['manualVerificationAddressObserved', true]]) {
+  test(`fresh schema 2 rejects main ${field}=${value}`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t); accepted[field] = value;
     assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
   });
 }
@@ -103,6 +112,19 @@ for (const field of ['currentWorkspaceReadOnly', 'providerOnlySearchRouting', 'f
     const path = join(output, 'restart-settings-readonly.json'); const settings = JSON.parse(readFileSync(path));
     settings[field] = false; writeFileSync(path, JSON.stringify(settings));
     lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartSha256 = hashFile(path);
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
+}
+for (const [mode, mutate, rehash] of [
+  ['tampered bytes', (path) => writeFileSync(path, readFileSync(path, 'utf8') + '\n'), false],
+  ['typed dispatch count', (path) => { const value = JSON.parse(readFileSync(path)); value.aboutDispatchCount = '1'; writeFileSync(path, JSON.stringify(value)); }, true],
+  ['wrong version', (path) => { const value = JSON.parse(readFileSync(path)); value.desktopVersion = '0.1.6-wrong'; writeFileSync(path, JSON.stringify(value)); }, true],
+  ['phase mismatch', (path) => { const value = JSON.parse(readFileSync(path)); value.aboutMenuLabel += ' mismatch'; writeFileSync(path, JSON.stringify(value)); }, true],
+]) {
+  test(`fresh schema 2 rejects version-menu ${mode}`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+    const path = join(output, 'restart-version-menu.json'); mutate(path);
+    if (rehash) lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartVersionMenuSha256 = hashFile(path);
     assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
   });
 }

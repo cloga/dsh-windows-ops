@@ -144,12 +144,15 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     if (providerNavigation) {
       requireValue(acceptance.manageCompatibilityDisclosureAbsent === true &&
         acceptance.providerOnlySearchRouting === true && acceptance.realOAuth === false &&
+        acceptance.verificationNavigationExercised === false &&
+        acceptance.manualVerificationAddressObserved === false &&
         acceptance.realModelRound === false && acceptance.realSearch === false,
       'native-release-settings-mismatch');
     }
-    const phases = [['initial', settingsProof.initialSha256], ['restart', settingsProof.restartSha256]];
-    let providers;
-    for (const [phase, digest] of phases) {
+    const phases = [['initial', settingsProof.initialSha256, settingsProof.initialVersionMenuSha256],
+      ['restart', settingsProof.restartSha256, settingsProof.restartVersionMenuSha256]];
+    let providers; const versionMenus = [];
+    for (const [phase, digest, versionDigest] of phases) {
       const settings = read(`${phase}-settings-readonly.json`, digest);
       const ids = settings.registeredSearchProviders;
       requireValue(settings.modelRolesViewLoaded === true && settings.searchProviderCatalogLoaded === true &&
@@ -160,7 +163,18 @@ export function verifyNativeReleaseEvidence(lock, directory) {
           settings.providerOnlySearchRouting === true && settings.fallbackProviderLabel === true)),
       'native-release-settings-mismatch');
       providers = ids;
+      if (providerNavigation) {
+        const versionMenu = read(`${phase}-version-menu.json`, versionDigest);
+        requireValue(versionMenu.applicationMenuLabel === 'Application' &&
+          versionMenu.aboutMenuLabel === `About Desktop ${desktop.version}…` &&
+          versionMenu.desktopVersion === desktop.version && versionMenu.aboutDispatchCount === 1 &&
+          versionMenu.nativeModalOpened === false &&
+          (versionMenus.length === 0 || isDeepStrictEqual(versionMenus[0], versionMenu)),
+        'native-release-settings-mismatch');
+        versionMenus.push(versionMenu);
+      }
     }
+    if (providerNavigation) requireValue(isDeepStrictEqual(acceptance.versionMenus, versionMenus), 'native-release-settings-mismatch');
   }
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {

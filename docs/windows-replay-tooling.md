@@ -76,7 +76,7 @@ these limits.
 
 ## Direct Copilot markers
 
-The `0.4.0-alpha.24` baseline checks:
+The `0.4.0-alpha.30` baseline checks:
 
 | Component | Evidence |
 |---|---|
@@ -85,14 +85,14 @@ The `0.4.0-alpha.24` baseline checks:
 | OAuth grant normalization | provider-owned Copilot grant fields rebuilt as validated plain JSON before credential storage |
 | Legacy profile repair | validates the shared grant and only repairs an existing canonical profile's strict-mode leaf; an absent profile is not recreated |
 | Per-model API routes | managed route facts use the owning account snapshot's exact model protocol and endpoint |
-| Shared routing chunk | exact alpha.24 published entrypoints and shared routing chunk are pinned by the lock; preserve canonical route-level API precedence and hostname-gated `X-Initiator`/`Openai-Intent` metadata rather than reusing an older chunk identity |
+| Shared routing chunk | exact alpha.30 published entrypoints/shared routing chunk are pinned; preserve canonical route API precedence, provider-only CAS and hostname-gated request metadata |
 | Copilot tool-schema filter | prompt assembly removes `sandbox_permissions` and `justification` for canonical Copilot or the plugin-owned preview route only; non-Copilot schemas remain unchanged, and packaged current/fresh Session probes must pass after restart |
 | `dsh-github-copilot` host | shared `llm-pi-ai/github-copilot` credential record and `Models.getAuth()` refresh |
 | Authorization service | existing official Desktop service reuse without duplicate registration |
 | Direct hosted search | request-owned auth and managed protocol/endpoint mismatch checks fail closed; Responses/Anthropic inline search, Responses-only `ctx.web`, and bounded proof remain separate acceptance requirements |
 | Client UI | official DSH Models provider-card authorization |
-| Desktop-managed DSH | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`, virtual `resources\app.asar\dsh\desktop-runtime.json`, SHA-256 `f0de4a61ead7105c41f1576a2f01617908e80e214c6c5383c9b79a13d50a14d1`; audited virtual plus unpacked backing inventory, no separate Core |
-| Desktop | fork-owned `0.1.6-alpha.1.cloga.2`, sequence 12, source `65a236bd65f2971f98b11a0efd020b8860144924`; exact locked EXE and native audit identity, genuine native Ops qualification passed in run `35278350619` (no local activation) |
+| Desktop-managed DSH | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`, virtual descriptor SHA-256 `3e20cd0ace516569c9ead2403acffe16ed0a3e99b1ef45d17e0bca3cc7bd06f3`; audited virtual plus unpacked backing inventory, no separate Core |
+| Desktop | fork-owned `0.1.6-alpha.1.cloga.12`, sequence 22, source `d19be3ff5524948c40cb9929cdd4d67d5cb35059`; formal source acceptance passed, genuine registered native Ops qualification pending (no local activation) |
 | Desktop plugins | `desktopNativeVerifiedRelease` delegates ownership to Desktop; Windows Ops does not populate the reserved profile or copy its dependencies |
 
 The legacy SlotOutlet and no-open recovery patches explicitly select the
@@ -102,14 +102,14 @@ They are not positive acceptance evidence. Applicable patch targets still
 require their exact markers; do not inject old renderer code or select an older
 shell to make replay green.
 
-The authoritative plugin is `dsh-github-copilot@0.4.0-alpha.24`,
-immutable Release source commit `e49bf7c9307cf22dd9ea720bed8750101fc986ed`.
-Its immutable `v0.4.0-alpha.24` Release artifact SHA-256 is
-`f28dd95e136e203948be8af43745c43ed32bd0bb9b84a44107c4b11ebf7e75cd`.
-Local Desktop install/update additionally verifies the SHA-512/SRI contract and
-delegates this artifact through the single Desktop-native provisioning adapter.
+The authoritative plugin is `dsh-github-copilot@0.4.0-alpha.30`, immutable
+Release source `b75eac570cd418497c52e80a3ce47958cdcc6b26`; artifact SHA-256 is
+`12af04aa61caef9a8c8e92526d6e3d9ec94b1d624097138540bcd5fd7cc29207`.
+Desktop delegates it through the single native provisioning adapter.
 
-The current target is immutable [Release `391052820`](local-core-desktop-copilot.md#authoritative-baseline), `0.1.6-alpha.1.cloga.2`, sequence 12, from source PR #63. Formal run `35271210350` passed on attempt 1; six Release assets were independently byte-verified. Source acceptance artifact `10518683372` records isolated initial/restart account UI, actual Model roles/search-routing DOM readiness, read-only provider catalogs, graph/ancestor isolation and helper ACK/cancel. Alpha.24 repairs alpha.23's missing Client `remote.githubCopilotSearchRouting` injection. Both catalog phases include `deepseek-official` and `github-copilot-hosted`; this does not establish a real search or provider availability. **Current genuine native Ops qualification passed** in [run `35278350619`](https://github.com/cloga/dsh-windows-ops/actions/runs/35278350619) at exact head `243c33d286f19d9e4c608e238a52de2b9a136b9e`; its independently byte-bound [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-2/qualification.json) records 9,806 runtime files, full archive-package identity, `metadata-cjs-esm`, one observer/profile cleanup and three request-copy rejections. Whole-carrier/model-response/installed-upgrade flags remain false. First pre-observer failure `35276462350` remains unexplained; the successful diagnostic head does not prove its cause was repaired. Historical [run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981) and its [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json) qualify only `.cloga.1`/alpha.22; its public resolver/native-addon/policy and three request-copy negatives must not be relabeled as current release proof or advanced private-peer/custom-home/missing-addon coverage. No real search/OAuth/model round, local installer upgrade or local activation was performed; replay must report old installed bytes as drift. See the [exact target and evidence boundaries](local-core-desktop-copilot.md#authoritative-baseline) and mandatory [official-first upgrade checklist](local-core-desktop-copilot.md#official-first-upgrade-checklist).
+Historical `.cloga.2`/alpha.24 evidence remains immutable Release `391052820`, sequence 12, from source PR #63; it is not the current target. Formal run `35271210350` passed on attempt 1; six Release assets were independently byte-verified. Source acceptance artifact `10518683372` records isolated initial/restart account UI, actual Model roles/search-routing DOM readiness, read-only provider catalogs, graph/ancestor isolation and helper ACK/cancel. Alpha.24 repairs alpha.23's missing Client `remote.githubCopilotSearchRouting` injection. Both catalog phases include `deepseek-official` and `github-copilot-hosted`; this does not establish a real search or provider availability. **Current genuine native Ops qualification passed** in [run `35278350619`](https://github.com/cloga/dsh-windows-ops/actions/runs/35278350619) at exact head `243c33d286f19d9e4c608e238a52de2b9a136b9e`; its independently byte-bound [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-2/qualification.json) records 9,806 runtime files, full archive-package identity, `metadata-cjs-esm`, one observer/profile cleanup and three request-copy rejections. Whole-carrier/model-response/installed-upgrade flags remain false. First pre-observer failure `35276462350` remains unexplained; the successful diagnostic head does not prove its cause was repaired. Historical [run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981) and its [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json) qualify only `.cloga.1`/alpha.22; its public resolver/native-addon/policy and three request-copy negatives must not be relabeled as current release proof or advanced private-peer/custom-home/missing-addon coverage. No real search/OAuth/model round, local installer upgrade or local activation was performed; replay must report old installed bytes as drift. See the [exact target and evidence boundaries](local-core-desktop-copilot.md#authoritative-baseline) and mandatory [official-first upgrade checklist](local-core-desktop-copilot.md#official-first-upgrade-checklist).
+
+Current `.cloga.12` formal run `35528552640` independently bound six Release assets and 66 Actions ZIP entries. Schema-2 initial/restart evidence covers read-only workspace/catalog, provider-only routing/Fallback label and exact Desktop version menu; it proves no OAuth, same-window navigation, provider availability or real search. Genuine registered native Ops qualification remains pending for the exact PR head, and older summaries cannot be transferred.
 
 Replay projects audited native runtime identity and read-only marker status;
 it does not read credentials or establish live account/model readiness. User

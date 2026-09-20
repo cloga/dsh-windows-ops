@@ -146,11 +146,14 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
     accepted.realSearch === false, 'source-settings-acceptance-incomplete');
   if (proof.schemaVersion === 2) {
     need(accepted.manageCompatibilityDisclosureAbsent === true && accepted.providerOnlySearchRouting === true &&
-      accepted.realOAuth === false && accepted.realModelRound === false && accepted.realSearch === false,
-    'source-settings-acceptance-incomplete');
+      accepted.realOAuth === false && accepted.verificationNavigationExercised === false &&
+      accepted.manualVerificationAddressObserved === false && accepted.realModelRound === false &&
+      accepted.realSearch === false, 'source-settings-acceptance-incomplete');
   }
-  let providers;
-  for (const [phase, digest] of [['initial', proof.initialSha256], ['restart', proof.restartSha256]]) {
+  let providers; const versionMenus = [];
+  const phases = [['initial', proof.initialSha256, proof.initialVersionMenuSha256],
+    ['restart', proof.restartSha256, proof.restartVersionMenuSha256]];
+  for (const [phase, digest, versionDigest] of phases) {
     const path = physical(join(sourceOutput, `${phase}-settings-readonly.json`), 'file');
     need(hashFile(path) === digest, 'source-settings-acceptance-incomplete');
     if (proof.schemaVersion === 2) {
@@ -163,8 +166,19 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
         (providers === undefined || isDeepStrictEqual(providers, ids)),
       'source-settings-acceptance-incomplete');
       providers = ids;
+      const versionPath = physical(join(sourceOutput, `${phase}-version-menu.json`), 'file');
+      need(hashFile(versionPath) === versionDigest, 'source-settings-acceptance-incomplete');
+      const versionMenu = readJson(versionPath);
+      need(versionMenu.applicationMenuLabel === 'Application' &&
+        versionMenu.aboutMenuLabel === `About Desktop ${channel.version}…` &&
+        versionMenu.desktopVersion === channel.version && versionMenu.aboutDispatchCount === 1 &&
+        versionMenu.nativeModalOpened === false &&
+        (versionMenus.length === 0 || isDeepStrictEqual(versionMenus[0], versionMenu)),
+      'source-settings-acceptance-incomplete');
+      versionMenus.push(versionMenu);
     }
   }
+  if (proof.schemaVersion === 2) need(isDeepStrictEqual(accepted.versionMenus, versionMenus), 'source-settings-acceptance-incomplete');
 }
 
 export function validateSourceIdentity(lock, confirmation, identity) {

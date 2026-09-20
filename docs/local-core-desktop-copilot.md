@@ -4,6 +4,51 @@
 
 For the V3 account/Session model separation and removal of an existing extra native Copilot route, use [the separate config-only managed-route procedure](copilot-managed-route.md). Do not recreate native model definitions from this pinned full-deployment guide or run its installer merely to migrate a newer Desktop. The maintenance command performs no component installation, Session/default selection, credentials access or restart; it requires fresh live evidence and explicit configuration approvals. Its policy does not replace the full deployment lock below.
 
+## Identify the running Desktop version
+
+**Pending release:** the native version-menu feature is tracked by
+[Desktop PR #91](https://github.com/cloga/deepseek-harness/pull/91). Its first
+published release has not yet been verified here. This guidance does not promote
+the deployment baseline below or mean the feature is installed on your machine.
+
+On a Desktop build containing that feature, open **Application → About Desktop
+`<version>`…** (Chinese: **应用 → 关于 Desktop `<version>`…**). The menu shows the
+running Electron application's full version, including every prerelease and fork
+suffix; selecting it opens the native About panel. Record the whole value, not
+just `0.1.6`. This shell-owned entry needs no network or healthy Host page.
+
+Keep these observations separate:
+
+- **About Desktop** identifies the running Desktop application.
+- **Check for Updates** or an update notice identifies an available replacement,
+  not proof that it is installed or running.
+- **Core/CLI version** identifies that Core or CLI runtime, not the Desktop shell.
+  A separate CLI on PATH may not be Desktop's bundled runtime at all.
+- **Windows file metadata** identifies a selected executable on disk, not the
+  already-running process or a completed managed update.
+
+For an older build without the menu entry, inspect the actual installed
+`cloga-deepseek-harness.exe` through Windows **Properties → Details**, or use this
+read-only PowerShell command without starting Desktop:
+
+```powershell
+$desktopExe = Read-Host 'Full path to the installed cloga-deepseek-harness.exe'
+(Get-Item -LiteralPath $desktopExe).VersionInfo |
+    Select-Object FileVersion, ProductVersion
+```
+
+Preserve any suffix that is present. Some releases expose only a numeric PE
+version: the locked `.cloga.2` executable below has ProductVersion `0.1.6.0`.
+Do not reconstruct a missing semantic suffix from that value; use verified
+installed-file hashes matched to the immutable release manifest/build receipt
+for an exact older release identity. A newly installed file can also differ from
+an application that has not yet been restarted. Version identification does not
+authorize installation, activation, or interruption of live Sessions.
+
+The feature's packaged acceptance checks the real menu/version and About callback
+dispatch while intercepting the modal call. It does not prove that the native
+About window rendered or that an operator's live installation was activated.
+
 ## Authoritative baseline
 
 [`deployments/windows-copilot.lock.json`](../deployments/windows-copilot.lock.json)

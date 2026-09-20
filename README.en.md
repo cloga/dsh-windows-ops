@@ -47,9 +47,13 @@ See [pnpm 11.7 dispatch and offline-policy boundaries](docs/core-016a2-assessmen
 verification avoids registry metadata requests. Do not disable verification to hide failures.
 
 Use the [remote qualification checklist](docs/core-upgrade.md#remote-qualification-checklist)
-to separate local mirror limits from full remote CI, preserve complete lint JSON
-and exits, review exact-head generator artifacts, parse decoded PowerShell, and
-distinguish fixture/build from isolated native-installer acceptance.
+for company-restricted local npm: do not repeatedly retry or ask users to unblock
+access/supply packages; use approved CI for dependency checks and publication.
+Standing authorization narrowly defers demonstrated environment-blocked local
+hooks/checks per PR to equivalent required remote checks, never source failures or
+remote gates. Preserve complete lint, exact-head/lock artifact evidence and native
+acceptance. Desktop still ships its installer, not substitute tarballs or hidden
+startup access to restricted public npm; local restrictions alone do not block release.
 The [Core candidate evidence](docs/core-016a2-delivery.md#core-candidate-remote-evidence)
 is not release-qualified; it authorizes no lock promotion or current Desktop install/restart.
 

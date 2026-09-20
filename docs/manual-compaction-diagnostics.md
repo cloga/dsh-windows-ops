@@ -46,7 +46,7 @@ change the header.
 | Generic "could not produce useful summary" message | Compaction did not yield an accepted usable result; inspect its underlying error | A semantic-quality evaluator rejected an otherwise complete summary |
 | `compactionRetries` is configured | It repeats **successful reductions** that still leave context above the threshold | Failed or truncated summaries are automatically retried or rescued |
 | A package is published or its version is present on disk | Publication or installed-file evidence only | That code is loaded in the running Host or used by this summary |
-| Frozen dependencies are unavailable during qualification | A separate build/test verification condition | Evidence of the cause of a live compaction failure |
+| Frozen dependencies are unavailable during qualification | A separate build/test verification condition; follow [CI-first qualification](core-upgrade.md#remote-qualification-checklist) for expected local npm restrictions, which alone do not block release | Evidence of the cause of a live compaction failure, or permission to ignore required CI failures |
 
 Failing summary requests do not carry full independent request/usage records in
 the inspected evidence. Nearby ordinary-request token counts are not measurements

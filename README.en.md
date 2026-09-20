@@ -70,6 +70,15 @@ pending Core publication and fresh hosted qualification. See [strict preparation
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.
 
+## Identify the running Desktop version
+
+See [Desktop version identification](docs/local-core-desktop-copilot.md#identify-the-running-desktop-version)
+for the complete native About-menu version, the distinction from Core and update
+candidates, and read-only executable metadata for older builds. The feature first
+ships in verified immutable [Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12).
+This release evidence does not promote the Ops baseline or change deployment pins;
+no installer execution or local activation accompanied verification.
+
 ## Current published deployment target (native Ops qualification passed in run `35278350619`)
 
 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-17**.

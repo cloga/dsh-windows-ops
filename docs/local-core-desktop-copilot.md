@@ -4,6 +4,59 @@
 
 For the V3 account/Session model separation and removal of an existing extra native Copilot route, use [the separate config-only managed-route procedure](copilot-managed-route.md). Do not recreate native model definitions from this pinned full-deployment guide or run its installer merely to migrate a newer Desktop. The maintenance command performs no component installation, Session/default selection, credentials access or restart; it requires fresh live evidence and explicit configuration approvals. Its policy does not replace the full deployment lock below.
 
+## Identify the running Desktop version
+
+**First verified release:** the native version-menu feature from
+[Desktop PR #91](https://github.com/cloga/deepseek-harness/pull/91) ships in
+[Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12).
+[Formal run `35528552640`](https://github.com/cloga/deepseek-harness/actions/runs/35528552640)
+passed build, immutable publication, and remote managed discovery from merged source
+`d19be3ff5524948c40cb9929cdd4d67d5cb35059`. All six published assets were independently
+verified against their sizes, remote digests, both checksum manifests, and source
+records. This is release evidence, not an Ops baseline promotion: the deployment
+lock below remains unchanged. No installer execution or local activation accompanied
+this verification.
+
+On a Desktop build containing that feature, open **Application → About Desktop
+`<version>`…** (Chinese: **应用 → 关于 Desktop `<version>`…**). The menu shows the
+running Electron application's full version, including every prerelease and fork
+suffix; selecting it opens the native About panel. Record the whole value, not
+just `0.1.6`. This shell-owned entry needs no network or healthy Host page.
+
+Keep these observations separate:
+
+- **About Desktop** identifies the running Desktop application.
+- **Check for Updates** or an update notice identifies an available replacement,
+  not proof that it is installed or running.
+- **Core/CLI version** identifies that Core or CLI runtime, not the Desktop shell.
+  A separate CLI on PATH may not be Desktop's bundled runtime at all.
+- **Windows file metadata** identifies a selected executable on disk, not the
+  already-running process or a completed managed update.
+
+For an older build without the menu entry, inspect the actual installed
+`cloga-deepseek-harness.exe` through Windows **Properties → Details**, or use this
+read-only PowerShell command without starting Desktop:
+
+```powershell
+$desktopExe = Read-Host 'Full path to the installed cloga-deepseek-harness.exe'
+(Get-Item -LiteralPath $desktopExe).VersionInfo |
+    Select-Object FileVersion, ProductVersion
+```
+
+Preserve any suffix that is present. Some releases expose only a numeric PE
+version: the locked `.cloga.2` executable below has ProductVersion `0.1.6.0`.
+Do not reconstruct a missing semantic suffix from that value; use verified
+installed-file hashes matched to the immutable release manifest/build receipt
+for an exact older release identity. A newly installed file can also differ from
+an application that has not yet been restarted. Version identification does not
+authorize installation, activation, or interruption of live Sessions.
+
+The formal release's isolated initial/restart acceptance records the full
+`About Desktop 0.1.6-alpha.1.cloga.12…` menu label and one About callback dispatch
+in each phase. The modal call is intercepted (`nativeModalOpened: false`): this
+proves neither native About window rendering nor an installer upgrade or activation
+of the operator's live application.
+
 ## Authoritative baseline
 
 [`deployments/windows-copilot.lock.json`](../deployments/windows-copilot.lock.json)

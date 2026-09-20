@@ -28,8 +28,10 @@
 `pm` 必须是首参数，`--offline` 不保证供应链校验不请求 registry 元数据；不得靠关闭校验来消除失败。
 
 远端适配时使用[资格验证清单](docs/core-upgrade.md#remote-qualification-checklist)：
-区分本地镜像限制与远端完整 CI，保留完整 lint JSON 与退出码，审查精确 head 的生成制品，
-解析解码后的 PowerShell，并区分 fixture/build 与隔离原生安装验收。
+公司本机 npm 限制不单独阻断发布，不反复重试或要求用户解禁/供包；依赖型检查与发布走获准 CI。
+有真实环境失败证据的本地 hook/check 已获长期授权按 PR 窄范围转至等价必需远端检查，
+不豁免代码错误或远端门禁。保留完整 lint/精确 head 与 lock 制品证据及隔离原生验收；
+Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时访问受限 public npm 的要求。
 [Core 候选证据](docs/core-016a2-delivery.md#core-candidate-remote-evidence)仍未达到发布资格；
 不得因此更新锁、安装或重启当前 Desktop。
 

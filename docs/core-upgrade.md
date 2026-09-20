@@ -67,18 +67,68 @@ artifacts; then synchronize qualified Ops locks/catalog/tests and bilingual docs
 Installation and restart are separate approvals. Never rewrite immutable releases,
 weaken integrity/TLS gates, patch a live Core, or silently interrupt Sessions.
 
+## Desktop release boundary
+
+`cloga/deepseek-harness` 默认公开交付是 `dsh-desktop-v<version>` 通道的 Windows
+Desktop installer，连同既有 manifest、receipt 和校验文件。先对照用户批准的产品与通道，
+再验哈希：raw Core/Web tarball、制品自述或资产数量不能授权替代；CI artifacts 不是安装交付。
+非 Desktop 类型和通道需要用户单独明确授权，并记录在 Issue/PR 或 release plan。
+此规则只约束该 Core fork；独立维护的插件保留各自已定发布渠道。
+
+For `cloga/deepseek-harness`, public delivery defaults to the Windows Desktop installer
+under `dsh-desktop-v<version>`, with its existing manifest, receipts and checksums.
+Check the user-approved product and channel before hashes: raw Core/Web tarballs,
+an artifact's self-description or asset count cannot authorize a substitute; CI
+artifacts are not installer delivery. A non-Desktop type/channel needs separate,
+explicit user authorization recorded in its Issue/PR or release plan. Independently
+maintained plugins retain their own agreed channels; this rule is specific to the Core fork.
+
+确认交付类型错误后，先在标题/说明标记 `WITHDRAWN`，保留并记录原 source、tag 和资产证据。
+[GitHub 不可变 Release 规则](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)
+允许改标题/说明以及删除整个 Release，但不能修改或单独删除资产，也不能在 Release 存在时移动 tag。
+先独立验证合格的 Desktop 替代，再按已获授权删除错误 Release；保留原 tag/source，
+不移动或复用 tag，不覆盖资产、不绕过 immutable 保护。此流程不授权本机安装或重启。
+
+For a confirmed delivery-type mismatch, first mark the title/notes `WITHDRAWN` and
+retain and record the original source, tag and asset evidence.
+[GitHub's immutable-release rules](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)
+permit title/notes edits and deletion of the entire Release, not asset changes or
+individual asset deletion, nor moving its tag while the Release exists. Independently
+verify a qualified Desktop replacement before authorized deletion of the wrong Release;
+retain its original tag/source, never move or reuse the tag, overwrite assets or bypass
+immutability. This procedure does not authorize local installation or restart.
+
 ## Remote qualification checklist
 
-本地镜像缺包不等于远端失败；漂亮的日志不等于完整诊断；制品生成成功不等于
-已接受或可发布。以下检查补充官方优先决策，不降低 CI、供应链或激活门槛。
+公司策略限制本机 npm 是预期环境边界，不要求用户解禁或提供包，也不反复本地重试。
+正常 frozen install、依赖型生成器、完整检查和发布走获准 GitHub CI；本地继续可运行检查。
+长期授权仅允许把有真实环境失败证据的本地依赖型 hook/check 按任务/PR 转到等价必需远端检查，
+记录窄范围进程级延后，不必重复求同一权限；代码错误及远端失败仍须修复，不能削弱门禁。
+本地受限不单独阻断 release goal；完整诊断、精确来源和制品验收要求保持不变。
 
-- **Dependencies and hooks:** an approved local npm mirror missing exact original
-  versions is not itself a merge/release blocker if normal remote frozen install,
-  full checks, build and artifact qualification succeed in an approved environment.
-  Record the local limitation separately. Never fabricate archives, downgrade to
-  make a check green, or bypass TLS/registry policy. A local hook bypass requires
-  actual failed-hook evidence and explicit user authorization for that one PR;
-  it never waives remote CI or release gates.
+- **Expected local boundary:** direct npm access can be intentionally disabled by
+  company policy. Local registry/TLS errors or unavailable package versions are
+  not proof of global unavailability or failed publication. Do not repeat local
+  npm attempts, ask the user to unblock access, or require user-supplied packages.
+  Keep source review and locally runnable existing-tool/cache checks moving.
+- **CI-first dependency work:** run normal lockfile-frozen installation,
+  dependency-consuming generators, full type/tests/build checks, packaging and
+  applicable publication in the project's approved GitHub CI/release environment.
+  Record local limits separately from actual remote failures. Diagnose and repair
+  failed required CI; do not mark a release-inclusive goal blocked solely on local
+  npm restrictions. Never fabricate archives, substitute/downgrade dependencies,
+  alter locks to hide failure, copy arbitrary `node_modules`, or bypass TLS,
+  credentials, registry policy or approved proxy boundaries.
+- **Narrow standing hook authorization:** only a demonstrated environment-blocked
+  local dependency-consuming hook/check may be deferred for the current task/PR
+  to an equivalent **required** GitHub CI check. Record the actual command, failure
+  and environmental cause; the exact process-scoped deferral; and the replacing
+  remote check/run at the same source head. Retain other local hooks and record
+  their results. Do not ask again for this same npm-related permission, but do not
+  use it for source failures, blanket hook skips or global configuration changes.
+  If no equivalent required check exists, the deferral does not qualify the work:
+  establish that coverage through normal reviewed CI policy before merge/release.
+  Remote CI, approvals, signing, integrity and release gates are never waived.
 - **Complete lint evidence:** native pretty output can suppress diagnostics with
   `File is too long to fit on the screen` / `seems like a minified file`. Run the
   official `scripts/run-oxlint.ts . --format=json` via the repository's declared
@@ -105,6 +155,15 @@ weaken integrity/TLS gates, patch a live Core, or silently interrupt Sessions.
   Copilot state cannot establish a writable composer. Exercise the actual official
   UI install (initially disabled), then enable and restart as a distinct acceptance
   step; source fixtures do not stand in for that transition.
+- **Distribution contract before asset integrity:** apply the
+  [Desktop release boundary](#desktop-release-boundary) before checking bytes.
+  Ordinary Desktop installation/startup must not
+  silently gain a requirement for company-blocked public npm. Declare and test
+  legitimate external runtime dependencies against the intended contract; an
+  archive is not automatically offline, and this is no blanket offline promise
+  for all plugins. Verify exact qualified merged source, lockfile and package
+  identity, intended assets/channel, provenance, sizes and checksums independently
+  after publication. Green CI alone is not release completion.
 - **Isolation and activation:** installer tests belong only on guarded, disposable
   GitHub-hosted Windows with an isolated test profile and explicit runner/path
   guards, never implicitly on the current Desktop. Preserve local Sessions and

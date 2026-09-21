@@ -66,7 +66,7 @@ for (const [name, mutate, code] of [
   ['manifest provisioning upgraded in lock', (l) => { l.components.desktop.releaseChannel.pluginCompatibility.automaticProvisioning = true; }, 'capability'],
   ['startup provisioning disabled', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning = false; }, 'capability'],
   ['different canonical plan', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.plan.planSha256 = '0'.repeat(64); }, 'plan'],
-  ['different plugin source', (l) => { l.components.copilotIntegration.source.commit = '0'.repeat(40); }, 'plugin'],
+  ['different plugin source', (l) => { l.components.copilotIntegration.source.commit = '0'.repeat(40); }, 'positive-usage'],
   ['modified raw fixture identity', (l) => { l.components.desktop.releaseChannel.buildReceipt.sha256 = '0'.repeat(64); }, 'file-hash'],
   ['defective historical helper', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.helperSha256 = '92c396c690f9e507ae4bacd8c158c4c236ec542ee04c30f603c6832a594a5830'; }, 'helper'],
   ['missing standalone ACK', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.helperAcceptance.validSyntheticHandoffAcknowledged = false; }, 'helper'],
@@ -99,7 +99,7 @@ test('formal plugin dependency registry differs from the frozen workspace build 
   assert.equal(read('release.json').build.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
-  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.32');
+  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.33');
   assert.equal(read('release.json').upstreamVersion, '0.1.6-alpha.1');
 });
 
@@ -206,6 +206,7 @@ function providerNavigationFixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'native-provider-navigation-evidence-'));
   t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
   const lock = actualLock();
+  delete lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance; // Inert settings fixture, not copied positive success.
   const proof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
   proof.schemaVersion = 2;
   const acceptancePath = join(root, 'acceptance.json');
@@ -332,10 +333,20 @@ function positiveUsageFixture(t) {
   save(); return { ...fixture, accepted, positive, proof, save };
 }
 
-test('optional positive proof accepts both synthetic routes without promoting current lock', t => {
+test('optional positive proof accepts both synthetic routes without altering formal proof', t => {
+  const original = actualLock().components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
   const { lock, root } = positiveUsageFixture(t);
   assert.equal(verifyNativeReleaseEvidence(lock, root).valid, true);
-  assert.equal(actualLock().components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance, undefined);
+  assert.deepEqual(actualLock().components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance, original);
+});
+test('current formal release requires hash-bound positive canonical and preview evidence', () => {
+  const lock = actualLock();
+  const proof = lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+  assert.equal(proof.schemaVersion, 1);
+  assert.equal(proof.sha256, 'a1515b7ee5af44ff8e7ad86fa07ce8faedaa13f157d02ad99e4a4f99ee174b45');
+  assert.equal(proof.installedClientSha256, '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435');
+  assert.equal(hash(readFileSync(join(formalRoot, 'positive-usage.json'))), proof.sha256);
+  assert.equal(verifyNativeReleaseEvidence(lock, formalRoot).valid, true);
 });
 for (const field of ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage',
   'clientDisposalRemovesUsage', 'applicationMountPreserved', 'syntheticSiblingPreserved']) {

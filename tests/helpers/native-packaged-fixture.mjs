@@ -12,6 +12,7 @@ export function packagedFixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'ops-inert-combined-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const d = lock.components.desktop; const c = d.releaseChannel; const n = c.nativeProvisioning;
+  delete n.usagePositiveAcceptance; // This inert alpha.2 fixture does not exercise the optional positive contract.
   cpSync(join(root, n.fixtureRoot.replaceAll('\\', '/')), directory, { recursive: true });
   const get = file => JSON.parse(readFileSync(join(directory, file)));
   const put = (file, value) => { const path = join(directory, file); mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, JSON.stringify(value)); return digest(file); };

@@ -30,8 +30,8 @@ Later merges, releases, hashes and acceptance limits are recorded in the
 0.1.8 and Copilot alpha.25 publication receipts remain intact.
 [Copilot alpha.28 publication](docs/core-016a2-delivery.md#copilot-alpha28-publication-checkpoint)
 remains historical. The deployment lock now selects the independently verified
-Desktop `0.1.6-alpha.1.cloga.14` / bundled Core alpha.1 / Copilot alpha.32 pair.
-Alpha.32 admits official Core alpha.2, but separately owned draft Desktop PR 68
+Desktop `0.1.6-alpha.1.cloga.16` / bundled Core alpha.1 / Copilot alpha.33 pair.
+Alpha.33 admits official Core alpha.2, but separately owned draft Desktop PR 68
 is unqualified and is not promoted by this maintenance release. Publication and
 formal source acceptance do not install or activate the pair locally and do not
 prove live compaction rescue, OAuth, model or search behavior.
@@ -61,7 +61,7 @@ is not release-qualified; it authorizes no lock promotion or current Desktop ins
 **Alpha.2 compatibility preparation remains separate:** the native descriptor
 validator requires Host protocol 4 only for exact Core `0.1.6-alpha.2`; legacy
 protocol 3 and synthetic-only checks remain intact. The published lock keeps
-Desktop `.cloga.14` on bundled Core alpha.1. Alpha.32's alpha.2 admission does not
+Desktop `.cloga.16` on bundled Core alpha.1. Alpha.33's alpha.2 admission does not
 qualify or deploy the draft alpha.2 Desktop. See [strict preparation boundaries](docs/core-016a2-assessment.md#strict-native-compatibility-preparation).
 
 **Combined-evidence preparation is not promotion:** [Ops #181 preparation](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
@@ -71,9 +71,11 @@ ordinary acceptance path after cleanup. Genuine Ops caller identity stays separa
 from verified Core checkout identity; the private Ops source archive is not a Git
 checkout. The exact successful Core CI summary can
 attest installed checks whose root records were not archived; it does not enable
-full offline replay. The six public assets and qualified `.cloga.14`/alpha.32 lock
-remain unchanged. Alpha.2 is unpublished and unqualified; this preparation does
-not authorize installation, activation or restart.
+full offline replay. This alpha.2 preparation changes neither the six-asset public
+contract nor the independently reviewed `.cloga.16`/alpha.33 target; its formal
+proof is authenticated but fresh hosted Native Ops qualification is pending.
+Alpha.2 is unpublished and unqualified; this preparation does not authorize
+installation, activation or restart.
 
 ## Copilot account-discovered route maintenance
 
@@ -89,20 +91,27 @@ Formal source evidence does not install or activate it locally.
 
 ## Current published deployment target
 
-[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Its current verification date is **2026-09-20**.
+[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Published artifacts and formal proof were independently verified on **2026-09-21**; fresh hosted Native Ops qualification is still pending.
 
 | Component | Locked version |
 |---|---|
-| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.14`, sequence 24, immutable Release `392640510`, source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` |
-| Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`; descriptor SHA-256 `8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55`; default ASAR root follows the installed EXE |
-| Required `dsh-github-copilot` | immutable `0.4.0-alpha.32`, source `76d190aed688e073df930adb3c753d2a749519c9`; delegated through `desktopNativeVerifiedRelease` |
-| Formal packaged evidence | run `35549412610`, attempt 1; 20 byte-exact tracked JSON fixtures, schema-2 settings/version-menu and schema-1 signed-out usage evidence |
-| Native Ops qualification | registered caller run `35553019059` passed at exact head `68a1218ef6a50f06870bae483d64f52d6de244aa`; raw summary SHA-256 `bc90877cad62f68e7816d35035a1bbffa9a678b773d79884c2ae680941c3ec00` |
+| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.16`, sequence 27, immutable Release `392765616`, source `2c4f20904887240f83f776c79d8d69a42ce6c1e6` |
+| Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`; descriptor SHA-256 `b5b9b31ce34871ab320f63a91254ba601fd71edc447609d261360d84e4b929e8`; default ASAR root follows the installed EXE |
+| Required `dsh-github-copilot` | immutable `0.4.0-alpha.33`, source `aa90fe434da8b2172faa1446afa0a0fd006afe00`; delegated through `desktopNativeVerifiedRelease` |
+| Formal packaged evidence | run `35569892548`, attempt 2 SUCCESS; schema-2 settings/version-menu, schema-1 signed-out usage and authenticated optional positive usage proof |
+| Native Ops qualification | **Fresh hosted qualification pending**; historical `.cloga.14`/alpha.32 run `35553019059` cannot be transferred |
 
 Formal acceptance verified read-only current-workspace state, Model roles, equal
 `deepseek-official`/`github-copilot-hosted` catalogs, provider-only routing,
-Fallback labeling, exact Desktop About-menu identity and absent signed-out usage surface after account readiness across restart. It did not instrument Host requests or perform live quota, OAuth, verification navigation, model/search calls, save/create,
-installation or restart. External-navigation success remains unqualified.
+Fallback labeling, exact Desktop About-menu identity and absent signed-out usage surface after account readiness across restart.
+The added schema-1 `usagePositiveAcceptance` uses the released Client and actual
+renderer/SessionProvider/Slot with synthetic Session/quota/test mount. Canonical
+and preview cases run once after the restart graph. [Formal proof and hashes](docs/copilot-alpha33-upgrade-record.md)
+are authenticated, not pending artifacts; they are not live account/network proof.
+Attempt 1's `EBUSY` helper-cleanup failure remains history. Acceptance did not
+instrument Host requests or perform live quota, OAuth, verification navigation,
+model/search calls, save/create, local installation or restart. External-navigation
+success remains unqualified.
 
 A lock update defines the reviewed target, not installed-machine state. Do not run
 a future-lock current-machine Check while installed Desktop remains `.cloga.10`;
@@ -118,15 +127,17 @@ source build uses `https://registry.npmjs.org/`. Do not patch a live plan or rel
 TLS. Historical formal/Ops fixtures and all prior failure records remain unchanged.
 
 Every upgrade follows the [official-first checklist](docs/local-core-desktop-copilot.md#official-first-upgrade-checklist).
-The [alpha.32 formal acceptance record](docs/copilot-alpha32-upgrade-plan.md)
-credits official/delegated Core primitives, records retained plugin/Desktop gaps,
-and documents exact source, assets, schema-2 evidence and synthetic/downstream
-boundaries. Alpha.32 is not official Core; alpha.2 compatibility does not promote
-the separately owned draft Desktop PR 68.
+The [alpha.33 formal acceptance record](docs/copilot-alpha33-upgrade-record.md)
+documents exact source, assets, positive proof and synthetic/downstream boundaries.
+PR #157 fixes the plugin through the official `useSession` selector contract,
+without changing Core. The [historical alpha.32 record](docs/copilot-alpha32-upgrade-plan.md)
+retains official/delegated primitives and plugin/Desktop gaps. Alpha.33 is not
+official Core; alpha.2 compatibility does not promote separately owned draft
+Desktop PR 68.
 
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
-release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.14` installer,
+release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.16` installer,
 explicit interruption consent and a clean Desktop/Host exit, coordinated by the
 operator outside the broken helper. Do not patch live files or install missing
 dependencies into an update operation. Generic direct registry probe failures

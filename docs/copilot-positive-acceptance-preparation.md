@@ -1,9 +1,14 @@
-# Copilot positive usage acceptance preparation
+# Copilot positive usage acceptance: preparation and formal proof
 
-Tracking: [Ops #210](https://github.com/cloga/dsh-windows-ops/issues/210).
-This is verifier preparation only, not a new deployment target or release acceptance.
-The current deployment lock, catalog, version fixtures and formal hashes remain unchanged.
-No live profile, Core, installed Desktop or running Session is modified.
+Tracking: [Ops #210](https://github.com/cloga/dsh-windows-ops/issues/210) /
+[PR #211](https://github.com/cloga/dsh-windows-ops/pull/211).
+The initial verifier-preparation stage changed no deployment target, catalog, version
+fixtures or formal hashes. That stage is historical: the release owner has now
+independently authenticated Desktop `.cloga.16` / sequence 27 / Copilot alpha.33
+formal proof and authorized its baseline repin, with bundled Core unchanged at
+`0.1.6-alpha.1`. See the [formal upgrade record](copilot-alpha33-upgrade-record.md).
+Fresh hosted Native Ops qualification remains pending; formal proof is not that
+qualification. No live profile, Core, installed Desktop or running Session is modified.
 
 ## Official selector contract, not a Core workaround
 
@@ -20,7 +25,8 @@ require a selector argument for the Session snapshot hook:
 
 Decision: consume the official selector primitive. Plugin alpha.33 source
 `aa90fe434da8b2172faa1446afa0a0fd006afe00` corrects its Session-hook invocation;
-Ops neither adds a selector fallback nor patches Core. Full official parity applies
+[Plugin PR #157](https://github.com/cloga/dsh-github-copilot/pull/157) consumes
+that official contract. Ops neither adds a selector fallback nor patches Core. Full official parity applies
 only to this primitive, not to live Copilot quota or a complete feature replacement.
 The plugin-owned account/quota UI and regression remain until an official equivalent
 is verified against its requirements; no persistent data migration is introduced here.
@@ -36,8 +42,14 @@ object enables the new gate. It has three required fields:
 | `sha256` | Authenticated raw SHA-256 of the single `positive-usage.json` |
 | `installedClientSha256` | Authenticated SHA-256 of the actual installed plugin `lib/client.js` |
 
-Do not fill these hashes from unit inputs. They remain pending until the release owner
-independently authenticates final published artifacts and their source-owned acceptance.
+Do not fill these hashes from unit inputs. For the now-authenticated `.cloga.16` /
+alpha.33 formal target, schema 1 pins positive-file SHA-256
+`a1515b7ee5af44ff8e7ad86fa07ce8faedaa13f157d02ad99e4a4f99ee174b45`
+and installed Client SHA-256
+`6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435`.
+The release owner's independent artifact authentication completed after initial
+preparation; these hashes are no longer pending. They do not establish fresh Ops
+native qualification or local activation.
 The formal verifier hashes the positive file; the fresh-source verifier independently
 hashes newly produced output against the same reviewed proof. Its read-only observer also
 hashes the actual isolated profile's Client bytes before source-owned cleanup.
@@ -79,8 +91,9 @@ required alongside positive proof. Signed-out initial/restart observations must 
 deterministically equal and match the main acceptance leaves. Positive proof does not
 replace those checks or claim packaged Host quota-network instrumentation.
 
-The owning Node tests use temporary synthetic/rehashed copies and negative inputs only;
-none is a copied success artifact or fabricated published byte set. Run:
+The owning Node tests keep synthetic/rehashed negative inputs in temporary copies,
+separate from the byte-exact authenticated formal fixtures. No synthetic result is
+represented as published evidence. Run:
 
 ```text
 node tools/validate-repository-content.mjs
@@ -88,8 +101,10 @@ node tools/validate-plugin-catalog.mjs
 node --test tests/native-desktop-acceptance.test.mjs tests/native-asar-release-smoke.test.mjs
 ```
 
-The release owner still owns exact artifact authentication, optional proof activation,
-all baseline repins, PowerShell and bilingual/current guide synchronization, native CI
-qualification, merge and any separately authorized activation. This internal opt-in
-preparation changes no current supported target or user command, so README entry points
-are intentionally unchanged.
+The initial preparation deliberately left baseline pins and README entry points
+unchanged. The subsequent authorized repin now synchronizes the formal target,
+optional positive-proof hashes and bilingual/current guides. Formal run
+`35569892548` attempt 2 succeeded; attempt 1's `EBUSY` copied-helper cleanup failure
+remains history, not an explained or erased failure. The release owner still owns
+fresh hosted native CI qualification, merge and any separately authorized activation.
+Neither this proof nor its repin changes Core or authorizes a local install/restart.

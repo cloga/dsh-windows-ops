@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-17",
+  "updatedAt": "2026-09-21",
   "validationLevels": [
     {
       "id": "L0",
@@ -70,26 +70,26 @@
       ],
       "integration": "cordis",
       "artifact": {
-        "name": "dsh-github-copilot-0.4.0-alpha.32.tgz",
-        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.32/dsh-github-copilot-0.4.0-alpha.32.tgz",
-        "sha256": "8f5b55488fd1bb9949ef8aa23b1bf2d41b3da52584b38497685ce07559290e32",
-        "sha512": "95b64d9a2e0442b081d35f02d5113e9b06fa9b49cafdaede26da41d53e3f308f952919653097eb5491a66ae48fb27e25576c46180e3c704036de12b4bbd4fe3a",
-        "integrity": "sha512-lbZNmi4EQrCB018C1RE+mwb6m0nK/a7eJtpB1T4/MI+VKRllMJfrVJGmauSPsn4lV2xGGA48cEA23hK0u9T+Og==",
-        "releaseTag": "v0.4.0-alpha.32",
-        "releaseCommit": "76d190aed688e073df930adb3c753d2a749519c9",
+        "name": "dsh-github-copilot-0.4.0-alpha.33.tgz",
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/dsh-github-copilot-0.4.0-alpha.33.tgz",
+        "sha256": "b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480",
+        "sha512": "7cc38d8764e1b2edd84efdba0e719614394d836bf1ded604e82aa6e3f02ae4b98bc09a3bd707916474e42694677a70db5a4cdcbb8c8d9a4eeef86509c5bd1b43",
+        "integrity": "sha512-fMONh2Thsu3YTv26DnGWFDlNg2vx3tYE6Cqm4/Aq5LmLwJo71weRZHTkJpRnenDbWkzcu4yNmk7u+GUJxb0bQw==",
+        "releaseTag": "v0.4.0-alpha.33",
+        "releaseCommit": "aa90fe434da8b2172faa1446afa0a0fd006afe00",
         "releaseImmutable": true,
-        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.32/SHA256SUMS",
-        "size": 723822,
-        "checksumManifestSha256": "a8e7dd1906b0478d80d5540217d80bb09837079d46b17c71143597de2726c7c2",
+        "checksumManifestUrl": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/SHA256SUMS",
+        "size": 724820,
+        "checksumManifestSha256": "f81df10b7fd6e40b2319a42de1f04c3b7f7eccc57809b51623c9145f2a3df076",
         "checksumManifestSize": 104
       },
       "source": {
         "repository": "https://github.com/cloga/dsh-github-copilot",
-        "pullRequest": 155,
-        "commit": "76d190aed688e073df930adb3c753d2a749519c9",
-        "reviewedHead": "03f9042c428f0ccbe17a18b686f5ce1bfc116648",
-        "mergeCommit": "76d190aed688e073df930adb3c753d2a749519c9",
-        "release": "0.4.0-alpha.32"
+        "pullRequest": 157,
+        "commit": "aa90fe434da8b2172faa1446afa0a0fd006afe00",
+        "reviewedHead": "3f765c61f5ceb6549a322e0407bab0c61e07b3d2",
+        "mergeCommit": "aa90fe434da8b2172faa1446afa0a0fd006afe00",
+        "release": "0.4.0-alpha.33"
       },
       "platforms": [
         "cross-platform"
@@ -103,7 +103,7 @@
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The Windows deployment lock selects immutable Desktop 0.1.6-alpha.1.cloga.14, bundled Core 0.1.6-alpha.1, and Copilot 0.4.0-alpha.32. Exact Release/source/installer/runtime/plugin identities, schema-2 navigation/version evidence and schema-1 signed-out usage evidence are correlated. Genuine registered native-ASAR run 35553019059 passed at exact Ops head 68a1218ef6a50f06870bae483d64f52d6de244aa; no local installation or activation is claimed.",
+            "description": "The Windows deployment lock selects the published immutable Desktop 0.1.6-alpha.1.cloga.16 sequence 27, bundled Core 0.1.6-alpha.1, and Copilot 0.4.0-alpha.33. Exact Release/source/installer/runtime/plugin identities, schema-2 settings/version evidence, schema-1 signed-out usage and positive synthetic Session/quota evidence are correlated. Formal release run 35569892548 attempt 2 is verified; independent new Windows Ops native-ASAR qualification is pending. Historical alpha32 Ops evidence does not qualify this target; no local installation or activation is claimed.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -118,12 +118,12 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "Formal source run 35549412610 attempt 1 verified packaged Electron initial/restart provisioning, signed-out account and Model roles views, read-only current workspace, provider-only search routing, Fallback labeling, equal registered provider catalogs, Desktop version menus, graph/ancestor isolation, helper handoff and cleanup for 0.1.6-alpha.1.cloga.14/0.4.0-alpha.32. It performed no real OAuth, model/search call, external-navigation success, installer upgrade or local activation.",
-            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-14/acceptance.json"
+            "description": "Formal source run 35569892548 attempt 2 verified packaged Electron initial/restart provisioning, signed-out account and Model roles views, read-only current workspace, provider-only search routing, Fallback labeling, equal registered provider catalogs, Desktop version menus, graph/ancestor isolation, helper handoff and cleanup for 0.1.6-alpha.1.cloga.16/0.4.0-alpha.33. The positive usage phase loaded the released client bytes with isolated synthetic Session/quota for both Copilot routes; its Host transport was not provided. It proves neither a native persisted Session nor live account quota, real OAuth, model/search calls, external-navigation success, installer upgrade or local activation. Independent new Windows Ops native-ASAR qualification remains pending.",
+            "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-16/acceptance.json"
           },
           {
             "kind": "import-probe",
-            "description": "Genuine registered-caller run 35553019059 / job 106191374011 passed at exact Ops head 68a1218ef6a50f06870bae483d64f52d6de244aa against Desktop .cloga14 / bundled Core alpha1 / Copilot alpha32. Artifact 10619156852 original ZIP is 733 bytes, SHA256 dfc92806f244714b0022ce3e2d51e312f8215101b9ecd7a6b153691a82db15f3; its sole byte-exact 1073-byte summary has SHA256 bc90877cad62f68e7816d35035a1bbffa9a678b773d79884c2ae680941c3ec00. It proves 9806 runtime files, exact archive-package identity, public metadata+CJS+ESM resolution, one observer/profile cleanup and three rejected request copies. Fresh settings/version-menu/usage phases were enforced by the qualified driver, not invented as summary fields. Whole-carrier/model/installed-upgrade remain false; no live quota, Host packet observation, external-navigation success or local activation is claimed.",
+            "description": "HISTORICAL .cloga.14/alpha.32 ONLY, not qualification of current .cloga.16/alpha.33: Genuine registered-caller run 35553019059 / job 106191374011 passed at exact Ops head 68a1218ef6a50f06870bae483d64f52d6de244aa against Desktop .cloga14 / bundled Core alpha1 / Copilot alpha32. Artifact 10619156852 original ZIP is 733 bytes, SHA256 dfc92806f244714b0022ce3e2d51e312f8215101b9ecd7a6b153691a82db15f3; its sole byte-exact 1073-byte summary has SHA256 bc90877cad62f68e7816d35035a1bbffa9a678b773d79884c2ae680941c3ec00. It proves 9806 runtime files, exact archive-package identity, public metadata+CJS+ESM resolution, one observer/profile cleanup and three rejected request copies. Fresh settings/version-menu/usage phases were enforced by the qualified driver, not invented as summary fields. Whole-carrier/model/installed-upgrade remain false; no live quota, Host packet observation, external-navigation success or local activation is claimed.",
             "path": "tests/fixtures/desktop-native-verified-release/ops-cloga016-14/qualification.json"
           },
           {
@@ -151,7 +151,7 @@
           "This entry pins the required plugin in the full deployment target, not the separate newer managed-route maintenance contract. See docs/copilot-managed-route.md and deployments/copilot-managed-route.policy.json for separately approved configuration-only maintenance; no implicit component upgrade or full-baseline attestation is provided."
         ]
       },
-      "summary": "The locked DSH companion for Copilot sign-in, account-aware models, provider-scoped Tool compatibility, provider-only primary/fallback search routing and official transport delegation. Alpha.32 remains a plugin, not official Core; the managed Desktop retains bundled Core alpha.1."
+      "summary": "The locked DSH companion for Copilot sign-in, account-aware models, provider-scoped Tool compatibility, provider-only primary/fallback search routing and official transport delegation. Alpha.33 fixes the required Session selector in the usage UI and remains a plugin, not official Core; the managed Desktop retains bundled Core alpha.1. Formal release evidence is available; independent new Windows Ops native qualification is pending."
     },
     {
       "id": "dsh-playwright-host",

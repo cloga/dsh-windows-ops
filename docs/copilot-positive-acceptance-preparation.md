@@ -3,14 +3,18 @@
 Tracking: [Ops #210](https://github.com/cloga/dsh-windows-ops/issues/210) /
 [PR #211](https://github.com/cloga/dsh-windows-ops/pull/211).
 The initial verifier-preparation stage changed no deployment target, catalog, version
-fixtures or formal hashes. That stage is historical: the release owner has now
-independently authenticated Desktop `.cloga.16` / sequence 27 / Copilot alpha.33
-formal proof and authorized its baseline repin, with bundled Core unchanged at
-`0.1.6-alpha.1`. See the [formal upgrade record](copilot-alpha33-upgrade-record.md).
-Fresh hosted Native Ops qualification separately passed in run `35575187267`
+fixtures or formal hashes. That stage and the subsequent `.cloga.16` repin are
+historical: the release owner independently authenticated Desktop `.cloga.16` /
+sequence 27 / Copilot alpha.33 formal proof and authorized that repin, with bundled
+Core unchanged at `0.1.6-alpha.1`. See its [formal upgrade record](copilot-alpha33-upgrade-record.md).
+That historical target's fresh hosted Native Ops qualification separately passed in run `35575187267`
 at exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`; formal proof
 alone is not that qualification. This later documentation/evidence-only follow-up
-records that code-head result, not a native rerun of its own head. No live profile,
+records that code-head result, not a native rerun of its own head. The
+[deployment lock](../deployments/windows-copilot.lock.json) and [authoritative guide](local-core-desktop-copilot.md#authoritative-baseline)
+define the current candidate; the [`.cloga.17` owning record](desktop-external-links-17.md)
+records verified publication and **still-pending fresh hosted Native Ops qualification**.
+No `.cloga.16` hash or success receipt transfers to `.17`. No live profile,
 Core, installed Desktop or running Session is modified.
 
 ## Official selector contract, not a Core workaround
@@ -45,7 +49,7 @@ object enables the new gate. It has three required fields:
 | `sha256` | Authenticated raw SHA-256 of the single `positive-usage.json` |
 | `installedClientSha256` | Authenticated SHA-256 of the actual installed plugin `lib/client.js` |
 
-Do not fill these hashes from unit inputs. For the now-authenticated `.cloga.16` /
+Do not fill these hashes from unit inputs. For the historical authenticated `.cloga.16` /
 alpha.33 formal target, schema 1 pins positive-file SHA-256
 `a1515b7ee5af44ff8e7ad86fa07ce8faedaa13f157d02ad99e4a4f99ee174b45`
 and installed Client SHA-256
@@ -106,8 +110,8 @@ node --test tests/native-desktop-acceptance.test.mjs tests/native-asar-release-s
 ```
 
 The initial preparation deliberately left baseline pins and README entry points
-unchanged. The subsequent authorized repin now synchronizes the formal target,
-optional positive-proof hashes and bilingual/current guides. Formal run
+unchanged. The subsequent historical `.cloga.16` authorized repin synchronized that
+formal target, optional positive-proof hashes and then-current bilingual guides. Formal run
 `35569892548` attempt 2 succeeded; attempt 1's `EBUSY` copied-helper cleanup failure
 remains history, not an explained or erased failure. Fresh hosted run `35575187267`
 attempt 1 succeeded at code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`,

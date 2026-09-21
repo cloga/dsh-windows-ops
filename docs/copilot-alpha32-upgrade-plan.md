@@ -3,10 +3,14 @@
 ## Historical published pair
 
 This record preserves `.cloga.14`/alpha.32 evidence; it is not the current target.
-See the [alpha.33 upgrade record](copilot-alpha33-upgrade-record.md) for the
-`.cloga.16`/sequence-27 repin and its separate hosted Ops qualification in run
-`35575187267` at exact code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`.
-No historical hashes or success receipts below are transferred to that pair.
+The [deployment lock](../deployments/windows-copilot.lock.json) and
+[authoritative guide](local-core-desktop-copilot.md#authoritative-baseline) define
+the current candidate; see the [`.cloga.17` owning record](desktop-external-links-17.md)
+for verified publication and still-pending fresh hosted Native Ops qualification.
+The [alpha.33 upgrade record](copilot-alpha33-upgrade-record.md) preserves the historical
+`.cloga.16`/sequence-27 repin and its separate hosted Ops run `35575187267` at exact
+code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`.
+No historical hashes or success receipts transfer to the current candidate.
 
 The historical managed target is immutable [Windows Desktop `0.1.6-alpha.1.cloga.14`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.14), sequence 24, source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7`, tree `8e636d110dcbd2e9662deb6d36e6e75b3f3fb0b2`, bundled Core `0.1.6-alpha.1`, and required [Copilot `0.4.0-alpha.32`](https://github.com/cloga/dsh-github-copilot/releases/tag/v0.4.0-alpha.32), source `76d190aed688e073df930adb3c753d2a749519c9`.
 

@@ -37,18 +37,80 @@ real search, OAuth or model proof; `installerUpgradeVerified:false` stays false.
 No legacy rc.2 build/install tooling or runtime trust boundary is changed.
 
 **This is pre-publication preparation, not a qualified or deployed alpha.2 baseline.**
-Exact published Desktop `0.1.6-alpha.1.cloga.2` / Core `0.1.6-alpha.1` / Copilot
-alpha.24 pins remain authoritative. Unit tests use temporary inert copies, never
-relabeled formal evidence. After Core publication, a separate reviewed promotion
-must independently verify immutable assets/source/hashes, update
-`deployments/windows-copilot.lock.json`, `catalog/plugins.json`, formal release
-fixtures and their dependent assertions/docs, and obtain fresh hosted Native Ops
-qualification. Old source/qualification receipts cannot certify the new pair.
-This preparation neither installs/activates/restarts nor changes profiles or state.
+The qualified published Desktop `0.1.6-alpha.1.cloga.14` / Core `0.1.6-alpha.1` /
+Copilot alpha.32 pins remain authoritative. Earlier `.cloga.2`/alpha.24 records
+remain historical Ops evidence and the separately owned Core installer-upgrade
+fixture baseline, not the current Ops deployment. Unit tests use temporary inert
+copies, never relabeled formal evidence. After alpha.2 publication, a separate
+reviewed promotion must independently verify immutable assets/source/hashes,
+update `deployments/windows-copilot.lock.json`, `catalog/plugins.json`, formal
+release fixtures and their dependent assertions/docs, and obtain fresh hosted
+Native Ops qualification. Old source/qualification receipts cannot certify the
+new pair. This preparation neither installs/activates/restarts nor changes
+profiles or state.
 
 本节仅记录发布前严格兼容准备，不宣称 alpha.2 已发布、已通过正式验收或已部署。
-保留 alpha.1.cloga.2/alpha.24 的不可变 pins、现有 schema 与真实证据字段；发布后另行
-核验制品、评审提升 lock/catalog/fixtures，并执行新的 hosted qualification。
+当前已合格 Ops 基线保持 alpha.1.cloga.14/Core alpha.1/Copilot alpha.32；
+旧 `.cloga.2`/alpha.24 仍是历史 Ops 证据和 Core 安装升级 fixture 基线，而非当前 Ops 部署。
+Alpha.2 发布后仍须另行核验制品、评审提升 lock/catalog/fixtures，并执行新的 hosted qualification。
+
+## Alpha2 combined packaged evidence preparation
+
+Ops #181 prepares an explicit adapter for the alpha.2 candidate's combined
+packaged evidence. This is source compatibility work, not qualification or
+promotion of an unpublished release. Historical ordinary acceptance and original
+formal/Ops fixtures remain unchanged; the current qualified `.cloga.14`/alpha.32
+deployment is not replaced.
+
+Imported formal evidence requires the complete original `functional-results.json`,
+finalized `failure.json`, `observer-cleanup.json` and last-written
+`packaged-suite.json` graph, with ordinary `acceptance.json` absent. Provisional
+functional observations are not ordinary acceptance or suite success. The reviewed
+exact version and declared format select the adapter; file existence, broad
+version ranges and catch/fallback cannot select another interpretation. Source,
+tree, run/attempt, plan and raw artifact/receipt hashes must remain bound to the
+same independently reviewed evidence. Never rename or reinterpret one receipt as
+another.
+
+Fresh Ops qualification is a different contract. `tests/native-asar-release-smoke.mjs`
+uses the real ordinary Core owner with a successful read-only resolver observer,
+not the throwing combined canary. Its ordinary acceptance is finalized only after
+cleanup. Resolver, request-copy, snapshot and removal checks remain required; a
+formal combined suite cannot substitute for that fresh run.
+
+The fresh run preserves two independent source identities: the genuine Ops caller
+repository/commit/run/attempt and the actual Core checkout. Private Ops source is
+provided as a Git archive without `.git`; it supplies no locally derived Ops
+source-tree claim. The dedicated caller validates Core checkout identity before
+and after invoking its ordinary fixture, temporarily omits only the unrelated
+Ops `GITHUB_SHA` for that invocation, and restores it in `finally`. It never
+substitutes a fabricated Core `GITHUB_SHA`; the real Ops run ID and attempt remain
+unchanged. Workflow validation binds caller evidence back to the genuine Ops job
+context rather than treating a Core commit as the Ops caller commit.
+
+The exact successful Core CI qualification summary attests the installed-record
+checks for its bound source/run and listed input hashes. Current hosted archives
+retain phase evidence and baseline acquisition metadata, but omit root
+`owner.json`, `validated.json` and `retained.json`. Ops can verify retained bytes
+and the successful bound CI verifier, not fully replay the original ownership,
+validation and retained-home graph offline. Do not fabricate missing records,
+rewrite observed paths or probe deleted hosted directories on an operator machine.
+This limit neither demonstrates a publisher bypass nor permits broadening the
+packaged/fresh-Ops `installerUpgradeVerified:false` scope.
+
+The six public release assets stay unchanged: qualification summaries and combined
+receipts are internal evidence, not a seventh asset. Same-version plugin choices
+are not cross-installer retention; native popup/modal rendering, live quota,
+OAuth, model/search and Session billing remain outside these observations.
+Synthetic adapter tests are not hosted or installed qualification. Alpha.2 remains
+unpublished and unqualified, with no installation, activation or restart authorized.
+
+组合格式只适用于经过明确评审的正式导入证据；全新 Ops resolver observer 仍成功走普通验收路径，
+清理后才提交普通 acceptance。Ops 调用方身份来自实际 job，与调用前后核验的 Core 检出身份分开；
+私有 Ops 归档没有 `.git`，不宣称本地派生的 Ops tree。调用期间仅临时移除无关的 Ops `GITHUB_SHA`，
+并在 `finally` 还原，保留真实 run/attempt，绝不伪造 Core SHA。Core CI 的精确成功摘要可以证明执行过安装检查，但归档缺少
+根 owner/validated/retained 记录，不能完整离线重放。六个公开资产、当前已合格部署和历史原始字节
+保持不变；alpha.2 准备工作不等于发布、安装或激活。
 
 ## Audited starting points
 

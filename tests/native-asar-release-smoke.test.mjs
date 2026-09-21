@@ -47,7 +47,8 @@ function forbidChildren(t) {
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); assert.equal(calls, 0, 'validation failure must execute zero subprocesses'); });
 }
 
-for (const upstream of ['0.1.6-alpha.1', '0.1.6-alpha.2'])
+// Alpha.2 now uses the explicit full proof fixture in native-packaged-evidence.test.mjs.
+for (const upstream of ['0.1.6-alpha.1'])
 for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles', 'string-catalog', 'real-search', 'initial-tamper', 'restart-tamper']) {
   test(`fresh settings gate ${upstream}/${mode} binds copied leaves without execution (inert inputs)`, t => {
     const lock = actualLock(), output = temporary(t); forbidChildren(t);
@@ -55,8 +56,6 @@ for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles'
     delete legacyProof.schemaVersion; delete legacyProof.initialVersionMenuSha256; delete legacyProof.restartVersionMenuSha256;
     delete lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance;
     lock.components.desktop.releaseChannel.upstreamVersion = upstream;
-    // alpha.2 must require settings even below alpha.1's historical sequence threshold.
-    if (upstream === '0.1.6-alpha.2') lock.components.desktop.releaseChannel.sequence = 1;
     const fixture = fileURLToPath(new URL('../' + lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
     for (const phase of ['initial', 'restart']) {
       const name = `${phase}-settings-readonly.json`;
@@ -351,6 +350,19 @@ test('manual workflow preserves acquisition, token and source-loader boundaries 
   assert.ok(workflow.includes('pnpm run build:lib:host'));
   assert.ok(workflow.includes('node --import tsx/esm'));
   assert.ok(workflow.includes('/output/qualification.json'));
+  // Alpha.2-only summary v2 binds the true Ops caller, not the independently verified Core checkout.
+  assert.ok(workflow.includes("$alpha2 = $lock.components.desktop.releaseChannel.upstreamVersion -ceq '0.1.6-alpha.2'"));
+  assert.ok(workflow.includes('$schema = if ($alpha2) { 2 } else { 1 }'));
+  for (const [leaf, environment] of [['repository', 'GITHUB_REPOSITORY'], ['sourceCommit', 'GITHUB_SHA'], ['runId', 'GITHUB_RUN_ID'], ['runAttempt', 'GITHUB_RUN_ATTEMPT']]) {
+    assert.ok(workflow.includes(`$caller.${leaf} -cne $env:${environment}`));
+  }
+  assert.ok(workflow.includes("'repository,runAttempt,runId,sourceCommit'"));
+  assert.ok(!workflow.includes('$env:GITHUB_SHA ='));
+  const driver = readFileSync(new URL('./native-asar-release-smoke.mjs', import.meta.url), 'utf8');
+  assert.ok(driver.indexOf('verifySource(lock, confirmation, sourceRoot);') < driver.indexOf('const caller ='));
+  assert.ok(driver.includes('else await withCoreFixtureEnvironment(caller, invokeCore);'));
+  assert.ok(driver.includes('verifyFreshOrdinaryPackagedEvidence(lock, sourceOutput, caller)'));
+  assert.ok(!driver.includes('localGit(opsRoot'));
   assert.ok(!/Start-Process|& \$installer(?:\s|$)|& \$application(?:\s|$)/mu.test(workflow));
   const cleanup = workflow.slice(workflow.indexOf('- name: Remove private source'));
   assert.ok(cleanup.includes('ReparsePoint'));

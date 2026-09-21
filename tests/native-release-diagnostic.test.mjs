@@ -121,12 +121,29 @@ test('reparse diagnostic ancestor is rejected before reading target content',t=>
   symlinkSync(target,link,process.platform==='win32'?'junction':'dir');
   const result=sourceFailureDiagnostic(link,'source-fixture',new Error(secret));assert.equal(result.sourceFailure,'unreadable');assert.equal(result.sourcePhase,'none');fixed(result);
 });
-test('actual PowerShell artifact guard accepts new fixed categories and refuses untrusted fields', {skip:process.platform !== 'win32'},()=>{
-  const workflow=readFileSync(new URL('../.github/workflows/native-asar-release.yml',import.meta.url),'utf8');
+function artifactDiagnosticGuard(workflow) {
+  // Normalize only this in-memory test input; never rewrite workflow or evidence bytes.
+  workflow=workflow.replaceAll('\r\n','\n');
   const begin=workflow.indexOf('$diagnostic = $summary.diagnostic');
   const end=workflow.indexOf('\n          }\n          if ($alpha2)',begin);
-  assert(begin>0 && end>begin);
-  const guard=workflow.slice(begin,end);
+  assert(begin>0 && end>begin,'diagnostic guard markers must both exist');
+  return workflow.slice(begin,end);
+}
+const workflowLf=readFileSync(new URL('../.github/workflows/native-asar-release.yml',import.meta.url),'utf8').replaceAll('\r\n','\n');
+for (const [label,eol] of [['LF','\n'],['CRLF','\r\n']]) {
+  const workflow=workflowLf.replaceAll('\n',eol);
+  test(`artifact guard extraction preserves the same statements for ${label}`,()=>{
+    assert.equal(artifactDiagnosticGuard(workflow),artifactDiagnosticGuard(workflowLf));
+  });
+  for (const [name,marker] of [['start','$diagnostic = $summary.diagnostic'],['end','\n          }\n          if ($alpha2)']]) {
+    test(`artifact guard extraction rejects missing ${name} marker with ${label}`,()=>{
+      const actual=marker.replaceAll('\n',eol);
+      assert(workflow.includes(actual));
+      assert.throws(()=>artifactDiagnosticGuard(workflow.replace(actual,'missing-marker')),/diagnostic guard markers/);
+    });
+  }
+  test(`actual PowerShell artifact guard accepts new fixed categories and refuses untrusted fields (${label})`, {skip:process.platform !== 'win32'},()=>{
+  const guard=artifactDiagnosticGuard(workflow);
   const good={stage:'source-fixture',code:'plugin-github-http-403',sourceFailure:'present',sourcePhase:'initial:version-menu'};
   const samples=[good,{...good,sourcePhase:'restart:usage-readonly'},{...good,sourcePhase:'restart:positive-usage'},
     {...good,code:secret},{...good,code:403},{...good,sourcePhase:secret},{...good,stage:secret},
@@ -138,7 +155,8 @@ test('actual PowerShell artifact guard accepts new fixed categories and refuses 
     {encoding:'utf8',windowsHide:true,timeout:30000});
   assert(!output.includes(secret));
   assert.deepEqual(JSON.parse(output),[true,true,true,false,false,false,false,false,false,false,false,false,false]);
-});
+  });
+}
 
 test('workflow failure artifact validates exact fixed diagnostic keys and vocabularies',()=>{
   const workflow=readFileSync(new URL('../.github/workflows/native-asar-release.yml',import.meta.url),'utf8');

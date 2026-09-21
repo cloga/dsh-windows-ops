@@ -4,9 +4,10 @@ Tracking: [Ops #219](https://github.com/cloga/dsh-windows-ops/issues/219).
 
 ## Status and platform boundary
 
-**Windows validation FAILED / HOLD USE. Linux validation is pending.** This is
-maintained offline audit tooling preparation, not product qualification or
-permission to use an unqualified revision on formal evidence.
+**Windows validation FAILED / HOLD USE. The exact Linux receipt below passed
+59/59 tests.** This is maintained offline audit tooling evidence, not product
+qualification or approval to use it on real artifacts. The Windows failure
+remains unresolved.
 
 The frozen Windows suite ran 59 methods: 58 passed and one DEFLATED 300 MiB
 integration subcase errored with `input-changed-during-read`; zero skipped.
@@ -17,11 +18,33 @@ not cover the failed DEFLATED subcase. The cause is unestablished. Do not call
 it harmless, attribute it to security software, weaken timestamp checks or
 rerun identically until green. This is not an npm dependency restriction.
 
-The existing Linux `repository-content` CI job now explicitly invokes the same
-59 methods. A future successful run qualifies only its exact source, Python/zlib
-and Linux environment; it cannot erase the Windows failure or claim Windows
-support. Record terminal results, not just suite startup or an earlier partial
-pass. Real-artifact use needs separately authorized, platform-scoped review.
+The existing Linux `repository-content` CI job passed the same 59 methods in
+[run 35648331069, attempt 1, job 106494196178](https://github.com/cloga/dsh-windows-ops/actions/runs/35648331069/job/106494196178).
+This source-bound receipt is Linux-only; it cannot erase the Windows failure or
+claim Windows support. Real-artifact use needs separately authorized,
+platform-scoped review.
+
+### Exact Linux validation receipt
+
+- Tested PR head: `88cc734bb2d2ecefe6efa4e17db20c957f85912f`.
+- Actual PR merge checkout: `268fa25c0eb0a5cf31af110bcc4fe00874aa78bf`, parents
+  `5eb0cd7fd4a814e72b31d693216fd27a11c697f6` and the tested head above.
+- Checkout tree: `e5586003c7160bb50823be6012e4807a7be8b736`, equal to that head's tree.
+- Auditor SHA-256: `5b85ad6a935bb5b965893e6d181f0cbc62ebd3b74cc01b0d3a0027e57644f68d`.
+- Test SHA-256: `43dc1f18125249c247c664beb50f683b86464e6bf930236d996814d000b30802`.
+- Runtime: CPython **3.12.10**, GCC 13.3.0; Ubuntu **24.04.5**;
+  `Linux-6.17.0-1022-azure-x86_64-with-glibc2.39`; zlib compile/runtime **1.3**.
+- Terminal result: **59/59 OK in 17.638 seconds**, zero errors, failures or skips.
+  Both real 300 MiB inert DEFLATED and STORED subcases passed inspection,
+  metadata-only selection and complete retained comparison, plus the asserted
+  negative cases. Reported maximum decoded piece/retained read was 65,536 bytes;
+  DEFLATED maximum output was also 65,536 bytes.
+
+This receipt binds the exact tested source, not the later documentation-only
+commit recording it. That later commit still requires its own normal PR checks;
+unchanged tool/test/workflow bytes do not transfer whole-commit CI or release
+qualification automatically. No real-original acquisition or product acceptance
+was performed by this inert suite.
 
 ## Purpose, prerequisites and mutation
 
@@ -185,7 +208,9 @@ This is scoped integration/provenance review, not a full bundled dependency audi
 The workflow selects exact Python `3.12.10`, `check-latest: false`, and no
 package-cache, `pip-version` or `pip-install` input. The action uses a matching
 runner tool cache or acquires Python from `actions/python-versions`; ordinary
-runner/Python setup may download dependencies. The **test body** is stdlib-only,
+runner/Python setup may download dependencies. In the recorded run, the cache
+miss downloaded the official Python distribution and its setup upgraded pip to
+26.2.1 despite no pip input being specified. The **test body** remains stdlib-only,
 inert and offline, not the entire Actions job. Matching Python versions do not
 imply matching zlib builds. A newer action major exists; this reviewed Node 24
 v6.3.0 pin does not claim to be latest. No unreviewed action bump is implied.
@@ -194,10 +219,10 @@ v6.3.0 pin does not claim to be latest. No unreviewed action bump is implied.
 
 Sequential fixtures may hold about **600 MiB plus overhead** at once (300 MiB
 retained file plus STORED ZIP), with several GiB of logical I/O across passes.
-Cleanup is per test. Streaming bounds do not equal total memory usage. Failed
-Windows runtimes of roughly 23 seconds are not Linux timing proof; Linux time,
-peak memory and actual disk use remain unmeasured. Measure within the existing
-timeout rather than assuming success or adding a runner. Normal Linux Actions
+Cleanup is per test. Streaming bounds do not equal total memory usage. The
+recorded Linux suite took 17.638 seconds; failed Windows runs took roughly 23
+seconds. Peak memory and actual disk use remain unmeasured. Keep measuring
+within the existing timeout rather than assuming future success or adding a runner. Normal Linux Actions
 minutes and runtime setup can consume account quota or incur charges; no new
 paid service/model API is used.
 

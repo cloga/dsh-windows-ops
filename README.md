@@ -14,8 +14,11 @@
 
 [ZIP／成员离线审计指南](docs/artifact-zip-audit.md)介绍只读、仅依赖 Python 标准库的
 审计工具，以及在既有 Linux repository-content CI job 中执行的 59 项惰性数据测试。
-**Windows 验证失败，仍为 HOLD USE**；Linux 通过只能证明对应 Linux 环境，不能替代
-Windows 验证或产品验收。工具不下载、解压、安装、执行归档代码或激活 Desktop。
+[Run 35648331069](https://github.com/cloga/dsh-windows-ops/actions/runs/35648331069/job/106494196178)
+在 Linux／Python 3.12.10／zlib 1.3 上 **59/59 通过**，绑定受测 head `88cc734`
+（tree `e558600`）；精确检出与哈希见指南，不代表后续文档提交已通过检查。
+**Windows 验证失败，仍为 HOLD USE**；Linux 证据不能替代 Windows／产品验收，
+也不授权实际制品使用。工具不下载、解压、安装、执行归档代码或激活 Desktop。
 
 ## DSH Core 新版本适配入口
 

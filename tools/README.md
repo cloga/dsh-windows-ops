@@ -210,9 +210,13 @@ for Python 3.12.10 prerequisites, the two finite profiles, authenticated-input
 responsibilities, inspect-only versus selected-byte comparison, and cleanup.
 Inputs are read-only; an optional report is created exclusively, never overwritten.
 There is no download, extraction, archive-code execution, installation or activation.
-**Windows validation failed / HOLD USE**; Linux CI evidence cannot qualify Windows
-or a real product release. No runtime configuration is changed, so rollback is
-limited to removing an explicitly owned optional report; preserve original evidence.
+[Linux run 35648331069](https://github.com/cloga/dsh-windows-ops/actions/runs/35648331069/job/106494196178)
+passed **59/59** with Python 3.12.10/zlib 1.3 at head `88cc734`, tree `e558600`;
+see the guide for exact source/hashes, not qualification of this later docs commit.
+**Windows validation failed / HOLD USE**; Linux CI evidence cannot qualify Windows,
+a real product release or approve real-artifact use. No runtime configuration is
+changed, so rollback is limited to removing an explicitly owned optional report;
+preserve original evidence.
 
 ## Test entry points
 

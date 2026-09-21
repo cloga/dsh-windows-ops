@@ -49,6 +49,21 @@ fresh-source acceptance require alpha.2 initial/restart read-only settings proof
 without changing `installerUpgradeVerified:false` or runtime trust. Descriptor/release
 schemas remain 1, provisioning plan/state/store 1, managed capability/manifest 3.
 See [pre-publication limits and later promotion](../docs/core-016a2-assessment.md#strict-native-compatibility-preparation).
+Alpha.2 [combined packaged-evidence preparation](../docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
+keeps two contracts separate: imported formal functional/failure/observer/suite
+records require ordinary acceptance to be absent; a fresh Ops successful resolver
+observer still uses genuine ordinary acceptance after cleanup. Selection must be
+explicitly reviewed for the exact version and format, never inferred from files
+or a failed ordinary parse. The fresh caller keeps genuine Ops job identity
+separate from the verified Core checkout: an archived private Ops source has no
+`.git` or derived Ops tree. Only the unrelated Ops `GITHUB_SHA` is temporarily
+omitted during the Core fixture call and restored afterward; real run/attempt
+identity is retained and no Core SHA is fabricated. Original Core CI qualification summaries attest
+unarchived installed checks only within their bound source/run scope; missing
+root ownership/validation records prevent complete offline replay. These are
+internal evidence adapters, not new public assets, deployment pins or activation
+permission. Alpha.2 remains unpublished and unqualified.
+
 The lock now selects published Desktop `0.1.6-alpha.1.cloga.14`, unchanged bundled
 Core alpha.1 and Copilot alpha.32. Formal run
 [35549412610](../docs/copilot-alpha32-upgrade-plan.md) records actual initial/restart

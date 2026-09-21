@@ -54,7 +54,13 @@ keeps two contracts separate: imported formal functional/failure/observer/suite
 records require ordinary acceptance to be absent; a fresh Ops successful resolver
 observer still uses genuine ordinary acceptance after cleanup. Selection must be
 explicitly reviewed for the exact version and format, never inferred from files
-or a failed ordinary parse. The fresh caller keeps genuine Ops job identity
+or a failed ordinary parse. The explicit `combined-suite-v2` path requires
+functional/ordinary schema 2 and mandatory original `positive-usage.json` bytes,
+bound by raw hash and the reviewed Copilot alpha.33 source/Client-byte policy in
+both imported and fresh evidence. Both routes must cover inherited/absent Session
+scope, removal/closure and provider restoration, and visible Client disposal;
+synthetic Client unit tests are not hosted released-Client proof. V1 and legacy
+alpha.1 readers and original evidence remain intact. The fresh caller keeps genuine Ops job identity
 separate from the verified Core checkout: an archived private Ops source has no
 `.git` or derived Ops tree. Only the unrelated Ops `GITHUB_SHA` is temporarily
 omitted during the Core fixture call and restored afterward; real run/attempt

@@ -67,7 +67,11 @@ qualify or deploy the draft alpha.2 Desktop. See [strict preparation boundaries]
 **Combined-evidence preparation is not promotion:** [Ops #181 preparation](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
 separates imported formal functional/failure/observer/suite evidence, with ordinary
 acceptance absent, from a fresh Ops resolver observer that succeeds through the
-ordinary acceptance path after cleanup. Genuine Ops caller identity stays separate
+ordinary acceptance path after cleanup. Explicit `combined-suite-v2` preparation
+requires functional/ordinary schema 2 and original-hash-bound `positive-usage.json`
+under the reviewed Copilot alpha.33 Client policy; v1 and legacy alpha.1 readers
+and history remain intact. Synthetic Client unit tests are not hosted execution
+of the actual released Client. Genuine Ops caller identity stays separate
 from verified Core checkout identity; the private Ops source archive is not a Git
 checkout. The exact successful Core CI summary can
 attest installed checks whose root records were not archived; it does not enable
@@ -102,8 +106,11 @@ Formal source evidence does not install or activate it locally.
 | Formal packaged evidence | run `35569892548`, attempt 2 SUCCESS; schema-2 settings/version-menu, schema-1 signed-out usage and authenticated optional positive usage proof |
 | Native Ops qualification | [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267) attempt 1 **SUCCESS**, exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`; native job `106255672689` and all four jobs passed |
 
-The later documentation/evidence-only follow-up records that code-head result;
-it is not a native qualification of the later head. The 1,073-byte raw summary's
+Evidence-only follow-up `c868c689…` records that code-head result; it is not a
+native qualification of the later head. The subsequent merge of protected master
+`43630e4…` / PR #212 also carries alpha.2 adapter/test preparation, so fresh native
+qualification of that **combined head remains required**; the earlier success is
+not transferred. See the [integration checkpoint](docs/copilot-alpha33-upgrade-record.md#concurrent-master-integration-checkpoint). The 1,073-byte raw summary's
 SHA-256 is `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`.
 Fresh positive proof is enforced by that exact driver, not new summary flags.
 Whole-carrier/model-response/installer-upgrade flags remain false; historical

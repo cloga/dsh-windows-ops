@@ -84,6 +84,38 @@ tree, run/attempt, plan and raw artifact/receipt hashes must remain bound to the
 same independently reviewed evidence. Never rename or reinterpret one receipt as
 another.
 
+The explicitly reviewed `combined-suite-v2` format requires schema-2 functional
+observations and schema-2 fresh ordinary acceptance, with mandatory
+`positive-usage.json`. It does not replace `combined-suite-v1` or legacy alpha.1
+readers, tests or original evidence. Do not infer v2 from a filename, plugin
+version or extra field, and do not fall back from an unknown or invalid format.
+
+Both imported and fresh v2 paths hash the bounded original positive record and
+bind its runtime, plugin source and installed Client digest to the independently
+reviewed original Copilot alpha.33 artifact policy. Positive cases must agree with
+the functional/ordinary receipt, and the formal summary binds the raw positive
+hash as `packaged.positiveUsage`. A well-formed digest alone is not original-byte
+parity; production evidence cannot select another Client policy.
+
+The required observations exercise `github-copilot` and `github-copilot-preview`
+through the actual renderer and Session/Slot APIs with synthetic Session/quota
+data and no Host transport. They cover inherited Session scope, explicit absence,
+removed and closed Sessions hiding and restoring usage, provider switching and
+restoration, visible Client disposal, subscription cleanup and restoration of the
+original signed-out application. Hidden signed-out controls alone cannot prove a
+working eligible Session. Fresh window IDs, timings and receipt bytes belong to
+that run and must not be compared byte-for-byte with another formal run.
+
+Pure unit tests use explicitly synthetic Client bytes and real hashing under a
+test-only admission policy; they exercise parsing and rejection, not the hosted
+released Client or original-archive parity. Only the separately qualified hosted
+run can supply that released-Client renderer evidence. Neither scope establishes
+live quota, OAuth, model/search, Session billing or installed upgrade acceptance.
+This v2 work remains source preparation. The separately reviewed current target is
+`.cloga.16`/Core alpha.1/Copilot alpha.33; its exact `a59f586…` Ops qualification
+remains historical to that code head. Merging the v2 adapter/test changes requires
+fresh qualification of the combined head and does not promote alpha.2.
+
 Fresh Ops qualification is a different contract. `tests/native-asar-release-smoke.mjs`
 uses the real ordinary Core owner with a successful read-only resolver observer,
 not the throwing combined canary. Its ordinary acceptance is finalized only after
@@ -116,6 +148,13 @@ are not cross-installer retention; native popup/modal rendering, live quota,
 OAuth, model/search and Session billing remain outside these observations.
 Synthetic adapter tests are not hosted or installed qualification. Alpha.2 remains
 unpublished and unqualified, with no installation, activation or restart authorized.
+
+显式 `combined-suite-v2` 要求功能／普通验收 schema 2 和必需的原始 `positive-usage.json`，
+以原始哈希及已独立评审的 alpha.33 来源／Client 字节策略绑定；v1 和旧 alpha.1 读取器与历史保留。
+两条 route 的正向证据须涵盖 Session 继承／显式缺席、删除／关闭后的隐藏与恢复、provider 恢复、
+可见 Client 释放和原应用恢复。合成 Client 单元测试不等于实际已发布 Client 的托管 renderer 证明，
+也不证明真实额度、Session 计费或安装升级。独立评审的当前目标为 `.cloga.16`/Core alpha.1/alpha.33；
+`a59f586…` 的 Ops 成功仅属于该精确 code head。合入 v2 adapter/test 后须重新验收组合 head，不提升 alpha.2。
 
 组合格式只适用于经过明确评审的正式导入证据；全新 Ops resolver observer 仍成功走普通验收路径，
 清理后才提交普通 acceptance。Ops 调用方身份来自实际 job，与调用前后核验的 Core 检出身份分开；

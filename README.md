@@ -45,6 +45,9 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 **组合证据准备不代表提升基线：** [Ops #181 准备工作](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
 区分导入的正式 functional/failure/observer/suite 证据（普通 acceptance 必须缺席），
 与清理完成后通过普通验收路径成功返回的全新 Ops resolver observer。
+显式 `combined-suite-v2` 准备要求功能／普通验收 schema 2，以及由原始哈希绑定、遵守已评审
+Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读取器及历史证据保留。
+合成 Client 单元测试不等于在托管环境中执行实际已发布 Client。
 真实 Ops 调用方身份与经过验证的 Core 检出身份分开保留；私有 Ops 源码归档不是 Git 检出目录。
 精确且成功的 Core CI 摘要可以证明执行过未完整归档根记录的安装检查，但不能提供完整离线重放。
 此 alpha.2 准备工作不修改六资产公开契约，也不提升当前独立评审的 `.cloga.16`/alpha.33
@@ -74,7 +77,10 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 | 正式 packaged 证据 | run `35569892548` attempt 2 SUCCESS；schema-2 settings/version-menu、schema-1 signed-out usage 与已认证的可选 positive usage proof |
 | Native Ops qualification | [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267) attempt 1 **SUCCESS**，精确 Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`；native job `106255672689` 与全部 4 个 jobs 通过 |
 
-后续文档/证据专用提交只记录上述 code head 的结果，不宣称新提交本身执行了 native qualification。
+文档/证据专用提交 `c868c689…` 只记录上述 code head 的结果，不宣称新提交本身执行了 native qualification。
+随后合入 protected master `43630e4…` / PR #212 还包含 alpha.2 adapter/test 准备，
+**新的组合 head 仍须重新执行 native qualification**，不能继承之前的成功。
+参见[并行 master 集成记录](docs/copilot-alpha33-upgrade-record.md#concurrent-master-integration-checkpoint)。
 1,073-byte raw summary SHA-256 为 `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`；
 fresh positive proof 由该精确 driver 强制校验，不是新增 summary flags。Whole-carrier、model-response、
 installer-upgrade flags 仍为 false，历史 `.cloga.14`/alpha.32 run `35553019059` 不能移用。

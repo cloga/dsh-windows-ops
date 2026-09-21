@@ -124,12 +124,26 @@ exact Desktop source/tree and installer/executable/runtime descriptor above.
   upgrade remain `false`. This is not live account/quota, OAuth/model/search or
   local installation/activation proof.
 
-This later evidence-recording commit changes only documentation, catalog descriptive
-evidence and the new raw qualification record. It is **not** the commit on which
-native qualification ran: native provenance stays bound to `a59f586…`, while required
-PR checks run separately on the evidence-recording head. Runtime, test, workflow,
-deployment-lock and existing formal-evidence bytes remain identical to the qualified
-code head. No circular self-commit identifier is embedded in this record.
+Evidence-recording commit `c868c689b1955992c4958191e278b1c9fa77a2df` changed only
+documentation, catalog descriptive evidence and the new raw qualification record.
+It was **not** the commit on which native qualification ran: that native provenance
+stays bound to `a59f586…`. Its runtime, test, workflow, deployment-lock and existing
+formal-evidence bytes were identical to the qualified code head; required PR checks
+passed separately on the evidence-recording head.
+
+### Concurrent master integration checkpoint
+
+Protected master subsequently advanced to `43630e4d073de81c0644b24e426a0ae5aed1ccbf`
+([Ops PR #212](https://github.com/cloga/dsh-windows-ops/pull/212)), adding explicit
+alpha.2 `combined-suite-v2` positive Client evidence preparation. The same PR #211
+now merges that work without dropping either stream. This later merge includes
+adapter and test changes: it is **not** another documentation-only successor, and
+the earlier `a59f586…` success does not qualify the new combined head. Fresh exact-head
+hosted native qualification is required before merge; until it succeeds, no combined-head
+success is claimed. The `.cloga.16`/sequence-27/Core-alpha.1/alpha.33 deployment lock,
+its positive-proof pins and original formal/Ops bytes remain unchanged. Alpha.2
+is not promoted. A new run's exact identity and result must be recorded separately,
+not by relabeling run `35575187267` or adding fields to its raw summary.
 
 The user explicitly chose **stage only, without interrupting Sessions**. No local
 installation, activation or restart was performed; live-account UI validation is

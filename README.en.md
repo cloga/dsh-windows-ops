@@ -10,13 +10,12 @@
 
 This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
-## Small UI change validation
+## UI fixture appendix
 
-Use the [fast-feedback and bounded release-debugging checklist](docs/small-ui-change-validation.md)
-for small Desktop/plugin UI changes: cheap checks before packaging, actual renderer
-fixtures, stable same-run evidence, and diagnosed—not blind—retries. Required CI and
-formal-release gates remain intact; artifact reuse is a future design, not an implemented
-shortcut. Publication never authorizes local activation or restart.
+Start with the canonical [bounded release-debugging checklist](docs/core-upgrade.md#bounded-release-debugging).
+Its [UI fixture appendix](docs/small-ui-change-validation.md) covers actual renderer
+navigation, physical Slot layout owners and immutable same-run evidence. It is not a
+second release process or permission to install, activate or restart.
 
 ## Offline original-ZIP audit tooling
 

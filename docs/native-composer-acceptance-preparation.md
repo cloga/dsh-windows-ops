@@ -131,6 +131,6 @@ node --test tests/native-desktop-acceptance.test.mjs tests/native-asar-release-s
 
 This unselected internal adapter changes neither the current supported target nor
 user commands. Both README entry points now link the separately requested portable
-[small UI change validation checklist](small-ui-change-validation.md); its reusable
+[UI fixture appendix](small-ui-change-validation.md) to the canonical release guide; its reusable
 practices do not imply a baseline promotion. A real target repin must synchronize
 the full deployment/docs contract through its own reviewed evidence.

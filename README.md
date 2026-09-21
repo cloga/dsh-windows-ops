@@ -10,12 +10,11 @@
 
 本仓库沉淀在真实 Windows 环境中验证过的 DSH Desktop/Copilot 部署、诊断、修复和集成经验。它不分发 Desktop、DSH 或第三方插件；正式支持范围由精确锁和验收契约定义。
 
-## 小型 UI 改动验证入口
+## UI fixture 附录
 
-小型 Desktop/plugin UI 改动先用[快速反馈与有界发布排障清单](docs/small-ui-change-validation.md)：
-便宜检查先于打包、fixture 对准真实 renderer、同次验收证据保持稳定，失败先诊断而非盲目重跑。
-保留必需 CI 和正式发布门禁；制品复用只是待独立评审的未来设计，不是已实现的捷径。
-发布成功不授权本机激活或重启。
+统一入口是[有界发布排障清单](docs/core-upgrade.md#bounded-release-debugging)。
+其 [UI fixture 附录](docs/small-ui-change-validation.md)补充真实 renderer 导航、Slot 物理布局容器
+与同次不可变验收证据检查，不另立发布流程，也不授权本机安装、激活或重启。
 
 ## 原始 ZIP 离线审计工具
 

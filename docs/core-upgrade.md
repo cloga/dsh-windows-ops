@@ -240,6 +240,10 @@ can change the diagnosis.
 
 ### Fixture review before the expensive lane
 
+The subordinate [UI fixture appendix](small-ui-change-validation.md) adds native
+composer navigation, physical-layout and same-run snapshot examples; this guide
+remains the operational entrypoint and owner of retry/release policy.
+
 | Boundary | Required observation and regression |
 |---|---|
 | First-run credential UI | The Models join can reveal onboarding after Settings becomes visible. Handle only the exact public dialog and **Configure later** action with APIs verified against the pinned Playwright version. If a phase-owned locator handler is appropriate, own registration/removal and original action deadlines; verify persisted usable-provider configuration plus joined UI readiness before removal. Do not use a one-time presence check, forced click, mask removal or fake credential; never keep automatic dismissal active across restarts and mask lost readiness. |

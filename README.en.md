@@ -41,6 +41,10 @@ prefer official replacements after parity and migration acceptance are proven.
 an unexecuted plan. It does not install/restart or change the qualified deployment lock.
 
 See the [Desktop release boundary](docs/core-upgrade.md#desktop-release-boundary) for product/channel-first acceptance and safe immutable-release withdrawal.
+Use the [bounded release-debugging checklist](docs/core-upgrade.md#bounded-release-debugging)
+to freeze candidate scope, diagnose a whole failed attempt, verify real UI/native
+prerequisites and preserve separate qualification stages before another expensive run.
+It documents process lessons, not a new qualified release, artifact-reuse workflow or activation permission.
 
 The [0.1.6-alpha.2 assessment](docs/core-016a2-assessment.md) records exact official
 replacement evidence, retained differences and concrete API issues. It remains

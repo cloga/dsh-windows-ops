@@ -36,6 +36,9 @@
 不安装或重启。此入口不是新版本已通过兼容验证的声明，也不修改当前部署锁。
 
 产品/通道优先验收与不可变 Release 安全撤回，见 [Desktop 发布边界](docs/core-upgrade.md#desktop-release-boundary)。
+下一次昂贵运行前，按[有界发布调试清单](docs/core-upgrade.md#bounded-release-debugging)
+冻结候选范围、收齐同轮失败、检查真实 UI／原生前置条件，并分开记录各验收阶段。
+这些是流程经验，不代表新版本合格、已建立制品复用流程或获得本机激活权限。
 
 本次 [0.1.6-alpha.2 官方对照与迁移决定](docs/core-016a2-assessment.md)记录已审视的
 官方替代、必须保留的差异和已发现的接口问题；源码评估不是新部署基线。

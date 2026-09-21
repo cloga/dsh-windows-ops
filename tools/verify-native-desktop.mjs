@@ -7,7 +7,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { nativeLayout, preflightAsar, runAsarProbe } from './native-asar-runtime.mjs';
 import { hashFile, physical } from './native-runtime-integrity.mjs';
 import { readNativeProfileMetadata } from './native-profile-metadata.mjs';
-import { usesCombinedPackagedEvidence, readCombinedPackagedEvidence } from './native-packaged-evidence.mjs';
+import { packagedEvidenceFormat, readCombinedPackagedEvidence, readDualPackagedEvidence } from './native-packaged-evidence.mjs';
 
 const fail = (code) => { throw new Error(code); };
 const requireValue = (condition, code) => { if (!condition) fail(code); };
@@ -111,16 +111,27 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   const desktop = lock.components.desktop;
   const channel = desktop.releaseChannel;
   const native = channel.nativeProvisioning;
-  const combined = usesCombinedPackagedEvidence(lock);
+  const format = packagedEvidenceFormat(lock);
+  const modern = format !== undefined;
+  const dual = format === 'dual-ordinary-canary-v1';
+  if (dual) physical(directory, 'directory');
+  const dataPath = name => {
+    const path = join(directory, name);
+    if (dual) {
+      physical(path, 'file'); const size = lstatSync(path).size;
+      requireValue(size > 0 && size <= 32 * 1024 * 1024, 'native-release-file-size-invalid');
+    }
+    return path;
+  };
   const read = (name, hash) => {
-    const bytes = readFileSync(join(directory, name));
+    const bytes = readFileSync(dataPath(name));
     requireValue(sha256(bytes) === hash, 'native-release-file-hash-mismatch');
     return JSON.parse(bytes);
   };
   const manifest = read('release.json', channel.manifestRawSha256);
   const receipt = read('build-receipt.json', channel.buildReceipt.sha256);
   const capability = read('capability.json', native.capabilitySha256);
-  const helper = json(join(directory, 'helper-acceptance.json'));
+  const helper = json(dataPath('helper-acceptance.json'));
   requireValue(receipt.artifacts.helperSha256 === native.helperSha256 &&
     helper.helperSha256 === native.helperSha256 &&
     isDeepStrictEqual(helper, native.helperAcceptance) &&
@@ -171,7 +182,8 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   'native-release-plan-mismatch');
   const plugin = lock.components.copilotIntegration;
   const isolation = native.ancestorIsolation;
-  const acceptance = combined ? readCombinedPackagedEvidence(lock, directory) : read('acceptance.json', isolation.acceptanceSha256);
+  const acceptance = dual ? readDualPackagedEvidence(lock, directory) :
+    modern ? readCombinedPackagedEvidence(lock, directory) : read('acceptance.json', isolation.acceptanceSha256);
   requireValue(acceptance.sourceCommit === desktop.source.commit &&
     acceptance.desktopVersion === desktop.version && acceptance.runtimeVersion === channel.upstreamVersion &&
     acceptance.ancestorSdkJunction === true && acceptance.ancestorSdkLoaded === false &&
@@ -182,8 +194,8 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   'native-release-ancestor-isolation-mismatch');
   // New paired releases carry exact read-only settings proof. Legacy fixtures
   // remain historical; exact alpha.2 requires this gate regardless of sequence.
-  // The combined adapter already validates alpha.2's full settings/menu/usage graph.
-  if (!combined && (native.settingsAcceptance !== undefined ||
+  // Explicit combined/dual adapters already validate alpha.2's full settings/menu/usage graph.
+  if (!modern && (native.settingsAcceptance !== undefined ||
     (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12))) {
     const settingsProof = native.settingsAcceptance;
     requireValue(object(settingsProof) && (settingsProof.schemaVersion === undefined || settingsProof.schemaVersion === 2) &&
@@ -225,7 +237,7 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     }
     if (providerNavigation) requireValue(isDeepStrictEqual(acceptance.versionMenus, versionMenus), 'native-release-settings-mismatch');
   }
-  if (!combined && native.usageAcceptance !== undefined) {
+  if (!modern && native.usageAcceptance !== undefined) {
     const proof = native.usageAcceptance;
     const capability = acceptance.copilotUsageCapability;
     requireValue(object(proof) && proof.schemaVersion === 1 && object(capability) &&
@@ -253,7 +265,7 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     requireValue(isDeepStrictEqual(acceptance.signedOutCopilotUsage, observations) &&
       isDeepStrictEqual(observations[0], observations[1]), 'native-release-usage-mismatch');
   }
-  verifyPositiveUsageEvidence(lock, acceptance, read);
+  if (!dual) verifyPositiveUsageEvidence(lock, acceptance, read); // Dual already requires the exact quota4 policy in both runs.
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
     const graph = read(file, hash);
@@ -283,7 +295,9 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     plan.plugins[0].source.assetId === plugin.package.artifact.assetId,
   'native-release-plugin-mismatch');
   return { valid: true, planSha256, automaticStartupProvisioning: true,
-    legacyUpdateManifestAutomaticProvisioning: false, modelResponseVerified: false };
+    legacyUpdateManifestAutomaticProvisioning: false, modelResponseVerified: false,
+    ...(dual ? { formalEvidenceLimits: { archiveBytesVerified: false, archiveMembershipVerified: false,
+      unarchivedInstalledRootsReplayed: false, scope: 'pinned-api-and-original-json-consistency' } } : {}) };
 }
 
 function verifyRuntime(lock, root) {

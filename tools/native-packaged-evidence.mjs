@@ -1,8 +1,8 @@
 // Read-only alpha.2 evidence adapters. CI receipts are not ordinary acceptance or local activation.
 import { closeSync, fstatSync, lstatSync, openSync, readFileSync } from 'node:fs';
-import { join, win32 } from 'node:path';
+import { join, resolve, win32 } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { hashValid, object, physical, requireValue, sha256, validateDescriptor } from './native-runtime-integrity.mjs';
+import { hashValid, object, physical, relativeName, requireValue, sha256, validateDescriptor } from './native-runtime-integrity.mjs';
 
 const need = condition => requireValue(condition, 'native-packaged-evidence-invalid');
 const exact = (value, required, optional = []) => {
@@ -53,7 +53,8 @@ function reviewedPositiveClient(source, digest) {
   equal(source, reviewedCopilot33);
   need(digest === '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435');
 }
-const proofV2 = lock => lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format === 'combined-suite-v2';
+const dualFormat = 'dual-ordinary-canary-v1';
+const proofV2 = lock => ['combined-suite-v2', dualFormat].includes(lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format);
 const positiveTransport = 'not-provided-to-isolated-fixture';
 const positiveTrue = ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
   'applicationMountPreserved', 'syntheticSiblingPreserved', 'inheritedSessionScopeVerified', 'explicitUndefinedSessionScopeAbsent',
@@ -99,14 +100,24 @@ function read(root, file, digest, maximum = 32 * 1024 * 1024) {
 function absent(root, file) { need(lstatSync(join(root, file), { throwIfNoEntry: false }) === undefined); }
 
 // Selection belongs to the independently reviewed caller lock, never receipt filenames.
-export function usesCombinedPackagedEvidence(lock) {
+export function packagedEvidenceFormat(lock) {
   const channel = lock.components.desktop.releaseChannel;
   const proof = channel.nativeProvisioning.packagedAcceptance;
-  if (channel.upstreamVersion !== '0.1.6-alpha.2') { need(proof === undefined); return false; }
-  exact(proof, ['schemaVersion', 'format', 'suiteSha256', 'qualificationSha256', 'runId', 'runAttempt', 'workflowRunSha256', 'workflowJobSha256']);
-  need(proof.schemaVersion === 1 && ['combined-suite-v1', 'combined-suite-v2'].includes(proof.format) && positive(proof.runId) && positive(proof.runAttempt));
-  for (const key of ['suiteSha256', 'qualificationSha256', 'workflowRunSha256', 'workflowJobSha256']) need(hashValid(proof[key]));
-  return true;
+  if (channel.upstreamVersion !== '0.1.6-alpha.2') { need(proof === undefined); return undefined; }
+  const dual = proof?.format === dualFormat;
+  const hashes = ['suiteSha256', 'qualificationSha256', 'workflowRunSha256', 'workflowJobSha256',
+    ...(dual ? ['ordinaryAcceptanceSha256', 'workflowArtifactsSha256'] : [])];
+  exact(proof, ['schemaVersion', 'format', 'runId', 'runAttempt', ...hashes]);
+  need(proof.schemaVersion === 1 && ['combined-suite-v1', 'combined-suite-v2', dualFormat].includes(proof.format) && positive(proof.runId) && positive(proof.runAttempt));
+  for (const key of hashes) need(hashValid(proof[key]));
+  if (dual) {
+    equal(proof.ordinaryAcceptanceSha256, channel.nativeProvisioning.ancestorIsolation.acceptanceSha256);
+    need(channel.nativeProvisioning.usagePositiveAcceptance === undefined); // The alpha1 quota2 declaration is not a dual-v2 proof.
+  }
+  return proof.format;
+}
+export function usesCombinedPackagedEvidence(lock) {
+  return ['combined-suite-v1', 'combined-suite-v2'].includes(packagedEvidenceFormat(lock));
 }
 function expectedIdentity(lock, run) {
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel;
@@ -159,7 +170,7 @@ function functional(value, lock, expected, ordinary = false) {
 }
 
 /** Alpha.2 phase semantics; fresh menus are observed, not compared to another run's window IDs. */
-export function verifyPackagedPhaseEvidence(lock, accepted, directory) {
+export function verifyPackagedPhaseEvidence(lock, accepted, directory, phasePins) {
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
   need(channel.upstreamVersion === '0.1.6-alpha.2' && native.settingsAcceptance?.schemaVersion === 2 && native.usageAcceptance?.schemaVersion === 1);
   flags(accepted, functionalTrue, functionalFalse);
@@ -169,30 +180,36 @@ export function verifyPackagedPhaseEvidence(lock, accepted, directory) {
   for (const [index, phase] of phases.entries()) {
     need(hashValid(native.settingsAcceptance[`${phase}Sha256`]) &&
       hashValid(native.settingsAcceptance[`${phase}VersionMenuSha256`]) && hashValid(native.usageAcceptance[`${phase}Sha256`]));
-    const settings = read(directory, `${phase}-settings-readonly.json`, native.settingsAcceptance[`${phase}Sha256`]).value;
+    const pin = (label, original) => {
+      if (phasePins === null) { need(packagedEvidenceFormat(lock) === dualFormat); return undefined; }
+      const digest = phasePins === undefined ? original : phasePins[`packaged.${phase}.${label}`];
+      need(hashValid(digest)); return digest;
+    };
+    const settings = read(directory, `${phase}-settings-readonly.json`, pin('settings', native.settingsAcceptance[`${phase}Sha256`])).value;
     exact(settings, [...settingsTrue, 'registeredSearchProviders', 'realSearch']); flags(settings, settingsTrue, ['realSearch']);
     const ids = settings.registeredSearchProviders;
     need(Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) && new Set(ids).size === ids.length && ids.includes('github-copilot-hosted'));
     if (providers !== undefined) equal(ids, providers); providers = ids;
-    const menu = read(directory, `${phase}-version-menu.json`).value;
+    const menu = read(directory, `${phase}-version-menu.json`,
+      phasePins === undefined ? undefined : pin('menu', native.settingsAcceptance[`${phase}VersionMenuSha256`])).value;
     exact(menu, ['applicationMenuLabel', 'aboutMenuLabel', 'desktopVersion', 'windowId', 'popupCount', 'aboutDispatchCount', 'nativePopupOpened', 'nativeModalOpened']);
     need(['Application', '应用'].includes(menu.applicationMenuLabel) && menu.desktopVersion === desktop.version &&
       menu.aboutMenuLabel === `${menu.applicationMenuLabel === '应用' ? '关于' : 'About'} Desktop ${desktop.version}…` &&
       Number.isSafeInteger(menu.windowId) && menu.windowId > 0 && menu.popupCount === 1 && menu.aboutDispatchCount === 1);
     flags(menu, [], ['nativePopupOpened', 'nativeModalOpened']); equal(menu, accepted.versionMenus?.[index]);
-    const usage = read(directory, `${phase}-usage-readonly.json`, native.usageAcceptance[`${phase}Sha256`]).value;
+    const usage = read(directory, `${phase}-usage-readonly.json`, pin('usage', native.usageAcceptance[`${phase}Sha256`])).value;
     equal(usage, { capability: usageCapability, signedOut });
   }
 }
 
-function packagedFiles(lock, root, accepted, formal = true) {
+function packagedFiles(lock, root, accepted, formal = true, { publicRoot = root, phasePins } = {}) {
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
   const records = {};
   const take = (label, file, digest) => { const result = read(root, file, digest); records[label] = result.sha256; return result.value; };
   const runtime = read(root, 'desktop-runtime.json', desktop.installedRuntimeDescriptor.sha256);
   validateDescriptor(runtime.bytes, runtime.sha256, channel.upstreamVersion); records['packaged.runtime'] = runtime.sha256;
   const plan = take('packaged.provisioning', 'provisioning-plan.json', native.plan.sha256);
-  if (formal) equal(plan, read(root, 'desktop-provisioning.json', native.plan.sha256).value);
+  if (formal) equal(plan, read(publicRoot, 'desktop-provisioning.json', native.plan.sha256).value);
   need(plan.plugins?.length === 1 && plan.plugins[0].required === true); equal(accepted.plugin, plan.plugins[0].source);
   equal(take('packaged.capability', 'capability.json', native.capabilitySha256), channel.managedCapability);
   const executable = take('packaged.executable', 'executable.json');
@@ -200,13 +217,14 @@ function packagedFiles(lock, root, accepted, formal = true) {
   need(executable.file === desktop.installedExecutable.relativePath && executable.sha256 === desktop.installedExecutable.sha256 &&
     executable.productVersion === `${desktop.version.split('-')[0]}.0` && executable.signature === 'NotSigned' &&
     executable.productName === channel.identity.productName && executable.fileDescription === channel.identity.productName);
-  verifyPackagedPhaseEvidence(lock, accepted, root);
+  verifyPackagedPhaseEvidence(lock, accepted, root, phasePins);
   if (proofV2(lock)) records['packaged.positiveUsage'] = positiveUsage(lock, root, accepted);
   let previousGraph;
   for (const phase of phases) {
     for (const [suffix, label] of [['settings-readonly', 'settings'], ['version-menu', 'menu'], ['usage-readonly', 'usage']]) {
       take(`packaged.${phase}.${label}`, `${phase}-${suffix}.json`,
-        formal && label === 'menu' ? native.settingsAcceptance[`${phase}VersionMenuSha256`] : undefined);
+        phasePins !== undefined && phasePins !== null ? phasePins[`packaged.${phase}.${label}`] :
+          formal && label === 'menu' ? native.settingsAcceptance[`${phase}VersionMenuSha256`] : undefined);
     }
     const graph = take(`packaged.${phase}.graph`, `${phase}-packaged-graph.json`);
     exact(graph, ['valid', 'runtimeSha256', 'executable', 'nodeVersion', 'electronVersion', 'runAsNode', 'nodePath',
@@ -257,6 +275,7 @@ function verifyWorkflow(lock, root, proof) {
     need(matches.length === 1 && matches[0].status === 'completed' && matches[0].conclusion === 'success' &&
       Number.isSafeInteger(matches[0].number) && matches[0].number > 0);
   }
+  return { run, job };
 }
 
 function installedSettings(value, baseline = false) {
@@ -330,14 +349,8 @@ function archivedInstalledEvidence(lock, directory, summary) {
   }
 }
 
-/** Read original formal combined receipts; unavailable installed root records remain CI-attested, not offline-replayed. */
-export function readCombinedPackagedEvidence(lock, directory) {
-  need(usesCombinedPackagedEvidence(lock)); physical(directory, 'directory'); absent(directory, 'acceptance.json');
-  const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
-  const proof = native.packagedAcceptance; const expected = expectedIdentity(lock, proof);
-  // The declared execution must also be the run recorded by the original public metadata.
-  equal(read(directory, 'release.json', channel.manifestRawSha256).value.build, channel.build);
-  equal(read(directory, 'build-receipt.json', channel.buildReceipt.sha256).value.buildInputs, channel.build);
+function readCanaryFamily(lock, directory, proof, expected) {
+  physical(directory, 'directory'); absent(directory, 'acceptance.json');
   const suite = read(directory, 'packaged-suite.json', proof.suiteSha256);
   exact(suite.value, ['schemaVersion', 'scope', ...identityKeys, 'functionalAssertionsCompleted', 'errorPropagationVerified', 'cleanupVerified', 'normalAcceptanceCompleted', 'receipts']);
   need(suite.value.schemaVersion === 1 && suite.value.scope === 'packaged-functional-with-unexpected-observer-failure');
@@ -375,6 +388,18 @@ export function readCombinedPackagedEvidence(lock, directory) {
   need(observer.schemaVersion === 3 && observer.scope === 'unexpected-observer-failure-cleanup');
   flags(observer, observerFlags, ['normalAcceptanceCompleted']);
   equal(observer.functionalSha256, receipts.functional.sha256); equal(observer.failureSha256, receipts.failure.sha256);
+  return { f, receipts, suite };
+}
+
+/** Read original formal combined receipts; unavailable installed root records remain CI-attested, not offline-replayed. */
+export function readCombinedPackagedEvidence(lock, directory) {
+  need(usesCombinedPackagedEvidence(lock)); physical(directory, 'directory'); absent(directory, 'acceptance.json');
+  const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
+  const proof = native.packagedAcceptance; const expected = expectedIdentity(lock, proof);
+  // Historical combined formats retain their original build-object contract.
+  equal(read(directory, 'release.json', channel.manifestRawSha256).value.build, channel.build);
+  equal(read(directory, 'build-receipt.json', channel.buildReceipt.sha256).value.buildInputs, channel.build);
+  const { f, receipts, suite } = readCanaryFamily(lock, directory, proof, expected);
   const hashes = packagedFiles(lock, directory, f);
   const helper = read(directory, 'helper-acceptance.json'); equal(helper.value, native.helperAcceptance);
   need(helper.value.helperSha256 === native.helperSha256 && helper.value.isolatedBootstrap === 'passed' && helper.value.nodePath === null && helper.value.nodeOptions === null &&
@@ -405,9 +430,106 @@ export function readCombinedPackagedEvidence(lock, directory) {
   return f;
 }
 
+// This reader checks pinned API metadata and original JSON consistency, NOT ZIP bytes or member provenance.
+// Promotion must independently authenticate/download the four ZIPs and audit safe byte-exact member acquisition.
+function verifyDualWorkflowArtifacts(lock, root, proof) {
+  const { run, job } = verifyWorkflow(lock, root, proof);
+  let previous = 0;
+  for (const name of ['Verify packaged Copilot account and restart', 'Verify real acceptance observer failure cleanup',
+    'Verify real installed Desktop upgrade', 'Verify complete release qualification', 'Retain verified internal qualification summary']) {
+    const rows = job.steps.filter(step => step.name === name);
+    need(rows.length === 1 && rows[0].status === 'completed' && rows[0].conclusion === 'success' &&
+      Number.isSafeInteger(rows[0].number) && rows[0].number > previous);
+    previous = rows[0].number;
+  }
+  const inventory = read(root, 'core-qualification/workflow-artifacts.json', proof.workflowArtifactsSha256).value;
+  exact(inventory, ['total_count', 'artifacts']);
+  need(Array.isArray(inventory.artifacts) && inventory.artifacts.length <= 100 && inventory.total_count === inventory.artifacts.length &&
+    inventory.artifacts.every(object)); // One complete original page; pagination needs a separately reviewed format.
+  const ids = inventory.artifacts.map(row => row.id);
+  need(ids.every(id => Number.isSafeInteger(id) && id > 0) && new Set(ids).size === ids.length);
+  const desktop = lock.components.desktop;
+  const names = [`desktop-copilot-acceptance-${desktop.version}`, `desktop-copilot-observer-canary-${desktop.version}`,
+    `desktop-fork-qualification-${desktop.version}-${desktop.source.commit}-${proof.runAttempt}`, `desktop-installer-upgrade-${desktop.version}`];
+  for (const name of names) {
+    const rows = inventory.artifacts.filter(row => row.name === name); need(rows.length === 1);
+    const row = rows[0]; const url = `https://api.github.com/repos/cloga/deepseek-harness/actions/artifacts/${row.id}`;
+    need(row.expired === false && typeof row.digest === 'string' && /^sha256:[a-f0-9]{64}$/u.test(row.digest) &&
+      Number.isSafeInteger(row.size_in_bytes) && row.size_in_bytes > 0 && row.size_in_bytes <= 512 * 1024 * 1024 &&
+      row.url === url && row.archive_download_url === `${url}/zip` && row.workflow_run?.id === run.id &&
+      row.workflow_run.head_sha === desktop.source.commit && Number.isSafeInteger(run.repository.id) && run.repository.id > 0 &&
+      row.workflow_run.repository_id === run.repository.id && row.workflow_run.head_repository_id === run.repository.id);
+  }
+}
+
+/** Final Core 3ca51d dual contract: PRIMARY ordinary plus independent outer canary, with exact 45 Core inputs. */
+export function readDualPackagedEvidence(lock, directory) {
+  need(packagedEvidenceFormat(lock) === dualFormat && typeof directory === 'string' && directory === resolve(directory));
+  physical(directory, 'directory');
+  const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
+  need(typeof native.fixtureRoot === 'string');
+  const declaredRoot = relativeName(native.fixtureRoot.replaceAll('\\', '/'));
+  need(declaredRoot.startsWith('tests/fixtures/desktop-native-verified-release/'));
+  const proof = native.packagedAcceptance; const expected = expectedIdentity(lock, proof);
+  const canary = join(directory, 'canary'); physical(canary, 'directory');
+  for (const file of ['failure.json', 'observer-cleanup.json', 'packaged-suite.json']) absent(directory, file);
+  for (const file of ['acceptance.json', 'helper-acceptance.json', 'release.json', 'build-receipt.json', 'desktop-provisioning.json']) absent(canary, file);
+  const buildKeys = ['workflow', 'lockfileSha256', 'planSha256', 'nodeVersion', 'pnpmVersion', 'packageRegistry'];
+  const publicBuild = Object.fromEntries(buildKeys.map(key => [key, channel.build[key]]));
+  const manifest = read(directory, 'release.json', channel.manifestRawSha256).value;
+  const receipt = read(directory, 'build-receipt.json', channel.buildReceipt.sha256).value;
+  exact(manifest.build, buildKeys); exact(receipt.buildInputs, buildKeys);
+  equal(manifest.build, publicBuild); equal(receipt.buildInputs, publicBuild);
+  equal(manifest.source, channel.source); equal(receipt.source, { ...channel.source, version: desktop.version });
+  const summary = read(directory, 'core-qualification/qualification.json', proof.qualificationSha256).value;
+  exact(summary, ['schemaVersion', 'scope', 'sourceCommit', 'sourceTree', 'runId', 'runAttempt', 'version', 'sequence', 'inputs',
+    'packagedFunctionalVerified', 'unexpectedObserverFailureCleanupVerified', 'actualInstalledUpgradeVerified', 'sameVersionPackageAcceptanceVerified',
+    'normalPackagedAcceptanceCompleted', 'canaryNormalAcceptanceCompleted', 'limits']);
+  need(summary.schemaVersion === 1 && summary.scope === 'ci-only-fork-qualification' && summary.version === desktop.version && summary.sequence === channel.sequence);
+  for (const key of ['sourceCommit', 'sourceTree', 'runId', 'runAttempt']) equal(summary[key], expected[key]);
+  flags(summary, ['packagedFunctionalVerified', 'unexpectedObserverFailureCleanupVerified', 'actualInstalledUpgradeVerified',
+    'sameVersionPackageAcceptanceVerified', 'normalPackagedAcceptanceCompleted'], ['canaryNormalAcceptanceCompleted']);
+  equal(summary.limits, { helperTransport: 'synthetic fetch only; receipt and installer requests forbidden', liveHandoff: false,
+    menuObservation: 'intercepted-model-and-dispatch-not-native-popup-or-modal', realOAuth: false, realModelRound: false, realSearch: false, liveAccountQuota: false,
+    choicesAcrossInstallerUpgradeVerified: false, promotionFailureRollbackVerified: false, managedHandoffVerified: false, postSuccessDowngradeVerified: false });
+  need(object(summary.inputs));
+  const ordinary = read(directory, 'acceptance.json', proof.ordinaryAcceptanceSha256);
+  const provisional = read(directory, 'functional-results.json').value;
+  functional(provisional, lock, expected); functional(ordinary.value, lock, expected, true);
+  equal(ordinary.value, { ...provisional, scope: 'packaged-acceptance', normalAcceptanceCompleted: true, cleanupVerified: true });
+  const primaryFiles = packagedFiles(lock, directory, ordinary.value);
+  const { f, receipts, suite } = readCanaryFamily(lock, canary, proof, expected);
+  for (const key of ['desktopVersion', 'runtimeVersion', 'plugin', 'transport', 'copilotUsageCapability', 'signedOutCopilotUsage',
+    'positiveCopilotUsage', 'positiveUsageHostTransport', 'hostQuotaNoNetworkEvidence']) equal(ordinary.value[key], f[key]);
+  // No equality requirement on independent UUIDs, menus, elapsed times, profile paths or receipt-store bytes.
+  const hashes = packagedFiles(lock, canary, f, true, { publicRoot: directory, phasePins: summary.inputs });
+  const helper = read(directory, 'helper-acceptance.json'); equal(helper.value, native.helperAcceptance);
+  need(helper.value.helperSha256 === native.helperSha256 && helper.value.isolatedBootstrap === 'passed' && helper.value.nodePath === null && helper.value.nodeOptions === null &&
+    helper.value.manifestTransport === 'synthetic fetch only; receipt and installer requests forbidden');
+  flags(helper.value, ['validSyntheticHandoffAcknowledged', 'cancellationCompleted'], ['liveHandoff', 'installerStarted']);
+  Object.assign(hashes, { 'ordinary.helper': helper.sha256, 'ordinary.acceptance': ordinary.sha256,
+    'ordinary.positiveUsage': primaryFiles['packaged.positiveUsage'], 'packaged.suite': suite.sha256,
+    plan: channel.build.planSha256, 'candidate.manifest': channel.manifestRawSha256, 'candidate.receipt': channel.buildReceipt.sha256,
+    'candidate.installer': desktop.artifact.sha256, 'candidate.provisioning': native.plan.sha256 });
+  for (const key of ['functional', 'failure', 'observer']) hashes[`packaged.${key}`] = receipts[key].sha256;
+  const ciOnly = ['baselinePin', 'baseline.manifest', 'baseline.receipt', 'baseline.installer', 'upgrade.owner', 'upgrade.validated', 'upgrade.retained'];
+  const archived = ['baseline.acquisition', 'upgrade.result', 'upgrade.baseline', 'upgrade.candidate', 'upgrade.candidate-restart', 'upgrade.cleanup', 'upgrade.packages'];
+  exact(summary.inputs, [...Object.keys(hashes), ...ciOnly, ...archived]);
+  need(Object.keys(summary.inputs).length === 45);
+  for (const value of Object.values(summary.inputs)) need(hashValid(value));
+  for (const [key, digest] of Object.entries(hashes)) equal(summary.inputs[key], digest);
+  for (const phase of phases) {
+    const digest = native.ancestorIsolation[`${phase}GraphSha256`]; need(hashValid(digest));
+    read(directory, `${phase}-packaged-graph.json`, digest);
+  }
+  archivedInstalledEvidence(lock, directory, summary);
+  verifyDualWorkflowArtifacts(lock, directory, proof);
+  return ordinary.value;
+}
+
 /** Fresh Ops ordinary owner evidence uses Ops run identity, never the formal Core run's identity. */
 export function verifyFreshOrdinaryPackagedEvidence(lock, directory, run) {
-  need(usesCombinedPackagedEvidence(lock)); physical(directory, 'directory');
+  const format = packagedEvidenceFormat(lock); need(format !== undefined); physical(directory, 'directory');
   for (const file of ['failure.json', 'observer-cleanup.json', 'packaged-suite.json']) absent(directory, file);
   const expected = expectedIdentity(lock, run);
   const provisional = read(directory, 'functional-results.json').value;
@@ -415,6 +537,6 @@ export function verifyFreshOrdinaryPackagedEvidence(lock, directory, run) {
   functional(provisional, lock, expected); functional(accepted, lock, expected, true);
   equal(accepted, { ...provisional, scope: 'packaged-acceptance', normalAcceptanceCompleted: true, cleanupVerified: true });
   // Acquisition already bound the public plan. Validate the owner's original fresh phase files, not formal paths/window IDs.
-  packagedFiles(lock, directory, accepted, false);
+  packagedFiles(lock, directory, accepted, false, format === dualFormat ? { phasePins: null } : {});
   return accepted;
 }

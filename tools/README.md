@@ -49,8 +49,8 @@ fresh-source acceptance require alpha.2 initial/restart read-only settings proof
 without changing `installerUpgradeVerified:false` or runtime trust. Descriptor/release
 schemas remain 1, provisioning plan/state/store 1, managed capability/manifest 3.
 See [pre-publication limits and later promotion](../docs/core-016a2-assessment.md#strict-native-compatibility-preparation).
-Alpha.2 [combined packaged-evidence preparation](../docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
-keeps two contracts separate: imported formal functional/failure/observer/suite
+Historical alpha.2 [combined packaged-evidence preparation](../docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
+keeps two contracts separate: imported combined-format functional/failure/observer/suite
 records require ordinary acceptance to be absent; a fresh Ops successful resolver
 observer still uses genuine ordinary acceptance after cleanup. Selection must be
 explicitly reviewed for the exact version and format, never inferred from files
@@ -68,12 +68,26 @@ executable/runtime/plan hashes), then checks the Core owner's returned observati
 The actual Ops environment, including `GITHUB_SHA`, remains present and unchanged
 through import, invocation and failure; no SHA omission or spoofing is allowed.
 Historical alpha.1 invocation is unchanged and does not receive this future API.
-This caller-only preparation does not migrate the separate formal evidence graph
-or qualify alpha.2. Original Core CI qualification summaries attest
+The caller contract is separate from the dual-proof adapter below; neither alone
+qualifies alpha.2. Original Core CI qualification summaries attest
 unarchived installed checks only within their bound source/run scope; missing
 root ownership/validation records prevent complete offline replay. These are
 internal evidence adapters, not new public assets, deployment pins or activation
 permission. Alpha.2 remains unpublished and unqualified.
+
+The new explicit [`dual-ordinary-canary-v1` preparation](../docs/core-016a2-assessment.md#alpha2-independent-dual-proof-preparation)
+uses the final immutable Core `3ca51d61bdf39f8c63c26125674cd92fdcf6ed98` contract:
+PRIMARY ordinary originals at the formal root, independent canary originals under
+`canary/`, and the exact 45-input qualification plus authenticated API snapshots
+under `core-qualification/`. Public build objects use Core's six fields, not Ops
+runUrl/attempt. Both graphs require schema2 positive cases (21 keys, quotaReads4)
+and the fixed reviewed Client policy; the fresh Ops ordinary run is a third run
+with its own identity, menus and paths. This adapter does not promote alpha.2;
+historical readers remain unchanged. The offline reader verifies pinned API/original-JSON consistency only:
+its Ops-owned limits explicitly report ZIP bytes/member membership unverified.
+Promotion must separately authenticate all four original ZIPs and audit safe,
+byte-exact selected-member acquisition before real evidence/pins are committed.
+No new download lane, archive parser or activation permission is introduced.
 
 The current candidate Ops target is published Desktop `0.1.6-alpha.1.cloga.17`,
 sequence 28, with unchanged bundled Core `0.1.6-alpha.1` and Copilot `0.4.0-alpha.33`.

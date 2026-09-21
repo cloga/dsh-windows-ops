@@ -202,11 +202,24 @@ Even with `--probe`, this is only the catalog's **L2** boundary. It does not pro
 - Functional tests must assert an outcome and verify cleanup.
 - New tools must document purpose, mutation level, prerequisites, evidence, rollback, and tests.
 
+## Offline original-ZIP auditor
+
+`python -I -B tools/artifact-zip-audit.py --help` describes the stdlib-only,
+bounded ZIP/member consistency auditor. See the [operational guide](../docs/artifact-zip-audit.md)
+for Python 3.12.10 prerequisites, the two finite profiles, authenticated-input
+responsibilities, inspect-only versus selected-byte comparison, and cleanup.
+Inputs are read-only; an optional report is created exclusively, never overwritten.
+There is no download, extraction, archive-code execution, installation or activation.
+**Windows validation failed / HOLD USE**; Linux CI evidence cannot qualify Windows
+or a real product release. No runtime configuration is changed, so rollback is
+limited to removing an explicitly owned optional report; preserve original evidence.
+
 ## Test entry points
 
 - Plugin catalog: `node tools\validate-plugin-catalog.mjs`
 - Strict session preflight: `node --test tests\preflight-check.test.mjs`
 - JavaScript syntax: `node --check <script>`
+- Offline ZIP auditor: `python -I -B tests/artifact-zip-audit-tests.py` (all 59 inert tests; existing Linux repository-content job; see the guide's Windows failure boundary)
 - Host Playwright bundle: `node --test tests\host-playwright-bundle.test.mjs`
 - Browser smoke tool: `python -m py_compile tools\dsh-web-smoke.py`; with the existing GUI running, `python tools\dsh-web-smoke.py --expect-text "New Session" --fail-on-console-error --fail-on-request-failure --fail-on-http-error`
 - Windows fixtures: Pester 5.7.1+ against `tests/`

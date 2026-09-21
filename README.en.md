@@ -48,6 +48,9 @@ It documents process lessons, not a new qualified release, artifact-reuse workfl
 The [0.1.6-alpha.2 assessment](docs/core-016a2-assessment.md) records exact official
 replacement evidence, retained differences and concrete API issues. It remains
 source-review evidence, not a new qualified deployment baseline.
+[Native combined-v3 reader preparation](docs/core-016a2-assessment.md#alpha2-native-combined-v3-reader-preparation)
+explicitly supports settings3/Copilot35 and same-run native evidence while preserving
+historical formats; it neither promotes the lock nor claims qualification.
 Later merges, releases, hashes and acceptance limits are recorded in the
 [delivery evidence](docs/core-016a2-delivery.md). Historical Cron 0.7.3, Playwright
 0.1.8 and Copilot alpha.25 publication receipts remain intact.

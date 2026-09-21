@@ -184,6 +184,59 @@ Core CI 的精确成功摘要可以证明执行过安装检查，但归档缺少
 根 owner/validated/retained 记录，不能完整离线重放。六资产公开契约、独立 Ops 目标和历史原始字节
 不受此 alpha.2 准备工作影响；该准备不等于发布、安装或激活。
 
+## Alpha2 native combined-v3 reader preparation
+
+Explicit `combined-suite-v3` adds compatibility with the reviewed alpha2/Copilot35
+producer. This is optional adapter maintenance for users who choose the Ops-managed
+workflow, not a prerequisite or global gate for Core/Desktop publication or direct
+use of a separately verified installer. It does not promote the current deployment
+lock, publish an installer, import purported original evidence or dispatch native qualification. Historical
+combined-v1/v2, optional dual and alpha1 readers and original fixtures remain intact.
+In particular, `dual-ordinary-canary-v2` remains a distinct native2/summary2 family
+with 51 summary inputs and separate ordinary/canary originals. Combined-v3 requires
+native1 with full identity and summary1; shared settings3/alpha35 leaves do not make
+the envelopes interchangeable. Formal and fresh cross-format regressions reject
+native envelope swaps and rehashed summary schema substitutions in both directions.
+
+V3 requires functional/ordinary schema3, exactly two settings3 account/search/role-
+retirement observations, the existing positive21-field/quota4 semantics and the
+closed original alpha35 source/Client digest policy. The mandatory native composer
+sidecar carries all ten shared identity fields, synthetic persisted-history and
+signed-out quota scopes, ordered1280/400 geometry, native style equality, dialog
+completion/focus facts and no in-scope renderer errors. Its full object must equal
+`functional.nativeComposer`; the original-byte digest is exactly the Core input
+`packaged.nativeComposer`. Rehashing malformed observations does not admit them.
+Legacy quota2 `usagePositiveAcceptance` and alpha1 `nativeComposerAcceptance`
+declarations cannot coexist with this format. Failure2/observer3/suite1 retain
+exact outer-canary cleanup meanings; ordinary acceptance remains absent in formal
+combined evidence and mandatory for a fresh successful Ops observer.
+
+The formal reader still requires the seven archived installed phase/acquisition
+records, successful source/run/attempt-bound Core summary and workflow APIs. V3
+compares the actual six-field public build projection, not Ops-only run URL/attempt
+leaves. Missing owner/validated/retained root inputs remain explicitly CI-attested,
+never fabricated or represented as full offline replay. The public six assets are
+unchanged. The fresh ordinary reader validates its own run identity and native
+observations; it does not compare dynamic pixels, window IDs or settings sidecar
+bytes against another run. Genuine Ops caller identity and the seven-field explicit
+Core-source API remain unchanged. Inert generated tests establish reader behavior,
+not packaged/native/installed qualification or original-asset acquisition.
+
+此项仅为用户选择 Ops-managed 工作流时的可选适配维护，不是 Core／Desktop
+发布或直接使用另行验证安装器的前置条件或全局门禁。
+显式 `combined-suite-v3` 仅准备 alpha2/Copilot35 的读取兼容，不修改当前部署锁、
+目录或历史原件，不发布、不导入伪造验收，也不派发 native qualification。
+它强制功能／普通 schema3、两份 settings3、既有 quota4 正向证据及精确 alpha35
+字节策略；原生 composer 原件需完整身份、范围、几何、对话框及零错误约束，
+通过 `packaged.nativeComposer` 绑定原始字节，并与功能记录内对象一致。
+旧 quota2／alpha1 原生声明不能混用；历史 v1/v2/dual 读取行为保留。
+已维护的 `dual-ordinary-canary-v2` 仍独立要求 native2／summary2、51 个输入及
+普通／canary 分开的原件；本格式为完整身份 native1／summary1。共享 settings3／
+alpha35 不允许互换；双向负例覆盖重哈希 summary 和正式／全新原生 envelope。
+七份已安装阶段原件、成功 Core summary 与 workflow 来源检查仍必需；缺失根记录
+只由 CI attestation 覆盖，不伪造完整离线重放。全新普通验收按自身运行验证，
+不拿跨运行像素、窗口 ID 或动态原件哈希作相等比较。合成解析测试不是原生发布资格。
+
 ## Alpha2 independent dual-proof preparation
 
 The new Ops declaration `dual-ordinary-canary-v1` follows the final immutable

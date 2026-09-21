@@ -41,6 +41,8 @@
 
 本次 [0.1.6-alpha.2 官方对照与迁移决定](docs/core-016a2-assessment.md)记录已审视的
 官方替代、必须保留的差异和已发现的接口问题；源码评估不是新部署基线。
+[原生 combined-v3 读取准备](docs/core-016a2-assessment.md#alpha2-native-combined-v3-reader-preparation)
+显式支持 settings3／Copilot35／同运行原生证据，保留历史格式；不提升部署锁或宣称已验收。
 后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron、Playwright 与 Copilot alpha.28 的历史发布证据继续保留。当前已发布 Ops 目标为已独立核验发布制品的 Desktop `0.1.6-alpha.1.cloga.17` / sequence 28 / bundled Core alpha.1 / Copilot alpha.33；全新 hosted Native Ops run `35595040585` attempt 1 已在精确 code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9` 通过，见[外链维护发布记录](docs/desktop-external-links-17.md)。Alpha.33 虽兼容官方 Core alpha.2，但另行负责、仍为 draft 的 Desktop PR 68 尚未合格，本维护发布不提升 Core。正式发布与来源验收不代表本机已安装/激活，也不证明真实 compaction、OAuth、model 或 search。
 另见[原生加载依赖与镜像验证](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification)：
 `node-addon-require-builtin@0.1.6` 属于官方启动层；旧版 `0.1.5` 虽通过独立 Node 测试，却在 Electron 44 的实际原生调用中失败；历史已验证部署中的 `0.1.6` 文件在同一载体通过主线程及两个 Worker 对照，因此保留 `0.1.6`。这不等于取得 npm 原始包或完成整个 Core 验收。该节也区分可选 CUA 测试依赖与 Desktop 运行需要，并记录 pnpm 11 筛选安装仍包含根项目的限制。

@@ -242,6 +242,105 @@ export function packagedV2Fixture(t) {
   seal(); return { ...f, seal };
 }
 
+// INERT V3 ONLY: these generated parser records are not publication or native qualification.
+export function packagedV3Fixture(t) {
+  const f = packagedV2Fixture(t); const { lock, get, put, digest } = f;
+  const d = lock.components.desktop, c = d.releaseChannel, n = c.nativeProvisioning;
+  const source = {
+    schemaVersion: 1, type: 'githubRelease', owner: 'cloga', repo: 'dsh-github-copilot',
+    tag: 'v0.4.0-alpha.35', asset: 'dsh-github-copilot-0.4.0-alpha.35.tgz', assetId: 579078676,
+    packageName: 'dsh-github-copilot', version: '0.4.0-alpha.35', size: 705000,
+    sha256: 'ec4f0fa24b45d94686a396b2558ef6b7fc5d521b9d94e65dcff9f772421f496d',
+    integrity: 'sha512-WCKmOsgXN1z/UuxJqKPp42VbCR9z/nPAWVvIReB0jjtU0144xu1nSn8toDxJ9q9Ij656vxLV35pPHbFwbo1qeA==',
+    targetCommit: '6554417dc9a7544865e6c1bbdebf8b9a10e0a7af', dependencyRegistry: 'https://packagefeedproxy.microsoft.io/npm/',
+    checksumManifest: { format: 'sha256sums', asset: 'SHA256SUMS', assetId: 579078699,
+      url: 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.35/SHA256SUMS', size: 104,
+      sha256: '51930bf90fd22b04813494b301951b681a1b82a622351e93152f06ad8d3b93ab',
+      integrity: 'sha512-X41UN3az6uzTTWAC1q9kZJ9XGTKdBulYuStmzW4GaCIYt9+5MGAcp+D0hyvOJ8pZkdrdetFI9fzPB1nrbIzysA==' },
+  };
+  const plugin = lock.components.copilotIntegration;
+  plugin.source.commit = source.targetCommit; plugin.package.version = source.version;
+  Object.assign(plugin.package.artifact, { releaseId: 392975357, assetId: source.assetId, sha256: source.sha256,
+    size: source.size, integrity: source.integrity, name: source.asset, releaseTag: source.tag, releaseCommit: source.targetCommit });
+  const plan = { schemaVersion: 1, mode: 'exact', plugins: [{ required: true, source }] };
+  n.plan.sha256 = put('desktop-provisioning.json', plan); put('provisioning-plan.json', plan);
+  n.plan.planSha256 = sha256(JSON.stringify(plan)); c.managedCapability.provisioning.planSha256 = n.plan.planSha256;
+  n.capabilitySha256 = put('capability.json', c.managedCapability);
+  n.buildReceiptCompatibility.provisioning = structuredClone(c.managedCapability.provisioning);
+  n.settingsAcceptance.schemaVersion = 3;
+  const settings = { schemaVersion: 3, accountViewLoaded: true, retiredModelRolesAbsent: true,
+    searchProviderCatalogLoaded: true, providerOnlySearchRouting: true, fallbackProviderLabel: true,
+    registeredSearchProviders: ['deepseek-official', 'github-copilot-hosted'], realSearch: false };
+  for (const phase of ['initial', 'restart']) {
+    n.settingsAcceptance[`${phase}Sha256`] = put(`${phase}-settings-readonly.json`, settings);
+    const store = get(`${phase}-desktop-plugin-receipts.json`); const receipt = store.receipts[source.packageName];
+    Object.assign(receipt, { source, releaseId: 392975357, assetId: source.assetId, version: source.version, artifactSha256: source.sha256 });
+    put(`${phase}-desktop-plugin-receipts.json`, store);
+    const state = get(`${phase}-desktop-plugin-provisioning-state.json`); state.planSha256 = n.plan.planSha256;
+    state.plugins = [{ name: source.packageName, version: source.version, required: true, status: 'active', source, receipt }];
+    put(`${phase}-desktop-plugin-provisioning-state.json`, state);
+    const profile = get(`${phase}-package.json`); profile.dependencies[source.packageName] = `file:.desktop-plugin-artifacts/${source.sha256}.tgz`;
+    put(`${phase}-package.json`, profile);
+  }
+  for (const phase of ['candidate', 'candidate-restart']) {
+    const file = `core-qualification/installed/${phase}.json`, value = get(file);
+    value.actualHostSettingsViews = settings; put(file, value);
+  }
+  const buildKeys = ['workflow', 'lockfileSha256', 'planSha256', 'nodeVersion', 'pnpmVersion', 'packageRegistry'];
+  const publicBuild = Object.fromEntries(buildKeys.map(key => [key, c.build[key]]));
+  const receipt = get('build-receipt.json'); receipt.buildInputs = publicBuild; receipt.pluginCompatibility = n.buildReceiptCompatibility;
+  Object.assign(receipt.artifacts, { capabilitySha256: n.capabilitySha256,
+    provisioning: { file: 'desktop-provisioning.json', sha256: n.plan.sha256, planSha256: n.plan.planSha256 } });
+  delete receipt.receiptSha256; receipt.receiptSha256 = sha256(canonical(receipt));
+  c.buildReceipt.receiptSha256 = receipt.receiptSha256; c.buildReceipt.sha256 = put('build-receipt.json', receipt);
+  const manifest = get('release.json'); manifest.build = publicBuild;
+  manifest.buildReceipt = { file: c.buildReceipt.file, sha256: c.buildReceipt.sha256, receiptSha256: c.buildReceipt.receiptSha256 };
+  delete manifest.manifestSha256; manifest.manifestSha256 = sha256(canonical(manifest));
+  c.manifestSha256 = manifest.manifestSha256; c.manifestRawSha256 = put('release.json', manifest);
+  const identityNames = ['evidenceId', 'sourceCommit', 'sourceTree', 'runId', 'runAttempt', 'planSha256',
+    'runtimeSha256', 'executableSha256', 'provisioningSha256', 'capabilitySha256'];
+  const functional = get('functional-results.json');
+  Object.assign(functional, { schemaVersion: 3, plugin: source, provisioningSha256: n.plan.sha256,
+    capabilitySha256: n.capabilitySha256, settingsAcceptance: [settings, settings], restartReceiptSha256: digest('initial-desktop-plugin-receipts.json') });
+  delete functional.modelRolesViewLoaded; delete functional.currentWorkspaceReadOnly;
+  const box = (x, y, width, height) => ({ x, y, width, height });
+  const style = { fontSize: '13px', lineHeight: '20px', color: 'rgb(100, 100, 100)' };
+  const native = { schemaVersion: 1, scope: 'actual-packaged-native-composer-and-released-client',
+    ...Object.fromEntries(identityNames.map(key => [key, functional[key]])),
+    sessionHistory: 'synthetic-persisted-in-isolated-home', quota: 'signed-out-host-response-no-credentials',
+    pluginSource: source, installedClientSha256: '7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368',
+    geometry: [1280, 400].map(width => ({ viewportWidth: width, dock: box(0, 0, width, 90),
+      time: box(10, 10, 80, 20), usage: box(100, 10, 100, 20), copilot: box(210, width === 1280 ? 10 : 40, 150, 20),
+      nativeStyle: style, copilotStyle: style })),
+    nativeDialogs: { time: { opened: true, closedOnEscape: true, focusReturned: true }, usage: { opened: true, closedOnEscape: true, focusReturned: true } },
+    copilotDialog: { signedOutObserved: true, sessionCreditsCount: 0, resetCount: 0, epochTextCount: 0, focusReturned: true },
+    rendererErrors: [], realModelRound: false, realOAuth: false };
+  put('native-composer-geometry.json', native); functional.nativeComposer = native;
+  for (const step of ['seeded', 'launch', 'application', 'observed', 'closed']) functional.timeline.push({ event: `native-composer:${step}`, milliseconds: functional.timeline.length });
+  put('functional-results.json', functional);
+  for (const file of ['failure.json', 'observer-cleanup.json', 'packaged-suite.json']) {
+    const value = get(file); value.provisioningSha256 = n.plan.sha256; value.capabilitySha256 = n.capabilitySha256;
+    if (file === 'failure.json') value.timeline = [...functional.timeline, { event: 'failure', milliseconds: functional.timeline.length }];
+    put(file, value);
+  }
+  const positive = get('positive-usage.json'); positive.pluginSource = source; positive.installedClientSha256 = native.installedClientSha256;
+  put('positive-usage.json', positive); n.packagedAcceptance.format = 'combined-suite-v3';
+  delete n.nativeComposerAcceptance;
+  const seal = () => {
+    f.seal(); const summary = get('core-qualification/qualification.json');
+    Object.assign(summary.inputs, { 'candidate.manifest': c.manifestRawSha256, 'candidate.receipt': c.buildReceipt.sha256,
+      'candidate.provisioning': n.plan.sha256, 'packaged.nativeComposer': digest('native-composer-geometry.json') });
+    n.packagedAcceptance.qualificationSha256 = put('core-qualification/qualification.json', summary);
+  };
+  const ordinary = () => {
+    const run = f.ordinary(); const functional = get('functional-results.json'), native = get('native-composer-geometry.json');
+    Object.assign(native, run); put('native-composer-geometry.json', native); functional.nativeComposer = native;
+    put('functional-results.json', functional); put('acceptance.json', { ...functional, scope: 'packaged-acceptance', normalAcceptanceCompleted: true, cleanupVerified: true });
+    return run;
+  };
+  seal(); return { ...f, seal, ordinary };
+}
+
 // New inert factory only. Original historical fixture directories and v1/v2 factories are unchanged.
 export function dualPackagedFixture(t) {
   const f = packagedV2Fixture(t); const { lock, directory, get, put, digest } = f;

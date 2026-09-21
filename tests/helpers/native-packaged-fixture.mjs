@@ -241,3 +241,98 @@ export function packagedV2Fixture(t) {
   };
   seal(); return { ...f, seal };
 }
+
+// New inert factory only. Original historical fixture directories and v1/v2 factories are unchanged.
+export function dualPackagedFixture(t) {
+  const f = packagedV2Fixture(t); const { lock, directory, get, put, digest } = f;
+  const d = lock.components.desktop, c = d.releaseChannel, n = c.nativeProvisioning;
+  const phaseFiles = ['initial', 'restart'].flatMap(phase => ['settings-readonly', 'version-menu', 'usage-readonly',
+    'packaged-graph', 'desktop-plugin-receipts', 'desktop-plugin-provisioning-state', 'package'].map(suffix => `${phase}-${suffix}.json`));
+  const ownedFiles = ['desktop-runtime.json', 'provisioning-plan.json', 'capability.json', 'executable.json',
+    'positive-usage.json', 'functional-results.json', ...phaseFiles];
+  mkdirSync(join(directory, 'canary'));
+  for (const file of [...ownedFiles, 'failure.json', 'observer-cleanup.json', 'packaged-suite.json']) {
+    cpSync(join(directory, file), join(directory, 'canary', file));
+  }
+  for (const file of ['failure.json', 'observer-cleanup.json', 'packaged-suite.json']) unlinkSync(join(directory, file));
+  const primary = get('functional-results.json'); primary.evidenceId = '11111111-2222-4333-8444-555555555555';
+  primary.timeline.forEach((row, index) => { row.milliseconds = index * 2; });
+  for (const [index, phase] of ['initial', 'restart'].entries()) {
+    const menu = get(`${phase}-version-menu.json`); menu.windowId = 70 + index;
+    primary.versionMenus[index] = menu;
+    n.settingsAcceptance[`${phase}VersionMenuSha256`] = put(`${phase}-version-menu.json`, menu);
+    const graph = get(`${phase}-packaged-graph.json`); graph.profile = 'C:\\inert-primary\\profiles\\desktop'; graph.cwd = graph.profile;
+    n.ancestorIsolation[`${phase}GraphSha256`] = put(`${phase}-packaged-graph.json`, graph);
+  }
+  put('functional-results.json', primary);
+  put('acceptance.json', { ...primary, scope: 'packaged-acceptance', normalAcceptanceCompleted: true, cleanupVerified: true });
+  // Producer-shaped public build objects have six fields, NEVER the two Ops-only run metadata leaves.
+  const build = Object.fromEntries(['workflow', 'lockfileSha256', 'planSha256', 'nodeVersion', 'pnpmVersion', 'packageRegistry'].map(key => [key, c.build[key]]));
+  const receipt = get('build-receipt.json'); receipt.buildInputs = build;
+  delete receipt.receiptSha256; receipt.receiptSha256 = sha256(canonical(receipt));
+  c.buildReceipt.receiptSha256 = receipt.receiptSha256; c.buildReceipt.sha256 = put('build-receipt.json', receipt);
+  const manifest = get('release.json'); manifest.build = build;
+  manifest.buildReceipt = { file: c.buildReceipt.file, sha256: c.buildReceipt.sha256, receiptSha256: c.buildReceipt.receiptSha256 };
+  delete manifest.manifestSha256; manifest.manifestSha256 = sha256(canonical(manifest));
+  c.manifestSha256 = manifest.manifestSha256; c.manifestRawSha256 = put('release.json', manifest);
+  const summary = get('core-qualification/qualification.json');
+  delete summary.inputs['packaged.helper'];
+  summary.normalPackagedAcceptanceCompleted = true; summary.canaryNormalAcceptanceCompleted = false;
+  Object.assign(summary.inputs, { 'candidate.manifest': c.manifestRawSha256, 'candidate.receipt': c.buildReceipt.sha256 });
+  put('core-qualification/qualification.json', summary);
+  const run = get('core-qualification/workflow-run.json'); run.repository.id = 12345; put('core-qualification/workflow-run.json', run);
+  const job = get('core-qualification/workflow-job.json');
+  job.steps = ['Verify packaged Copilot account and restart', 'Verify real acceptance observer failure cleanup',
+    'Verify real installed Desktop upgrade', 'Verify complete release qualification', 'Retain verified internal qualification summary']
+    .map((name, index) => ({ name, number: index + 1, status: 'completed', conclusion: 'success' }));
+  put('core-qualification/workflow-job.json', job);
+  const names = [`desktop-copilot-acceptance-${d.version}`, `desktop-copilot-observer-canary-${d.version}`,
+    `desktop-fork-qualification-${d.version}-${d.source.commit}-2`, `desktop-installer-upgrade-${d.version}`];
+  put('core-qualification/workflow-artifacts.json', { total_count: 4, artifacts: names.map((name, index) => {
+    const id = 1001 + index; const url = `https://api.github.com/repos/cloga/deepseek-harness/actions/artifacts/${id}`;
+    return { id, name, size_in_bytes: 100 + index, digest: `sha256:${sha256(`INERT API metadata ${name}`)}`, expired: false,
+      url, archive_download_url: `${url}/zip`, workflow_run: { id: 123, repository_id: 12345, head_repository_id: 12345, head_sha: d.source.commit } };
+  }) });
+  n.packagedAcceptance.format = 'dual-ordinary-canary-v1';
+  const fileMap = { 'ordinary.acceptance': 'acceptance.json', 'ordinary.helper': 'helper-acceptance.json', 'ordinary.positiveUsage': 'positive-usage.json',
+    'packaged.runtime': 'canary/desktop-runtime.json', 'packaged.provisioning': 'canary/provisioning-plan.json', 'packaged.capability': 'canary/capability.json',
+    'packaged.executable': 'canary/executable.json', 'packaged.positiveUsage': 'canary/positive-usage.json',
+    'packaged.functional': 'canary/functional-results.json', 'packaged.failure': 'canary/failure.json',
+    'packaged.observer': 'canary/observer-cleanup.json', 'packaged.suite': 'canary/packaged-suite.json' };
+  for (const phase of ['initial', 'restart']) for (const [label, suffix] of [['settings', 'settings-readonly'], ['menu', 'version-menu'], ['usage', 'usage-readonly'],
+    ['graph', 'packaged-graph'], ['receipts', 'desktop-plugin-receipts'], ['provisioning', 'desktop-plugin-provisioning-state'], ['profile', 'package']]) {
+    fileMap[`packaged.${phase}.${label}`] = `canary/${phase}-${suffix}.json`;
+  }
+  for (const [label, file] of [['baseline.acquisition', 'acquisition'], ['upgrade.result', 'installer-upgrade'], ['upgrade.baseline', 'baseline'],
+    ['upgrade.candidate', 'candidate'], ['upgrade.candidate-restart', 'candidate-restart'], ['upgrade.cleanup', 'profile-cleanup'], ['upgrade.packages', 'package-acceptance']]) {
+    fileMap[label] = `core-qualification/installed/${file}.json`;
+  }
+  const seal = () => {
+    const observer = get('canary/observer-cleanup.json'); observer.functionalSha256 = digest('canary/functional-results.json');
+    observer.failureSha256 = digest('canary/failure.json'); put('canary/observer-cleanup.json', observer);
+    const suite = get('canary/packaged-suite.json'); suite.receipts = Object.fromEntries(['functional', 'failure', 'observer'].map(key =>
+      [key, { file: `${key === 'functional' ? 'functional-results' : key === 'observer' ? 'observer-cleanup' : 'failure'}.json`, sha256: digest(fileMap[`packaged.${key}`]) }]));
+    n.packagedAcceptance.suiteSha256 = put('canary/packaged-suite.json', suite);
+    const summary = get('core-qualification/qualification.json');
+    for (const [label, file] of Object.entries(fileMap)) summary.inputs[label] = digest(file);
+    n.packagedAcceptance.qualificationSha256 = put('core-qualification/qualification.json', summary);
+    n.packagedAcceptance.ordinaryAcceptanceSha256 = digest('acceptance.json'); n.ancestorIsolation.acceptanceSha256 = n.packagedAcceptance.ordinaryAcceptanceSha256;
+    for (const [key, file] of [['workflowRunSha256', 'workflow-run'], ['workflowJobSha256', 'workflow-job'], ['workflowArtifactsSha256', 'workflow-artifacts']]) {
+      n.packagedAcceptance[key] = digest(`core-qualification/${file}.json`);
+    }
+  };
+  const fresh = () => {
+    const output = mkdtempSync(join(tmpdir(), 'ops-inert-third-')); t.after(() => rmSync(output, { recursive: true, force: true }));
+    for (const file of ownedFiles) cpSync(join(directory, file), join(output, file));
+    const putFresh = (file, value) => writeFileSync(join(output, file), JSON.stringify(value));
+    const value = get('functional-results.json'); value.runId = '456'; value.runAttempt = '3'; value.evidenceId = '22222222-3333-4444-8555-666666666666';
+    for (const [index, phase] of ['initial', 'restart'].entries()) {
+      const menu = { ...value.versionMenus[index], windowId: 200 + index }; value.versionMenus[index] = menu; putFresh(`${phase}-version-menu.json`, menu);
+      const settings = get(`${phase}-settings-readonly.json`); settings.registeredSearchProviders.push('inert-fresh-provider'); putFresh(`${phase}-settings-readonly.json`, settings);
+      const graph = get(`${phase}-packaged-graph.json`); graph.profile = 'C:\\inert-fresh\\profiles\\desktop'; graph.cwd = graph.profile; putFresh(`${phase}-packaged-graph.json`, graph);
+    }
+    putFresh('functional-results.json', value); putFresh('acceptance.json', { ...value, scope: 'packaged-acceptance', normalAcceptanceCompleted: true, cleanupVerified: true });
+    return { directory: output, run: { runId: '456', runAttempt: '3' } };
+  };
+  seal(); return { ...f, seal, fresh };
+}

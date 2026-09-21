@@ -5,8 +5,8 @@ import { syncBuiltinESMExports } from 'node:module';
 import { readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { packagedFixture, packagedV2Fixture } from './helpers/native-packaged-fixture.mjs';
-import { usesCombinedPackagedEvidence, readCombinedPackagedEvidence, verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
+import { packagedFixture, packagedV2Fixture, dualPackagedFixture } from './helpers/native-packaged-fixture.mjs';
+import { packagedEvidenceFormat, usesCombinedPackagedEvidence, readCombinedPackagedEvidence, readDualPackagedEvidence, verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
 import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
 import { verifyFreshSettingsEvidence, validateSourceIdentity } from './native-asar-release-smoke.mjs';
 import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
@@ -430,4 +430,203 @@ for (const [name, mutate] of [
 ]) test(`fresh v2 rejects ${name}`, t => {
   forbidChildren(t); const f = packagedV2Fixture(t); const run = f.ordinary(); mutate(f);
   assert.throws(() => verifyFreshOrdinaryPackagedEvidence(f.lock, f.directory, run));
+});
+
+const verifyDual = f => readDualPackagedEvidence(f.lock, f.directory);
+test('dual original scopes and actual six-field public build projection pass without rewriting bytes (inert)', t => {
+  forbidChildren(t); const f = dualPackagedFixture(t);
+  const watched = ['acceptance.json', 'functional-results.json', 'positive-usage.json', 'release.json', 'build-receipt.json',
+    'canary/functional-results.json', 'canary/failure.json', 'canary/observer-cleanup.json', 'canary/packaged-suite.json',
+    'core-qualification/qualification.json', 'core-qualification/workflow-artifacts.json'];
+  const before = watched.map(file => f.digest(file));
+  assert.equal(packagedEvidenceFormat(f.lock), 'dual-ordinary-canary-v1'); assert.equal(usesCombinedPackagedEvidence(f.lock), false);
+  const accepted = verifyDual(f); assert.equal(accepted.normalAcceptanceCompleted, true); assert.equal(accepted.cleanupVerified, true);
+  const other = f.get('canary/functional-results.json');
+  assert.notEqual(accepted.evidenceId, other.evidenceId); assert.notDeepEqual(accepted.versionMenus, other.versionMenus);
+  assert.notDeepEqual(accepted.timeline, other.timeline);
+  assert.notEqual(f.get('initial-packaged-graph.json').profile, f.get('canary/initial-packaged-graph.json').profile);
+  assert.equal(Object.keys(f.get('core-qualification/qualification.json').inputs).length, 45);
+  assert.equal(f.get('release.json').build.runUrl, undefined); assert.equal(f.get('build-receipt.json').buildInputs.attempt, undefined);
+  assert.equal(f.lock.components.desktop.releaseChannel.build.attempt, 2);
+  const result = verifyNativeReleaseEvidence(f.lock, f.directory);
+  assert.equal(result.valid, true); assert.deepEqual(result.formalEvidenceLimits, { archiveBytesVerified: false,
+    archiveMembershipVerified: false, unarchivedInstalledRootsReplayed: false, scope: 'pinned-api-and-original-json-consistency' });
+  assert.deepEqual(watched.map(file => f.digest(file)), before);
+});
+test('dual fresh Ops third ordinary run keeps own menus, providers, profiles and real Ops run identity (inert)', t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); const fresh = f.fresh();
+  const accepted = verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, fresh.run);
+  assert.equal(accepted.runId, '456'); assert.equal(accepted.runAttempt, '3');
+  assert.notEqual(accepted.evidenceId, f.get('acceptance.json').evidenceId);
+  assert.notDeepEqual(accepted.versionMenus, f.get('acceptance.json').versionMenus);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, accepted, fresh.directory), undefined);
+  assert.throws(() => verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, { runId: '123', runAttempt: '2' }));
+});
+
+for (const [name, mutate] of [
+  ['missing format', f => { delete f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance; }],
+  ['unknown format', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.format = 'dual-v99'; }],
+  ['combined declaration cannot reinterpret dual files', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.format = 'combined-suite-v2'; }],
+  ['ordinary pin disagrees with ancestor pin', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = '0'.repeat(64); }],
+  ['missing original artifacts metadata pin', f => { delete f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.workflowArtifactsSha256; }],
+  ['alpha1 quota2 declaration mixed into dual', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance = { schemaVersion: 1 }; }],
+  ['primary failure receipt', f => f.put('failure.json', {})],
+  ['primary canary suite', f => f.put('packaged-suite.json', {})],
+  ['canary ordinary receipt', f => f.put('canary/acceptance.json', f.get('acceptance.json'))],
+  ['canary helper copy', f => f.put('canary/helper-acceptance.json', f.get('helper-acceptance.json'))],
+  ['canary public metadata copy', f => f.put('canary/desktop-provisioning.json', f.get('desktop-provisioning.json'))],
+]) test(`dual rejects ${name}`, t => { forbidChildren(t); const f = dualPackagedFixture(t); mutate(f); assert.throws(() => verifyDual(f)); });
+for (const file of ['acceptance.json', 'functional-results.json', 'positive-usage.json', 'helper-acceptance.json',
+  'canary/functional-results.json', 'canary/failure.json', 'canary/observer-cleanup.json', 'canary/packaged-suite.json', 'canary/positive-usage.json',
+  'core-qualification/qualification.json', 'core-qualification/workflow-run.json', 'core-qualification/workflow-job.json',
+  'core-qualification/workflow-artifacts.json', 'core-qualification/installed/installer-upgrade.json']) {
+  test(`dual rejects missing original ${file}`, t => { forbidChildren(t); const f = dualPackagedFixture(t); unlinkSync(join(f.directory, file)); assert.throws(() => verifyDual(f)); });
+}
+for (const file of ['acceptance.json', 'positive-usage.json', 'canary/functional-results.json', 'canary/positive-usage.json', 'core-qualification/workflow-artifacts.json']) {
+  test(`dual rejects changed original raw bytes ${file}`, t => {
+    forbidChildren(t); const f = dualPackagedFixture(t); writeFileSync(join(f.directory, file), readFileSync(join(f.directory, file), 'utf8') + '\n');
+    assert.throws(() => verifyDual(f));
+  });
+}
+for (const [name, file, mutate] of [
+  ['primary normal false', 'acceptance.json', v => { v.normalAcceptanceCompleted = false; }],
+  ['primary provisional substituted', 'acceptance.json', v => { v.scope = 'packaged-functional-observations'; }],
+  ['primary cleanup false', 'acceptance.json', v => { v.cleanupVerified = false; }],
+  ['primary old schema', 'acceptance.json', v => { v.schemaVersion = 1; }],
+  ['primary UUID family mismatch', 'functional-results.json', v => { v.evidenceId = '33333333-4444-4555-8666-777777777777'; }],
+  ['primary source mismatch', 'acceptance.json', v => { v.sourceCommit = '0'.repeat(40); }],
+  ['primary Ops run substituted', 'acceptance.json', v => { v.runId = '456'; }],
+  ['canary source mismatch', 'canary/functional-results.json', v => { v.sourceCommit = '0'.repeat(40); }],
+  ['canary tree mismatch', 'canary/functional-results.json', v => { v.sourceTree = '0'.repeat(40); }],
+  ['canary run mismatch', 'canary/functional-results.json', v => { v.runId = '456'; }],
+  ['canary attempt mismatch', 'canary/functional-results.json', v => { v.runAttempt = '3'; }],
+  ['canary UUID family mismatch', 'canary/observer-cleanup.json', v => { v.evidenceId = '33333333-4444-4555-8666-777777777777'; }],
+  ['canary cleanup error', 'canary/failure.json', v => { v.cleanupErrors = ['inert failure']; }],
+  ['canary unknown edge path', 'canary/packaged-suite.json', v => { v.receipts.functional.file = '../functional-results.json'; }],
+  ['primary settings false', 'initial-settings-readonly.json', v => { v.currentWorkspaceReadOnly = false; }],
+  ['canary settings false', 'canary/initial-settings-readonly.json', v => { v.currentWorkspaceReadOnly = false; }],
+  ['canary menu differs from own observation', 'canary/initial-version-menu.json', v => { v.windowId = 7000; }],
+  ['installed record success false', 'core-qualification/installed/installer-upgrade.json', v => { v.succeeded = false; }],
+]) test(`dual rejects rehashed ${name}`, t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); change(f, file, mutate);
+  if (name === 'canary unknown edge path') {
+    f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.suiteSha256 = f.digest(file);
+  } else f.seal();
+  assert.throws(() => verifyDual(f));
+});
+function dualSummary(f, mutate) {
+  const value = f.get('core-qualification/qualification.json'); mutate(value);
+  f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.qualificationSha256 = f.put('core-qualification/qualification.json', value);
+}
+for (const [name, mutate] of [
+  ['normal false', v => { v.normalPackagedAcceptanceCompleted = false; }],
+  ['canary normal true', v => { v.canaryNormalAcceptanceCompleted = true; }],
+  ['missing canary scope', v => { delete v.canaryNormalAcceptanceCompleted; }],
+  ['unknown summary key', v => { v.zipMembershipVerified = true; }],
+  ['wrong run', v => { v.runId = '456'; }],
+  ['wrong source', v => { v.sourceCommit = '0'.repeat(40); }],
+  ['wrong sequence', v => { v.sequence++; }],
+  ['live quota claim', v => { v.limits.liveAccountQuota = true; }],
+  ['invented ordinary runtime input', v => { v.inputs['ordinary.runtime'] = '0'.repeat(64); }],
+  ['old packaged helper label', v => { v.inputs['packaged.helper'] = v.inputs['ordinary.helper']; delete v.inputs['ordinary.helper']; }],
+  ['missing ordinary acceptance input', v => { delete v.inputs['ordinary.acceptance']; }],
+  ['missing ordinary positive input', v => { delete v.inputs['ordinary.positiveUsage']; }],
+  ['missing canary positive input', v => { delete v.inputs['packaged.positiveUsage']; }],
+  ['wrong canary phase digest', v => { v.inputs['packaged.restart.settings'] = '0'.repeat(64); }],
+  ['wrong original ordinary hash', v => { v.inputs['ordinary.acceptance'] = '0'.repeat(64); }],
+  ['invalid CI-attested hash', v => { v.inputs['upgrade.owner'] = 'not-a-hash'; }],
+]) test(`dual rejects rehashed summary ${name}`, t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); dualSummary(f, mutate); assert.throws(() => verifyDual(f));
+});
+for (const [name, mutate] of [
+  ['missing observer', v => { v.steps.splice(1, 1); }],
+  ['skipped observer', v => { v.steps[1].conclusion = 'skipped'; }],
+  ['failed qualification', v => { v.steps[3].conclusion = 'failure'; }],
+  ['duplicated observer', v => { v.steps.push({ ...v.steps[1] }); }],
+  ['observer before primary', v => { v.steps[1].number = 0; }],
+  ['qualification before installed', v => { v.steps[3].number = 2; }],
+  ['summary upload before qualification', v => { v.steps[4].number = 1; }],
+  ['wrong job run attempt', v => { v.run_attempt = 9; }],
+]) test(`dual rejects rehashed workflow ${name}`, t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); change(f, 'core-qualification/workflow-job.json', mutate); f.seal(); assert.throws(() => verifyDual(f));
+});
+for (const [name, mutate] of [
+  ['incomplete paginated inventory', v => { v.total_count++; }],
+  ['missing primary artifact', v => { v.artifacts.shift(); v.total_count--; }],
+  ['duplicate artifact ID', v => { v.artifacts[1].id = v.artifacts[0].id; }],
+  ['duplicate selected artifact name', v => { v.artifacts[1].name = v.artifacts[0].name; }],
+  ['expired artifact', v => { v.artifacts[0].expired = true; }],
+  ['malformed archive digest', v => { v.artifacts[0].digest = 'sha256:wrong'; }],
+  ['zero archive bytes', v => { v.artifacts[0].size_in_bytes = 0; }],
+  ['wrong artifact URL ID', v => { v.artifacts[0].id++; }],
+  ['foreign repository download', v => { v.artifacts[0].archive_download_url = 'https://example.com/archive.zip'; }],
+  ['wrong artifact run', v => { v.artifacts[0].workflow_run.id = 456; }],
+  ['wrong artifact source', v => { v.artifacts[0].workflow_run.head_sha = '0'.repeat(40); }],
+  ['wrong artifact repository', v => { v.artifacts[0].workflow_run.repository_id++; }],
+  ['wrong artifact head repository', v => { v.artifacts[0].workflow_run.head_repository_id++; }],
+  ['qualification name wrong attempt', v => { v.artifacts[2].name = v.artifacts[2].name.replace(/-2$/u, '-3'); }],
+]) test(`dual rejects rehashed artifact metadata ${name}`, t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); change(f, 'core-qualification/workflow-artifacts.json', mutate); f.seal(); assert.throws(() => verifyDual(f));
+});
+for (const root of ['', 'canary/']) {
+  for (const field of ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
+    'applicationMountPreserved', 'syntheticSiblingPreserved', 'inheritedSessionScopeVerified', 'explicitUndefinedSessionScopeAbsent',
+    'removedSessionRestoresUsage', 'closedSessionHidesUsage', 'closedSessionRestoresUsage', 'restoredProviderShowsUsage', 'subscriptionsReleased', 'syntheticContextDisposed']) {
+    test(`dual rejects jointly rehashed ${root || 'primary/'}${field}=false`, t => {
+      forbidChildren(t); const f = dualPackagedFixture(t);
+      for (const file of [`${root}positive-usage.json`, `${root}functional-results.json`, ...(root ? [] : ['acceptance.json'])]) {
+        change(f, file, v => { (v.cases ?? v.positiveCopilotUsage)[0][field] = false; });
+      }
+      f.seal(); assert.throws(() => verifyDual(f));
+    });
+  }
+  for (const [name, mutate] of [
+    ['runtime mismatch', v => { v.runtimeSha256 = '0'.repeat(64); }],
+    ['source mismatch', v => { v.pluginSource.targetCommit = '0'.repeat(40); }],
+    ['Client hash mismatch', v => { v.installedClientSha256 = '0'.repeat(64); }],
+    ['quota2 legacy case', v => { v.cases[0].quotaReads = 2; }],
+    ['wrong case count', v => { v.cases.pop(); }],
+    ['provider order', v => { v.cases.reverse(); }],
+    ['extra case key', v => { v.cases[0].extra = true; }],
+    ['missing case key', v => { delete v.cases[0].subscriptionsReleased; }],
+    ['selector error', v => { v.cases[0].selectorErrors = 1; }],
+    ['forbidden Remote call', v => { v.cases[0].forbiddenRemoteCalls = 1; }],
+    ['wrong text', v => { v.cases[0].usageText = '7 used'; }],
+    ['not restored', v => { v.originalSignedOutApplicationRestored = false; }],
+  ]) test(`dual rejects rehashed ${root || 'primary/'}positive ${name}`, t => {
+    forbidChildren(t); const f = dualPackagedFixture(t); change(f, `${root}positive-usage.json`, mutate); f.seal(); assert.throws(() => verifyDual(f));
+  });
+}
+test('dual rejects linked canary root without following its receipt graph', t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); const other = dualPackagedFixture(t);
+  rmSync(join(f.directory, 'canary'), { recursive: true }); symlinkSync(join(other.directory, 'canary'), join(f.directory, 'canary'), 'junction');
+  assert.throws(() => verifyDual(f), /native-reparse-path/); unlinkSync(join(f.directory, 'canary'));
+});
+for (const root of ['../escape', '/absolute', 'C:\\escape', '\\\\server\\share',
+  'tests/fixtures/desktop-native-verified-release/../escape', 'tests/fixtures/desktop-native-verified-release/alias.',
+  'tests/fixtures/desktop-native-verified-release/proof:stream']) test(`dual rejects unsafe declared root ${root}`, t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); f.lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot = root;
+  assert.throws(() => verifyDual(f));
+});
+test('dual rejects lexical and linked primary root aliases', t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); const other = dualPackagedFixture(t);
+  assert.throws(() => readDualPackagedEvidence(f.lock, `${f.directory}/.`));
+  const alias = join(other.directory, 'primary-link'); symlinkSync(f.directory, alias, 'junction');
+  assert.throws(() => readDualPackagedEvidence(f.lock, alias), /native-reparse-path/); unlinkSync(alias);
+});
+for (const [name, file, mutate] of [
+  ['Ops runUrl in public build', 'release.json', v => { v.build.runUrl = 'not-a-Core-build-field'; }],
+  ['wrong Core build node', 'release.json', v => { v.build.nodeVersion = '0.0.0'; }],
+  ['wrong Core build plan digest', 'build-receipt.json', v => { v.buildInputs.planSha256 = '0'.repeat(64); }],
+  ['public source drift', 'release.json', v => { v.source.commit = '0'.repeat(40); }],
+]) test(`dual rejects rehashed ${name} independently from Ops run fields`, t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); change(f, file, mutate);
+  const channel = f.lock.components.desktop.releaseChannel;
+  if (file === 'release.json') channel.manifestRawSha256 = f.digest(file); else channel.buildReceipt.sha256 = f.digest(file);
+  dualSummary(f, v => { v.inputs[file === 'release.json' ? 'candidate.manifest' : 'candidate.receipt'] = f.digest(file); });
+  assert.throws(() => verifyDual(f));
+});
+for (const field of ['head_sha', 'run_attempt', 'html_url']) test(`dual rejects rehashed wrong workflow ${field}`, t => {
+  forbidChildren(t); const f = dualPackagedFixture(t); change(f, 'core-qualification/workflow-run.json', v => { v[field] = 'wrong'; });
+  f.seal(); assert.throws(() => verifyDual(f));
 });

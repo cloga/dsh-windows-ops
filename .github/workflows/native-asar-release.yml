@@ -400,8 +400,8 @@ jobs:
             if ($diagnostic -isnot [System.Collections.IDictionary] -or
                 (($diagnostic.psbase.Keys | Sort-Object) -join ',') -cne 'code,sourceFailure,sourcePhase,stage') { throw 'native-asar-summary-artifact-invalid' }
             $stages = @('source-import','source-fixture','observer','post-acceptance','final-runtime')
-            $codes = @('unknown','desktop-startup','locator-timeout','electron-launch','assertion','child-command','module-not-found','native-addon','access-denied','missing-file','package-export')
-            $phases = @('none','package-identity') + @(foreach ($phase in @('initial','restart')) { foreach ($step in @('launch','application','account','settings-readonly','packaged-graph','closed')) { "${phase}:$step" } })
+            $codes = @('unknown','desktop-startup','locator-timeout','electron-launch','assertion','child-command','module-not-found','native-addon','access-denied','missing-file','package-export','plugin-github-http-401','plugin-github-http-403','plugin-github-http-404','plugin-github-http-429','plugin-github-http-5xx','plugin-github-http-other','plugin-github-redirect','plugin-github-policy','startup-fetch-failed')
+            $phases = @('none','package-identity','restart:positive-usage') + @(foreach ($phase in @('initial','restart')) { foreach ($step in @('launch','version-menu','application','account','usage-readonly','settings-readonly','packaged-graph','closed')) { "${phase}:$step" } })
             if ($diagnostic.stage -isnot [string] -or $diagnostic.stage -cnotin $stages -or
                 $diagnostic.code -isnot [string] -or $diagnostic.code -cnotin $codes -or
                 $diagnostic.sourcePhase -isnot [string] -or $diagnostic.sourcePhase -cnotin $phases -or

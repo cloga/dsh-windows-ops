@@ -36,6 +36,16 @@ The [new formal fixture generation](../tests/fixtures/desktop-native-verified-re
 
 The prior approved .16/alpha33 native qualification, including run `35577921833` at `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`, remains historical in the [alpha33 record](copilot-alpha33-upgrade-record.md). Alpha.2 adapters and their negative tests remain retained but do not promote Core.
 
+## First Ops attempt and failure-only diagnostics
+
+[Ops run `35590167413`, attempt 1](https://github.com/cloga/dsh-windows-ops/actions/runs/35590167413) used exact combined code head `f74c18aa86a2d22efee19c6145cf2275803bcb8d`. Its three prerequisite jobs passed; native job `106303100301` failed during the source-owned startup fixture before the observer. The original summary remains [not-ready failure evidence](evidence/desktop-links-17-initial-failure/qualification.json), not .17 qualification: `observerCalls: 0`, `profileRemoved: null`, code `desktop-startup`, recorded phase `initial:launch`.
+
+Parent acquisition authenticated artifact `10634880734`, `native-asar-qualification-35590167413-1`: original ZIP 365 bytes, SHA-256 `8d6847a87416f29317ed96028bc4ea32f6d025aa58dad1b49ac0ff2993da993e`. Its sole safe `qualification.json` is 352 bytes, SHA-256 `99441ece9619e6329ce5410c549293cdf54110f6c14f06e4534966ffccdf96bf`; the committed file preserves those original bytes. No rewritten field or successful .16 receipt supplies missing .17 evidence.
+
+The earlier diagnostic vocabulary omitted the fixture's version-menu and usage markers, so `initial:launch` is only its last recognized event, not proof that launch or menu observation failed. The underlying startup cause is unknown. Failure-only Ops diagnostics now recognize the source's actual version-menu/usage markers and restart-only positive-usage marker. They report only fixed categories for complete owned GitHub HTTP/redirect/policy messages inside the exact startup wrapper, or the exact generic `fetch failed` message. HTTP403 does not establish rate limiting or an authentication cause; generic fetch failure exposes no DNS/TLS/reset cause. Existing higher-priority locator, launch, module, native, access and missing-file classifications retain precedence. Messages not admitted by these exact new rules keep the existing classification; conflicting new categories do not select an arbitrary category. Raw errors, URLs, paths, headers and body text are never emitted.
+
+Producer inspection is pinned to released Core `f25506b4ad190ce090b8a4e9602c7ad36179db6b`: `apps/desktop/src/github-release.ts` supplies the bounded status message; `plugin-source.ts` supplies its fixed subject; `startup-error.ts` flattens error messages; `renderer/startup.js` displays them; `tests/fixtures/copilot-release-smoke.ts` wraps startup text and records phases. No Core/release bytes, settings, credentials, timing, retry policy or acceptance assertions change. New diagnostics require reviewed new code and a separately approved fresh qualifier; a subsequent pass cannot retroactively diagnose this failed attempt.
+
 ## Installation and evidence limits
 
 `installerUpgradeVerified=false`; real OAuth, model rounds, search and live account quota are not established. A source-owned packaged startup/restart and isolated native-ASAR observer are not execution of NSIS or the operator's installed profile. The installer remains unsigned by the established fork channel, not a weakened signature exception.
@@ -46,4 +56,4 @@ This synchronization changes source-controlled pins and evidence only. It does n
 
 本次拟将 Ops 锁同步至已发布的 Desktop `.cloga.17`／序号 28，保留 Core alpha.1 和 Copilot alpha.33；不提升 alpha.2，也不采用另行发布的 alpha.34。正式发布 run `35583602522` attempt 1 已通过，六个不可变制品及校验和已独立核验；新增 formal-cloga016-17 原始证据，不重写旧证据。
 
-链接测试通过真实 Electron 点击路径，但替换系统浏览器打开函数；不证明真实浏览器加载、OAuth 或安装升级。新的 Ops exact-head native-ASAR 资格仍待执行，不能把旧 .16 的成功移植到本版。当前不安装、不启动 Desktop、不写 profile、不激活或重启。
+链接测试通过真实 Electron 点击路径，但替换系统浏览器打开函数；不证明真实浏览器加载、OAuth 或安装升级。新的 Ops exact-head native-ASAR 资格尚未完成，不能把旧 .16 的成功移植到本版。首次 run `35590167413` 的原始 not-ready 失败记录保留不变；其泛化启动错误和被过滤后的阶段不能确定根因。后续只增强固定词汇的失败诊断和已记录阶段，不输出原始内容、不改变超时或重试、不修改 Core 制品，须另行评审后才运行一次新诊断验收。当前不安装、不启动 Desktop、不写 profile、不激活或重启。

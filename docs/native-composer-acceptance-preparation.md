@@ -93,6 +93,34 @@ geometry acceptance is not live quota, real Session billing, OAuth/model/search,
 installer-upgrade or local activation proof. All future pins, hosted native qualification
 and merge remain separate parent-owned work after authenticated assets arrive.
 
+## Practice: seal observation evidence before owned shutdown
+
+A green workflow is not sufficient acceptance. [Rehearsal `35631408693`](https://github.com/cloga/deepseek-harness/actions/runs/35631408693),
+source `c912a01bf123d456bf64d5b9159cf1c4a3199595`, passed its packaged native
+wide/narrow/dialog observations, but independent review rejected the authenticated
+receipts: standalone `native-composer-geometry.json` had `rendererErrors: []`, while
+main `acceptance.json.nativeComposer.rendererErrors` contained five later errors.
+Anonymous listeners still referenced one mutable array across the first serialization
+and the awaited owned `app.close()`, so the second serialization recorded different
+contents. The same-run equality guard correctly failed despite workflow success.
+Event timestamps were not retained: individual shutdown-message origins, or whether
+each message was caused by teardown, are **not** established by this evidence.
+
+The source repair at [`0456147862aeee1bc1a7f317f54f99d1a5101f02`](https://github.com/cloga/deepseek-harness/commit/0456147862aeee1bc1a7f317f54f99d1a5101f02)
+uses an explicit observation boundary covering interactions and final receipt checks,
+named callbacks removed with owner-specific cleanup, and an immutable owned snapshot
+before shutdown. Its regression coverage preserves every page/console error delivered
+inside that scope (including the same transport-error text), rejects failed inspection,
+and verifies that later events cannot mutate the snapshot or remove unrelated listeners.
+Do not filter generic error strings, clear observations to obtain success, or weaken
+strict same-run equality. Source repair is not fresh packaged qualification.
+
+Keep the old artifacts unchanged: they cannot be retroactively edited or requalified.
+Require complete, independently authenticated acceptance from the corrected exact
+source before promotion; rehearsal publication remains disabled and later formal
+release verification is still a prerequisite. This lesson changes no Ops code, pins,
+artifact bytes, test expectations or local installation/activation policy.
+
 Preparation checks (no dependency installation):
 
 ```text

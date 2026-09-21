@@ -14,13 +14,13 @@ Describe 'Official Desktop plugin provisioning contract' {
         $contract.nativeCapability.verified | Should -BeTrue
         $contract.nativeCapability.capability.id | Should -Be 'desktopNativeVerifiedRelease'
         $contract.nativeCapability.capability.automaticProvisioning | Should -BeFalse
-        $contract.package.version | Should -Be '0.4.0-alpha.33'
+        $contract.package.version | Should -Be '0.4.0-alpha.35'
         $contract.artifact.releaseImmutable | Should -BeTrue
-        $contract.artifact.releaseTag | Should -Be 'v0.4.0-alpha.33'
-        $contract.artifact.releaseCommit | Should -Be 'aa90fe434da8b2172faa1446afa0a0fd006afe00'
-        $contract.artifact.sha256 | Should -Be 'b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480'
-        $contract.artifact.sha512 | Should -Be '7cc38d8764e1b2edd84efdba0e719614394d836bf1ded604e82aa6e3f02ae4b98bc09a3bd707916474e42694677a70db5a4cdcbb8c8d9a4eeef86509c5bd1b43'
-        $contract.artifact.integrity | Should -Be 'sha512-fMONh2Thsu3YTv26DnGWFDlNg2vx3tYE6Cqm4/Aq5LmLwJo71weRZHTkJpRnenDbWkzcu4yNmk7u+GUJxb0bQw=='
+        $contract.artifact.releaseTag | Should -Be 'v0.4.0-alpha.35'
+        $contract.artifact.releaseCommit | Should -Be '6554417dc9a7544865e6c1bbdebf8b9a10e0a7af'
+        $contract.artifact.sha256 | Should -Be 'ec4f0fa24b45d94686a396b2558ef6b7fc5d521b9d94e65dcff9f772421f496d'
+        $contract.artifact.sha512 | Should -Be '5822a63ac817375cff52ec49a8a3e9e3655b091f73fe73c0595bc845e0748e3b54d35e38c6ed674a7f2da03c49f6af488fae7abf12d5df9a4f1db1706e8d6a78'
+        $contract.artifact.integrity | Should -Be 'sha512-WCKmOsgXN1z/UuxJqKPp42VbCR9z/nPAWVvIReB0jjtU0144xu1nSn8toDxJ9q9Ij656vxLV35pPHbFwbo1qeA=='
 
         $forged = Get-Content $lockPath -Raw | ConvertFrom-Json
         $forged.components.copilotIntegration.desktopProvisioning.mode = 'windowsOpsVerifiedRelease'
@@ -55,7 +55,7 @@ Describe 'Official Desktop plugin provisioning contract' {
     It 'rejects checksum manifest and SRI drift in the authoritative contract' {
         $forged = Get-Content $lockPath -Raw | ConvertFrom-Json
         $path = Join-Path $TestDrive 'artifact-drift.json'
-        $forged.components.copilotIntegration.package.artifact.checksumManifest.url = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/OTHER'
+        $forged.components.copilotIntegration.package.artifact.checksumManifest.url = 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.35/OTHER'
         $forged | ConvertTo-Json -Depth 60 | Set-Content $path
         { Get-DshOfficialDesktopPluginContract -LockPath $path } |
             Should -Throw '*checksum-manifest-contract-invalid*'
@@ -80,7 +80,7 @@ Describe 'Official Desktop plugin artifact and transaction' {
         $script:data = Join-Path $root 'data'
         $script:seed = Join-Path $install 'resources\seed'
         $script:artifactRoot = Join-Path $root 'artifact-source'
-        $script:artifact = Join-Path $root 'dsh-github-copilot-0.4.0-alpha.33.tgz'
+        $script:artifact = Join-Path $root 'dsh-github-copilot-0.4.0-alpha.35.tgz'
         New-Item -ItemType Directory -Path $seed,(Join-Path $seed 'desktop-packages'),(Join-Path $artifactRoot 'package'),(Join-Path $install 'resources\runtime\node'),(Join-Path $install 'resources\runtime\pnpm\bin') -Force | Out-Null
         foreach ($file in @('desktop-release.json','desktop-packages.json','integrity.json')) {
             '{}' | Set-Content (Join-Path $seed $file)
@@ -100,7 +100,7 @@ Describe 'Official Desktop plugin artifact and transaction' {
         @'
 {
   "name": "dsh-github-copilot",
-  "version": "0.4.0-alpha.33",
+  "version": "0.4.0-alpha.35",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
@@ -117,13 +117,13 @@ Describe 'Official Desktop plugin artifact and transaction' {
         $ops.GetProcesses = { [pscustomobject]@{ unavailable = $false; items = @() } }
         $ops.IsCurrentUserOwner = { param($path) $true }
         $ops.TestReparse = { param($path) $false }
-        $ops.GetLength = { param($path) 724820 }
+        $ops.GetLength = { param($path) 705000 }
         $ops.GetHash = {
             param($path,$algorithm)
             if ($algorithm -ceq 'SHA512') {
-                '7cc38d8764e1b2edd84efdba0e719614394d836bf1ded604e82aa6e3f02ae4b98bc09a3bd707916474e42694677a70db5a4cdcbb8c8d9a4eeef86509c5bd1b43'
+                '5822a63ac817375cff52ec49a8a3e9e3655b091f73fe73c0595bc845e0748e3b54d35e38c6ed674a7f2da03c49f6af488fae7abf12d5df9a4f1db1706e8d6a78'
             } else {
-                'b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480'
+                'ec4f0fa24b45d94686a396b2558ef6b7fc5d521b9d94e65dcff9f772421f496d'
             }
         }
         $runLog = [Collections.Generic.List[object]]::new()
@@ -145,11 +145,11 @@ Describe 'Official Desktop plugin artifact and transaction' {
                     New-Item -ItemType Directory -Path $target -Force|Out-Null
                     @{name=$package[1];version=$package[2]}|ConvertTo-Json|Set-Content (Join-Path $target 'package.json')
                 }
-                if (@($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.33.tgz' }).Count -eq 1) {
+                if (@($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.35.tgz' }).Count -eq 1) {
                     $target=Join-Path $workingDirectory 'node_modules\dsh-github-copilot'
                     New-Item -ItemType Directory -Path $target -Force|Out-Null
                     @{
-                        name='dsh-github-copilot';version='0.4.0-alpha.33'
+                        name='dsh-github-copilot';version='0.4.0-alpha.35'
                         dsh=@{bundle=@{patch='./cordis.patch.yml'}}
                     }|ConvertTo-Json -Depth 5|Set-Content (Join-Path $target 'package.json')
                     '[]'|Set-Content (Join-Path $target 'cordis.patch.yml')
@@ -240,7 +240,7 @@ Describe 'Official Desktop plugin artifact and transaction' {
         $ops.Run = {
             param($file,$arguments,$workingDirectory,$environment)
             if ($arguments[0] -like '*pnpm.mjs' -and
-                @($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.33.tgz' }).Count -eq 1) {
+                @($arguments | Where-Object { $_ -like '*dsh-github-copilot-0.4.0-alpha.35.tgz' }).Count -eq 1) {
                 return [pscustomobject]@{ExitCode=1}
             }
             &$baseRun $file $arguments $workingDirectory $environment

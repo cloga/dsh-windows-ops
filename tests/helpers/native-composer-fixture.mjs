@@ -1,5 +1,5 @@
 // INERT temporary data copies only. Never package/release bytes or runtime qualification.
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,12 +9,16 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 export function settingsV3Fixture(t) {
   const lock = JSON.parse(readFileSync(join(root, 'deployments/windows-copilot.lock.json')));
   const native = lock.components.desktop.releaseChannel.nativeProvisioning;
+  delete native.nativeComposerAcceptance; // Settings-only synthetic fixture does not borrow formal geometry proof.
   const directory = mkdtempSync(join(tmpdir(), 'ops-inert-composer-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   cpSync(join(root, native.fixtureRoot.replaceAll('\\', '/')), directory, { recursive: true });
+  if (existsSync(join(directory, 'native-composer-geometry.json'))) unlinkSync(join(directory, 'native-composer-geometry.json'));
   const get = name => JSON.parse(readFileSync(join(directory, name)));
   const put = (name, value) => { const bytes = JSON.stringify(value); writeFileSync(join(directory, name), bytes); return sha256(bytes); };
   const accepted = get('acceptance.json');
+  delete accepted.nativeComposer;
+  accepted.timeline = accepted.timeline.filter(row => !row.event.startsWith('native-composer:'));
   delete accepted.modelRolesViewLoaded; delete accepted.currentWorkspaceReadOnly;
   const settings = ['initial', 'restart'].map(() => ({ schemaVersion: 3, accountViewLoaded: true,
     retiredModelRolesAbsent: true, searchProviderCatalogLoaded: true, providerOnlySearchRouting: true,

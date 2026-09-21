@@ -375,14 +375,14 @@ function New-TestFingerprint {
         $caseRoot = Join-Path $TestDrive 'profile-coherence'
         New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
         $dshHome = Join-Path $caseRoot '.dsh'
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.33.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.35.tgz'
         $stage = Join-Path $caseRoot 'stage'
         $package = Join-Path $stage 'package'
         New-Item -ItemType Directory -Path $package -Force | Out-Null
-        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.33' } |
+        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.35' } |
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package 'package.json') `
                 -Encoding UTF8
-        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.33' } } |
+        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.35' } } |
             ConvertTo-Json -Depth 5 |
                 Set-Content -LiteralPath (Join-Path $package 'deployment-baseline.json') `
                     -Encoding UTF8
@@ -408,11 +408,11 @@ importers:
     dependencies:
       dsh-github-copilot:
         specifier: $dependency
-        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.33.tgz
+        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.35.tgz
 packages:
-  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.33.tgz:
-    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.33.tgz}
-    version: 0.4.0-alpha.33
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.35.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.35.tgz}
+    version: 0.4.0-alpha.35
 "@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
         }
 
@@ -421,7 +421,7 @@ packages:
         @($coherent.profiles).Count | Should -Be 2
         (Get-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Raw).
             Replace(
-                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.33.tgz',
+                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.35.tgz',
                 'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.17.tgz'
             ) |
             Set-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Encoding UTF8
@@ -1603,19 +1603,23 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         $lock.migration.legacyGateway.active | Should -Be $false
     }
 
-    It 'pins actual formal .6 ASAR metadata without claiming a physical wrapper or observer success' {
+    It 'pins actual formal .18 ASAR metadata and required composer and settings evidence' {
         Test-WindowsCopilotLock -Lock $lock | Should -BeTrue
-        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.17'
-        $lock.components.desktop.source.pullRequest | Should -Be 96
-        $lock.components.desktop.source.commit | Should -Be 'f25506b4ad190ce090b8a4e9602c7ad36179db6b'
-        $lock.components.desktop.source.reviewedHead | Should -Be '49d22a555429e1c08efbd4af5f04878b3628b28d'
-        $lock.components.desktop.source.tree | Should -Be '24f46ed7803bcafdebc326da5c469712868481bc'
-        $lock.components.desktop.releaseChannel.sequence | Should -Be 28
-        $lock.components.desktop.artifact.releaseId | Should -Be 392847203
-        $lock.components.desktop.artifact.assetId | Should -Be 578750120
+        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.18'
+        $lock.components.desktop.source.pullRequest | Should -Be 112
+        $lock.components.desktop.source.commit | Should -Be '202dd0a2022da939aa424ac1714cd12ce6d902ef'
+        $lock.components.desktop.source.reviewedHead | Should -Be 'ec2c2ceb41bdd85f98cf547dacfc08740dfc1997'
+        $lock.components.desktop.source.tree | Should -Be '108e887e5cb749228a637e0b8577ef23af79901b'
+        $lock.components.desktop.releaseChannel.sequence | Should -Be 30
+        $lock.components.desktop.artifact.releaseId | Should -Be 393339432
+        $lock.components.desktop.artifact.assetId | Should -Be 580004399
         $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.schemaVersion | Should -Be 1
-        $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.sha256 | Should -Be '07ae8381c15493e9bccee12148100159675652678f8c2963b2c9522a028db688'
-        $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.installedClientSha256 | Should -Be '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435'
+        $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.sha256 | Should -Be '931370e7c0d2b7408553d51f0c45d7416955151aa4e06ec8b5757f4671377354'
+        $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.installedClientSha256 | Should -Be '7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368'
+        $lock.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.schemaVersion | Should -Be 1
+        $lock.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.sha256 | Should -Be '91f92a072b1c4ef80cba49e0c90fb6b03dc3d8e025dd0c6d9347e3296fff4ad3'
+        $lock.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.installedClientSha256 | Should -Be '7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368'
+        $lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion | Should -Be 3
         $lock.components.desktop.installedExecutable.productVersion | Should -Be '0.1.6.0'
         $lock.components.desktop.installedRuntimeDescriptor.relativePath | Should -Be 'resources\app.asar\dsh\desktop-runtime.json'
         $lock.acceptance.runtimeSchema.layout | Should -Be 'electron-asar'
@@ -1624,7 +1628,7 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         $lock.acceptance.runtimeSchema.package.version | Should -Be '0.1.6-alpha.1'
         $lock.acceptance.runtimeSchema.package.entrypointSize | Should -Be 9165
         $lock.acceptance.runtimeSchema.PSObject.Properties['wrapper'] | Should -BeNullOrEmpty
-        $lock.components.copilotIntegration.package.version | Should -Be '0.4.0-alpha.33'
+        $lock.components.copilotIntegration.package.version | Should -Be '0.4.0-alpha.35'
     }
 
     It 'rejects formal .6 pin or ASAR metadata drift: <Field>' -TestCases @(
@@ -1636,7 +1640,12 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         @{ Field = 'stale-desktop-cloga12' }, @{ Field = 'stale-desktop-cloga16' }, @{ Field = 'stale-sequence27' },
         @{ Field = 'stale-formal-cloga16' }, @{ Field = 'stale-plugin-alpha30' }, @{ Field = 'physical-root' },
         @{ Field = 'missing-positive' }, @{ Field = 'positive-schema-string' }, @{ Field = 'positive-schema-boolean' },
-        @{ Field = 'positive-digest' }, @{ Field = 'positive-client-digest' }
+        @{ Field = 'positive-digest' }, @{ Field = 'positive-client-digest' },
+        @{ Field = 'missing-native' }, @{ Field = 'null-native' }, @{ Field = 'native-schema' },
+        @{ Field = 'native-schema-string' }, @{ Field = 'native-schema-boolean' },
+        @{ Field = 'native-digest' }, @{ Field = 'native-client-digest' },
+        @{ Field = 'missing-settings' }, @{ Field = 'null-settings' }, @{ Field = 'settings-schema2-retirement-regression' },
+        @{ Field = 'settings-schema-string' }, @{ Field = 'settings-schema-boolean' }
     ) {
         param($Field)
         $changed = $lock | ConvertTo-Json -Depth 100 | ConvertFrom-Json
@@ -1668,6 +1677,18 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
             positive-schema-boolean { $changed.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.schemaVersion = $true }
             positive-digest { $changed.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.sha256 = '0' * 64 }
             positive-client-digest { $changed.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.installedClientSha256 = '0' * 64 }
+            missing-native { $changed.components.desktop.releaseChannel.nativeProvisioning.PSObject.Properties.Remove('nativeComposerAcceptance') }
+            null-native { $changed.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance = $null }
+            native-schema { $changed.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.schemaVersion = 2 }
+            native-schema-string { $changed.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.schemaVersion = '1' }
+            native-schema-boolean { $changed.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.schemaVersion = $true }
+            native-digest { $changed.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.sha256 = '0' * 64 }
+            native-client-digest { $changed.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance.installedClientSha256 = '0' * 64 }
+            missing-settings { $changed.components.desktop.releaseChannel.nativeProvisioning.PSObject.Properties.Remove('settingsAcceptance') }
+            null-settings { $changed.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance = $null }
+            settings-schema2-retirement-regression { $changed.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = 2 }
+            settings-schema-string { $changed.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = '3' }
+            settings-schema-boolean { $changed.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = $true }
             physical-root {
                 $changed.components.desktop.runtimeSelectors[0].root = '%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh'
                 $changed.acceptance.runtimeSchema.root = $changed.components.desktop.runtimeSelectors[0].root
@@ -1712,7 +1733,7 @@ It 'rejects tampered runtime and Copilot plugin identity metadata' {
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.source.reviewedHead = ('0' * 40) -join ''
         { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*reviewed PR #157*'
+            Should -Throw '*reviewed PR #161*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.package.artifact.releaseCommit = ('0' * 40) -join ''

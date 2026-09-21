@@ -10,6 +10,14 @@
 
 This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
+## Small UI change validation
+
+Use the [fast-feedback and bounded release-debugging checklist](docs/small-ui-change-validation.md)
+for small Desktop/plugin UI changes: cheap checks before packaging, actual renderer
+fixtures, stable same-run evidence, and diagnosed—not blind—retries. Required CI and
+formal-release gates remain intact; artifact reuse is a future design, not an implemented
+shortcut. Publication never authorizes local activation or restart.
+
 ## DSH Core upgrade entrypoint
 
 For "adapt to a new DSH Core release", start with the [official-first upgrade

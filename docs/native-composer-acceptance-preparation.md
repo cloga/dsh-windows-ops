@@ -129,6 +129,8 @@ node tools/validate-plugin-catalog.mjs
 node --test tests/native-desktop-acceptance.test.mjs tests/native-asar-release-smoke.test.mjs tests/native-packaged-evidence.test.mjs
 ```
 
-README entry points are intentionally unchanged: this unselected internal adapter
-changes neither the current supported target nor user commands. A real target repin
-must synchronize the full deployment/docs contract through its own reviewed evidence.
+This unselected internal adapter changes neither the current supported target nor
+user commands. Both README entry points now link the separately requested portable
+[small UI change validation checklist](small-ui-change-validation.md); its reusable
+practices do not imply a baseline promotion. A real target repin must synchronize
+the full deployment/docs contract through its own reviewed evidence.

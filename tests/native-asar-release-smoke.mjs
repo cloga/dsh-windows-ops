@@ -179,6 +179,34 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
     }
   }
   if (proof.schemaVersion === 2) need(isDeepStrictEqual(accepted.versionMenus, versionMenus), 'source-settings-acceptance-incomplete');
+  const usageProof = channel.nativeProvisioning.usageAcceptance;
+  if (usageProof !== undefined) {
+    const capability = accepted.copilotUsageCapability;
+    need(usageProof.schemaVersion === 1 && object(capability) &&
+      capability.id === 'account-quota-composer-usage' && capability.required === true &&
+      capability.evidenceScope === 'synthetic-quota-and-public-remote-ui-contracts-not-live-account-access' &&
+      capability.signedOutNetworkRegressionDeclared === true && capability.lifecycleRegressionDeclared === true &&
+      accepted.hostQuotaNoNetworkEvidence === 'immutable-plugin-ci-regression-only' &&
+      accepted.liveAccountQuota === false && Array.isArray(accepted.signedOutCopilotUsage) &&
+      accepted.signedOutCopilotUsage.length === 2 && Array.isArray(accepted.timeline),
+    'source-usage-acceptance-incomplete');
+    const observations = [];
+    for (const [phase, digest] of [['initial', usageProof.initialSha256], ['restart', usageProof.restartSha256]]) {
+      const path = physical(join(sourceOutput, `${phase}-usage-readonly.json`), 'file');
+      need(hashFile(path) === digest, 'source-usage-acceptance-incomplete');
+      const usage = readJson(path);
+      need(isDeepStrictEqual(usage.capability, capability) && usage.signedOut?.usageTriggerCount === 0 &&
+        usage.signedOut?.accountUsageTextCount === 0 && usage.signedOut?.usageSurfaceAbsent === true &&
+        usage.signedOut?.hostQuotaRequestInstrumentation === 'not-available-in-packaged-smoke',
+      'source-usage-acceptance-incomplete');
+      observations.push(usage.signedOut);
+      const events = accepted.timeline.map(entry => entry?.event);
+      need(events.indexOf(`${phase}:account`) >= 0 &&
+        events.indexOf(`${phase}:usage-readonly`) > events.indexOf(`${phase}:account`),
+      'source-usage-acceptance-incomplete');
+    }
+    need(isDeepStrictEqual(accepted.signedOutCopilotUsage, observations), 'source-usage-acceptance-incomplete');
+  }
 }
 
 export function validateSourceIdentity(lock, confirmation, identity) {

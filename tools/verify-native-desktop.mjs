@@ -176,6 +176,33 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     }
     if (providerNavigation) requireValue(isDeepStrictEqual(acceptance.versionMenus, versionMenus), 'native-release-settings-mismatch');
   }
+  if (native.usageAcceptance !== undefined) {
+    const proof = native.usageAcceptance;
+    const capability = acceptance.copilotUsageCapability;
+    requireValue(object(proof) && proof.schemaVersion === 1 && object(capability) &&
+      capability.id === 'account-quota-composer-usage' && capability.required === true &&
+      capability.evidenceScope === 'synthetic-quota-and-public-remote-ui-contracts-not-live-account-access' &&
+      capability.signedOutNetworkRegressionDeclared === true && capability.lifecycleRegressionDeclared === true &&
+      acceptance.hostQuotaNoNetworkEvidence === 'immutable-plugin-ci-regression-only' &&
+      acceptance.liveAccountQuota === false && Array.isArray(acceptance.signedOutCopilotUsage) &&
+      acceptance.signedOutCopilotUsage.length === 2 && Array.isArray(acceptance.timeline),
+    'native-release-usage-mismatch');
+    const observations = [];
+    for (const [phase, digest] of [['initial', proof.initialSha256], ['restart', proof.restartSha256]]) {
+      const usage = read(`${phase}-usage-readonly.json`, digest);
+      requireValue(isDeepStrictEqual(usage.capability, capability) && object(usage.signedOut) &&
+        usage.signedOut.usageTriggerCount === 0 && usage.signedOut.accountUsageTextCount === 0 &&
+        usage.signedOut.usageSurfaceAbsent === true &&
+        usage.signedOut.hostQuotaRequestInstrumentation === 'not-available-in-packaged-smoke',
+      'native-release-usage-mismatch');
+      observations.push(usage.signedOut);
+      const events = acceptance.timeline.map(entry => entry?.event);
+      requireValue(events.indexOf(`${phase}:account`) >= 0 &&
+        events.indexOf(`${phase}:usage-readonly`) > events.indexOf(`${phase}:account`),
+      'native-release-usage-mismatch');
+    }
+    requireValue(isDeepStrictEqual(acceptance.signedOutCopilotUsage, observations), 'native-release-usage-mismatch');
+  }
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
     const graph = read(file, hash);

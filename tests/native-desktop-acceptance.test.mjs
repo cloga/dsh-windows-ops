@@ -98,7 +98,7 @@ test('formal plugin dependency registry differs from the frozen workspace build 
   assert.equal(read('release.json').build.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
-  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.30');
+  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.32');
   assert.equal(read('release.json').upstreamVersion, '0.1.6-alpha.1');
 });
 
@@ -221,7 +221,24 @@ function providerNavigationFixture(t) {
     const versionPath = join(root, `${phase}-version-menu.json`); write(versionPath, versionMenu);
     proof[`${phase}VersionMenuSha256`] = hash(readFileSync(versionPath)); versionMenus.push(versionMenu);
   }
-  acceptance.versionMenus = versionMenus; write(acceptancePath, acceptance);
+  const usageCapability = { id: 'account-quota-composer-usage', required: true,
+    evidenceScope: 'synthetic-quota-and-public-remote-ui-contracts-not-live-account-access',
+    signedOutNetworkRegressionDeclared: true, lifecycleRegressionDeclared: true };
+  const signedOut = { usageTriggerCount: 0, accountUsageTextCount: 0, usageSurfaceAbsent: true,
+    hostQuotaRequestInstrumentation: 'not-available-in-packaged-smoke' };
+  const usageProof = { schemaVersion: 1 }; const observations = [];
+  for (const phase of ['initial', 'restart']) {
+    const path = join(root, `${phase}-usage-readonly.json`); write(path, { capability: usageCapability, signedOut });
+    usageProof[`${phase}Sha256`] = hash(readFileSync(path)); observations.push(signedOut);
+  }
+  lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance = usageProof;
+  Object.assign(acceptance, { versionMenus, copilotUsageCapability: usageCapability,
+    signedOutCopilotUsage: observations, hostQuotaNoNetworkEvidence: 'immutable-plugin-ci-regression-only',
+    liveAccountQuota: false, timeline: [
+      { event: 'initial:account' }, { event: 'initial:usage-readonly' },
+      { event: 'restart:account' }, { event: 'restart:usage-readonly' },
+    ] });
+  write(acceptancePath, acceptance);
   lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(acceptancePath));
   return { root, lock };
 }
@@ -263,6 +280,25 @@ for (const [mode, mutate, rehash] of [
     assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-(?:file-hash|settings)-mismatch/);
   });
 }
+for (const [mode, mutate] of [
+  ['live quota claim', ({ acceptance }) => { acceptance.liveAccountQuota = true; }],
+  ['wrong evidence scope', ({ acceptance }) => { acceptance.copilotUsageCapability.evidenceScope = 'live'; }],
+  ['usage trigger', ({ usage }) => { usage.signedOut.usageTriggerCount = 1; }],
+  ['invented usage text', ({ usage }) => { usage.signedOut.accountUsageTextCount = 1; }],
+  ['wrong instrumentation boundary', ({ usage }) => { usage.signedOut.hostQuotaRequestInstrumentation = 'observed'; }],
+  ['usage before account', ({ acceptance }) => { acceptance.timeline = [{ event: 'initial:usage-readonly' }, { event: 'initial:account' }, { event: 'restart:account' }, { event: 'restart:usage-readonly' }]; }],
+]) {
+  test(`usage evidence rejects ${mode}`, t => {
+    const { root, lock } = providerNavigationFixture(t);
+    const acceptancePath = join(root, 'acceptance.json'); const acceptance = JSON.parse(readFileSync(acceptancePath));
+    const usagePath = join(root, 'initial-usage-readonly.json'); const usage = JSON.parse(readFileSync(usagePath));
+    mutate({ acceptance, usage }); write(acceptancePath, acceptance); write(usagePath, usage);
+    lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(acceptancePath));
+    lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance.initialSha256 = hash(readFileSync(usagePath));
+    assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-usage-mismatch/);
+  });
+}
+
 test('settings evidence rejects an unknown schema version', t => {
   const { root, lock } = providerNavigationFixture(t);
   lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = 3;

@@ -8,7 +8,7 @@
   },
   "package": {
     "name": "dsh-github-copilot",
-    "version": "0.4.0-alpha.30"
+    "version": "0.4.0-alpha.32"
   },
   "evidence": {
     "kind": "source-and-synthetic-test-inventory",
@@ -220,6 +220,24 @@
     ]
   },
   "capabilities": [
+    {
+      "id": "account-quota-composer-usage",
+      "required": true,
+      "evidenceScope": "synthetic-quota-and-public-remote-ui-contracts-not-live-account-access",
+      "sourceMarkers": [
+        {"file": "src/index.ts", "marker": "ctx.plugin(GitHubCopilotUsageController)"},
+        {"file": "src/client.ts", "marker": "registerCopilotUsageUi"},
+        {"file": "src/remote.ts", "marker": "...copilotUsageRemote.descriptors"},
+        {"file": "docs/copilot-usage.md", "marker": "Percentage-only data must not create falsely precise absolute amounts"}
+      ],
+      "tests": [
+        {"file": "tests/copilot-usage-normalize.spec.ts", "name": "never invents precise amounts from a rounded percentage"},
+        {"file": "tests/copilot-usage-ui.spec.ts", "name": "uses real Cordis Remote tracing and reversible public SlotRegistry registration"},
+        {"file": "tests/scripts/copilot-usage-gateway.test.mjs", "name": "quota Remote reaches the actual Host gateway without startup or signed-out network requests"},
+        {"file": "tests/client-bundle.spec.ts", "name": "mounts strict Host result codecs through the published rc.1 client carrier"},
+        {"file": "tests/fixtures/remote-core.fixture.ts", "name": "mounts authorization, role and search-catalog Remotes on the exact target Client gateway"}
+      ]
+    },
     {
       "id": "desktop-shared-package-ownership",
       "required": true,
@@ -454,6 +472,26 @@
       ]
     },
     {
+      "id": "managed-http-auth-rejection-recovery",
+      "required": true,
+      "sourceMarkers": [
+        {"file": "src/preview-provider.ts", "marker": "response.status === 401"},
+        {"file": "src/preview-route.ts", "marker": "COPILOT_PREVIEW_AUTH_RECOVERY_COOLDOWN"},
+        {"file": "src/account-model-auth.ts", "marker": "renewRejectedCredential"},
+        {"file": "src/account-model-auth.ts", "marker": "COPILOT_ACCOUNT_TOKEN_REJECTED"}
+      ],
+      "tests": [
+        {"file": "tests/preview-route.spec.ts", "name": "uses fresh OAuth after sign-out and %s sign-in with the same conversation history"},
+        {"file": "tests/preview-route.spec.ts", "name": "handles actual HTTP %i without replay and renews only a rejected token on the next request"},
+        {"file": "tests/preview-route.spec.ts", "name": "shares rejected-token renewal across concurrent new callers without replaying failed wires"},
+        {"file": "tests/preview-route.spec.ts", "name": "bounds repeated 401 recovery after a %s native renewal"},
+        {"file": "tests/preview-route.spec.ts", "name": "ignores a late HTTP 401 after the current %s changes"},
+        {"file": "tests/preview-route.spec.ts", "name": "ignores an old HTTP 401 after source publication but before the owner adopts the new snapshot"},
+        {"file": "tests/account-model-auth.spec.ts", "name": "does not persist a projected expiration when rejected-token renewal fails"},
+        {"file": "tests/account-model-auth.spec.ts", "name": "does not expire or refresh a newer same-account token observed under the record lock"}
+      ]
+    },
+    {
       "id": "account-discovery-native-oauth",
       "required": true,
       "sourceMarkers": [
@@ -559,7 +597,7 @@
         {"file": "src/client.ts", "marker": "settings.models.provider-card"},
         {"file": "src/client.ts", "marker": "copyAuthorizationCode"},
         {"file": "src/client.ts", "marker": "data-dsh-github-copilot-device-code"},
-        {"file": "src/client.ts", "marker": "verificationLinkTarget"},
+        {"file": "src/external-link.ts", "marker": "externalLinkTarget"},
         {"file": "src/client.ts", "marker": "data-dsh-github-copilot-verification-url"},
         {"file": "src/authorization-controller.ts", "marker": "GitHubCopilotAuthorizationController"}
       ],

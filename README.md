@@ -22,7 +22,7 @@
 
 本次 [0.1.6-alpha.2 官方对照与迁移决定](docs/core-016a2-assessment.md)记录已审视的
 官方替代、必须保留的差异和已发现的接口问题；源码评估不是新部署基线。
-后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron、Playwright 与 Copilot alpha.28 的历史发布证据继续保留。当前部署锁已选择独立核验的 Desktop `0.1.6-alpha.1.cloga.12` / bundled Core alpha.1 / Copilot alpha.30。Alpha.30 虽兼容官方 Core alpha.2，但另行负责、仍为 draft 的 Desktop PR 68 尚未合格，本维护发布不提升 Core。正式发布与来源验收不代表本机已安装/激活，也不证明真实 compaction、OAuth、model 或 search。
+后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron、Playwright 与 Copilot alpha.28 的历史发布证据继续保留。当前部署锁已选择独立核验的 Desktop `0.1.6-alpha.1.cloga.14` / bundled Core alpha.1 / Copilot alpha.32。Alpha.32 虽兼容官方 Core alpha.2，但另行负责、仍为 draft 的 Desktop PR 68 尚未合格，本维护发布不提升 Core。正式发布与来源验收不代表本机已安装/激活，也不证明真实 compaction、OAuth、model 或 search。
 另见[原生加载依赖与镜像验证](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification)：
 `node-addon-require-builtin@0.1.6` 属于官方启动层；旧版 `0.1.5` 虽通过独立 Node 测试，却在 Electron 44 的实际原生调用中失败；历史已验证部署中的 `0.1.6` 文件在同一载体通过主线程及两个 Worker 对照，因此保留 `0.1.6`。这不等于取得 npm 原始包或完成整个 Core 验收。该节也区分可选 CUA 测试依赖与 Desktop 运行需要，并记录 pnpm 11 筛选安装仍包含根项目的限制。
 
@@ -39,7 +39,7 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 
 **Alpha.2 兼容准备仍独立：** native descriptor 校验仅对精确 Core
 `0.1.6-alpha.2` 要求 Host protocol 4，保留旧版 protocol 3 与 synthetic-only 检查。
-已发布 lock 的 Desktop `.cloga.12` 仍内置 Core alpha.1；Alpha.30 的 alpha.2 admission
+已发布 lock 的 Desktop `.cloga.12` 仍内置 Core alpha.1；Alpha.32 的 alpha.2 admission
 不等于 draft alpha.2 Desktop 已合格或已部署。详见[严格准备边界](docs/core-016a2-assessment.md#strict-native-compatibility-preparation)。
 
 ## Copilot 自动识别路由维护
@@ -58,10 +58,10 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 
 | 组件 | 锁定版本 |
 |---|---|
-| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.12`，sequence 22，不可变 Release `392534651`，source `d19be3ff5524948c40cb9929cdd4d67d5cb35059` |
-| Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `3e20cd0ace516569c9ead2403acffe16ed0a3e99b1ef45d17e0bca3cc7bd06f3`；ASAR root 跟随实际 EXE |
-| 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.30`，source `b75eac570cd418497c52e80a3ce47958cdcc6b26`；由 `desktopNativeVerifiedRelease` 接管 |
-| 正式 packaged 证据 | run `35528552640` attempt 1；18 个逐字节正式 JSON fixtures，schema-2 首次启动/重启 settings 与 Desktop version-menu 证据 |
+| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.14`，sequence 24，不可变 Release `392640510`，source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` |
+| Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55`；ASAR root 跟随实际 EXE |
+| 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.32`，source `76d190aed688e073df930adb3c753d2a749519c9`；由 `desktopNativeVerifiedRelease` 接管 |
+| 正式 packaged 证据 | run `35549412610` attempt 1；18 个逐字节正式 JSON fixtures，schema-2 首次启动/重启 settings 与 Desktop version-menu 证据 |
 | Native Ops qualification | 等待对 PR 精确 head 的 registered same-commit caller；旧 `.cloga.2` runs 仅为历史证据 |
 
 正式验收在首次启动与重启验证只读 current workspace、Model roles、相同的
@@ -81,14 +81,14 @@ source build 使用 `https://registry.npmjs.org/`。不得修改 live plan 或�
 历史 formal/Ops fixtures 与失败记录均保持不变。
 
 每次升级必须执行[官方优先检查清单](docs/local-core-desktop-copilot.md#official-first-upgrade-checklist)。
-[Alpha.30 正式验收记录](docs/copilot-alpha30-upgrade-plan.md)列出 official/delegated
+[Alpha.32 正式验收记录](docs/copilot-alpha32-upgrade-plan.md)列出 official/delegated
 Core primitives、保留的 plugin/Desktop gaps、精确来源/资产、schema-2 证据及
-synthetic/downstream 边界。Alpha.30 不是“官方 Core”；兼容 alpha.2 不等于提升
+synthetic/downstream 边界。Alpha.32 不是“官方 Core”；兼容 alpha.2 不等于提升
 另行负责、仍为 draft 的 Desktop PR 68。
 
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
-release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.12` installer,
+release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.14` installer,
 explicit interruption consent and a clean Desktop/Host exit, coordinated by the
 operator outside the broken helper. Do not patch live files or install missing
 dependencies into an update operation. Generic direct registry probe failures

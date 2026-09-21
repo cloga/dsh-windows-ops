@@ -12,7 +12,7 @@ import { hashFile, hashValid, inside, object, physical, relativeName, safeReason
 import { verifyNativeReleaseEvidence, verifyPositiveUsageEvidence } from '../tools/verify-native-desktop.mjs';
 import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
 import { verifySettingsV3Evidence, verifyNativeComposerEvidence } from '../tools/native-composer-evidence.mjs';
-import { packagedEvidenceFormat, verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
+import { packagedEvidenceFormat, verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence, verifyV3NativeComposerEvidence } from '../tools/native-packaged-evidence.mjs';
 import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -137,13 +137,14 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
   return plan;
 }
 
-// Historical formats bind deterministic phase leaves to formal pins; dual verifies
-// its third run's own phase semantics. Neither path claims real search success.
+// Historical formats bind deterministic phase leaves to formal pins; dual and v3 verify
+// their fresh ordinary run's own phase semantics. Neither path claims real search success.
 export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
   verifyFreshNativeComposerEvidence(lock, accepted, sourceOutput);
   const channel = lock.components.desktop.releaseChannel;
   // Dual's third ordinary run was checked by verifyFreshOrdinaryPackagedEvidence; phase bytes belong to this run.
-  if (channel.upstreamVersion === '0.1.6-alpha.2' && packagedEvidenceFormat(lock) === 'dual-ordinary-canary-v1') {
+  if (channel.upstreamVersion === '0.1.6-alpha.2' &&
+    ['dual-ordinary-canary-v1', 'combined-suite-v3'].includes(packagedEvidenceFormat(lock))) {
     return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput, null);
   }
   // Do not let the historical settings early-return bypass explicit positive proof.
@@ -229,6 +230,9 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
 }
 
 export function verifyFreshNativeComposerEvidence(lock, accepted, sourceOutput) {
+  if (lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format === 'combined-suite-v3') {
+    return verifyV3NativeComposerEvidence(lock, accepted, sourceOutput);
+  }
   // Browser pixels/styles belong to this run. Only the formal path compares proof.sha256.
   verifyNativeComposerEvidence(lock, accepted, name => readJson(physical(join(sourceOutput, name), 'file'), 64 * 1024));
 }

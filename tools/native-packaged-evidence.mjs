@@ -49,12 +49,30 @@ const reviewedCopilot33 = {
     sha256: 'f81df10b7fd6e40b2319a42de1f04c3b7f7eccc57809b51623c9145f2a3df076',
     integrity: 'sha512-KFNap+UgDynhZycHuHOdd/hbPL/0VR+AdKPP6cebS5IENSJG+g4zo4NtGoCpWMTrTEgqvrlyWCK4MZkzjtzeDQ==' },
 };
-function reviewedPositiveClient(source, digest) {
-  equal(source, reviewedCopilot33);
-  need(digest === '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435');
+// Independently verified original alpha.35. Selected only by the explicit v3 format.
+const reviewedCopilot35 = {
+  schemaVersion: 1, type: 'githubRelease', owner: 'cloga', repo: 'dsh-github-copilot',
+  tag: 'v0.4.0-alpha.35', asset: 'dsh-github-copilot-0.4.0-alpha.35.tgz', assetId: 579078676,
+  packageName: 'dsh-github-copilot', version: '0.4.0-alpha.35', size: 705000,
+  sha256: 'ec4f0fa24b45d94686a396b2558ef6b7fc5d521b9d94e65dcff9f772421f496d',
+  integrity: 'sha512-WCKmOsgXN1z/UuxJqKPp42VbCR9z/nPAWVvIReB0jjtU0144xu1nSn8toDxJ9q9Ij656vxLV35pPHbFwbo1qeA==',
+  targetCommit: '6554417dc9a7544865e6c1bbdebf8b9a10e0a7af', dependencyRegistry: 'https://packagefeedproxy.microsoft.io/npm/',
+  checksumManifest: { format: 'sha256sums', asset: 'SHA256SUMS', assetId: 579078699,
+    url: 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.35/SHA256SUMS', size: 104,
+    sha256: '51930bf90fd22b04813494b301951b681a1b82a622351e93152f06ad8d3b93ab',
+    integrity: 'sha512-X41UN3az6uzTTWAC1q9kZJ9XGTKdBulYuStmzW4GaCIYt9+5MGAcp+D0hyvOJ8pZkdrdetFI9fzPB1nrbIzysA==' },
+};
+function reviewedPositiveClient(source, digest, v3 = false) {
+  equal(source, v3 ? reviewedCopilot35 : reviewedCopilot33);
+  need(digest === (v3 ? '7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368' :
+    '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435'));
 }
 const dualFormat = 'dual-ordinary-canary-v1';
-const proofV2 = lock => ['combined-suite-v2', dualFormat].includes(lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format);
+const nativeFormat = 'combined-suite-v3';
+const proofV3 = lock => lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format === nativeFormat;
+const proofV2 = lock => ['combined-suite-v2', dualFormat, nativeFormat].includes(lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format);
+const currentFlags = lock => proofV3(lock) ? functionalTrue.filter(key => !['modelRolesViewLoaded', 'currentWorkspaceReadOnly'].includes(key)) : functionalTrue;
+const settingsV3True = ['accountViewLoaded', 'retiredModelRolesAbsent', 'searchProviderCatalogLoaded', 'providerOnlySearchRouting', 'fallbackProviderLabel'];
 const positiveTransport = 'not-provided-to-isolated-fixture';
 const positiveTrue = ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
   'applicationMountPreserved', 'syntheticSiblingPreserved', 'inheritedSessionScopeVerified', 'explicitUndefinedSessionScopeAbsent',
@@ -78,7 +96,7 @@ function positiveUsage(lock, root, accepted) {
   need(value.runtimeSha256 === lock.components.desktop.installedRuntimeDescriptor.sha256 &&
     value.originalSignedOutApplicationRestored === true && value.hostTransport === positiveTransport &&
     accepted.positiveUsageHostTransport === positiveTransport);
-  reviewedPositiveClient(value.pluginSource, value.installedClientSha256);
+  reviewedPositiveClient(value.pluginSource, value.installedClientSha256, proofV3(lock));
   equal(value.pluginSource, accepted.plugin); positiveCases(value.cases); equal(value.cases, accepted.positiveCopilotUsage);
   return record.sha256;
 }
@@ -108,16 +126,20 @@ export function packagedEvidenceFormat(lock) {
   const hashes = ['suiteSha256', 'qualificationSha256', 'workflowRunSha256', 'workflowJobSha256',
     ...(dual ? ['ordinaryAcceptanceSha256', 'workflowArtifactsSha256'] : [])];
   exact(proof, ['schemaVersion', 'format', 'runId', 'runAttempt', ...hashes]);
-  need(proof.schemaVersion === 1 && ['combined-suite-v1', 'combined-suite-v2', dualFormat].includes(proof.format) && positive(proof.runId) && positive(proof.runAttempt));
+  need(proof.schemaVersion === 1 && ['combined-suite-v1', 'combined-suite-v2', dualFormat, nativeFormat].includes(proof.format) && positive(proof.runId) && positive(proof.runAttempt));
   for (const key of hashes) need(hashValid(proof[key]));
   if (dual) {
     equal(proof.ordinaryAcceptanceSha256, channel.nativeProvisioning.ancestorIsolation.acceptanceSha256);
     need(channel.nativeProvisioning.usagePositiveAcceptance === undefined); // The alpha1 quota2 declaration is not a dual-v2 proof.
   }
+  if (proof.format === nativeFormat) {
+    need(channel.nativeProvisioning.usagePositiveAcceptance === undefined &&
+      channel.nativeProvisioning.nativeComposerAcceptance === undefined);
+  }
   return proof.format;
 }
 export function usesCombinedPackagedEvidence(lock) {
-  return ['combined-suite-v1', 'combined-suite-v2'].includes(packagedEvidenceFormat(lock));
+  return ['combined-suite-v1', 'combined-suite-v2', nativeFormat].includes(packagedEvidenceFormat(lock));
 }
 function expectedIdentity(lock, run) {
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel;
@@ -135,12 +157,20 @@ function identity(value, expected, evidenceId) {
   for (const [key, leaf] of Object.entries(expected)) equal(value[key], leaf);
 }
 function functional(value, lock, expected, ordinary = false) {
-  const v2 = proofV2(lock);
-  exact(value, v2 ? [...functionalKeys, 'positiveCopilotUsage', 'positiveUsageHostTransport'] : functionalKeys); identity(value, expected);
+  const v2 = proofV2(lock), v3 = proofV3(lock);
+  const fields = v3 ? [...functionalKeys.filter(key => !['modelRolesViewLoaded', 'currentWorkspaceReadOnly'].includes(key)),
+    'positiveCopilotUsage', 'positiveUsageHostTransport', 'settingsAcceptance', 'nativeComposer'] :
+    v2 ? [...functionalKeys, 'positiveCopilotUsage', 'positiveUsageHostTransport'] : functionalKeys;
+  exact(value, fields); identity(value, expected);
   const desktop = lock.components.desktop;
-  need(value.schemaVersion === (v2 ? 2 : 1) && value.scope === (ordinary ? 'packaged-acceptance' : 'packaged-functional-observations'));
+  need(value.schemaVersion === (v3 ? 3 : v2 ? 2 : 1) && value.scope === (ordinary ? 'packaged-acceptance' : 'packaged-functional-observations'));
   if (v2) { positiveCases(value.positiveCopilotUsage); need(value.positiveUsageHostTransport === positiveTransport); }
-  flags(value, [...functionalTrue, 'functionalAssertionsCompleted'], functionalFalse);
+  if (v3) {
+    need(Array.isArray(value.settingsAcceptance) && value.settingsAcceptance.length === 2);
+    for (const settings of value.settingsAcceptance) installedSettings(settings, false, true);
+    equal(value.settingsAcceptance[0], value.settingsAcceptance[1]);
+  }
+  flags(value, [...currentFlags(lock), 'functionalAssertionsCompleted'], functionalFalse);
   need(value.normalAcceptanceCompleted === ordinary && value.cleanupVerified === ordinary);
   need(value.desktopVersion === desktop.version && value.runtimeVersion === desktop.releaseChannel.upstreamVersion);
   need(value.transport === 'official Web-backed Desktop Host with packaged Electron dsh-app origin bridge');
@@ -162,6 +192,10 @@ function functional(value, lock, expected, ordinary = false) {
       if (step === 'application' && events.includes(`${phase}:provider-deferred`)) expected.push(`${phase}:provider-deferred`);
       if (phase === 'restart' && step === 'packaged-graph') expected.push('restart:positive-usage');
     }
+    if (v3) for (const step of ['seeded', 'launch', 'application', 'observed', 'closed']) {
+      expected.push(`native-composer:${step}`);
+      if (step === 'application' && events.includes('native-composer:provider-deferred')) expected.push('native-composer:provider-deferred');
+    }
     equal(events, expected);
   } else {
     equal(events.filter(event => !phases.some(phase => event === `${phase}:provider-deferred`)),
@@ -172,8 +206,9 @@ function functional(value, lock, expected, ordinary = false) {
 /** Alpha.2 phase semantics; fresh menus are observed, not compared to another run's window IDs. */
 export function verifyPackagedPhaseEvidence(lock, accepted, directory, phasePins) {
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
-  need(channel.upstreamVersion === '0.1.6-alpha.2' && native.settingsAcceptance?.schemaVersion === 2 && native.usageAcceptance?.schemaVersion === 1);
-  flags(accepted, functionalTrue, functionalFalse);
+  const v3 = proofV3(lock);
+  need(channel.upstreamVersion === '0.1.6-alpha.2' && native.settingsAcceptance?.schemaVersion === (v3 ? 3 : 2) && native.usageAcceptance?.schemaVersion === 1);
+  flags(accepted, currentFlags(lock), functionalFalse);
   equal(accepted.copilotUsageCapability, usageCapability); equal(accepted.signedOutCopilotUsage, [signedOut, signedOut]);
   need(accepted.hostQuotaNoNetworkEvidence === 'immutable-plugin-ci-regression-only');
   let providers;
@@ -181,12 +216,13 @@ export function verifyPackagedPhaseEvidence(lock, accepted, directory, phasePins
     need(hashValid(native.settingsAcceptance[`${phase}Sha256`]) &&
       hashValid(native.settingsAcceptance[`${phase}VersionMenuSha256`]) && hashValid(native.usageAcceptance[`${phase}Sha256`]));
     const pin = (label, original) => {
-      if (phasePins === null) { need(packagedEvidenceFormat(lock) === dualFormat); return undefined; }
+      if (phasePins === null) { need([dualFormat, nativeFormat].includes(packagedEvidenceFormat(lock))); return undefined; }
       const digest = phasePins === undefined ? original : phasePins[`packaged.${phase}.${label}`];
       need(hashValid(digest)); return digest;
     };
     const settings = read(directory, `${phase}-settings-readonly.json`, pin('settings', native.settingsAcceptance[`${phase}Sha256`])).value;
-    exact(settings, [...settingsTrue, 'registeredSearchProviders', 'realSearch']); flags(settings, settingsTrue, ['realSearch']);
+    installedSettings(settings, false, v3);
+    if (v3) equal(settings, accepted.settingsAcceptance?.[index]);
     const ids = settings.registeredSearchProviders;
     need(Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) && new Set(ids).size === ids.length && ids.includes('github-copilot-hosted'));
     if (providers !== undefined) equal(ids, providers); providers = ids;
@@ -200,6 +236,65 @@ export function verifyPackagedPhaseEvidence(lock, accepted, directory, phasePins
     const usage = read(directory, `${phase}-usage-readonly.json`, pin('usage', native.usageAcceptance[`${phase}Sha256`])).value;
     equal(usage, { capability: usageCapability, signedOut });
   }
+}
+
+// V3 mirrors the reviewed Core geometry contract; legacy optional alpha1 geometry keeps its own reader.
+function nativeGeometry(value, width) {
+  exact(value, ['viewportWidth', 'dock', 'time', 'usage', 'copilot', 'nativeStyle', 'copilotStyle']);
+  need(value.viewportWidth === width);
+  for (const box of [value.dock, value.time, value.usage, value.copilot]) {
+    exact(box, ['x', 'y', 'width', 'height']);
+    need(Object.values(box).every(number => typeof number === 'number' && Number.isFinite(number)) && box.width > 0 && box.height > 0);
+  }
+  const boxes = [value.time, value.usage, value.copilot];
+  for (const box of boxes) need(box.x >= value.dock.x - 1 && box.x + box.width <= value.dock.x + value.dock.width + 1 &&
+    box.x >= -1 && box.x + box.width <= width + 1);
+  for (let i = 0; i < boxes.length; i++) for (const other of boxes.slice(i + 1)) {
+    const box = boxes[i];
+    need(box.x + box.width <= other.x + 1 || other.x + other.width <= box.x + 1 ||
+      box.y + box.height <= other.y + 1 || other.y + other.height <= box.y + 1);
+  }
+  if (width === 1280) {
+    const center = value.usage.y + value.usage.height / 2;
+    need(Math.abs(value.time.y + value.time.height / 2 - center) <= 1 &&
+      Math.abs(value.copilot.y + value.copilot.height / 2 - center) <= 1 && value.copilot.x >= value.usage.x + value.usage.width);
+  }
+  for (const style of [value.nativeStyle, value.copilotStyle]) {
+    exact(style, ['fontSize', 'lineHeight', 'color']);
+    for (const key of ['fontSize', 'lineHeight']) need(typeof style[key] === 'string' &&
+      /^(?:\d+(?:\.\d+)?|\.\d+)px$/u.test(style[key]) && Number.isFinite(Number.parseFloat(style[key])) && Number.parseFloat(style[key]) > 0);
+    need(typeof style.color === 'string' && style.color.trim().length > 0 && style.color.length <= 256);
+  }
+  equal(value.nativeStyle, value.copilotStyle);
+}
+function nativeComposer(lock, root, accepted) {
+  const record = read(root, 'native-composer-geometry.json', undefined, 64 * 1024); const value = record.value;
+  exact(value, ['schemaVersion', 'scope', ...identityKeys, 'sessionHistory', 'quota', 'pluginSource', 'installedClientSha256',
+    'geometry', 'nativeDialogs', 'copilotDialog', 'rendererErrors', 'realModelRound', 'realOAuth']);
+  need(value.schemaVersion === 1 && value.scope === 'actual-packaged-native-composer-and-released-client' &&
+    value.sessionHistory === 'synthetic-persisted-in-isolated-home' && value.quota === 'signed-out-host-response-no-credentials');
+  for (const key of identityKeys) equal(value[key], accepted[key]);
+  reviewedPositiveClient(value.pluginSource, value.installedClientSha256, true); equal(value.pluginSource, accepted.plugin);
+  equal(value.rendererErrors, []); flags(value, [], ['realModelRound', 'realOAuth']);
+  need(Array.isArray(value.geometry) && value.geometry.length === 2);
+  for (const [index, width] of [1280, 400].entries()) nativeGeometry(value.geometry[index], width);
+  exact(value.nativeDialogs, ['time', 'usage']);
+  for (const key of ['time', 'usage']) {
+    exact(value.nativeDialogs[key], ['opened', 'closedOnEscape', 'focusReturned']);
+    flags(value.nativeDialogs[key], ['opened', 'closedOnEscape', 'focusReturned']);
+  }
+  exact(value.copilotDialog, ['signedOutObserved', 'sessionCreditsCount', 'resetCount', 'epochTextCount', 'focusReturned']);
+  flags(value.copilotDialog, ['signedOutObserved', 'focusReturned']);
+  for (const key of ['sessionCreditsCount', 'resetCount', 'epochTextCount']) need(value.copilotDialog[key] === 0);
+  equal(value, accepted.nativeComposer);
+  return record.sha256;
+}
+
+/** Check the explicit v3 native observation against its own run, never formal-run pixels. */
+export function verifyV3NativeComposerEvidence(lock, accepted, directory) {
+  need(packagedEvidenceFormat(lock) === nativeFormat);
+  functional(accepted, lock, expectedIdentity(lock, accepted), accepted.scope === 'packaged-acceptance');
+  return nativeComposer(lock, directory, accepted);
 }
 
 function packagedFiles(lock, root, accepted, formal = true, { publicRoot = root, phasePins } = {}) {
@@ -219,6 +314,7 @@ function packagedFiles(lock, root, accepted, formal = true, { publicRoot = root,
     executable.productName === channel.identity.productName && executable.fileDescription === channel.identity.productName);
   verifyPackagedPhaseEvidence(lock, accepted, root, phasePins);
   if (proofV2(lock)) records['packaged.positiveUsage'] = positiveUsage(lock, root, accepted);
+  if (proofV3(lock)) records['packaged.nativeComposer'] = nativeComposer(lock, root, accepted);
   let previousGraph;
   for (const phase of phases) {
     for (const [suffix, label] of [['settings-readonly', 'settings'], ['version-menu', 'menu'], ['usage-readonly', 'usage']]) {
@@ -278,9 +374,11 @@ function verifyWorkflow(lock, root, proof) {
   return { run, job };
 }
 
-function installedSettings(value, baseline = false) {
-  const yes = baseline ? ['modelRolesViewLoaded', 'searchProviderCatalogLoaded'] : settingsTrue;
-  exact(value, [...yes, 'registeredSearchProviders', 'realSearch']); flags(value, yes, ['realSearch']);
+function installedSettings(value, baseline = false, v3 = false) {
+  const yes = baseline ? ['modelRolesViewLoaded', 'searchProviderCatalogLoaded'] : v3 ? settingsV3True : settingsTrue;
+  exact(value, [...(!baseline && v3 ? ['schemaVersion'] : []), ...yes, 'registeredSearchProviders', 'realSearch']);
+  if (!baseline && v3) need(value.schemaVersion === 3);
+  flags(value, yes, ['realSearch']);
   const ids = value.registeredSearchProviders;
   need(Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) &&
     new Set(ids).size === ids.length && ids.includes('github-copilot-hosted'));
@@ -326,7 +424,7 @@ function archivedInstalledEvidence(lock, directory, summary) {
         value.executableSha256 === desktop.installedExecutable.sha256 && value.runtimeSha256 === desktop.installedRuntimeDescriptor.sha256);
       equal(value.retainedEnvSha256, retainedEnvSha256);
     }
-    installedSettings(value.actualHostSettingsViews, phase === 'baseline');
+    installedSettings(value.actualHostSettingsViews, phase === 'baseline', proofV3(lock));
   }
   const cleanupFlags = ['ownedHomeRemoved', 'ownedElectronDataRemoved', 'isolatedPackageAcceptanceDataRemoved'];
   const cleanup = take('profile-cleanup.json', 'upgrade.cleanup'); exact(cleanup, cleanupFlags); flags(cleanup, cleanupFlags);
@@ -396,9 +494,18 @@ export function readCombinedPackagedEvidence(lock, directory) {
   need(usesCombinedPackagedEvidence(lock)); physical(directory, 'directory'); absent(directory, 'acceptance.json');
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
   const proof = native.packagedAcceptance; const expected = expectedIdentity(lock, proof);
-  // Historical combined formats retain their original build-object contract.
-  equal(read(directory, 'release.json', channel.manifestRawSha256).value.build, channel.build);
-  equal(read(directory, 'build-receipt.json', channel.buildReceipt.sha256).value.buildInputs, channel.build);
+  // V3 binds the actual six-field public projection, not the Ops-only run URL/attempt.
+  const manifest = read(directory, 'release.json', channel.manifestRawSha256).value;
+  const receipt = read(directory, 'build-receipt.json', channel.buildReceipt.sha256).value;
+  if (proofV3(lock)) {
+    const buildKeys = ['workflow', 'lockfileSha256', 'planSha256', 'nodeVersion', 'pnpmVersion', 'packageRegistry'];
+    const publicBuild = Object.fromEntries(buildKeys.map(key => [key, channel.build[key]]));
+    exact(manifest.build, buildKeys); exact(receipt.buildInputs, buildKeys);
+    equal(manifest.build, publicBuild); equal(receipt.buildInputs, publicBuild);
+    equal(manifest.source, channel.source); equal(receipt.source, { ...channel.source, version: desktop.version });
+  } else {
+    equal(manifest.build, channel.build); equal(receipt.buildInputs, channel.build);
+  }
   const { f, receipts, suite } = readCanaryFamily(lock, directory, proof, expected);
   const hashes = packagedFiles(lock, directory, f);
   const helper = read(directory, 'helper-acceptance.json'); equal(helper.value, native.helperAcceptance);
@@ -537,6 +644,6 @@ export function verifyFreshOrdinaryPackagedEvidence(lock, directory, run) {
   functional(provisional, lock, expected); functional(accepted, lock, expected, true);
   equal(accepted, { ...provisional, scope: 'packaged-acceptance', normalAcceptanceCompleted: true, cleanupVerified: true });
   // Acquisition already bound the public plan. Validate the owner's original fresh phase files, not formal paths/window IDs.
-  packagedFiles(lock, directory, accepted, false, format === dualFormat ? { phasePins: null } : {});
+  packagedFiles(lock, directory, accepted, false, [dualFormat, nativeFormat].includes(format) ? { phasePins: null } : {});
   return accepted;
 }

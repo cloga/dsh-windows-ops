@@ -1,0 +1,362 @@
+{
+  "sourceCommit": "202dd0a2022da939aa424ac1714cd12ce6d902ef",
+  "desktopVersion": "0.1.6-alpha.1.cloga.18",
+  "versionMenus": [
+    {
+      "applicationMenuLabel": "Application",
+      "aboutMenuLabel": "About Desktop 0.1.6-alpha.1.cloga.18…",
+      "desktopVersion": "0.1.6-alpha.1.cloga.18",
+      "aboutDispatchCount": 1,
+      "nativeModalOpened": false
+    },
+    {
+      "applicationMenuLabel": "Application",
+      "aboutMenuLabel": "About Desktop 0.1.6-alpha.1.cloga.18…",
+      "desktopVersion": "0.1.6-alpha.1.cloga.18",
+      "aboutDispatchCount": 1,
+      "nativeModalOpened": false
+    }
+  ],
+  "runtimeVersion": "0.1.6-alpha.1",
+  "plugin": {
+    "schemaVersion": 1,
+    "type": "githubRelease",
+    "owner": "cloga",
+    "repo": "dsh-github-copilot",
+    "tag": "v0.4.0-alpha.35",
+    "asset": "dsh-github-copilot-0.4.0-alpha.35.tgz",
+    "assetId": 579078676,
+    "packageName": "dsh-github-copilot",
+    "version": "0.4.0-alpha.35",
+    "size": 705000,
+    "sha256": "ec4f0fa24b45d94686a396b2558ef6b7fc5d521b9d94e65dcff9f772421f496d",
+    "integrity": "sha512-WCKmOsgXN1z/UuxJqKPp42VbCR9z/nPAWVvIReB0jjtU0144xu1nSn8toDxJ9q9Ij656vxLV35pPHbFwbo1qeA==",
+    "targetCommit": "6554417dc9a7544865e6c1bbdebf8b9a10e0a7af",
+    "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+    "checksumManifest": {
+      "format": "sha256sums",
+      "asset": "SHA256SUMS",
+      "assetId": 579078699,
+      "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.35/SHA256SUMS",
+      "size": 104,
+      "sha256": "51930bf90fd22b04813494b301951b681a1b82a622351e93152f06ad8d3b93ab",
+      "integrity": "sha512-X41UN3az6uzTTWAC1q9kZJ9XGTKdBulYuStmzW4GaCIYt9+5MGAcp+D0hyvOJ8pZkdrdetFI9fzPB1nrbIzysA=="
+    }
+  },
+  "transport": "packaged Electron dsh-app byte pipes",
+  "isolatedHome": true,
+  "onboardingNoticeDismissed": true,
+  "restartReceiptSha256": "4a270dec315bb4710c94294a12e302636ce5203072691a36fc5b056c52329114",
+  "actualGraphVerified": true,
+  "ancestorSdkJunction": true,
+  "ancestorSdkLoaded": false,
+  "accountEntryVisible": true,
+  "manageCompatibilityDisclosureAbsent": true,
+  "settingsAcceptance": [
+    {
+      "schemaVersion": 3,
+      "accountViewLoaded": true,
+      "retiredModelRolesAbsent": true,
+      "searchProviderCatalogLoaded": true,
+      "providerOnlySearchRouting": true,
+      "fallbackProviderLabel": true,
+      "registeredSearchProviders": [
+        "deepseek-official",
+        "github-copilot-hosted"
+      ],
+      "realSearch": false
+    },
+    {
+      "schemaVersion": 3,
+      "accountViewLoaded": true,
+      "retiredModelRolesAbsent": true,
+      "searchProviderCatalogLoaded": true,
+      "providerOnlySearchRouting": true,
+      "fallbackProviderLabel": true,
+      "registeredSearchProviders": [
+        "deepseek-official",
+        "github-copilot-hosted"
+      ],
+      "realSearch": false
+    }
+  ],
+  "nativeComposer": {
+    "schemaVersion": 1,
+    "scope": "actual-packaged-native-composer-and-released-client",
+    "sourceCommit": "202dd0a2022da939aa424ac1714cd12ce6d902ef",
+    "sessionHistory": "synthetic-persisted-in-isolated-home",
+    "quota": "signed-out-host-response-no-credentials",
+    "runtimeSha256": "15dd038067c58882e2efa6f4465e4f7bcf98f86612e4d5a484d01286080b329d",
+    "pluginSource": {
+      "schemaVersion": 1,
+      "type": "githubRelease",
+      "owner": "cloga",
+      "repo": "dsh-github-copilot",
+      "tag": "v0.4.0-alpha.35",
+      "asset": "dsh-github-copilot-0.4.0-alpha.35.tgz",
+      "assetId": 579078676,
+      "packageName": "dsh-github-copilot",
+      "version": "0.4.0-alpha.35",
+      "size": 705000,
+      "sha256": "ec4f0fa24b45d94686a396b2558ef6b7fc5d521b9d94e65dcff9f772421f496d",
+      "integrity": "sha512-WCKmOsgXN1z/UuxJqKPp42VbCR9z/nPAWVvIReB0jjtU0144xu1nSn8toDxJ9q9Ij656vxLV35pPHbFwbo1qeA==",
+      "targetCommit": "6554417dc9a7544865e6c1bbdebf8b9a10e0a7af",
+      "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+      "checksumManifest": {
+        "format": "sha256sums",
+        "asset": "SHA256SUMS",
+        "assetId": 579078699,
+        "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.35/SHA256SUMS",
+        "size": 104,
+        "sha256": "51930bf90fd22b04813494b301951b681a1b82a622351e93152f06ad8d3b93ab",
+        "integrity": "sha512-X41UN3az6uzTTWAC1q9kZJ9XGTKdBulYuStmzW4GaCIYt9+5MGAcp+D0hyvOJ8pZkdrdetFI9fzPB1nrbIzysA=="
+      }
+    },
+    "installedClientSha256": "7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368",
+    "geometry": [
+      {
+        "viewportWidth": 1280,
+        "dock": {
+          "x": 435,
+          "y": 870,
+          "width": 680,
+          "height": 26
+        },
+        "time": {
+          "x": 525.25,
+          "y": 874,
+          "width": 119.734375,
+          "height": 22
+        },
+        "usage": {
+          "x": 656.984375,
+          "y": 874,
+          "width": 175.421875,
+          "height": 22
+        },
+        "copilot": {
+          "x": 844.40625,
+          "y": 874,
+          "width": 180.34375,
+          "height": 22
+        },
+        "nativeStyle": {
+          "fontSize": "13px",
+          "lineHeight": "20px",
+          "color": "rgb(129, 133, 140)"
+        },
+        "copilotStyle": {
+          "fontSize": "13px",
+          "lineHeight": "20px",
+          "color": "rgb(129, 133, 140)"
+        }
+      },
+      {
+        "viewportWidth": 400,
+        "dock": {
+          "x": 72,
+          "y": 802,
+          "width": 302,
+          "height": 94
+        },
+        "time": {
+          "x": 163.125,
+          "y": 806,
+          "width": 119.734375,
+          "height": 22
+        },
+        "usage": {
+          "x": 135.28125,
+          "y": 840,
+          "width": 175.421875,
+          "height": 22
+        },
+        "copilot": {
+          "x": 132.828125,
+          "y": 874,
+          "width": 180.34375,
+          "height": 22
+        },
+        "nativeStyle": {
+          "fontSize": "13px",
+          "lineHeight": "20px",
+          "color": "rgb(129, 133, 140)"
+        },
+        "copilotStyle": {
+          "fontSize": "13px",
+          "lineHeight": "20px",
+          "color": "rgb(129, 133, 140)"
+        }
+      }
+    ],
+    "nativeDialogs": {
+      "time": {
+        "opened": true,
+        "closedOnEscape": true,
+        "focusReturned": true
+      },
+      "usage": {
+        "opened": true,
+        "closedOnEscape": true,
+        "focusReturned": true
+      }
+    },
+    "copilotDialog": {
+      "signedOutObserved": true,
+      "sessionCreditsCount": 0,
+      "resetCount": 0,
+      "epochTextCount": 0,
+      "focusReturned": true
+    },
+    "rendererErrors": [],
+    "realModelRound": false,
+    "realOAuth": false
+  },
+  "searchProviderCatalogLoaded": true,
+  "providerOnlySearchRouting": true,
+  "fallbackProviderLabel": true,
+  "copilotUsageCapability": {
+    "id": "account-quota-composer-usage",
+    "required": true,
+    "evidenceScope": "synthetic-quota-and-public-remote-ui-contracts-not-live-account-access",
+    "signedOutNetworkRegressionDeclared": true,
+    "lifecycleRegressionDeclared": true
+  },
+  "signedOutCopilotUsage": [
+    {
+      "usageTriggerCount": 0,
+      "accountUsageTextCount": 0,
+      "usageSurfaceAbsent": true,
+      "hostQuotaRequestInstrumentation": "not-available-in-packaged-smoke"
+    },
+    {
+      "usageTriggerCount": 0,
+      "accountUsageTextCount": 0,
+      "usageSurfaceAbsent": true,
+      "hostQuotaRequestInstrumentation": "not-available-in-packaged-smoke"
+    }
+  ],
+  "positiveCopilotUsage": [
+    {
+      "scope": "packaged-renderer-released-client-synthetic-session-and-quota",
+      "provider": "github-copilot",
+      "usageText": "Credits · 7 used · 13 left",
+      "quotaReads": 2,
+      "sessionSubscribed": true,
+      "removedSessionHidesUsage": true,
+      "otherProviderHidesUsage": true,
+      "clientDisposalRemovesUsage": true,
+      "selectorErrors": 0,
+      "forbiddenRemoteCalls": 0,
+      "hostTransport": "not-provided-to-isolated-fixture",
+      "applicationMountPreserved": true,
+      "syntheticSiblingPreserved": true
+    },
+    {
+      "scope": "packaged-renderer-released-client-synthetic-session-and-quota",
+      "provider": "github-copilot-preview",
+      "usageText": "Credits · 7 used · 13 left",
+      "quotaReads": 2,
+      "sessionSubscribed": true,
+      "removedSessionHidesUsage": true,
+      "otherProviderHidesUsage": true,
+      "clientDisposalRemovesUsage": true,
+      "selectorErrors": 0,
+      "forbiddenRemoteCalls": 0,
+      "hostTransport": "not-provided-to-isolated-fixture",
+      "applicationMountPreserved": true,
+      "syntheticSiblingPreserved": true
+    }
+  ],
+  "positiveUsageHostTransport": "not-provided-to-isolated-fixture",
+  "hostQuotaNoNetworkEvidence": "immutable-plugin-ci-regression-only",
+  "liveAccountQuota": false,
+  "realOAuth": false,
+  "verificationNavigationExercised": false,
+  "manualVerificationAddressObserved": false,
+  "realModelRound": false,
+  "realSearch": false,
+  "installerUpgradeVerified": false,
+  "timeline": [
+    {
+      "event": "package-identity",
+      "milliseconds": 26005.5044
+    },
+    {
+      "event": "initial:launch",
+      "milliseconds": 26005.520099999998
+    },
+    {
+      "event": "initial:version-menu",
+      "milliseconds": 26742.033999999996
+    },
+    {
+      "event": "initial:application",
+      "milliseconds": 79906.52219999999
+    },
+    {
+      "event": "initial:account",
+      "milliseconds": 80879.7913
+    },
+    {
+      "event": "initial:usage-readonly",
+      "milliseconds": 80913.2234
+    },
+    {
+      "event": "initial:settings-readonly",
+      "milliseconds": 81345.1247
+    },
+    {
+      "event": "initial:packaged-graph",
+      "milliseconds": 81648.95
+    },
+    {
+      "event": "initial:closed",
+      "milliseconds": 81903.2178
+    },
+    {
+      "event": "restart:launch",
+      "milliseconds": 81903.2324
+    },
+    {
+      "event": "restart:version-menu",
+      "milliseconds": 82426.1223
+    },
+    {
+      "event": "restart:application",
+      "milliseconds": 94794.355
+    },
+    {
+      "event": "restart:account",
+      "milliseconds": 95612.3055
+    },
+    {
+      "event": "restart:usage-readonly",
+      "milliseconds": 95633.1877
+    },
+    {
+      "event": "restart:settings-readonly",
+      "milliseconds": 96064.32819999999
+    },
+    {
+      "event": "restart:packaged-graph",
+      "milliseconds": 96353.50379999999
+    },
+    {
+      "event": "restart:positive-usage",
+      "milliseconds": 97621.4494
+    },
+    {
+      "event": "restart:closed",
+      "milliseconds": 97886.67409999999
+    },
+    {
+      "event": "native-composer:seeded",
+      "milliseconds": 98192.98849999999
+    },
+    {
+      "event": "native-composer:closed",
+      "milliseconds": 113610.21139999999
+    }
+  ]
+}

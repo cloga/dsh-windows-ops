@@ -1,10 +1,14 @@
 # Desktop cloga.17 external-link qualification
 
+**Historical record.** The current published target is [`.cloga.18` / alpha.35](desktop-inline-composer-18.md),
+whose new independent hosted Native Ops qualification is PENDING. The `.17` source,
+hashes, successes and failures below remain historical and do not transfer.
+
 Issue [#214](https://github.com/cloga/dsh-windows-ops/issues/214) synchronizes the published [Core PR #96](https://github.com/cloga/deepseek-harness/pull/96) release into the Windows Ops deployment contract. Companion Core PR #108 reconciled the released baseline without changing the intended link behavior.
 
 ## Target and scope
 
-The lock selects immutable [Desktop `0.1.6-alpha.1.cloga.17`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.17), sequence **28**, Release **392847203**, source `f25506b4ad190ce090b8a4e9602c7ad36179db6b`, tree `24f46ed7803bcafdebc326da5c469712868481bc`. The reviewed PR head is `49d22a555429e1c08efbd4af5f04878b3628b28d`; its tree is identical to the release tree.
+The historical lock selected immutable [Desktop `0.1.6-alpha.1.cloga.17`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.17), sequence **28**, Release **392847203**, source `f25506b4ad190ce090b8a4e9602c7ad36179db6b`, tree `24f46ed7803bcafdebc326da5c469712868481bc`. The reviewed PR head is `49d22a555429e1c08efbd4af5f04878b3628b28d`; its tree is identical to the release tree.
 
 Bundled Core stays `0.1.6-alpha.1` and the complete Copilot `0.4.0-alpha.33` source/artifact/checksum lock is unchanged. This is not an alpha.2 promotion or adoption of separately published Copilot alpha.34. The latter's removal of Model roles is not included in this Desktop pin.
 

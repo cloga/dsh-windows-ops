@@ -173,6 +173,100 @@ Version-bound observations and outstanding gates belong in the existing
 [alpha.2 delivery record](core-016a2-delivery.md#core-candidate-remote-evidence),
 not in a second competing runbook.
 
+## Release scope and short feedback loops
+
+**Procedure, not a new diagnostic lane or a qualification claim.** Use this checklist
+before an expensive candidate run; keep the [final gates](#remote-qualification-checklist).
+
+1. **Freeze a small scope.** Record product/channel, candidate commit/tree, published
+   baseline, inclusions, non-goals, release owner and cutoff. Coordinate parallel PRs;
+   do not repeatedly absorb unrelated unmerged features. If the actual protected base
+   advances, review and reconcile necessary maintained changes without regressing them
+   or bypassing up-to-date checks. Record the resulting candidate, not the old identity.
+2. **Shortest faithful feedback first.** Whitespace/lint/types and focused pure tests
+   → actual source-component/renderer browser checks → full required CI and packaged
+   acceptance on a stable candidate. Mock DOM is not actual renderer evidence. Cover
+   restored/collapsed navigation, cold titles, unique ARIA-qualified controls, layout-neutral
+   `display: contents` ancestors and retained empty Slot anchors when relevant; do not
+   substitute `.first()` or a guessed parent box. Use existing frozen CI equivalents
+   when local dependencies are demonstrably unavailable, not reconstructed dependencies.
+3. **Move likely late failures earlier where supported.** A scoped future improvement
+   may check hosted Windows owned-home prerequisites, process lineage, standard UI
+   Automation provider initialization and actionable control contracts before packaging.
+   This is a **recommendation**, not a claim that such a lane exists or that mock success
+   proves native behavior. Add missing checks through a reviewed PR; keep final acceptance.
+4. **Seal observers, not errors.** Collect all in-scope errors through the final awaited
+   interaction, remove only owned listeners and seal an owned immutable observation before
+   deliberate teardown. Test that in-scope errors reject and later teardown cannot mutate
+   accepted records. Never clear/filter errors to obtain success; preserve the primary
+   error when cleanup also fails and retain bounded, sanitized secondary diagnostics.
+5. **Classify before retrying.** Record exact source/tree, run/attempt/job, failed step,
+   originals and first failed assertion. Use the table below. One bounded same-source,
+   failed-job-only retry may be appropriate when evidence supports a transient condition
+   and the existing workflow preserves dependencies/artifact binding; retain attempt1.
+   Repeated identical failure needs targeted diagnosis or concrete recovery evidence,
+   not another blind full-build loop, increased timeout, skipped test or weaker assertion.
+6. **Diagnosis is not a candidate rebuild.** Reuse retained artifacts only through an
+   established or separately reviewed path binding package source/runtime/lockfile,
+   original hashes/provenance, diagnostic-script commit and owned execution environment.
+   Record package and script identities separately. A diagnostic pass does not qualify
+   the script's newer source as the package source; final publication still needs every
+   required gate for the qualified merged source. Workflow restructuring is separate work.
+7. **Parallel preparation, one writer.** Give each mutable worktree/file scope one owner;
+   parallelize independent preparation and early risk review, then review the immutable
+   commit/tree. Do not serialize minor details already within an approved contract into
+   repeated approvals. Changed scope, guarantees, credentials or destructive actions need
+   a new decision. End each defect repair with the cheapest faithful regression; receipt
+   readers need malformed/rehashed semantic negatives and independent-run positive variation.
+8. **One watcher, one current handoff.** Assign one watcher per run and reuse its terminal
+   result. Maintain one current execution note linking immutable evidence, not competing
+   status copies. Record implementation/review/queue/setup/CI/package/acceptance intervals
+   when available; distinguish wall-clock critical path from parallel job-duration sums.
+   Report implementation, browser evidence, packaged acceptance, publication and activation
+   separately. Optimize measured delays, not merely tool-call count.
+
+### Failed-run decision table
+
+| Evidence-supported class | Next bounded action | Do not infer or bypass |
+|---|---|---|
+| Source/assertion or fixture contract defect | Repair, add focused regression, review new immutable source; rerun required gates | Old package success qualifies the changed source |
+| Transport/environment, with evidence of a transient condition | Diagnose the relevant request path; consider one same-source failed-job retry under the existing workflow | HTTP403 alone means quota/rate limit; authenticated operator CLI success proves anonymous hosted recovery |
+| Unrelated existing test failure | Identify owning test/source and preserve failure; coordinate correction or an already approved policy | Label it unrelated and silently waive a required check |
+| Unknown, repeated, or changing failure | Retain originals; choose the smallest approved diagnostic and explicit stop condition | More retries/timeouts establish cause, or a later pass erases the earlier failure |
+
+For transport diagnostics retain only necessary sanitized route/status/header facts,
+never tokens, signed URL queries, response bodies or arbitrary raw errors. Do not inject
+operator authentication into an anonymous acceptance path or weaken TLS/integrity policy.
+Existing [network tooling policy](github-network.md) remains authoritative for transport;
+this checklist does not change its credential, retry or timeout defaults.
+
+### Copyable preflight and handoff
+
+```text
+Product / channel / baseline:
+Candidate commit / tree / dependency lock identity:
+Included changes / non-goals / cutoff / publication owner:
+Parallel work / exclusive writer scopes / actual protected base:
+Focused checks -> source/browser evidence -> required CI/package gates:
+Proposed early native checks (existing capability or separately reviewed work):
+Run / attempt / job / failed step / original evidence links:
+Failure class + evidence / next bounded action / stop condition:
+If reusing data: package source + hashes / diagnostic-script source / scope:
+Observer lifetime / cleanup ownership / primary and secondary failure evidence:
+Watcher owner / current handoff / immutable final review:
+Timing: start-end intervals, queue/setup, parallel overlap, critical path:
+Publication evidence / remaining platform limits / activation authorization:
+```
+
+**中文速查：** 先固定产品/通道、精确 commit/tree、纳入项/非目标、cutoff 和发布负责人；
+实际受保护主线推进需评审整合，不追逐无关未合并功能。先跑最便宜且忠实的检查、真实源码
+浏览器验证，再完整 CI/打包；hosted owned-home/UIA 前置检查是待评审建议，不是已实现能力。
+失败先按精确 source/run/attempt/job/step 和原始证据分类，再决定有依据的有限 failed-job 重试；
+403 不自动等于限流，诊断制品与脚本必须分别绑定身份。每个范围单写者、每个 run 单 watcher、
+一份当前交接；观察器在最后交互后封存而不是丢弃错误，统计关键路径而非并行耗时相加。
+这些方法不削弱 npm/凭据/TLS/安全策略、最终发布门禁或 Session/安装/重启的单独授权。
+文档改进本身不需要产品版本号或二进制发布。
+
 ## 完成标准 / Completion evidence
 
 报告每个组件的处理结论、Issue/PR、源码提交、发布版本/链接、哈希和测试范围。

@@ -48,7 +48,8 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 真实 Ops 调用方身份与经过验证的 Core 检出身份分开保留；私有 Ops 源码归档不是 Git 检出目录。
 精确且成功的 Core CI 摘要可以证明执行过未完整归档根记录的安装检查，但不能提供完整离线重放。
 此 alpha.2 准备工作不修改六资产公开契约，也不提升当前独立评审的 `.cloga.16`/alpha.33
-目标；该目标的正式证据已认证、hosted Native Ops qualification 仍待执行。Alpha.2 尚未发布、
+目标；该目标的正式证据已认证，hosted Native Ops run `35575187267` 已在精确 Ops code head
+`a59f586df4e329c3bc8b3f885013fdb5493f4970` 通过。Alpha.2 尚未发布、
 尚未合格；此准备工作不授权安装、激活或重启。
 
 ## Copilot 自动识别路由维护
@@ -63,7 +64,7 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 
 ## 当前已发布部署目标
 
-机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前发布制品与正式证据独立核验日期为 **2026-09-21**；新目标的 hosted Native Ops qualification 仍待执行：
+机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前发布制品与正式证据独立核验日期为 **2026-09-21**；新目标的 hosted Native Ops qualification 已在下列精确 code head 通过：
 
 | 组件 | 锁定版本 |
 |---|---|
@@ -71,7 +72,12 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 | Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `b5b9b31ce34871ab320f63a91254ba601fd71edc447609d261360d84e4b929e8`；ASAR root 跟随实际 EXE |
 | 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.33`，source `aa90fe434da8b2172faa1446afa0a0fd006afe00`；由 `desktopNativeVerifiedRelease` 接管 |
 | 正式 packaged 证据 | run `35569892548` attempt 2 SUCCESS；schema-2 settings/version-menu、schema-1 signed-out usage 与已认证的可选 positive usage proof |
-| Native Ops qualification | **新目标仍待 hosted 验证**；历史 `.cloga.14`/alpha.32 的 run `35553019059` 不能移用 |
+| Native Ops qualification | [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267) attempt 1 **SUCCESS**，精确 Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`；native job `106255672689` 与全部 4 个 jobs 通过 |
+
+后续文档/证据专用提交只记录上述 code head 的结果，不宣称新提交本身执行了 native qualification。
+1,073-byte raw summary SHA-256 为 `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`；
+fresh positive proof 由该精确 driver 强制校验，不是新增 summary flags。Whole-carrier、model-response、
+installer-upgrade flags 仍为 false，历史 `.cloga.14`/alpha.32 run `35553019059` 不能移用。
 
 正式验收在首次启动与重启验证只读 current workspace、Model roles、相同的
 `deepseek-official`/`github-copilot-hosted` 目录、provider-only routing、Fallback
@@ -79,14 +85,15 @@ label、精确 Desktop About-menu identity 与 account readiness 后缺席的 si
 新增的 schema-1 `usagePositiveAcceptance` 使用已发布 Client 与实际 renderer、SessionProvider/Slot，
 但 Session/quota/test mount 为 synthetic；canonical/preview 两条路由只在 restart graph 后执行一次。
 [正式证据与哈希](docs/copilot-alpha33-upgrade-record.md)已经认证，不再是待提供制品；
-它不证明 live account/network。Attempt 1 的 `EBUSY` helper cleanup 失败仍保留为历史。
+它不证明 live account/network。正式发布 run `35569892548` attempt 1 的 `EBUSY` helper cleanup 失败仍保留为历史。
 未执行 Host request instrumentation、live quota、OAuth、verification navigation、
 model/search、save/create、本机安装或重启；external-navigation success 仍未合格。
 
 Lock 更新表示经过评审的目标，不代表本机状态。已安装 Desktop 仍为 `.cloga.10`
 时，不得针对 future lock 运行 current-machine Check；预期 drift 不是发布缺陷。
 Managed helper 仍是交互式流程，需要单独确认 active Sessions 影响及 Windows/UAC，
-本次不授权无人值守安装。
+本次明确选择 **stage-only**：不在本机安装、激活或重启；live account 验证留待未来人类请求，
+不是发布/CI 完成后的自动下一步。
 
 Legacy-compatible update manifest 保持 `automaticProvisioning=false`；独立 hash-bound
 build receipt/capability 管理精确 startup provisioning。Native dependency registry

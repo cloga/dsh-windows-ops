@@ -7,8 +7,11 @@ fixtures or formal hashes. That stage is historical: the release owner has now
 independently authenticated Desktop `.cloga.16` / sequence 27 / Copilot alpha.33
 formal proof and authorized its baseline repin, with bundled Core unchanged at
 `0.1.6-alpha.1`. See the [formal upgrade record](copilot-alpha33-upgrade-record.md).
-Fresh hosted Native Ops qualification remains pending; formal proof is not that
-qualification. No live profile, Core, installed Desktop or running Session is modified.
+Fresh hosted Native Ops qualification separately passed in run `35575187267`
+at exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`; formal proof
+alone is not that qualification. This later documentation/evidence-only follow-up
+records that code-head result, not a native rerun of its own head. No live profile,
+Core, installed Desktop or running Session is modified.
 
 ## Official selector contract, not a Core workaround
 
@@ -48,8 +51,9 @@ alpha.33 formal target, schema 1 pins positive-file SHA-256
 and installed Client SHA-256
 `6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435`.
 The release owner's independent artifact authentication completed after initial
-preparation; these hashes are no longer pending. They do not establish fresh Ops
-native qualification or local activation.
+preparation; these hashes are no longer pending. The hashes alone do not establish
+fresh Ops native qualification or local activation; the separate successful run
+and its exact qualified driver are recorded below.
 The formal verifier hashes the positive file; the fresh-source verifier independently
 hashes newly produced output against the same reviewed proof. Its read-only observer also
 hashes the actual isolated profile's Client bytes before source-owned cleanup.
@@ -105,6 +109,14 @@ The initial preparation deliberately left baseline pins and README entry points
 unchanged. The subsequent authorized repin now synchronizes the formal target,
 optional positive-proof hashes and bilingual/current guides. Formal run
 `35569892548` attempt 2 succeeded; attempt 1's `EBUSY` copied-helper cleanup failure
-remains history, not an explained or erased failure. The release owner still owns
-fresh hosted native CI qualification, merge and any separately authorized activation.
-Neither this proof nor its repin changes Core or authorizes a local install/restart.
+remains history, not an explained or erased failure. Fresh hosted run `35575187267`
+attempt 1 succeeded at code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`,
+including native job `106255672689` and all four jobs. Its authenticated 1,073-byte
+raw summary has SHA-256
+`26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`.
+Fresh positive proof was enforced by that exact qualified driver, not by invented
+positive flags in the summary. The summary retains `wholeCarrierAttested:false`,
+`modelResponseVerified:false` and `installerUpgradeVerified:false`.
+The chosen outcome is **stage-only**: no local installation, activation or restart;
+live account verification is deferred until a future human request. Neither this
+proof nor its repin changes Core or authorizes local activation.

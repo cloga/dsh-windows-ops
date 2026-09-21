@@ -73,7 +73,8 @@ checkout. The exact successful Core CI summary can
 attest installed checks whose root records were not archived; it does not enable
 full offline replay. This alpha.2 preparation changes neither the six-asset public
 contract nor the independently reviewed `.cloga.16`/alpha.33 target; its formal
-proof is authenticated but fresh hosted Native Ops qualification is pending.
+proof is authenticated and fresh hosted Native Ops run `35575187267` passed at
+exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`.
 Alpha.2 is unpublished and unqualified; this preparation does not authorize
 installation, activation or restart.
 
@@ -91,7 +92,7 @@ Formal source evidence does not install or activate it locally.
 
 ## Current published deployment target
 
-[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Published artifacts and formal proof were independently verified on **2026-09-21**; fresh hosted Native Ops qualification is still pending.
+[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Published artifacts and formal proof were independently verified on **2026-09-21**; fresh hosted Native Ops qualification passed at the exact code head below.
 
 | Component | Locked version |
 |---|---|
@@ -99,7 +100,14 @@ Formal source evidence does not install or activate it locally.
 | Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`; descriptor SHA-256 `b5b9b31ce34871ab320f63a91254ba601fd71edc447609d261360d84e4b929e8`; default ASAR root follows the installed EXE |
 | Required `dsh-github-copilot` | immutable `0.4.0-alpha.33`, source `aa90fe434da8b2172faa1446afa0a0fd006afe00`; delegated through `desktopNativeVerifiedRelease` |
 | Formal packaged evidence | run `35569892548`, attempt 2 SUCCESS; schema-2 settings/version-menu, schema-1 signed-out usage and authenticated optional positive usage proof |
-| Native Ops qualification | **Fresh hosted qualification pending**; historical `.cloga.14`/alpha.32 run `35553019059` cannot be transferred |
+| Native Ops qualification | [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267) attempt 1 **SUCCESS**, exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`; native job `106255672689` and all four jobs passed |
+
+The later documentation/evidence-only follow-up records that code-head result;
+it is not a native qualification of the later head. The 1,073-byte raw summary's
+SHA-256 is `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`.
+Fresh positive proof is enforced by that exact driver, not new summary flags.
+Whole-carrier/model-response/installer-upgrade flags remain false; historical
+`.cloga.14`/alpha.32 run `35553019059` cannot be transferred.
 
 Formal acceptance verified read-only current-workspace state, Model roles, equal
 `deepseek-official`/`github-copilot-hosted` catalogs, provider-only routing,
@@ -108,7 +116,7 @@ The added schema-1 `usagePositiveAcceptance` uses the released Client and actual
 renderer/SessionProvider/Slot with synthetic Session/quota/test mount. Canonical
 and preview cases run once after the restart graph. [Formal proof and hashes](docs/copilot-alpha33-upgrade-record.md)
 are authenticated, not pending artifacts; they are not live account/network proof.
-Attempt 1's `EBUSY` helper-cleanup failure remains history. Acceptance did not
+Formal release run `35569892548` attempt 1's `EBUSY` helper-cleanup failure remains history. Acceptance did not
 instrument Host requests or perform live quota, OAuth, verification navigation,
 model/search calls, save/create, local installation or restart. External-navigation
 success remains unqualified.
@@ -117,7 +125,9 @@ A lock update defines the reviewed target, not installed-machine state. Do not r
 a future-lock current-machine Check while installed Desktop remains `.cloga.10`;
 expected drift is not release failure. The managed helper remains interactive and
 requires separate active-Session impact confirmation and Windows/UAC interaction.
-No unattended installation is authorized.
+The explicit choice is **stage-only**: no local installation, activation or restart.
+Live account verification is deferred until a future human request, not an
+automatic next step after publication or CI success.
 
 The legacy-compatible update manifest keeps `automaticProvisioning=false`; the
 separate hash-bound build receipt/capability owns exact startup provisioning.

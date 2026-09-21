@@ -39,8 +39,11 @@ No legacy rc.2 build/install tooling or runtime trust boundary is changed.
 **This is pre-publication preparation, not a qualified or deployed alpha.2 baseline.**
 The current reviewed target is published Desktop `0.1.6-alpha.1.cloga.16` /
 Core `0.1.6-alpha.1` / Copilot alpha.33. Its formal artifacts and positive proof
-are authenticated; fresh hosted Native Ops qualification is still pending
-([record](copilot-alpha33-upgrade-record.md)). Historical `.cloga.14`/alpha.32
+are authenticated; fresh hosted Native Ops run `35575187267` attempt 1 passed at
+exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`
+([record](copilot-alpha33-upgrade-record.md)). The later documentation/evidence-only
+follow-up records that result, not a native qualification of its own head.
+Historical `.cloga.14`/alpha.32
 qualification is not transferred to the new pair. Earlier `.cloga.2`/alpha.24 records
 remain historical Ops evidence and the separately owned Core installer-upgrade
 fixture baseline, not the current Ops deployment. Unit tests use temporary inert
@@ -54,7 +57,9 @@ profiles or state.
 
 本节仅记录发布前严格兼容准备，不宣称 alpha.2 已发布、已通过正式验收或已部署。
 当前评审目标为 alpha.1.cloga.16/Core alpha.1/Copilot alpha.33；正式制品与 positive proof
-已独立认证，但新目标的 hosted Native Ops qualification 仍待执行，不能继承 `.cloga.14` 的通过记录；
+已独立认证，新目标的 hosted Native Ops run `35575187267` attempt 1 已在精确 code head
+`a59f586df4e329c3bc8b3f885013fdb5493f4970` 通过，而非继承 `.cloga.14` 的记录；后续文档/证据
+提交只记录该 head 的结果。用户明确选择 stage-only，不安装、激活或重启，live account 验证留待后续人类请求；
 旧 `.cloga.2`/alpha.24 仍是历史 Ops 证据和 Core 安装升级 fixture 基线，而非当前 Ops 部署。
 Alpha.2 发布后仍须另行核验制品、评审提升 lock/catalog/fixtures，并执行新的 hosted qualification。
 
@@ -64,8 +69,10 @@ Ops #181 prepares an explicit adapter for the alpha.2 candidate's combined
 packaged evidence. This is source compatibility work, not qualification or
 promotion of an unpublished release. Historical ordinary acceptance and original
 formal/Ops fixtures remain unchanged. This alpha.2 preparation does not replace
-the current `.cloga.16`/alpha.33 reviewed target or qualify its pending hosted Ops
-run; that independent maintenance repin preserves bundled Core alpha.1.
+the current `.cloga.16`/alpha.33 reviewed target or substitute for its separate
+successful hosted Ops run `35575187267` at code head
+`a59f586df4e329c3bc8b3f885013fdb5493f4970`. That independent maintenance repin
+preserves bundled Core alpha.1; it does not qualify alpha.2.
 
 Imported formal evidence requires the complete original `functional-results.json`,
 finalized `failure.json`, `observer-cleanup.json` and last-written

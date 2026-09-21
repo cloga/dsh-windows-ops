@@ -25,7 +25,9 @@ contract. No Core fallback, Core patch or persistent data migration is introduce
 [Formal run `35569892548`, attempt 2](https://github.com/cloga/deepseek-harness/actions/runs/35569892548/attempts/2)
 succeeded. Parent verification authenticated the published records/assets and
 source-owned acceptance; the original three Actions ZIP bytes were independently
-audited. **Fresh hosted Native Ops qualification for this pair is still pending.**
+audited. **Fresh hosted Native Ops qualification passed** in
+[run `35575187267`, attempt 1](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267)
+at exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`.
 Historical `.cloga.14`/alpha.32 run `35553019059` is not proof of this target.
 Publication and this reviewed repin neither install nor activate it locally.
 
@@ -94,5 +96,41 @@ temporary copied `node.exe` in `removeOwnedDirectory`. Publication and remote
 discovery were skipped. The log proves a locked executable, not the lock owner or
 an antivirus/runner cause. Attempt 2 succeeded on the same source without weakening
 a release or cleanup gate; that success does not erase or explain attempt 1.
-All historical formal/Ops evidence stays historical. Fresh hosted Ops qualification
-and any separately authorized local activation remain distinct outstanding work.
+All historical formal/Ops evidence stays historical. Hosted qualification is now
+complete at the exact code head below; local activation remains deliberately deferred.
+
+## Authenticated hosted Ops qualification
+
+The registered caller [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267),
+attempt 1, completed all four jobs successfully. Its native
+[job `106255672689`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267/job/106255672689)
+qualified **Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`** against the
+exact Desktop source/tree and installer/executable/runtime descriptor above.
+
+- Artifact `10627584525`, `native-asar-qualification-35575187267-1`: original ZIP
+  **733 bytes**, SHA-256 `8997486b787bbadbf7995ecf7d46f81870f813cb80488bc1008a1eea1de8b23f`.
+- The sole ZIP entry, `qualification.json`: **1,073 bytes**, SHA-256
+  `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`.
+  The [committed summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-16/qualification.json)
+  is a byte-exact copy authenticated against the original artifact, not rewritten JSON.
+- Its existing schema 1 reports 9,806 runtime files, matching the formal descriptor;
+  full application package name/version and observed package SHA-256
+  `fc4fda43a8921ebfaccc2c07b41cd79c69c0f2b38edba8f3ba6152273501a446`;
+  public `metadata-cjs-esm` resolution; one observer call; owned profile removed;
+  and rejected descriptor-digest, version and absent-home request copies.
+- Fresh positive usage, signed-out usage, settings and version-menu proof were
+  enforced by the driver at **that exact Ops code head**. They are not invented
+  fields in the raw summary. Whole-carrier attestation, model response and installer
+  upgrade remain `false`. This is not live account/quota, OAuth/model/search or
+  local installation/activation proof.
+
+This later evidence-recording commit changes only documentation, catalog descriptive
+evidence and the new raw qualification record. It is **not** the commit on which
+native qualification ran: native provenance stays bound to `a59f586…`, while required
+PR checks run separately on the evidence-recording head. Runtime, test, workflow,
+deployment-lock and existing formal-evidence bytes remain identical to the qualified
+code head. No circular self-commit identifier is embedded in this record.
+
+The user explicitly chose **stage only, without interrupting Sessions**. No local
+installation, activation or restart was performed; live-account UI validation is
+deferred until a future explicit human request.

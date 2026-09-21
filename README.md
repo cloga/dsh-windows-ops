@@ -45,6 +45,9 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 **组合证据准备不代表提升基线：** [Ops #181 准备工作](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
 区分导入的正式 functional/failure/observer/suite 证据（普通 acceptance 必须缺席），
 与清理完成后通过普通验收路径成功返回的全新 Ops resolver observer。
+显式 `combined-suite-v2` 准备要求功能／普通验收 schema 2，以及由原始哈希绑定、遵守已评审
+Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读取器及历史证据保留。
+合成 Client 单元测试不等于在托管环境中执行实际已发布 Client。
 真实 Ops 调用方身份与经过验证的 Core 检出身份分开保留；私有 Ops 源码归档不是 Git 检出目录。
 精确且成功的 Core CI 摘要可以证明执行过未完整归档根记录的安装检查，但不能提供完整离线重放。
 六个公开资产与已合格的 `.cloga.14`/alpha.32 lock 均保持不变。Alpha.2 尚未发布、尚未合格；

@@ -160,3 +160,83 @@ export function packagedFixture(t) {
   };
   return { lock, directory, get, put, digest, seal, ordinary };
 }
+
+// These are reviewed metadata leaves inside INERT proof records, not fabricated Client/package bytes.
+// Passing a parser test never establishes original alpha.33 artifact parity or renderer execution.
+export function packagedV2Fixture(t) {
+  const f = packagedFixture(t); const { lock, get, put, digest } = f;
+  const d = lock.components.desktop, c = d.releaseChannel, n = c.nativeProvisioning;
+  const source = {
+    schemaVersion: 1, type: 'githubRelease', owner: 'cloga', repo: 'dsh-github-copilot',
+    tag: 'v0.4.0-alpha.33', asset: 'dsh-github-copilot-0.4.0-alpha.33.tgz', assetId: 578199183,
+    packageName: 'dsh-github-copilot', version: '0.4.0-alpha.33', size: 724820,
+    sha256: 'b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480',
+    integrity: 'sha512-fMONh2Thsu3YTv26DnGWFDlNg2vx3tYE6Cqm4/Aq5LmLwJo71weRZHTkJpRnenDbWkzcu4yNmk7u+GUJxb0bQw==',
+    targetCommit: 'aa90fe434da8b2172faa1446afa0a0fd006afe00', dependencyRegistry: 'https://packagefeedproxy.microsoft.io/npm/',
+    checksumManifest: { format: 'sha256sums', asset: 'SHA256SUMS', assetId: 578199206,
+      url: 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/SHA256SUMS', size: 104,
+      sha256: 'f81df10b7fd6e40b2319a42de1f04c3b7f7eccc57809b51623c9145f2a3df076',
+      integrity: 'sha512-KFNap+UgDynhZycHuHOdd/hbPL/0VR+AdKPP6cebS5IENSJG+g4zo4NtGoCpWMTrTEgqvrlyWCK4MZkzjtzeDQ==' },
+  };
+  const plugin = lock.components.copilotIntegration;
+  plugin.source.commit = source.targetCommit; plugin.package.version = source.version;
+  Object.assign(plugin.package.artifact, { releaseId: 392690464, assetId: source.assetId, sha256: source.sha256,
+    size: source.size, integrity: source.integrity, name: source.asset, releaseTag: source.tag, releaseCommit: source.targetCommit });
+  const plan = { schemaVersion: 1, mode: 'exact', plugins: [{ required: true, source }] };
+  n.plan.sha256 = put('desktop-provisioning.json', plan); put('provisioning-plan.json', plan);
+  n.plan.planSha256 = sha256(JSON.stringify(plan));
+  c.managedCapability.provisioning.planSha256 = n.plan.planSha256;
+  n.capabilitySha256 = put('capability.json', c.managedCapability);
+  n.buildReceiptCompatibility.provisioning = structuredClone(c.managedCapability.provisioning);
+  for (const phase of ['initial', 'restart']) {
+    const store = get(`${phase}-desktop-plugin-receipts.json`); const receipt = store.receipts[source.packageName];
+    Object.assign(receipt, { source, releaseId: 392690464, assetId: source.assetId, version: source.version, artifactSha256: source.sha256 });
+    put(`${phase}-desktop-plugin-receipts.json`, store);
+    const state = get(`${phase}-desktop-plugin-provisioning-state.json`); state.planSha256 = n.plan.planSha256;
+    state.plugins = [{ name: source.packageName, version: source.version, required: true, status: 'active', source, receipt }];
+    put(`${phase}-desktop-plugin-provisioning-state.json`, state);
+    const profile = get(`${phase}-package.json`); profile.dependencies[source.packageName] = `file:.desktop-plugin-artifacts/${source.sha256}.tgz`;
+    put(`${phase}-package.json`, profile);
+  }
+  const receipt = get('build-receipt.json'); receipt.pluginCompatibility = n.buildReceiptCompatibility;
+  Object.assign(receipt.artifacts, { capabilitySha256: n.capabilitySha256,
+    provisioning: { file: 'desktop-provisioning.json', sha256: n.plan.sha256, planSha256: n.plan.planSha256 } });
+  delete receipt.receiptSha256; receipt.receiptSha256 = sha256(canonical(receipt));
+  c.buildReceipt.receiptSha256 = receipt.receiptSha256; c.buildReceipt.sha256 = put('build-receipt.json', receipt);
+  const manifest = get('release.json'); manifest.buildReceipt = { file: 'build-receipt.json', sha256: c.buildReceipt.sha256, receiptSha256: c.buildReceipt.receiptSha256 };
+  delete manifest.manifestSha256; manifest.manifestSha256 = sha256(canonical(manifest));
+  c.manifestSha256 = manifest.manifestSha256; c.manifestRawSha256 = put('release.json', manifest);
+  const cases = ['github-copilot', 'github-copilot-preview'].map(provider => ({
+    scope: 'packaged-renderer-released-client-synthetic-session-and-quota', provider, usageText: '7 used13 left', quotaReads: 4,
+    sessionSubscribed: true, removedSessionHidesUsage: true, otherProviderHidesUsage: true, clientDisposalRemovesUsage: true,
+    selectorErrors: 0, forbiddenRemoteCalls: 0, hostTransport: 'not-provided-to-isolated-fixture',
+    applicationMountPreserved: true, syntheticSiblingPreserved: true, inheritedSessionScopeVerified: true,
+    explicitUndefinedSessionScopeAbsent: true, removedSessionRestoresUsage: true, closedSessionHidesUsage: true,
+    closedSessionRestoresUsage: true, restoredProviderShowsUsage: true, subscriptionsReleased: true, syntheticContextDisposed: true,
+  }));
+  const functional = get('functional-results.json');
+  Object.assign(functional, { schemaVersion: 2, plugin: source, positiveCopilotUsage: cases,
+    positiveUsageHostTransport: 'not-provided-to-isolated-fixture', restartReceiptSha256: digest('initial-desktop-plugin-receipts.json') });
+  const closed = functional.timeline.findIndex(row => row.event === 'restart:closed');
+  functional.timeline.splice(closed, 0, { event: 'restart:positive-usage', milliseconds: 0 });
+  functional.timeline.forEach((row, index) => { row.milliseconds = index; });
+  put('functional-results.json', functional);
+  for (const file of ['functional-results.json', 'failure.json', 'observer-cleanup.json', 'packaged-suite.json']) {
+    const value = get(file); value.provisioningSha256 = n.plan.sha256; value.capabilitySha256 = n.capabilitySha256;
+    if (file === 'failure.json') value.timeline = [...functional.timeline, { event: 'failure', milliseconds: functional.timeline.length }];
+    put(file, value);
+  }
+  put('positive-usage.json', { runtimeSha256: d.installedRuntimeDescriptor.sha256,
+    installedClientSha256: '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435',
+    pluginSource: source, cases, originalSignedOutApplicationRestored: true, hostTransport: 'not-provided-to-isolated-fixture' });
+  n.packagedAcceptance.format = 'combined-suite-v2';
+  const summary = get('core-qualification/qualification.json');
+  Object.assign(summary.inputs, { 'candidate.manifest': c.manifestRawSha256, 'candidate.receipt': c.buildReceipt.sha256, 'candidate.provisioning': n.plan.sha256 });
+  put('core-qualification/qualification.json', summary);
+  const seal = () => {
+    f.seal();
+    const summary = get('core-qualification/qualification.json'); summary.inputs['packaged.positiveUsage'] = digest('positive-usage.json');
+    n.packagedAcceptance.qualificationSha256 = put('core-qualification/qualification.json', summary);
+  };
+  seal(); return { ...f, seal };
+}

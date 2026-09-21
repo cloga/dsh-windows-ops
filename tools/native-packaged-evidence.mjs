@@ -35,13 +35,59 @@ const usageCapability = { id: 'account-quota-composer-usage', required: true,
 const signedOut = { usageTriggerCount: 0, accountUsageTextCount: 0, usageSurfaceAbsent: true,
   hostQuotaRequestInstrumentation: 'not-available-in-packaged-smoke' };
 const phases = ['initial', 'restart'];
+// Independently reviewed original alpha.33 tuple. Receipts, environment and callers cannot choose this policy.
+// Matches Core's copilot-usage-client-policy.ts; unknown tuples need a new original-artifact review.
+const reviewedCopilot33 = {
+  schemaVersion: 1, type: 'githubRelease', owner: 'cloga', repo: 'dsh-github-copilot',
+  tag: 'v0.4.0-alpha.33', asset: 'dsh-github-copilot-0.4.0-alpha.33.tgz', assetId: 578199183,
+  packageName: 'dsh-github-copilot', version: '0.4.0-alpha.33', size: 724820,
+  sha256: 'b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480',
+  integrity: 'sha512-fMONh2Thsu3YTv26DnGWFDlNg2vx3tYE6Cqm4/Aq5LmLwJo71weRZHTkJpRnenDbWkzcu4yNmk7u+GUJxb0bQw==',
+  targetCommit: 'aa90fe434da8b2172faa1446afa0a0fd006afe00', dependencyRegistry: 'https://packagefeedproxy.microsoft.io/npm/',
+  checksumManifest: { format: 'sha256sums', asset: 'SHA256SUMS', assetId: 578199206,
+    url: 'https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/SHA256SUMS', size: 104,
+    sha256: 'f81df10b7fd6e40b2319a42de1f04c3b7f7eccc57809b51623c9145f2a3df076',
+    integrity: 'sha512-KFNap+UgDynhZycHuHOdd/hbPL/0VR+AdKPP6cebS5IENSJG+g4zo4NtGoCpWMTrTEgqvrlyWCK4MZkzjtzeDQ==' },
+};
+function reviewedPositiveClient(source, digest) {
+  equal(source, reviewedCopilot33);
+  need(digest === '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435');
+}
+const proofV2 = lock => lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format === 'combined-suite-v2';
+const positiveTransport = 'not-provided-to-isolated-fixture';
+const positiveTrue = ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
+  'applicationMountPreserved', 'syntheticSiblingPreserved', 'inheritedSessionScopeVerified', 'explicitUndefinedSessionScopeAbsent',
+  'removedSessionRestoresUsage', 'closedSessionHidesUsage', 'closedSessionRestoresUsage', 'restoredProviderShowsUsage',
+  'subscriptionsReleased', 'syntheticContextDisposed'];
+function positiveCases(cases) {
+  need(Array.isArray(cases) && cases.length === 2);
+  for (const [index, provider] of ['github-copilot', 'github-copilot-preview'].entries()) {
+    const value = cases[index];
+    exact(value, ['scope', 'provider', 'usageText', 'quotaReads', 'selectorErrors', 'forbiddenRemoteCalls', 'hostTransport', ...positiveTrue]);
+    need(value.scope === 'packaged-renderer-released-client-synthetic-session-and-quota' && value.provider === provider &&
+      value.hostTransport === positiveTransport && typeof value.usageText === 'string' && value.usageText.length <= 256 &&
+      /(?:^|[^0-9.])7\s+used(?![A-Za-z])/u.test(value.usageText) && /(?:^|[^0-9.])13\s+left(?![A-Za-z0-9])/u.test(value.usageText) && value.quotaReads === 4 &&
+      value.selectorErrors === 0 && value.forbiddenRemoteCalls === 0);
+    flags(value, positiveTrue);
+  }
+}
+function positiveUsage(lock, root, accepted) {
+  const record = read(root, 'positive-usage.json', undefined, 64 * 1024); const value = record.value;
+  exact(value, ['runtimeSha256', 'installedClientSha256', 'pluginSource', 'cases', 'originalSignedOutApplicationRestored', 'hostTransport']);
+  need(value.runtimeSha256 === lock.components.desktop.installedRuntimeDescriptor.sha256 &&
+    value.originalSignedOutApplicationRestored === true && value.hostTransport === positiveTransport &&
+    accepted.positiveUsageHostTransport === positiveTransport);
+  reviewedPositiveClient(value.pluginSource, value.installedClientSha256);
+  equal(value.pluginSource, accepted.plugin); positiveCases(value.cases); equal(value.cases, accepted.positiveCopilotUsage);
+  return record.sha256;
+}
 
-function read(root, file, digest) {
+function read(root, file, digest, maximum = 32 * 1024 * 1024) {
   const path = physical(join(root, file), 'file');
   const fd = openSync(path, 'r');
   try {
     const before = fstatSync(fd);
-    need(before.isFile() && before.size > 0 && before.size <= 32 * 1024 * 1024);
+    need(before.isFile() && before.size > 0 && before.size <= maximum);
     const bytes = readFileSync(fd); const after = fstatSync(fd);
     need(bytes.length === before.size && after.size === before.size && after.mtimeMs === before.mtimeMs);
     const hash = sha256(bytes);
@@ -58,7 +104,7 @@ export function usesCombinedPackagedEvidence(lock) {
   const proof = channel.nativeProvisioning.packagedAcceptance;
   if (channel.upstreamVersion !== '0.1.6-alpha.2') { need(proof === undefined); return false; }
   exact(proof, ['schemaVersion', 'format', 'suiteSha256', 'qualificationSha256', 'runId', 'runAttempt', 'workflowRunSha256', 'workflowJobSha256']);
-  need(proof.schemaVersion === 1 && proof.format === 'combined-suite-v1' && positive(proof.runId) && positive(proof.runAttempt));
+  need(proof.schemaVersion === 1 && ['combined-suite-v1', 'combined-suite-v2'].includes(proof.format) && positive(proof.runId) && positive(proof.runAttempt));
   for (const key of ['suiteSha256', 'qualificationSha256', 'workflowRunSha256', 'workflowJobSha256']) need(hashValid(proof[key]));
   return true;
 }
@@ -78,9 +124,11 @@ function identity(value, expected, evidenceId) {
   for (const [key, leaf] of Object.entries(expected)) equal(value[key], leaf);
 }
 function functional(value, lock, expected, ordinary = false) {
-  exact(value, functionalKeys); identity(value, expected);
+  const v2 = proofV2(lock);
+  exact(value, v2 ? [...functionalKeys, 'positiveCopilotUsage', 'positiveUsageHostTransport'] : functionalKeys); identity(value, expected);
   const desktop = lock.components.desktop;
-  need(value.schemaVersion === 1 && value.scope === (ordinary ? 'packaged-acceptance' : 'packaged-functional-observations'));
+  need(value.schemaVersion === (v2 ? 2 : 1) && value.scope === (ordinary ? 'packaged-acceptance' : 'packaged-functional-observations'));
+  if (v2) { positiveCases(value.positiveCopilotUsage); need(value.positiveUsageHostTransport === positiveTransport); }
   flags(value, [...functionalTrue, 'functionalAssertionsCompleted'], functionalFalse);
   need(value.normalAcceptanceCompleted === ordinary && value.cleanupVerified === ordinary);
   need(value.desktopVersion === desktop.version && value.runtimeVersion === desktop.releaseChannel.upstreamVersion);
@@ -96,8 +144,18 @@ function functional(value, lock, expected, ordinary = false) {
     previous = row.milliseconds; return row.event;
   });
   const steps = ['launch', 'version-menu', 'application', 'account', 'usage-readonly', 'settings-readonly', 'packaged-graph', 'closed'];
-  equal(events.filter(event => !phases.some(phase => event === `${phase}:provider-deferred`)),
-    ['package-identity', ...phases.flatMap(phase => steps.map(step => `${phase}:${step}`))]);
+  if (v2) {
+    const expected = ['package-identity'];
+    for (const phase of phases) for (const step of steps) {
+      expected.push(`${phase}:${step}`);
+      if (step === 'application' && events.includes(`${phase}:provider-deferred`)) expected.push(`${phase}:provider-deferred`);
+      if (phase === 'restart' && step === 'packaged-graph') expected.push('restart:positive-usage');
+    }
+    equal(events, expected);
+  } else {
+    equal(events.filter(event => !phases.some(phase => event === `${phase}:provider-deferred`)),
+      ['package-identity', ...phases.flatMap(phase => steps.map(step => `${phase}:${step}`))]);
+  }
 }
 
 /** Alpha.2 phase semantics; fresh menus are observed, not compared to another run's window IDs. */
@@ -143,6 +201,7 @@ function packagedFiles(lock, root, accepted, formal = true) {
     executable.productVersion === `${desktop.version.split('-')[0]}.0` && executable.signature === 'NotSigned' &&
     executable.productName === channel.identity.productName && executable.fileDescription === channel.identity.productName);
   verifyPackagedPhaseEvidence(lock, accepted, root);
+  if (proofV2(lock)) records['packaged.positiveUsage'] = positiveUsage(lock, root, accepted);
   let previousGraph;
   for (const phase of phases) {
     for (const [suffix, label] of [['settings-readonly', 'settings'], ['version-menu', 'menu'], ['usage-readonly', 'usage']]) {

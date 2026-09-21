@@ -55,8 +55,8 @@ Core alpha.1 and Copilot alpha.32. Formal run
 Model roles, read-only workspace, provider-only routing/Fallback labels, equal
 provider catalogs and exact version-menu identity. It intentionally records no
 OAuth, verification navigation, model/search request, save or local activation.
-Genuine registered native Ops qualification remains pending for the exact PR head;
-all earlier Ops summaries remain historical and are not transferred to this pair.
+Genuine registered native Ops run `35553019059` passed at exact head
+`68a1218ef6a50f06870bae483d64f52d6de244aa`; all earlier Ops summaries remain historical and are not transferred to this pair.
 Publication, repinning and CI success do not install or activate it locally.
 Apply the [official-first upgrade checklist](../docs/local-core-desktop-copilot.md#official-first-upgrade-checklist)
 before carrying custom code forward; preserve required behavior until parity is verified.

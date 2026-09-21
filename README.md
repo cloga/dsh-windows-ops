@@ -61,12 +61,12 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 | DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.14`，sequence 24，不可变 Release `392640510`，source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` |
 | Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55`；ASAR root 跟随实际 EXE |
 | 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.32`，source `76d190aed688e073df930adb3c753d2a749519c9`；由 `desktopNativeVerifiedRelease` 接管 |
-| 正式 packaged 证据 | run `35549412610` attempt 1；18 个逐字节正式 JSON fixtures，schema-2 首次启动/重启 settings 与 Desktop version-menu 证据 |
-| Native Ops qualification | 等待对 PR 精确 head 的 registered same-commit caller；旧 `.cloga.2` runs 仅为历史证据 |
+| 正式 packaged 证据 | run `35549412610` attempt 1；20 个逐字节正式 JSON fixtures，schema-2 settings/version-menu 与 schema-1 signed-out usage 证据 |
+| Native Ops qualification | registered caller run `35553019059` 已在精确 head `68a1218ef6a50f06870bae483d64f52d6de244aa` 通过；原始摘要 SHA-256 `bc90877cad62f68e7816d35035a1bbffa9a678b773d79884c2ae680941c3ec00` |
 
 正式验收在首次启动与重启验证只读 current workspace、Model roles、相同的
 `deepseek-official`/`github-copilot-hosted` 目录、provider-only routing、Fallback
-label 与精确 Desktop About-menu identity。未执行 OAuth、verification navigation、
+label、精确 Desktop About-menu identity 与 account readiness 后缺席的 signed-out usage surface。未执行 Host request instrumentation、live quota、OAuth、verification navigation、
 model/search、save/create、本机安装或重启；external-navigation success 仍未合格。
 
 Lock 更新表示经过评审的目标，不代表本机状态。已安装 Desktop 仍为 `.cloga.10`

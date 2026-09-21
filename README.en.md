@@ -85,13 +85,12 @@ Formal source evidence does not install or activate it locally.
 | DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.14`, sequence 24, immutable Release `392640510`, source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` |
 | Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`; descriptor SHA-256 `8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55`; default ASAR root follows the installed EXE |
 | Required `dsh-github-copilot` | immutable `0.4.0-alpha.32`, source `76d190aed688e073df930adb3c753d2a749519c9`; delegated through `desktopNativeVerifiedRelease` |
-| Formal packaged evidence | run `35549412610`, attempt 1; 20 byte-exact tracked JSON fixtures, schema-2 initial/restart settings and Desktop version-menu evidence |
-| Native Ops qualification | registered same-commit caller pending for the exact PR head; older `.cloga.2` runs remain historical only |
+| Formal packaged evidence | run `35549412610`, attempt 1; 20 byte-exact tracked JSON fixtures, schema-2 settings/version-menu and schema-1 signed-out usage evidence |
+| Native Ops qualification | registered caller run `35553019059` passed at exact head `68a1218ef6a50f06870bae483d64f52d6de244aa`; raw summary SHA-256 `bc90877cad62f68e7816d35035a1bbffa9a678b773d79884c2ae680941c3ec00` |
 
 Formal acceptance verified read-only current-workspace state, Model roles, equal
 `deepseek-official`/`github-copilot-hosted` catalogs, provider-only routing,
-Fallback labeling and exact Desktop About-menu identity across restart. It did
-not perform OAuth, verification navigation, model/search calls, save/create,
+Fallback labeling, exact Desktop About-menu identity and absent signed-out usage surface after account readiness across restart. It did not instrument Host requests or perform live quota, OAuth, verification navigation, model/search calls, save/create,
 installation or restart. External-navigation success remains unqualified.
 
 A lock update defines the reviewed target, not installed-machine state. Do not run

@@ -28,6 +28,12 @@ Alpha.32 reuses official OAuth ownership, strict public Remote codecs and the na
 
 The plugin passed exact alpha.1 and alpha.2 Windows/Ubuntu compatibility, but separately owned draft Core alpha.2 Desktop PR68 remains unqualified. This release therefore retains bundled Core alpha.1 and does not call the plugin official Core.
 
+## Native Ops qualification
+
+Registered caller workflow `345664659` run [`35553019059`](https://github.com/cloga/dsh-windows-ops/actions/runs/35553019059) passed at exact Ops head `68a1218ef6a50f06870bae483d64f52d6de244aa`. Native job `106191374011` acquired the exact formal release, qualified the actual release fixture and observer without credentials, and removed private source/diagnostics.
+
+Artifact `10619156852` original ZIP is 733 bytes with SHA-256 `dfc92806f244714b0022ce3e2d51e312f8215101b9ecd7a6b153691a82db15f3`. Its sole byte-bound 1,073-byte `qualification.json` has SHA-256 `bc90877cad62f68e7816d35035a1bbffa9a678b773d79884c2ae680941c3ec00`; it records 9,806 runtime files, exact archive-package identity, public metadata+CJS+ESM resolution, one observer/profile cleanup and three rejected request copies. Settings, version-menu and usage evidence remain driver-enforced locked formal inputs rather than invented summary leaves.
+
 ## Safety boundaries
 
 No live OAuth, external-navigation success, model response, search/fallback, live quota, whole-carrier attestation, local installer upgrade, installation, activation or restart is claimed. Do not run current-machine Check against this future lock while the installed Desktop remains `.cloga.10`. Activation requires a fresh live-Session/process impact check and direct operator permission.

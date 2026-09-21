@@ -99,17 +99,19 @@ plain-Node ASAR fallback or port-3080 ownership claim is accepted. Historical
 The formal EXE has PE ProductVersion `0.1.6.0`, CompanyName `GitHub, Inc.` and
 Authenticode `NotSigned`; its semantic release is `0.1.6-alpha.1.cloga.14`.
 
-**Published paired source target; genuine current native Ops qualification pending:**
+**Published paired source and genuine native Ops qualification:**
 formal run [`35549412610`](https://github.com/cloga/deepseek-harness/actions/runs/35549412610)
 at source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` passed build, immutable
-publication and packaged read-only acceptance on attempt 1. All 66 original ZIP
+publication and packaged read-only acceptance on attempt 1. All 70 original ZIP
 entries were independently byte-bound; 20 authoritative JSON files are tracked
 under [`formal-cloga016-14`](../tests/fixtures/desktop-native-verified-release/formal-cloga016-14).
-Schema 2 binds initial/restart settings and version-menu evidence. No live OAuth,
-verification navigation, model/search, install or restart occurred. The registered
-same-commit native Ops caller remains required before final merge; publication
-does not install or activate this target locally. See the
-[alpha.32 formal record](copilot-alpha30-upgrade-plan.md).
+Schema 2 binds initial/restart settings and version-menu evidence; usage schema 1
+binds signed-out absence after account readiness without Host request instrumentation.
+Registered native run [`35553019059`](https://github.com/cloga/dsh-windows-ops/actions/runs/35553019059)
+passed at exact Ops head `68a1218ef6a50f06870bae483d64f52d6de244aa`; its raw
+summary is tracked under `ops-cloga016-14`. No live quota, OAuth, verification
+navigation, model/search, install or restart occurred. Publication does not install
+or activate this target locally. See the [alpha.32 formal record](copilot-alpha32-upgrade-plan.md).
 
 ### Historical `.cloga.2` / alpha.24 evidence
 
@@ -210,10 +212,10 @@ files, not the formal Actions ZIPs. Its fresh source-owned settings observations
 must match both locked deterministic settings digests. This acquisition history
 is not a claim of local application activation or a fresh model response.
 
-The [Copilot alpha.32 formal acceptance record](copilot-alpha30-upgrade-plan.md)
-defines the provider-navigation/version-menu schema, authenticated immutable
+The [Copilot alpha.32 formal acceptance record](copilot-alpha32-upgrade-plan.md)
+defines the provider-navigation/version-menu/usage schemas, authenticated immutable
 asset transaction, synthetic/downstream boundaries and official-first decisions.
-The paired `.cloga.12` release keeps bundled Core alpha.1; separately owned draft
+The paired `.cloga.14` release keeps bundled Core alpha.1; separately owned draft
 Desktop alpha.2 PR 68 remains unqualified and out of scope.
 
 The build toolchain remains Node `24.13.0` / pnpm `11.7.0`, not the Host engine

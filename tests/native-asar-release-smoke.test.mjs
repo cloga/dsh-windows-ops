@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { releasePlan, validateReleaseMetadata, validateSourceIdentity, discoverApplication, runReleaseSmoke, verifySource,
-  validateApplicationPackageMetadata, readApplicationPackageIdentity, verifyFreshSettingsEvidence } from './native-asar-release-smoke.mjs';
+  validateApplicationPackageMetadata, readApplicationPackageIdentity, verifyFreshSettingsEvidence,
+  verifyFreshPositiveUsageClient } from './native-asar-release-smoke.mjs';
 import { hashFile, sha256 } from '../tools/native-runtime-integrity.mjs';
 const lockPath = fileURLToPath(new URL('../deployments/windows-copilot.lock.json', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(lockPath, 'utf8'));
@@ -158,6 +159,87 @@ for (const [mode, mutate] of [
     assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-usage-acceptance-incomplete/);
   });
 }
+
+function positiveSourceEvidence(t) {
+  const f = providerNavigationSourceEvidence(t);
+  const native = f.lock.components.desktop.releaseChannel.nativeProvisioning;
+  const formal = fileURLToPath(new URL('../' + native.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
+  f.accepted.plugin = JSON.parse(readFileSync(join(formal, 'desktop-provisioning.json'))).plugins[0].source;
+  const positive = { runtimeSha256: f.lock.components.desktop.installedRuntimeDescriptor.sha256,
+    installedClientSha256: sha256('inert unit Client bytes; never published'), pluginSource: f.accepted.plugin,
+    cases: ['github-copilot', 'github-copilot-preview'].map(provider => ({
+      scope: 'packaged-renderer-released-client-synthetic-session-and-quota', provider, usageText: '7 used',
+      quotaReads: 2, sessionSubscribed: true, removedSessionHidesUsage: true, otherProviderHidesUsage: true,
+      clientDisposalRemovesUsage: true, selectorErrors: 0, forbiddenRemoteCalls: 0,
+      hostTransport: 'not-provided-to-isolated-fixture', applicationMountPreserved: true, syntheticSiblingPreserved: true,
+    })), originalSignedOutApplicationRestored: true, hostTransport: 'not-provided-to-isolated-fixture' };
+  f.accepted.positiveCopilotUsage = positive.cases; f.accepted.positiveUsageHostTransport = positive.hostTransport;
+  f.accepted.timeline.push(...['restart:packaged-graph', 'restart:positive-usage', 'restart:closed'].map(event => ({ event })));
+  const proof = { schemaVersion: 1, installedClientSha256: positive.installedClientSha256 };
+  native.usagePositiveAcceptance = proof;
+  const save = () => {
+    writeFileSync(join(f.output, 'positive-usage.json'), JSON.stringify(positive));
+    proof.sha256 = hashFile(join(f.output, 'positive-usage.json'));
+  };
+  save(); return { ...f, positive, proof, save };
+}
+test('fresh optional positive proof accepts synthetic cases only, with existing settings/usage gates', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), undefined);
+});
+for (const [name, mutate] of [
+  ['preview removed', f => { f.positive.cases.pop(); }],
+  ['main cases differ', f => { f.accepted.positiveCopilotUsage = []; }],
+  ['Client hash differs', f => { f.positive.installedClientSha256 = '0'.repeat(64); }],
+  ['runtime hash differs', f => { f.positive.runtimeSha256 = '0'.repeat(64); }],
+  ['source differs', f => { f.positive.pluginSource = { ...f.accepted.plugin, targetCommit: '0'.repeat(40) }; }],
+  ['live quota claim', f => { f.accepted.liveAccountQuota = true; }],
+  ['restoration is string', f => { f.positive.originalSignedOutApplicationRestored = 'true'; }],
+  ['wrong host boundary', f => { f.positive.hostTransport = 'live'; }],
+  ['missing restart event', f => { f.accepted.timeline.pop(); }],
+  ['positive event too early', f => { f.accepted.timeline.unshift(f.accepted.timeline.splice(-2, 1)[0]); }],
+  ['unknown schema', f => { f.proof.schemaVersion = '1'; }],
+  ['missing signed-out proof', f => { delete f.lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance; }],
+  ['missing settings despite old sequence', f => {
+    const c = f.lock.components.desktop.releaseChannel; c.sequence = 1; delete c.nativeProvisioning.settingsAcceptance;
+  }],
+  ...['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
+    'applicationMountPreserved', 'syntheticSiblingPreserved'].flatMap(field => [false, 'true'].map(value =>
+    [`${field}=${value}`, f => { f.positive.cases[1][field] = value; }])),
+  ...['quotaReads', 'selectorErrors', 'forbiddenRemoteCalls'].map(field =>
+    [`string ${field}`, f => { f.positive.cases[1][field] = String(f.positive.cases[1][field]); }]),
+]) {
+  test(`fresh positive proof rejects ${name} without execution (inert rehashed input)`, t => {
+    forbidChildren(t); const f = positiveSourceEvidence(t); mutate(f); f.save();
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), /native-release-positive-usage-mismatch/);
+  });
+}
+test('fresh positive proof rejects changed bytes rather than trusting success fields', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t);
+  writeFileSync(join(f.output, 'positive-usage.json'), JSON.stringify(f.positive) + '\n');
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), /source-positive-usage-acceptance-incomplete/);
+});
+test('fresh signed-out usage requires phase equality with matching main leaves', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t);
+  const path = join(f.output, 'restart-usage-readonly.json'); const usage = JSON.parse(readFileSync(path));
+  usage.signedOut.unexpectedPhaseDifference = true; f.accepted.signedOutCopilotUsage[1] = usage.signedOut;
+  writeFileSync(path, JSON.stringify(usage));
+  f.lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance.restartSha256 = hashFile(path);
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), /source-usage-acceptance-incomplete/);
+});
+test('fresh positive opt-in independently hashes Client bytes without executing them', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t); const profile = join(f.output, 'profile');
+  const directory = join(profile, 'node_modules/dsh-github-copilot/lib'); mkdirSync(directory, { recursive: true });
+  const path = join(directory, 'client.js'); writeFileSync(path, 'inert unit Client bytes; never published');
+  assert.equal(verifyFreshPositiveUsageClient(f.lock, profile), undefined);
+  writeFileSync(path, 'changed inert Client bytes');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, join(f.output, 'absent')), /ENOENT/);
+  delete f.lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+  assert.equal(verifyFreshPositiveUsageClient(f.lock, join(f.output, 'absent')), undefined);
+  const source = readFileSync(new URL('./native-asar-release-smoke.mjs', import.meta.url), 'utf8');
+  assert.ok(source.includes('verifyFreshPositiveUsageClient(lock, paths.profile)'));
+});
 
 test('historical alpha.1 below sequence 12 keeps optional fresh settings gate (inert)', t => {
   const lock = actualLock(); const channel = lock.components.desktop.releaseChannel; forbidChildren(t);

@@ -1,0 +1,196 @@
+{
+  "sourceCommit": "f25506b4ad190ce090b8a4e9602c7ad36179db6b",
+  "desktopVersion": "0.1.6-alpha.1.cloga.17",
+  "versionMenus": [
+    {
+      "applicationMenuLabel": "Application",
+      "aboutMenuLabel": "About Desktop 0.1.6-alpha.1.cloga.17…",
+      "desktopVersion": "0.1.6-alpha.1.cloga.17",
+      "aboutDispatchCount": 1,
+      "nativeModalOpened": false
+    },
+    {
+      "applicationMenuLabel": "Application",
+      "aboutMenuLabel": "About Desktop 0.1.6-alpha.1.cloga.17…",
+      "desktopVersion": "0.1.6-alpha.1.cloga.17",
+      "aboutDispatchCount": 1,
+      "nativeModalOpened": false
+    }
+  ],
+  "runtimeVersion": "0.1.6-alpha.1",
+  "plugin": {
+    "schemaVersion": 1,
+    "type": "githubRelease",
+    "owner": "cloga",
+    "repo": "dsh-github-copilot",
+    "tag": "v0.4.0-alpha.33",
+    "asset": "dsh-github-copilot-0.4.0-alpha.33.tgz",
+    "assetId": 578199183,
+    "packageName": "dsh-github-copilot",
+    "version": "0.4.0-alpha.33",
+    "size": 724820,
+    "sha256": "b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480",
+    "integrity": "sha512-fMONh2Thsu3YTv26DnGWFDlNg2vx3tYE6Cqm4/Aq5LmLwJo71weRZHTkJpRnenDbWkzcu4yNmk7u+GUJxb0bQw==",
+    "targetCommit": "aa90fe434da8b2172faa1446afa0a0fd006afe00",
+    "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+    "checksumManifest": {
+      "format": "sha256sums",
+      "asset": "SHA256SUMS",
+      "assetId": 578199206,
+      "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/SHA256SUMS",
+      "size": 104,
+      "sha256": "f81df10b7fd6e40b2319a42de1f04c3b7f7eccc57809b51623c9145f2a3df076",
+      "integrity": "sha512-KFNap+UgDynhZycHuHOdd/hbPL/0VR+AdKPP6cebS5IENSJG+g4zo4NtGoCpWMTrTEgqvrlyWCK4MZkzjtzeDQ=="
+    }
+  },
+  "transport": "packaged Electron dsh-app byte pipes",
+  "isolatedHome": true,
+  "onboardingNoticeDismissed": true,
+  "restartReceiptSha256": "cc01909cbb4d44801709384063f69d689fe1283e4135e5be4ad793bde3ed3616",
+  "actualGraphVerified": true,
+  "ancestorSdkJunction": true,
+  "ancestorSdkLoaded": false,
+  "accountEntryVisible": true,
+  "manageCompatibilityDisclosureAbsent": true,
+  "modelRolesViewLoaded": true,
+  "currentWorkspaceReadOnly": true,
+  "searchProviderCatalogLoaded": true,
+  "providerOnlySearchRouting": true,
+  "fallbackProviderLabel": true,
+  "copilotUsageCapability": {
+    "id": "account-quota-composer-usage",
+    "required": true,
+    "evidenceScope": "synthetic-quota-and-public-remote-ui-contracts-not-live-account-access",
+    "signedOutNetworkRegressionDeclared": true,
+    "lifecycleRegressionDeclared": true
+  },
+  "signedOutCopilotUsage": [
+    {
+      "usageTriggerCount": 0,
+      "accountUsageTextCount": 0,
+      "usageSurfaceAbsent": true,
+      "hostQuotaRequestInstrumentation": "not-available-in-packaged-smoke"
+    },
+    {
+      "usageTriggerCount": 0,
+      "accountUsageTextCount": 0,
+      "usageSurfaceAbsent": true,
+      "hostQuotaRequestInstrumentation": "not-available-in-packaged-smoke"
+    }
+  ],
+  "positiveCopilotUsage": [
+    {
+      "scope": "packaged-renderer-released-client-synthetic-session-and-quota",
+      "provider": "github-copilot",
+      "usageText": "Credits · 7 used · 13 left",
+      "quotaReads": 2,
+      "sessionSubscribed": true,
+      "removedSessionHidesUsage": true,
+      "otherProviderHidesUsage": true,
+      "clientDisposalRemovesUsage": true,
+      "selectorErrors": 0,
+      "forbiddenRemoteCalls": 0,
+      "hostTransport": "not-provided-to-isolated-fixture",
+      "applicationMountPreserved": true,
+      "syntheticSiblingPreserved": true
+    },
+    {
+      "scope": "packaged-renderer-released-client-synthetic-session-and-quota",
+      "provider": "github-copilot-preview",
+      "usageText": "Credits · 7 used · 13 left",
+      "quotaReads": 2,
+      "sessionSubscribed": true,
+      "removedSessionHidesUsage": true,
+      "otherProviderHidesUsage": true,
+      "clientDisposalRemovesUsage": true,
+      "selectorErrors": 0,
+      "forbiddenRemoteCalls": 0,
+      "hostTransport": "not-provided-to-isolated-fixture",
+      "applicationMountPreserved": true,
+      "syntheticSiblingPreserved": true
+    }
+  ],
+  "positiveUsageHostTransport": "not-provided-to-isolated-fixture",
+  "hostQuotaNoNetworkEvidence": "immutable-plugin-ci-regression-only",
+  "liveAccountQuota": false,
+  "realOAuth": false,
+  "verificationNavigationExercised": false,
+  "manualVerificationAddressObserved": false,
+  "realModelRound": false,
+  "realSearch": false,
+  "installerUpgradeVerified": false,
+  "timeline": [
+    {
+      "event": "package-identity",
+      "milliseconds": 25212.6686
+    },
+    {
+      "event": "initial:launch",
+      "milliseconds": 25212.6874
+    },
+    {
+      "event": "initial:version-menu",
+      "milliseconds": 25787.442
+    },
+    {
+      "event": "initial:application",
+      "milliseconds": 74834.1333
+    },
+    {
+      "event": "initial:account",
+      "milliseconds": 75123.023
+    },
+    {
+      "event": "initial:usage-readonly",
+      "milliseconds": 75163.0528
+    },
+    {
+      "event": "initial:settings-readonly",
+      "milliseconds": 75656.0126
+    },
+    {
+      "event": "initial:packaged-graph",
+      "milliseconds": 75939.0133
+    },
+    {
+      "event": "initial:closed",
+      "milliseconds": 76153.5643
+    },
+    {
+      "event": "restart:launch",
+      "milliseconds": 76153.576
+    },
+    {
+      "event": "restart:version-menu",
+      "milliseconds": 76598.6462
+    },
+    {
+      "event": "restart:application",
+      "milliseconds": 88272.3956
+    },
+    {
+      "event": "restart:account",
+      "milliseconds": 88592.3111
+    },
+    {
+      "event": "restart:usage-readonly",
+      "milliseconds": 88616.15090000001
+    },
+    {
+      "event": "restart:settings-readonly",
+      "milliseconds": 89133.7458
+    },
+    {
+      "event": "restart:packaged-graph",
+      "milliseconds": 89441.1453
+    },
+    {
+      "event": "restart:positive-usage",
+      "milliseconds": 90527.8695
+    },
+    {
+      "event": "restart:closed",
+      "milliseconds": 90750.7129
+    }
+  ]
+}

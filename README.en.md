@@ -29,8 +29,11 @@ Later merges, releases, hashes and acceptance limits are recorded in the
 [delivery evidence](docs/core-016a2-delivery.md). Historical Cron 0.7.3, Playwright
 0.1.8 and Copilot alpha.25 publication receipts remain intact.
 [Copilot alpha.28 publication](docs/core-016a2-delivery.md#copilot-alpha28-publication-checkpoint)
-remains historical. The deployment lock now selects the independently verified
-Desktop `0.1.6-alpha.1.cloga.16` / bundled Core alpha.1 / Copilot alpha.33 pair.
+remains historical. The current published Ops target is published Desktop
+`0.1.6-alpha.1.cloga.17` / sequence 28 / bundled Core alpha.1 / Copilot alpha.33.
+Published artifacts are independently verified; fresh hosted Native Ops run `35595040585`
+attempt 1 passed at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`.
+See the [external-link maintenance release record](docs/desktop-external-links-17.md).
 Alpha.33 admits official Core alpha.2, but separately owned draft Desktop PR 68
 is unqualified and is not promoted by this maintenance release. Publication and
 formal source acceptance do not install or activate the pair locally and do not
@@ -60,8 +63,8 @@ is not release-qualified; it authorizes no lock promotion or current Desktop ins
 
 **Alpha.2 compatibility preparation remains separate:** the native descriptor
 validator requires Host protocol 4 only for exact Core `0.1.6-alpha.2`; legacy
-protocol 3 and synthetic-only checks remain intact. The published lock keeps
-Desktop `.cloga.16` on bundled Core alpha.1. Alpha.33's alpha.2 admission does not
+protocol 3 and synthetic-only checks remain intact. The current published Ops target
+Desktop `.cloga.17` keeps bundled Core alpha.1. Alpha.33's alpha.2 admission does not
 qualify or deploy the draft alpha.2 Desktop. See [strict preparation boundaries](docs/core-016a2-assessment.md#strict-native-compatibility-preparation).
 
 **Combined-evidence preparation is not promotion:** [Ops #181 preparation](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
@@ -76,11 +79,12 @@ from verified Core checkout identity; the private Ops source archive is not a Gi
 checkout. The exact successful Core CI summary can
 attest installed checks whose root records were not archived; it does not enable
 full offline replay. This alpha.2 preparation changes neither the six-asset public
-contract nor the independently reviewed `.cloga.16`/alpha.33 target; its formal
-proof is authenticated and fresh hosted Native Ops run `35575187267` passed at
-exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`.
-Alpha.2 is unpublished and unqualified; this preparation does not authorize
-installation, activation or restart.
+contract nor the Core alpha.1 scope of the current `.cloga.17`/alpha.33
+target, qualified by fresh hosted Native Ops run `35595040585` attempt 1 at exact
+code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`. Historical `.cloga.16`
+formal/Ops proof stays in its [owning record](docs/copilot-alpha33-upgrade-record.md)
+and cannot qualify `.cloga.17`. Alpha.2 is unpublished and unqualified; this preparation
+does not authorize installation, activation or restart.
 
 ## Copilot account-discovered route maintenance
 
@@ -94,22 +98,36 @@ candidates, and read-only executable metadata for older builds. The feature firs
 ships in verified immutable [Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12).
 Formal source evidence does not install or activate it locally.
 
-## Current published deployment target
+## Current published Ops deployment target (exact code head qualified)
 
-[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Published artifacts and formal proof were independently verified on **2026-09-21**; fresh hosted Native Ops qualification passed at the exact code head below.
+[`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) is authoritative. Published artifacts and formal proof were independently verified on **2026-09-21**; **fresh hosted Native Ops run `35595040585` attempt 1 passed for `.cloga.17`** at the exact code head below. Earlier target success cannot transfer; later documentation/evidence commits or a merge are not relabeled as native-qualified.
 
-| Component | Locked version |
+| Component | Target identity |
 |---|---|
-| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.16`, sequence 27, immutable Release `392765616`, source `2c4f20904887240f83f776c79d8d69a42ce6c1e6` |
-| Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`; descriptor SHA-256 `b5b9b31ce34871ab320f63a91254ba601fd71edc447609d261360d84e4b929e8`; default ASAR root follows the installed EXE |
+| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.17`, sequence 28, immutable Release `392847203`, source `f25506b4ad190ce090b8a4e9602c7ad36179db6b` |
+| Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`; descriptor SHA-256 `eca8a91da4737f625716323d0be8a51156b24934183904a41d06599ffafe36bd`; default ASAR root follows the installed EXE |
 | Required `dsh-github-copilot` | immutable `0.4.0-alpha.33`, source `aa90fe434da8b2172faa1446afa0a0fd006afe00`; delegated through `desktopNativeVerifiedRelease` |
-| Formal packaged evidence | run `35569892548`, attempt 2 SUCCESS; schema-2 settings/version-menu, schema-1 signed-out usage and authenticated optional positive usage proof |
-| Native Ops qualification | [run `35577921833`](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833) attempt 1 **SUCCESS**, exact combined Ops code head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`; native job `106264308921` and all four jobs passed |
+| Formal packaged evidence | [run `35583602522`](https://github.com/cloga/deepseek-harness/actions/runs/35583602522), attempt 1 **SUCCESS**; source-bound initial/restart settings/version-menu, signed-out usage and synthetic positive usage proof |
+| Native Ops qualification | [run `35595040585`](https://github.com/cloga/dsh-windows-ops/actions/runs/35595040585) attempt 1 **SUCCESS**, exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`; native job `106318363183` and all four jobs passed; independently bound [raw summary](tests/fixtures/desktop-native-verified-release/ops-cloga016-17/qualification.json) and [provenance](tests/fixtures/desktop-native-verified-release/ops-cloga016-17/README.md) |
 
+This runtime-only Desktop external-link maintenance keeps Core and Copilot unchanged;
+it adopts neither Core alpha.2 nor Copilot alpha.34. The [owning release record](docs/desktop-external-links-17.md)
+binds all six assets, source/hashes and acceptance limits. The new 1,073-byte Ops summary
+has SHA-256 `6ad0298788578353c6ef306ddeec225c785d335631f06b7d38c1f879cc526fee`;
+whole-carrier/model-response/installer-upgrade flags remain false. First native run
+`35590167413` remains an unexplained startup failure with its original not-ready evidence
+retained; later diagnostics did not prove its cause was repaired. Ordinary CI `35593395998`
+instead exposed an LF/CRLF test-extraction defect, fixed test-only at `bb7a0a3…`, not a runtime failure. The actual Electron DOM
+activation fixture substitutes the OS opener; it does not prove real browser navigation
+or OAuth. Delivery remains **stage-only**, with no local installation, activation or restart.
+
+### Historical `.cloga.16` / alpha.33 qualification (not `.cloga.17` proof)
+
+Historical [run `35577921833`](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833), attempt 1 **SUCCESS**, qualified exact combined Ops code head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`; native job `106264308921` and all four jobs passed.
 Initial qualification at `a59f586…` and evidence-only follow-up `c868c689…` remain
 history. After merging protected master `43630e4…` / PR #212, the **combined head
 `cd384495…` passed its own fresh native run** above; earlier success was not transferred.
-This final provenance-only follow-up preserves code/lock/raw evidence and is not itself
+That historical provenance-only follow-up preserves code/lock/raw evidence and is not itself
 the native run's head. See the [integration checkpoint](docs/copilot-alpha33-upgrade-record.md#concurrent-master-integration-checkpoint). The 1,073-byte raw summary's
 SHA-256 is `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`.
 Fresh positive proof is enforced by that exact driver, not new summary flags.
@@ -128,7 +146,10 @@ instrument Host requests or perform live quota, OAuth, verification navigation,
 model/search calls, save/create, local installation or restart. External-navigation
 success remains unqualified.
 
-A lock update defines the reviewed target, not installed-machine state. Do not run
+### Current target runtime and safety boundaries
+
+A lock update defines the reviewed target, not installed-machine state. The `.cloga.17`
+hosted Native Ops success binds only exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`. Do not run
 a future-lock current-machine Check while installed Desktop remains `.cloga.10`;
 expected drift is not release failure. The managed helper remains interactive and
 requires separate active-Session impact confirmation and Windows/UAC interaction.
@@ -154,8 +175,8 @@ Desktop PR 68.
 
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
-release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.16` installer,
-explicit interruption consent and a clean Desktop/Host exit, coordinated by the
+release. Recovery requires the independently verified lock-selected installer,
+that target's exact-head qualification (`.cloga.17` run `35595040585` at `bb7a0a366e789b19918be6d8a6e40266c46a94f9`), explicit interruption consent and a clean Desktop/Host exit, coordinated by the
 operator outside the broken helper. Do not patch live files or install missing
 dependencies into an update operation. Generic direct registry probe failures
 are not evidence that the supported provisioner failed.

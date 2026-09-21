@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { execFileSync } from 'node:child_process';
 import { classifySourceError, sourceFailureDiagnostic, diagnosticStages, diagnosticPhases, diagnosticCodes } from '../tools/native-release-diagnostic.mjs';
 const secret = 'DO_NOT_PUBLISH_private_path_token_visibleText';
 function temporary(t) { const root = mkdtempSync(join(tmpdir(), 'ops-diagnostic-unit-')); t.after(() => rmSync(root, { recursive: true, force: true })); return root; }
@@ -27,11 +28,64 @@ for (const [message, code] of [
   [secret,'unknown'], [null,'unknown'], [{message:secret},'unknown'],
 ]) test(`error classifier returns only fixed code ${code}`, () => assert.equal(classifySourceError(message), code));
 
+const startup = text => `Error: Packaged Desktop startup failed: ${text}`;
+const githubHttp = status => `desktop plugin source: GitHub request failed with ${status}`;
+for (const [status, code] of [[401,'plugin-github-http-401'],[403,'plugin-github-http-403'],
+  [404,'plugin-github-http-404'],[429,'plugin-github-http-429'],[500,'plugin-github-http-5xx'],
+  [503,'plugin-github-http-5xx'],[599,'plugin-github-http-5xx'],[400,'plugin-github-http-other'],
+  [304,'plugin-github-http-other']]) {
+  test(`owned startup HTTP message exposes only fixed category for ${status}`, () => {
+    assert.equal(classifySourceError(startup(githubHttp(status))), code);
+    assert.equal(classifySourceError(`Packaged Desktop startup failed: ${githubHttp(status)}`), code);
+    assert.equal(classifySourceError(startup(`desktop project: transaction failed and its audit could not be recorded\n${githubHttp(status)}`)), code);
+  });
+}
+for (const [message, code] of [
+  ['desktop plugin source: GitHub redirect limit exceeded','plugin-github-redirect'],
+  ['desktop plugin source: GitHub redirect omitted its location','plugin-github-redirect'],
+  ['desktop plugin source: GitHub request must use credential-free HTTPS','plugin-github-policy'],
+  ['fetch failed','startup-fetch-failed'],
+]) test(`exact fixed startup message maps to ${code} without cause inference`, () => {
+  assert.equal(classifySourceError(startup(message)), code);
+});
+for (const [index,message] of [githubHttp(200),githubHttp(301),githubHttp('0403'),githubHttp('4030'),
+  `${githubHttp(403)} ${secret}`,`${githubHttp(403)}\r`,`${githubHttp(403)}\u2028`,
+  `${secret}${githubHttp(403)}`,`https://example.invalid/${githubHttp(403)}`,
+  `\"${githubHttp(403)}\"`,`${githubHttp(403)}?token=${secret}`,`fetch failed ${secret}`,
+  'desktop plugin source: rejected redirect host private.example',
+  `${githubHttp(403)}\n${githubHttp(404)}`].entries()) {
+  test(`startup near-miss ${index} remains generic`, () => {
+    assert.equal(classifySourceError(startup(message)), 'desktop-startup');
+  });
+}
+for (const [status, detail, code] of [[403,`ERR_MODULE_NOT_FOUND ${secret}`,'module-not-found'],
+  [403,`EPERM ${secret}`,'access-denied'],[429,`locator.waitFor: Timeout ${secret}`,'locator-timeout']]) {
+  test(`retains prior ${code} priority over a new HTTP category`, () => {
+    assert.equal(classifySourceError(startup(`${githubHttp(status)}\n${detail}`)),code);
+  });
+}
+test('new startup categories require the exact wrapper and do not classify truncated lines', () => {
+  assert.equal(classifySourceError(githubHttp(403)), 'unknown');
+  assert.equal(classifySourceError(`prefix ${startup(githubHttp(403))}`), 'desktop-startup');
+  const clipped = startup('x\n'.repeat(65536) + githubHttp(403));
+  assert.equal(classifySourceError(clipped), 'desktop-startup');
+});
+for (const [phase,event] of [['initial','version-menu'],['restart','version-menu'],
+  ['initial','usage-readonly'],['restart','usage-readonly'],['restart','positive-usage']]) {
+  test(`source timeline retains recorded ${phase}:${event} without promoting a failed run`, t => {
+    const root=temporary(t);writeFileSync(join(root,'failure.json'),JSON.stringify({
+      error:startup(githubHttp(403)),visibleText:secret,stderrTail:secret,
+      timeline:[{event:`${phase}:launch`},{event:`${phase}:${event}`},{event:'failure'}],raw:secret}));
+    const result=sourceFailureDiagnostic(root,'source-fixture',new Error(secret));
+    assert.deepEqual(result,{stage:'source-fixture',code:'plugin-github-http-403',sourceFailure:'present',sourcePhase:`${phase}:${event}`});fixed(result);
+  });
+}
+
 test('source import failure has no fixture diagnostic and leaks no original message', t => {
   const result = sourceFailureDiagnostic(join(temporary(t),'absent'), 'source-import', new Error('Cannot find module '+secret));
   assert.deepEqual(result,{stage:'source-import',code:'module-not-found',sourceFailure:'absent',sourcePhase:'none'}); fixed(result);
 });
-test('reads only allowlisted last completed phase, never raw diagnostic fields', t => {
+test('reads only the last recorded allowlisted phase, never raw diagnostic fields', t => {
   const root = temporary(t); writeFileSync(join(root,'failure.json'),JSON.stringify({error:'locator.waitFor: Timeout '+secret,
     visibleText:secret,stderrTail:secret,profileFilesPresent:{[secret]:true},timeline:[
       {event:'package-identity',milliseconds:1},{event:'initial:account',milliseconds:2},
@@ -67,6 +121,43 @@ test('reparse diagnostic ancestor is rejected before reading target content',t=>
   symlinkSync(target,link,process.platform==='win32'?'junction':'dir');
   const result=sourceFailureDiagnostic(link,'source-fixture',new Error(secret));assert.equal(result.sourceFailure,'unreadable');assert.equal(result.sourcePhase,'none');fixed(result);
 });
+function artifactDiagnosticGuard(workflow) {
+  // Normalize only this in-memory test input; never rewrite workflow or evidence bytes.
+  workflow=workflow.replaceAll('\r\n','\n');
+  const begin=workflow.indexOf('$diagnostic = $summary.diagnostic');
+  const end=workflow.indexOf('\n          }\n          if ($alpha2)',begin);
+  assert(begin>0 && end>begin,'diagnostic guard markers must both exist');
+  return workflow.slice(begin,end);
+}
+const workflowLf=readFileSync(new URL('../.github/workflows/native-asar-release.yml',import.meta.url),'utf8').replaceAll('\r\n','\n');
+for (const [label,eol] of [['LF','\n'],['CRLF','\r\n']]) {
+  const workflow=workflowLf.replaceAll('\n',eol);
+  test(`artifact guard extraction preserves the same statements for ${label}`,()=>{
+    assert.equal(artifactDiagnosticGuard(workflow),artifactDiagnosticGuard(workflowLf));
+  });
+  for (const [name,marker] of [['start','$diagnostic = $summary.diagnostic'],['end','\n          }\n          if ($alpha2)']]) {
+    test(`artifact guard extraction rejects missing ${name} marker with ${label}`,()=>{
+      const actual=marker.replaceAll('\n',eol);
+      assert(workflow.includes(actual));
+      assert.throws(()=>artifactDiagnosticGuard(workflow.replace(actual,'missing-marker')),/diagnostic guard markers/);
+    });
+  }
+  test(`actual PowerShell artifact guard accepts new fixed categories and refuses untrusted fields (${label})`, {skip:process.platform !== 'win32'},()=>{
+  const guard=artifactDiagnosticGuard(workflow);
+  const good={stage:'source-fixture',code:'plugin-github-http-403',sourceFailure:'present',sourcePhase:'initial:version-menu'};
+  const samples=[good,{...good,sourcePhase:'restart:usage-readonly'},{...good,sourcePhase:'restart:positive-usage'},
+    {...good,code:secret},{...good,code:403},{...good,sourcePhase:secret},{...good,stage:secret},
+    {...good,sourceFailure:'true'},{...good,raw:secret},null,[],{...good,sourcePhase:false},
+    {...good,sourcePhase:'initial:positive-usage'}];
+  const encoded=Buffer.from(JSON.stringify(samples),'utf8').toString('base64');
+  const script=`$ErrorActionPreference='Stop'\n$samples=([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')) | ConvertFrom-Json -AsHashtable)\n$results=@(foreach($sample in $samples){$summary=@{diagnostic=$sample};try{\n${guard}\n$true}catch{$false}})\nConvertTo-Json -Compress -InputObject $results`;
+  const output=execFileSync('pwsh',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],
+    {encoding:'utf8',windowsHide:true,timeout:30000});
+  assert(!output.includes(secret));
+  assert.deepEqual(JSON.parse(output),[true,true,true,false,false,false,false,false,false,false,false,false,false]);
+  });
+}
+
 test('workflow failure artifact validates exact fixed diagnostic keys and vocabularies',()=>{
   const workflow=readFileSync(new URL('../.github/workflows/native-asar-release.yml',import.meta.url),'utf8');
   assert(workflow.includes("'code,sourceFailure,sourcePhase,stage'"));

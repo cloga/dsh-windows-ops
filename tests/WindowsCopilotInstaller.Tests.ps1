@@ -1605,16 +1605,16 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
 
     It 'pins actual formal .6 ASAR metadata without claiming a physical wrapper or observer success' {
         Test-WindowsCopilotLock -Lock $lock | Should -BeTrue
-        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.16'
-        $lock.components.desktop.source.pullRequest | Should -Be 107
-        $lock.components.desktop.source.commit | Should -Be '2c4f20904887240f83f776c79d8d69a42ce6c1e6'
-        $lock.components.desktop.source.reviewedHead | Should -Be 'eb4789e49bce9e8d9c98b7c71d52c8dde5f20b1d'
-        $lock.components.desktop.source.tree | Should -Be '3329051dfb8ac3681f155f403a902848db13ba37'
-        $lock.components.desktop.releaseChannel.sequence | Should -Be 27
-        $lock.components.desktop.artifact.releaseId | Should -Be 392765616
-        $lock.components.desktop.artifact.assetId | Should -Be 578511755
+        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.17'
+        $lock.components.desktop.source.pullRequest | Should -Be 96
+        $lock.components.desktop.source.commit | Should -Be 'f25506b4ad190ce090b8a4e9602c7ad36179db6b'
+        $lock.components.desktop.source.reviewedHead | Should -Be '49d22a555429e1c08efbd4af5f04878b3628b28d'
+        $lock.components.desktop.source.tree | Should -Be '24f46ed7803bcafdebc326da5c469712868481bc'
+        $lock.components.desktop.releaseChannel.sequence | Should -Be 28
+        $lock.components.desktop.artifact.releaseId | Should -Be 392847203
+        $lock.components.desktop.artifact.assetId | Should -Be 578750120
         $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.schemaVersion | Should -Be 1
-        $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.sha256 | Should -Be 'a1515b7ee5af44ff8e7ad86fa07ce8faedaa13f157d02ad99e4a4f99ee174b45'
+        $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.sha256 | Should -Be '07ae8381c15493e9bccee12148100159675652678f8c2963b2c9522a028db688'
         $lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.installedClientSha256 | Should -Be '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435'
         $lock.components.desktop.installedExecutable.productVersion | Should -Be '0.1.6.0'
         $lock.components.desktop.installedRuntimeDescriptor.relativePath | Should -Be 'resources\app.asar\dsh\desktop-runtime.json'
@@ -1633,7 +1633,8 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         @{ Field = 'built-size' }, @{ Field = 'built-hash' }, @{ Field = 'built-inventory' },
         @{ Field = 'source-pr' }, @{ Field = 'reviewed-head' }, @{ Field = 'asset-id' }, @{ Field = 'build-input' },
         @{ Field = 'channel-version' }, @{ Field = 'upstream-version' }, @{ Field = 'channel-source' },
-        @{ Field = 'stale-desktop-cloga12' }, @{ Field = 'stale-plugin-alpha30' }, @{ Field = 'physical-root' },
+        @{ Field = 'stale-desktop-cloga12' }, @{ Field = 'stale-desktop-cloga16' }, @{ Field = 'stale-sequence27' },
+        @{ Field = 'stale-formal-cloga16' }, @{ Field = 'stale-plugin-alpha30' }, @{ Field = 'physical-root' },
         @{ Field = 'missing-positive' }, @{ Field = 'positive-schema-string' }, @{ Field = 'positive-schema-boolean' },
         @{ Field = 'positive-digest' }, @{ Field = 'positive-client-digest' }
     ) {
@@ -1658,6 +1659,9 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
             upstream-version { $changed.components.desktop.releaseChannel.upstreamVersion = '0.1.5-rc.2' }
             channel-source { $changed.components.desktop.releaseChannel.source.commit = '0' * 40 }
             stale-desktop-cloga12 { $changed.components.desktop.version = '0.1.6-alpha.1.cloga.12' }
+            stale-desktop-cloga16 { $changed.components.desktop.version = '0.1.6-alpha.1.cloga.16' }
+            stale-sequence27 { $changed.components.desktop.releaseChannel.sequence = 27 }
+            stale-formal-cloga16 { $changed.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot = 'tests\fixtures\desktop-native-verified-release\formal-cloga016-16' }
             stale-plugin-alpha30 { $changed.components.copilotIntegration.package.version = '0.4.0-alpha.30' }
             missing-positive { $changed.components.desktop.releaseChannel.nativeProvisioning.PSObject.Properties.Remove('usagePositiveAcceptance') }
             positive-schema-string { $changed.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.schemaVersion = '1' }

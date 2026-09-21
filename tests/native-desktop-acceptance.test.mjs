@@ -64,7 +64,15 @@ test('formal immutable evidence preserves legacy manifest false and startup rece
   assert.equal(result.modelResponseVerified, false);
 });
 
+test('current cloga.17 lock cannot consume the preserved cloga.16 formal generation', () => {
+  const historical = fileURLToPath(new URL('./fixtures/desktop-native-verified-release/formal-cloga016-16/', import.meta.url));
+  assert.throws(() => verifyNativeReleaseEvidence(actualLock(), historical), /native-release-file-hash-mismatch/);
+});
+
 for (const [name, mutate, code] of [
+  ['historical cloga.16 source', (l) => { l.components.desktop.source.commit = '2c4f20904887240f83f776c79d8d69a42ce6c1e6'; }, 'source'],
+  ['historical cloga.16 sequence', (l) => { l.components.desktop.releaseChannel.sequence = 27; }, 'source'],
+  ['historical cloga.16 positive proof', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance.sha256 = 'a1515b7ee5af44ff8e7ad86fa07ce8faedaa13f157d02ad99e4a4f99ee174b45'; }, 'file-hash'],
   ['historical cloga.5 source', (l) => { l.components.desktop.source.commit = '29f1863f5457470bacd12de00e987b8bdd6f4b2f'; }, 'source'],
   ['historical cloga.5 sequence', (l) => { l.components.desktop.releaseChannel.sequence = 6; }, 'source'],
   ['historical cloga.5 installer', (l) => { l.components.desktop.artifact.sha256 = 'f39c5dba008385614428e89c3e28f85f0d3aeb24cc0f7992ac1c63c3082c717c'; }, 'installed-identity'],
@@ -356,7 +364,7 @@ test('current formal release requires hash-bound positive canonical and preview 
   const lock = actualLock();
   const proof = lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
   assert.equal(proof.schemaVersion, 1);
-  assert.equal(proof.sha256, 'a1515b7ee5af44ff8e7ad86fa07ce8faedaa13f157d02ad99e4a4f99ee174b45');
+  assert.equal(proof.sha256, '07ae8381c15493e9bccee12148100159675652678f8c2963b2c9522a028db688');
   assert.equal(proof.installedClientSha256, '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435');
   assert.equal(hash(readFileSync(join(formalRoot, 'positive-usage.json'))), proof.sha256);
   assert.equal(verifyNativeReleaseEvidence(lock, formalRoot).valid, true);

@@ -188,7 +188,9 @@ qualify a candidate or authorize activation.
 
 - [ ] **Freeze scope:** record the official Core tag/full commit, Desktop and plugin
   versions, source/tree, lock/plan hashes, proposed sequence, baseline, included
-  changes, explicit non-goals, product/channel and publication owner.
+  changes, explicit non-goals, product/channel, publication owner and agreed cutoff.
+  If the actual protected base advances, review and reconcile its necessary maintained
+  changes without regressing them or bypassing up-to-date checks.
   Later parallel features default to the next release. Reconcile only necessary
   integration/safety changes explicitly; a changed tree invalidates prior final
   qualification. A proposed sequence is not reserved.
@@ -196,6 +198,10 @@ qualify a candidate or authorize activation.
   tags, sequences and in-flight releases before dispatch and publication. Use one
   owned branch/worktree per task; never overwrite another Session's work or cancel
   its run to obtain a slot. Batch related fixes into one reviewed candidate.
+  Parallelize independent preparation and early risk review, with one writer per
+  mutable file scope and final review against an immutable commit/tree. Minor details
+  within an approved contract need no repeated approval; changed scope, guarantees,
+  credentials or destructive actions require a new decision.
 - [ ] **Use cheap feedback first:** whitespace, configured lint, actual aggregate
   TypeScript roots/options, then owning unit and real renderer/component tests.
   Keep strict/composite/project references intact; isolated transpilation or a
@@ -268,6 +274,9 @@ Desktop 目录、CMD/Electron 身份、短路径、多个独立保存回执、�
   the same required acceptance gates. A proposed diagnostic workflow or an internal
   artifact is not authority to reuse it, relabel an old build or publish it.
   Workflow restructuring belongs to a separate issue/PR, not a release shortcut.
+  For diagnosis, record the original package-source identity and diagnostic-script
+  commit separately, alongside hashes and ownership. A diagnostic pass does not
+  qualify a different source or remove final merged-source acceptance gates.
 - Keep source/run/attempt and original-byte hash graphs consistent within a run.
   Do not reserialize originals, rewrite hosted paths, relabel historical formats,
   substitute a later receipt, or compare dynamic pixel hashes across runs. Use
@@ -300,6 +309,27 @@ Desktop 目录、CMD/Electron 身份、短路径、多个独立保存回执、�
 只复用输入未变的冻结评审，最终整合后重新绑定相关证据；每个实际缺陷在最便宜且忠实的
 层级保留回归，共享证据解析还要覆盖重新计算哈希后的语义反例与合法独立运行差异。
 本清单本身不更改任何锁、workflow、运行环境或发布资格。
+
+### Copyable preflight and handoff
+
+使用同一份交接记录下列字段；约定 cutoff 后若受保护主线推进，明确评审整合；
+独立准备与早期风险评审可并行，但每个可变范围只设一个写者。诊断包与脚本分别绑定身份，
+不能把诊断成功改称新源码合格。其余规则以上方清单为准，不另建第二份动态状态报告。
+
+```text
+Product / channel / baseline / included changes / non-goals:
+Candidate commit / tree / lock and plan hashes / agreed cutoff / owner:
+Actual protected base / parallel work / exclusive writer scopes:
+Focused checks -> source/browser evidence -> required CI/package gates:
+Early native checks: existing capability or separately reviewed proposal:
+Run / attempt / job / failed step / original evidence links:
+Failure class + evidence / next bounded action / stop condition:
+Artifact reuse: package source + hashes / diagnostic-script commit / scope:
+Observer lifetime / cleanup owner / primary and secondary failure evidence:
+Watcher owner / current handoff / immutable final review:
+Timing: start-end intervals / queue-setup / parallel overlap / critical path:
+Publication evidence / remaining platform limits / activation authorization:
+```
 
 ## 完成标准 / Completion evidence
 

@@ -58,6 +58,14 @@ Before an installation agent emits every `pwsh` tool call:
   scope; this workflow does not permit bypassing the locked Desktop runtime,
   patching live Core/dependencies, rewriting immutable releases or interrupting Sessions.
 
+## Release feedback and execution scope
+
+- Before expensive qualification, use the [bounded release-debugging checklist and
+  preflight template](docs/core-upgrade.md#bounded-release-debugging). Freeze scope,
+  classify failures before retrying, preserve separate package/script identities,
+  and keep one writer per scope, one watcher per run and one current handoff.
+  Final immutable review, release/security gates and restart authorization still apply.
+
 ## Restricted local npm: CI-first qualification
 
 - Treat company-restricted workstation npm access as an expected local limitation,

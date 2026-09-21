@@ -284,6 +284,57 @@ Core 摘要精确45个 input，不伪造额外 `ordinary.*`；公开 build 只�
 核验 API 大小／哈希、安全成员及逐字节来源，再提交真实证据和锁。此准备只使用惰性测试数据，
 保留旧格式、当前 alpha.1 锁、原 fixtures 和真实 Ops SHA；不发布、提升、安装或激活。
 
+## Alpha2 dual-v2 composer proof preparation
+
+[Ops #221](https://github.com/cloga/dsh-windows-ops/issues/221) prepares the separate,
+explicit `dual-ordinary-canary-v2` family. It does not reinterpret dual-v1 above,
+select an optional composer adapter, or promote the current `.cloga.17` lock.
+The preparation contract is functional/ordinary **3**, settings **3**, native
+composer **2**, qualification summary **2/exact51 inputs**. Failure2/observer3/
+suite1 remain distinct unchanged contracts. The seed is exactly six fields with
+**no schemaVersion**. The producer/qualifier and pure leaves were crosschecked
+against immutable Core `9ca7cc3f06c9f7b90128e24687a5ce6e960b6618`, tree
+`44c41519827fc1f9b25d5bdb35e7a7f35ff57116`; 83 data-only predicate parity cases
+passed against its exact sources. This is source/contract evidence, not a claim
+that Core CI, packaged acceptance or installed qualification passed. Earlier WIP
+snapshots are not the final binding.
+
+Keep all old45 labels and add only `ordinary.initial.settings`,
+`ordinary.restart.settings`, `ordinary.nativeComposer`, `ordinary.nativeComposerSeed`,
+`packaged.nativeComposer`, `packaged.nativeComposerSeed`. Each root owns its raw
+settings, `native-composer-geometry.json` and `native-composer-seed.json`; embedded
+observations equal their own originals, and native seedSha256 closes its own raw
+seed edge. Ordinary settings also retain lock phase pins. No reconstructed JSON,
+shared cross-run geometry hash, missing label or legacy-schema fallback is accepted.
+
+V2 requires the independently reviewed immutable Copilot alpha35 tuple and Client
+SHA256 `7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368`;
+historical alpha33 policy is unchanged. Positive usage retains all21 keys,
+14 true lifecycle flags, quotaReads4 and both providers. Settings3 proves loaded
+account/search views and retired roles absent; it cannot be substituted for the
+historical B1 baseline settings. Only current candidate/candidate-restart use it.
+
+Strict native evidence checks both axes of dock containment, finite bounded
+rectangles/styles, ordered1280/400 observations, nonoverlap, wide-only inline
+ordering, exact dialogs and empty renderer errors. Native phase events are
+`seeded`, `launch`, `application`, `observed`, `closed`, in order after initial/
+restart/positive usage, with finite nonnegative nondecreasing elapsed values;
+the external observer follows successful owned closure.
+The fresh Ops ordinary execution uses its **own** run/attempt, UUID, menus,
+provider inventory and native bytes, retaining the unchanged seven verified Core
+facts. It is not required to reproduce another run's dynamic geometry hashes.
+
+This is pure data-reader/inert-test preparation only: no workflow, lock, catalog,
+real fixture or admission gate changes, and no native dispatch or activation.
+The offline reader still reports ZIP/member provenance unverified; authenticated
+original-byte audits, exact qualified Core source and a fresh independent Ops
+native run remain later promotion gates. ZIP-auditor Windows HOLD remains intact.
+
+中文：新增 v2 是显式选择的51输入／functional3／settings3／native2契约，保留 v1 与当前锁。
+两组 settings/native/seed 原字节各自绑定，fresh Ops 保留自己的真实运行身份与七项 Core 事实；
+不得跨运行比较像素哈希，不得伪造 seed schema 或将旧角色加载记录改称退役证明。
+惰性适配测试不是原始 ZIP 来源、实际安装、模型／账号使用或正式提升证据。
+
 ## Audited starting points
 
 | Component | Audited source | Starting release | Adaptation tracking |

@@ -3,6 +3,7 @@ import { closeSync, fstatSync, lstatSync, openSync, readFileSync } from 'node:fs
 import { join, resolve, win32 } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { hashValid, object, physical, relativeName, requireValue, sha256, validateDescriptor } from './native-runtime-integrity.mjs';
+import { assertV2Settings, assertV2Seed, assertV2Native, assertReviewedV2Client, reviewedClient35 } from './native-dual-v2-evidence.mjs';
 
 const need = condition => requireValue(condition, 'native-packaged-evidence-invalid');
 const exact = (value, required, optional = []) => {
@@ -54,7 +55,12 @@ function reviewedPositiveClient(source, digest) {
   need(digest === '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435');
 }
 const dualFormat = 'dual-ordinary-canary-v1';
-const proofV2 = lock => ['combined-suite-v2', dualFormat].includes(lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format);
+const dualV2Format = 'dual-ordinary-canary-v2';
+const dualV2 = lock => lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format === dualV2Format;
+const isDualFormat = format => [dualFormat, dualV2Format].includes(format);
+const proofV2 = lock => ['combined-suite-v2', dualFormat, dualV2Format].includes(lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance?.format);
+const currentFunctionalTrue = functionalTrue.filter(key => !['modelRolesViewLoaded', 'currentWorkspaceReadOnly'].includes(key));
+const currentFunctionalKeys = [...functionalKeys.filter(key => !['modelRolesViewLoaded', 'currentWorkspaceReadOnly'].includes(key)), 'settingsAcceptance', 'nativeComposer'];
 const positiveTransport = 'not-provided-to-isolated-fixture';
 const positiveTrue = ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
   'applicationMountPreserved', 'syntheticSiblingPreserved', 'inheritedSessionScopeVerified', 'explicitUndefinedSessionScopeAbsent',
@@ -78,7 +84,8 @@ function positiveUsage(lock, root, accepted) {
   need(value.runtimeSha256 === lock.components.desktop.installedRuntimeDescriptor.sha256 &&
     value.originalSignedOutApplicationRestored === true && value.hostTransport === positiveTransport &&
     accepted.positiveUsageHostTransport === positiveTransport);
-  reviewedPositiveClient(value.pluginSource, value.installedClientSha256);
+  if (dualV2(lock)) assertReviewedV2Client(value.pluginSource, value.installedClientSha256);
+  else reviewedPositiveClient(value.pluginSource, value.installedClientSha256);
   equal(value.pluginSource, accepted.plugin); positiveCases(value.cases); equal(value.cases, accepted.positiveCopilotUsage);
   return record.sha256;
 }
@@ -104,16 +111,17 @@ export function packagedEvidenceFormat(lock) {
   const channel = lock.components.desktop.releaseChannel;
   const proof = channel.nativeProvisioning.packagedAcceptance;
   if (channel.upstreamVersion !== '0.1.6-alpha.2') { need(proof === undefined); return undefined; }
-  const dual = proof?.format === dualFormat;
+  const dual = isDualFormat(proof?.format);
   const hashes = ['suiteSha256', 'qualificationSha256', 'workflowRunSha256', 'workflowJobSha256',
     ...(dual ? ['ordinaryAcceptanceSha256', 'workflowArtifactsSha256'] : [])];
   exact(proof, ['schemaVersion', 'format', 'runId', 'runAttempt', ...hashes]);
-  need(proof.schemaVersion === 1 && ['combined-suite-v1', 'combined-suite-v2', dualFormat].includes(proof.format) && positive(proof.runId) && positive(proof.runAttempt));
+  need(proof.schemaVersion === 1 && ['combined-suite-v1', 'combined-suite-v2', dualFormat, dualV2Format].includes(proof.format) && positive(proof.runId) && positive(proof.runAttempt));
   for (const key of hashes) need(hashValid(proof[key]));
   if (dual) {
     equal(proof.ordinaryAcceptanceSha256, channel.nativeProvisioning.ancestorIsolation.acceptanceSha256);
     need(channel.nativeProvisioning.usagePositiveAcceptance === undefined); // The alpha1 quota2 declaration is not a dual-v2 proof.
   }
+  if (proof.format === dualV2Format) need(channel.nativeProvisioning.nativeComposerAcceptance === undefined);
   return proof.format;
 }
 export function usesCombinedPackagedEvidence(lock) {
@@ -135,12 +143,19 @@ function identity(value, expected, evidenceId) {
   for (const [key, leaf] of Object.entries(expected)) equal(value[key], leaf);
 }
 function functional(value, lock, expected, ordinary = false) {
-  const v2 = proofV2(lock);
-  exact(value, v2 ? [...functionalKeys, 'positiveCopilotUsage', 'positiveUsageHostTransport'] : functionalKeys); identity(value, expected);
+  const v2 = proofV2(lock); const current = dualV2(lock);
+  const keys = current ? currentFunctionalKeys : functionalKeys;
+  exact(value, v2 ? [...keys, 'positiveCopilotUsage', 'positiveUsageHostTransport'] : keys); identity(value, expected);
   const desktop = lock.components.desktop;
-  need(value.schemaVersion === (v2 ? 2 : 1) && value.scope === (ordinary ? 'packaged-acceptance' : 'packaged-functional-observations'));
+  need(value.schemaVersion === (current ? 3 : v2 ? 2 : 1) && value.scope === (ordinary ? 'packaged-acceptance' : 'packaged-functional-observations'));
   if (v2) { positiveCases(value.positiveCopilotUsage); need(value.positiveUsageHostTransport === positiveTransport); }
-  flags(value, [...functionalTrue, 'functionalAssertionsCompleted'], functionalFalse);
+  if (current) {
+    assertReviewedV2Client(value.plugin, reviewedClient35);
+    need(Array.isArray(value.settingsAcceptance) && value.settingsAcceptance.length === 2);
+    for (const settings of value.settingsAcceptance) assertV2Settings(settings);
+    equal(value.settingsAcceptance[0], value.settingsAcceptance[1]);
+  }
+  flags(value, [...(current ? currentFunctionalTrue : functionalTrue), 'functionalAssertionsCompleted'], functionalFalse);
   need(value.normalAcceptanceCompleted === ordinary && value.cleanupVerified === ordinary);
   need(value.desktopVersion === desktop.version && value.runtimeVersion === desktop.releaseChannel.upstreamVersion);
   need(value.transport === 'official Web-backed Desktop Host with packaged Electron dsh-app origin bridge');
@@ -151,7 +166,8 @@ function functional(value, lock, expected, ordinary = false) {
   let previous = -1;
   const events = value.timeline.map(row => {
     exact(row, ['event', 'milliseconds']);
-    need(typeof row.milliseconds === 'number' && Number.isFinite(row.milliseconds) && row.milliseconds >= previous);
+    need(typeof row.milliseconds === 'number' && Number.isFinite(row.milliseconds) && row.milliseconds >= previous &&
+      (!current || row.milliseconds >= 0));
     previous = row.milliseconds; return row.event;
   });
   const steps = ['launch', 'version-menu', 'application', 'account', 'usage-readonly', 'settings-readonly', 'packaged-graph', 'closed'];
@@ -162,6 +178,7 @@ function functional(value, lock, expected, ordinary = false) {
       if (step === 'application' && events.includes(`${phase}:provider-deferred`)) expected.push(`${phase}:provider-deferred`);
       if (phase === 'restart' && step === 'packaged-graph') expected.push('restart:positive-usage');
     }
+    if (current) expected.push('native-composer:seeded', 'native-composer:launch', 'native-composer:application', 'native-composer:observed', 'native-composer:closed');
     equal(events, expected);
   } else {
     equal(events.filter(event => !phases.some(phase => event === `${phase}:provider-deferred`)),
@@ -172,8 +189,9 @@ function functional(value, lock, expected, ordinary = false) {
 /** Alpha.2 phase semantics; fresh menus are observed, not compared to another run's window IDs. */
 export function verifyPackagedPhaseEvidence(lock, accepted, directory, phasePins) {
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
-  need(channel.upstreamVersion === '0.1.6-alpha.2' && native.settingsAcceptance?.schemaVersion === 2 && native.usageAcceptance?.schemaVersion === 1);
-  flags(accepted, functionalTrue, functionalFalse);
+  const current = dualV2(lock);
+  need(channel.upstreamVersion === '0.1.6-alpha.2' && native.settingsAcceptance?.schemaVersion === (current ? 3 : 2) && native.usageAcceptance?.schemaVersion === 1);
+  flags(accepted, current ? currentFunctionalTrue : functionalTrue, functionalFalse);
   equal(accepted.copilotUsageCapability, usageCapability); equal(accepted.signedOutCopilotUsage, [signedOut, signedOut]);
   need(accepted.hostQuotaNoNetworkEvidence === 'immutable-plugin-ci-regression-only');
   let providers;
@@ -181,12 +199,14 @@ export function verifyPackagedPhaseEvidence(lock, accepted, directory, phasePins
     need(hashValid(native.settingsAcceptance[`${phase}Sha256`]) &&
       hashValid(native.settingsAcceptance[`${phase}VersionMenuSha256`]) && hashValid(native.usageAcceptance[`${phase}Sha256`]));
     const pin = (label, original) => {
-      if (phasePins === null) { need(packagedEvidenceFormat(lock) === dualFormat); return undefined; }
+      if (phasePins === null) { need(isDualFormat(packagedEvidenceFormat(lock))); return undefined; }
       const digest = phasePins === undefined ? original : phasePins[`packaged.${phase}.${label}`];
       need(hashValid(digest)); return digest;
     };
     const settings = read(directory, `${phase}-settings-readonly.json`, pin('settings', native.settingsAcceptance[`${phase}Sha256`])).value;
-    exact(settings, [...settingsTrue, 'registeredSearchProviders', 'realSearch']); flags(settings, settingsTrue, ['realSearch']);
+    if (current) {
+      assertV2Settings(settings); equal(settings, accepted.settingsAcceptance?.[index]);
+    } else { exact(settings, [...settingsTrue, 'registeredSearchProviders', 'realSearch']); flags(settings, settingsTrue, ['realSearch']); }
     const ids = settings.registeredSearchProviders;
     need(Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) && new Set(ids).size === ids.length && ids.includes('github-copilot-hosted'));
     if (providers !== undefined) equal(ids, providers); providers = ids;
@@ -219,6 +239,14 @@ function packagedFiles(lock, root, accepted, formal = true, { publicRoot = root,
     executable.productName === channel.identity.productName && executable.fileDescription === channel.identity.productName);
   verifyPackagedPhaseEvidence(lock, accepted, root, phasePins);
   if (proofV2(lock)) records['packaged.positiveUsage'] = positiveUsage(lock, root, accepted);
+  if (dualV2(lock)) {
+    const seed = read(root, 'native-composer-seed.json', phasePins?.['packaged.nativeComposerSeed'], 64 * 1024);
+    const composer = read(root, 'native-composer-geometry.json', phasePins?.['packaged.nativeComposer'], 128 * 1024);
+    assertV2Seed(seed.value);
+    assertV2Native(composer.value, accepted, accepted.plugin, seed.sha256, reviewedClient35);
+    equal(accepted.nativeComposer, composer.value);
+    records['packaged.nativeComposerSeed'] = seed.sha256; records['packaged.nativeComposer'] = composer.sha256;
+  }
   let previousGraph;
   for (const phase of phases) {
     for (const [suffix, label] of [['settings-readonly', 'settings'], ['version-menu', 'menu'], ['usage-readonly', 'usage']]) {
@@ -326,7 +354,8 @@ function archivedInstalledEvidence(lock, directory, summary) {
         value.executableSha256 === desktop.installedExecutable.sha256 && value.runtimeSha256 === desktop.installedRuntimeDescriptor.sha256);
       equal(value.retainedEnvSha256, retainedEnvSha256);
     }
-    installedSettings(value.actualHostSettingsViews, phase === 'baseline');
+    if (dualV2(lock) && phase !== 'baseline') assertV2Settings(value.actualHostSettingsViews);
+    else installedSettings(value.actualHostSettingsViews, phase === 'baseline');
   }
   const cleanupFlags = ['ownedHomeRemoved', 'ownedElectronDataRemoved', 'isolatedPackageAcceptanceDataRemoved'];
   const cleanup = take('profile-cleanup.json', 'upgrade.cleanup'); exact(cleanup, cleanupFlags); flags(cleanup, cleanupFlags);
@@ -462,9 +491,10 @@ function verifyDualWorkflowArtifacts(lock, root, proof) {
   }
 }
 
-/** Final Core 3ca51d dual contract: PRIMARY ordinary plus independent outer canary, with exact 45 Core inputs. */
+/** Explicit dual families: historical v1/45 or v2/51, each with independently owned PRIMARY and canary originals. */
 export function readDualPackagedEvidence(lock, directory) {
-  need(packagedEvidenceFormat(lock) === dualFormat && typeof directory === 'string' && directory === resolve(directory));
+  need(isDualFormat(packagedEvidenceFormat(lock)) && typeof directory === 'string' && directory === resolve(directory));
+  const current = dualV2(lock);
   physical(directory, 'directory');
   const desktop = lock.components.desktop; const channel = desktop.releaseChannel; const native = channel.nativeProvisioning;
   need(typeof native.fixtureRoot === 'string');
@@ -485,7 +515,7 @@ export function readDualPackagedEvidence(lock, directory) {
   exact(summary, ['schemaVersion', 'scope', 'sourceCommit', 'sourceTree', 'runId', 'runAttempt', 'version', 'sequence', 'inputs',
     'packagedFunctionalVerified', 'unexpectedObserverFailureCleanupVerified', 'actualInstalledUpgradeVerified', 'sameVersionPackageAcceptanceVerified',
     'normalPackagedAcceptanceCompleted', 'canaryNormalAcceptanceCompleted', 'limits']);
-  need(summary.schemaVersion === 1 && summary.scope === 'ci-only-fork-qualification' && summary.version === desktop.version && summary.sequence === channel.sequence);
+  need(summary.schemaVersion === (current ? 2 : 1) && summary.scope === 'ci-only-fork-qualification' && summary.version === desktop.version && summary.sequence === channel.sequence);
   for (const key of ['sourceCommit', 'sourceTree', 'runId', 'runAttempt']) equal(summary[key], expected[key]);
   flags(summary, ['packagedFunctionalVerified', 'unexpectedObserverFailureCleanupVerified', 'actualInstalledUpgradeVerified',
     'sameVersionPackageAcceptanceVerified', 'normalPackagedAcceptanceCompleted'], ['canaryNormalAcceptanceCompleted']);
@@ -512,10 +542,14 @@ export function readDualPackagedEvidence(lock, directory) {
     plan: channel.build.planSha256, 'candidate.manifest': channel.manifestRawSha256, 'candidate.receipt': channel.buildReceipt.sha256,
     'candidate.installer': desktop.artifact.sha256, 'candidate.provisioning': native.plan.sha256 });
   for (const key of ['functional', 'failure', 'observer']) hashes[`packaged.${key}`] = receipts[key].sha256;
+  if (current) {
+    for (const key of ['nativeComposer', 'nativeComposerSeed']) hashes[`ordinary.${key}`] = primaryFiles[`packaged.${key}`];
+    for (const phase of phases) hashes[`ordinary.${phase}.settings`] = primaryFiles[`packaged.${phase}.settings`];
+  }
   const ciOnly = ['baselinePin', 'baseline.manifest', 'baseline.receipt', 'baseline.installer', 'upgrade.owner', 'upgrade.validated', 'upgrade.retained'];
   const archived = ['baseline.acquisition', 'upgrade.result', 'upgrade.baseline', 'upgrade.candidate', 'upgrade.candidate-restart', 'upgrade.cleanup', 'upgrade.packages'];
   exact(summary.inputs, [...Object.keys(hashes), ...ciOnly, ...archived]);
-  need(Object.keys(summary.inputs).length === 45);
+  need(Object.keys(summary.inputs).length === (current ? 51 : 45));
   for (const value of Object.values(summary.inputs)) need(hashValid(value));
   for (const [key, digest] of Object.entries(hashes)) equal(summary.inputs[key], digest);
   for (const phase of phases) {
@@ -537,6 +571,6 @@ export function verifyFreshOrdinaryPackagedEvidence(lock, directory, run) {
   functional(provisional, lock, expected); functional(accepted, lock, expected, true);
   equal(accepted, { ...provisional, scope: 'packaged-acceptance', normalAcceptanceCompleted: true, cleanupVerified: true });
   // Acquisition already bound the public plan. Validate the owner's original fresh phase files, not formal paths/window IDs.
-  packagedFiles(lock, directory, accepted, false, format === dualFormat ? { phasePins: null } : {});
+  packagedFiles(lock, directory, accepted, false, isDualFormat(format) ? { phasePins: null } : {});
   return accepted;
 }

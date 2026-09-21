@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { closeSync, lstatSync, openSync, readFileSync, readSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, openSync, readFileSync, readSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
@@ -14,6 +14,7 @@ import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs'
 import { verifySettingsV3Evidence, verifyNativeComposerEvidence } from '../tools/native-composer-evidence.mjs';
 import { packagedEvidenceFormat, verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
 import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
+import { reviewedClient35 } from '../tools/native-dual-v2-evidence.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFixture = 'apps/desktop/tests/fixtures/copilot-release-smoke.ts';
@@ -143,7 +144,7 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
   verifyFreshNativeComposerEvidence(lock, accepted, sourceOutput);
   const channel = lock.components.desktop.releaseChannel;
   // Dual's third ordinary run was checked by verifyFreshOrdinaryPackagedEvidence; phase bytes belong to this run.
-  if (channel.upstreamVersion === '0.1.6-alpha.2' && packagedEvidenceFormat(lock) === 'dual-ordinary-canary-v1') {
+  if (channel.upstreamVersion === '0.1.6-alpha.2' && ['dual-ordinary-canary-v1', 'dual-ordinary-canary-v2'].includes(packagedEvidenceFormat(lock))) {
     return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput, null);
   }
   // Do not let the historical settings early-return bypass explicit positive proof.
@@ -242,6 +243,21 @@ export function verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput) {
 }
 
 export function verifyFreshPositiveUsageClient(lock, profile) {
+  if (packagedEvidenceFormat(lock) === 'dual-ordinary-canary-v2') {
+    const path = physical(join(profile, 'node_modules/dsh-github-copilot/lib/client.js'), 'file');
+    const openedPath = lstatSync(path); const fd = openSync(path, 'r');
+    try {
+      const before = fstatSync(fd); const limit = 2 * 1024 * 1024;
+      need(before.isFile() && before.size > 0 && before.size <= limit &&
+        ['dev', 'ino', 'size', 'mtimeMs'].every(key => openedPath[key] === before[key]), 'source-positive-usage-client-mismatch');
+      const bytes = Buffer.alloc(before.size + 1); let count = 0;
+      for (let next; count < bytes.length && (next = readSync(fd, bytes, count, bytes.length - count, null)) > 0;) count += next;
+      const after = fstatSync(fd);
+      need(count === before.size && ['dev', 'ino', 'size', 'mtimeMs', 'ctimeMs'].every(key => before[key] === after[key]) &&
+        sha256(bytes.subarray(0, count)) === reviewedClient35, 'source-positive-usage-client-mismatch');
+    } finally { closeSync(fd); }
+    return;
+  }
   const proof = lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
   if (proof === undefined) return;
   need(object(proof) && hashValid(proof.installedClientSha256) &&

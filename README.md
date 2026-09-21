@@ -75,6 +75,10 @@ Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读�
 历史 `.cloga.16` 的正式/Ops 证据见[原 owning record](docs/copilot-alpha33-upgrade-record.md)，
 不能移用到 `.cloga.17`。Alpha.2 尚未发布、尚未合格；此准备工作不授权安装、激活或重启。
 
+另见 [dual-v2 composer 证据准备](docs/core-016a2-assessment.md#alpha2-dual-v2-composer-proof-preparation)：
+显式51输入／functional3／settings3／native2／seed6与固定alpha35 Client策略，保留21键正向证明、
+各自原始哈希及 fresh Ops 真实身份。旧格式与当前锁不变，不代表已提升、原始ZIP已核验或允许激活。
+
 ## Copilot 自动识别路由维护
 
 已有新版 Copilot、需要从两条路由统一到账号自动识别目录时，使用[先检查的配置维护流程](docs/copilot-managed-route.md)与独立的 [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json)。它只允许经过确认的路径级配置 CAS，不安装组件、不重启、不自动修改 Session 或默认模型；不会为了下述独立部署目标替换或降级现有 Desktop。策略中的 Release 必须已验证、指定插件版本必须实际加载；冷历史影响需明确确认。该维护策略不是新的完整 Desktop/Core 验证声明。

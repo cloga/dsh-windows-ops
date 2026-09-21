@@ -11,8 +11,61 @@ import { releasePlan, validateReleaseMetadata, validateSourceIdentity, discoverA
   validateApplicationPackageMetadata, readApplicationPackageIdentity, verifyFreshSettingsEvidence,
   verifyFreshPositiveUsageClient } from './native-asar-release-smoke.mjs';
 import { hashFile, sha256 } from '../tools/native-runtime-integrity.mjs';
+import { settingsV3Fixture, settingsV3Negatives, nativeComposerFixture, composerNegatives } from './helpers/native-composer-fixture.mjs';
 const lockPath = fileURLToPath(new URL('../deployments/windows-copilot.lock.json', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(lockPath, 'utf8'));
+test('fresh settings schema3 accepts only the explicit retirement producer shape (inert)', t => {
+  forbidChildren(t); const f = settingsV3Fixture(t);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), undefined);
+});
+for (const [name, mutate] of settingsV3Negatives) {
+  test(`fresh settings schema3 rejects ${name} even with rehashed synthetic bytes`, t => {
+    forbidChildren(t); const f = settingsV3Fixture(t); mutate(f); f.save();
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /native-release-settings-v3-mismatch/);
+  });
+}
+test('fresh schema3 deterministic settings bytes remain hash-bound', t => {
+  forbidChildren(t); const f = settingsV3Fixture(t); const path = join(f.directory, 'initial-settings-readonly.json');
+  writeFileSync(path, readFileSync(path, 'utf8') + '\n');
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /source-settings-acceptance-incomplete/);
+});
+
+test('fresh composer accepts its own dynamic measurements without formal cross-run byte equality', t => {
+  forbidChildren(t); const f = nativeComposerFixture(t); const original = f.native.nativeComposerAcceptance.sha256;
+  for (const geometry of f.value.geometry) {
+    for (const name of ['dock', 'time', 'usage', 'copilot']) { geometry[name].x += 2.5; geometry[name].y += 7; }
+    geometry.nativeStyle.color = geometry.copilotStyle.color = 'rgb(101, 102, 103)';
+  }
+  f.save(false);
+  assert.notEqual(hashFile(join(f.directory, 'native-composer-geometry.json')), original);
+  assert.equal(f.native.nativeComposerAcceptance.sha256, original, 'Formal proof is not rewritten for a fresh run');
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), undefined);
+});
+for (const [name, mutate] of composerNegatives) {
+  test(`fresh composer rejects ${name} despite skipping cross-run pixel hash equality`, t => {
+    forbidChildren(t); const f = nativeComposerFixture(t); mutate(f); f.save(false);
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /native-release-composer-mismatch/);
+  });
+}
+for (const [name, mutate] of [
+  ['schema2 settings', f => { f.native.settingsAcceptance.schemaVersion = 2; }],
+  ['missing signed-out proof', f => { delete f.native.usageAcceptance; }],
+  ['missing positive proof', f => { delete f.native.usagePositiveAcceptance; }],
+  ['different positive Client proof', f => { f.native.usagePositiveAcceptance.installedClientSha256 = '0'.repeat(64); }],
+  ['malformed formal geometry digest', f => { f.native.nativeComposerAcceptance.sha256 = ''; }],
+  ['non-ordinary format', f => { f.native.packagedAcceptance = { format: 'combined-suite-v2' }; }],
+]) {
+  test(`fresh composer rejects ${name} before any alternate/legacy path`, t => {
+    forbidChildren(t); const f = nativeComposerFixture(t); mutate(f);
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /native-release-composer-mismatch/);
+  });
+}
+test('fresh composer opt-in absence does not read a geometry file', t => {
+  forbidChildren(t); const f = settingsV3Fixture(t);
+  assert.equal(existsSync(join(f.directory, 'native-composer-geometry.json')), false);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), undefined);
+});
+
 function inertLock() {
   const lock = actualLock(); const d = lock.components.desktop;
   d.version = '0.1.6-inert-unit.1'; d.releaseChannel.version = d.version;

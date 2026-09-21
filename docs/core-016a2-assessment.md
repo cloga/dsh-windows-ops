@@ -74,7 +74,7 @@ successful hosted Ops run `35575187267` at code head
 `a59f586df4e329c3bc8b3f885013fdb5493f4970`. That independent maintenance repin
 preserves bundled Core alpha.1; it does not qualify alpha.2.
 
-Imported formal evidence requires the complete original `functional-results.json`,
+Historical combined-format formal evidence requires the complete original `functional-results.json`,
 finalized `failure.json`, `observer-cleanup.json` and last-written
 `packaged-suite.json` graph, with ordinary `acceptance.json` absent. Provisional
 functional observations are not ordinary acceptance or suite success. The reviewed
@@ -135,9 +135,9 @@ The genuine Ops `GITHUB_SHA`, repository, run ID and attempt remain present and
 unchanged during import, invocation, success and failure; no omission, spoofing
 or environment restoration shim is used. Workflow validation still binds caller
 evidence back to the actual Ops job. Historical alpha.1 calls omit this API option
-and retain their existing behavior. This caller-only preparation under #181 does
-not migrate the combined formal evidence reader to the final independent ordinary
-primary/outer-canary graph, promote a lock, or establish alpha.2 qualification.
+and retain their existing behavior. The caller-only preparation under #181 is
+separate from the explicitly selected dual-proof adapter below. Neither adapter
+preparation promotes a lock or establishes alpha.2 qualification.
 
 The exact successful Core CI qualification summary attests the installed-record
 checks for its bound source/run and listed input hashes. Current hosted archives
@@ -170,10 +170,110 @@ unpublished and unqualified, with no installation, activation or restart authori
 传入经 acquisition/source 预检的锁定 Core commit/tree、Desktop/upstream 版本及 executable/runtime/plan 哈希，
 再核验 Core 返回的实际观察值。import、调用及成功／失败期间始终保留真实 Ops `GITHUB_SHA`、repository、run/attempt，
 不删除、不伪造，也不使用环境还原 shim。历史 alpha.1 不接收此 API 参数，调用行为保持不变。
-此次 #181 caller-only 准备不迁移正式普通主验收／独立 outer-canary 双证据图，不提升锁或宣称 alpha.2 已验收。
+#181 caller-only 准备与下文显式选择的普通主验收／独立 outer-canary 双证据 adapter 分开；两者均不提升锁或宣称 alpha.2 已验收。
 Core CI 的精确成功摘要可以证明执行过安装检查，但归档缺少
 根 owner/validated/retained 记录，不能完整离线重放。六个公开资产、当前已合格部署和历史原始字节
 保持不变；alpha.2 准备工作不等于发布、安装或激活。
+
+## Alpha2 independent dual-proof preparation
+
+The new Ops declaration `dual-ordinary-canary-v1` follows the final immutable
+[Core qualifier](https://github.com/cloga/deepseek-harness/blob/3ca51d61bdf39f8c63c26125674cd92fdcf6ed98/apps/desktop/scripts/verify-fork-qualification.ts)
+and its [two-run workflow](https://github.com/cloga/deepseek-harness/blob/3ca51d61bdf39f8c63c26125674cd92fdcf6ed98/.github/workflows/desktop-fork-release.yml).
+This is an explicit new Ops reader format, not a new Core receipt schema and not
+an automatic reinterpretation of `combined-suite-v1/v2` or historical alpha.1.
+Unknown formats and mixed declarations fail closed. No current production lock,
+catalog, original fixture or PowerShell lock-admission policy is changed.
+
+The exact `nativeProvisioning.packagedAcceptance` declaration has `schemaVersion:1`,
+`format`, `runId`, `runAttempt`, `suiteSha256`, `qualificationSha256`,
+`workflowRunSha256`, `workflowJobSha256`, **`ordinaryAcceptanceSha256`** and
+**`workflowArtifactsSha256`**. The ordinary hash must equal the existing ancestor
+acceptance pin; all settings/usage/menu/ancestor phase pins continue to describe
+PRIMARY. The legacy alpha.1 `usagePositiveAcceptance` quota2 declaration is not
+accepted alongside this dual quota4 format. Real hashes are supplied only during
+separately reviewed promotion, never placeholder pins in this preparation.
+
+Fixed locations under the existing formal root:
+
+- Root: original public `release.json`, `build-receipt.json`,
+  `desktop-provisioning.json`; PRIMARY `acceptance.json`, original provisional
+  `functional-results.json`, `helper-acceptance.json`, positive/runtime/capability/
+  provisioning/executable JSON and initial/restart observations.
+- `canary/`: original canary functional/failure/observer/suite plus its own positive,
+  runtime/capability/provisioning/executable JSON and initial/restart observations.
+  Ordinary acceptance, helper and copied public release metadata are forbidden here.
+- `core-qualification/`: original `qualification.json`, `workflow-run.json`,
+  `workflow-job.json`, `workflow-artifacts.json`, and seven original installed
+  records under `installed/` (acquisition, installer-upgrade, baseline, candidate,
+  candidate-restart, profile-cleanup and package-acceptance).
+
+Each family's raw edges and owner UUID agree internally. Independent PRIMARY and
+canary UUIDs, menu IDs, timing and temporary profile paths are not forced equal;
+shared Core source/tree/run/attempt and release identities are. Normal PRIMARY
+acceptance is required after cleanup, whereas canary normal completion remains
+false with finalized failure/observer cleanup. Both positive files require the
+reviewed alpha33 source/Client digest and two ordered 21-key cases: fourteen true
+observations, quotaReads4, bounded `7 used`/`13 left`, zero selector/forbidden-Remote
+errors and synthetic/no-Host scope. Fresh Ops ordinary remains a third run using
+actual Ops run/attempt and its own observed phase bytes. The merged explicit
+seven-field Core caller is retained unchanged; no Ops SHA omission is permitted.
+
+The qualifier summary remains Core schema1 with
+`normalPackagedAcceptanceCompleted:true` and `canaryNormalAcceptanceCompleted:false`.
+Its **45 exact input labels** are checked without inventing PRIMARY inputs:
+
+- `ordinary.helper`, `ordinary.acceptance`, `ordinary.positiveUsage` only;
+- `packaged.runtime`, `.provisioning`, `.capability`, `.executable`, `.functional`,
+  `.failure`, `.observer`, `.suite`, `.positiveUsage`;
+- `packaged.initial` and `packaged.restart` each with `.settings`, `.menu`, `.usage`,
+  `.graph`, `.receipts`, `.provisioning`, `.profile`;
+- `plan`, `candidate.manifest`, `.receipt`, `.installer`, `.provisioning`;
+- CI-attested-only `baselinePin`, `baseline.manifest`, `.receipt`, `.installer`,
+  `upgrade.owner`, `.validated`, `.retained`;
+- Archived `baseline.acquisition`, `upgrade.result`, `.baseline`, `.candidate`,
+  `.candidate-restart`, `.cleanup`, `.packages`.
+
+PRIMARY's other original files receive their own lock/semantic/identity checks;
+they are **not** falsely described as additional Core summary inputs. Public
+manifest/receipt build objects are exactly Core's six fields (`workflow`,
+`lockfileSha256`, `planSha256`, `nodeVersion`, `pnpmVersion`, `packageRegistry`).
+Ops-only `runUrl`/`attempt` are checked separately against original workflow
+metadata, never added to or reserialized into the public receipts.
+
+The pinned original artifacts API response must be one complete page (at most100
+records); incomplete pagination needs a separately reviewed format. Four exact
+selected names bind IDs, API ZIP digests/sizes, repository/source/run and expiry:
+`desktop-copilot-acceptance-<version>`, `desktop-copilot-observer-canary-<version>`,
+`desktop-fork-qualification-<version>-<source>-<attempt>` and
+`desktop-installer-upgrade-<version>`. No nonexistent artifact `run_attempt` field
+is invented. Original job metadata must show one successful PRIMARY, independent
+observer, installed qualification, complete qualification and qualified-summary
+upload in order.
+
+**Offline boundary:** this reader checks pinned API metadata plus original JSON
+consistency, not archive bytes or ZIP-member membership. The Ops-owned result's
+`formalEvidenceLimits` states `archiveBytesVerified:false`,
+`archiveMembershipVerified:false`, `unarchivedInstalledRootsReplayed:false`, scope
+`pinned-api-and-original-json-consistency`. These are Ops result limits, not fields
+inserted into Core evidence. An API digest alone cannot prove imported JSON was a
+member of that archive. At promotion, an independent authenticated audit **must**
+download all four original ZIPs, verify API size/digest, reject unsafe/duplicate/
+linked/traversal members, compare selected original member bytes exactly and retain
+reviewable acquisition provenance before committing real proof or pins. Missing
+original archives cannot be replaced with synthetic fixtures or reconstructed
+receipts. No collector, broader token, ZIP parser, runtime command or workflow lane
+is added by this preparation. Seven unavailable installed root/baseline inputs
+remain explicitly CI-attested, not offline replayed.
+
+新增 `dual-ordinary-canary-v1` 严格遵循上述 Core3ca51d 最终契约：普通 PRIMARY 原件位于根目录，
+独立 canary 原件位于 `canary/`，摘要／API 元数据及安装记录位于固定 `core-qualification/`。
+两组内部身份和原始哈希各自闭合，不强行比较跨运行 UUID、窗口 ID、时间或临时目录。
+Core 摘要精确45个 input，不伪造额外 `ordinary.*`；公开 build 只有6字段，Ops runUrl/attempt 另验。
+两组均强制21键／14真值／quotaReads4／固定已评审 Client 策略；fresh Ops 是第三次普通验收。
+离线 reader **不证明 ZIP 原字节或成员来源**，输出明确 false 限制；正式提升前必须独立下载4个原始 ZIP，
+核验 API 大小／哈希、安全成员及逐字节来源，再提交真实证据和锁。此准备只使用惰性测试数据，
+保留旧格式、当前 alpha.1 锁、原 fixtures 和真实 Ops SHA；不发布、提升、安装或激活。
 
 ## Audited starting points
 

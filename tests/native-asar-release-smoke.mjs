@@ -11,7 +11,7 @@ import { nativeLayout, preflightAsar, probeEnvironment, boundedHeader, headerRun
 import { hashFile, hashValid, inside, object, physical, relativeName, safeReason, sha256 } from '../tools/native-runtime-integrity.mjs';
 import { verifyNativeReleaseEvidence, verifyPositiveUsageEvidence } from '../tools/verify-native-desktop.mjs';
 import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
-import { verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
+import { packagedEvidenceFormat, verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
 import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -136,12 +136,16 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
   return plan;
 }
 
-// Exact immutable source emits deterministic read-only settings leaves. This
-// gate binds freshly executed phases to formal proof, never real search success.
+// Historical formats bind deterministic phase leaves to formal pins; dual verifies
+// its third run's own phase semantics. Neither path claims real search success.
 export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
+  const channel = lock.components.desktop.releaseChannel;
+  // Dual's third ordinary run was checked by verifyFreshOrdinaryPackagedEvidence; phase bytes belong to this run.
+  if (channel.upstreamVersion === '0.1.6-alpha.2' && packagedEvidenceFormat(lock) === 'dual-ordinary-canary-v1') {
+    return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput, null);
+  }
   // Do not let the historical settings early-return bypass explicit positive proof.
   verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput);
-  const channel = lock.components.desktop.releaseChannel;
   if (channel.upstreamVersion === '0.1.6-alpha.2') return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput);
   const proof = channel.nativeProvisioning.settingsAcceptance;
   if (proof === undefined && channel.upstreamVersion !== '0.1.6-alpha.2' &&

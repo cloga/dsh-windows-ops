@@ -13,7 +13,7 @@ import { preflightAsar, headerRuntimeInventory, probeEnvironment } from '../tool
 import { limits, validateDescriptor } from '../tools/native-runtime-integrity.mjs';
 import { probe as electronProbe } from '../tools/native-electron-probe.mjs';
 import { readNativeProfileMetadata } from '../tools/native-profile-metadata.mjs';
-import { packagedFixture } from './helpers/native-packaged-fixture.mjs';
+import { packagedFixture, dualPackagedFixture } from './helpers/native-packaged-fixture.mjs';
 const asarReader = createRequire(import.meta.url)('../tools/vendor/asar-reader/reader.cjs');
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
@@ -42,6 +42,19 @@ for (const bom of ['', '\uFEFF']) {
     assert.equal(JSON.parse(Buffer.concat(output).toString('utf8')).valid, true);
   });
 }
+
+test('dual formal public reader dispatches only the explicit format and preserves legacy alpha1 (inert)', t => {
+  const mocks = ['spawn', 'spawnSync', 'execFile', 'execFileSync'].map(name => t.mock.method(childProcess, name, () => { throw new Error('unexpected child'); }));
+  syncBuiltinESMExports();
+  t.after(() => { for (const mock of mocks) assert.equal(mock.mock.callCount(), 0); t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const f = dualPackagedFixture(t);
+  const result = verifyNativeReleaseEvidence(f.lock, f.directory);
+  assert.equal(result.valid, true); assert.equal(result.formalEvidenceLimits.archiveMembershipVerified, false);
+  const legacy = verifyNativeReleaseEvidence(actualLock(), formalRoot);
+  assert.equal(legacy.valid, true); assert.equal(Object.hasOwn(legacy, 'formalEvidenceLimits'), false);
+  f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.format = 'unknown-dual';
+  assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.directory), /native-packaged-evidence-invalid/);
+});
 
 test('formal immutable evidence preserves legacy manifest false and startup receipt true', () => {
   const result = verifyNativeReleaseEvidence(actualLock(), formalRoot);

@@ -89,6 +89,14 @@ Promotion must separately authenticate all four original ZIPs and audit safe,
 byte-exact selected-member acquisition before real evidence/pins are committed.
 No new download lane, archive parser or activation permission is introduced.
 
+Separate [dual-v2 preparation](../docs/core-016a2-assessment.md#alpha2-dual-v2-composer-proof-preparation)
+adds mandatory functional3/settings3/native2/summary2 exact51 and seed6 (no schema),
+with reviewed alpha35 Client policy and unchanged21-key positive proof. Raw and
+embedded settings/native/seed evidence binds each independent family; fresh Ops
+keeps its own run identity and seven verified Core facts, not formal pixel hashes.
+Old readers, current cloga17 pins and ZIP-provenance limits remain unchanged;
+inert tests do not authorize real promotion, native execution or activation.
+
 The current published Ops target is Desktop `0.1.6-alpha.1.cloga.17`,
 sequence 28, with unchanged bundled Core `0.1.6-alpha.1` and Copilot `0.4.0-alpha.33`.
 [Formal run `35583602522` attempt 1](../docs/desktop-external-links-17.md) succeeded;

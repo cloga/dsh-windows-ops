@@ -114,7 +114,7 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   const native = channel.nativeProvisioning;
   const format = packagedEvidenceFormat(lock);
   const modern = format !== undefined;
-  const dual = format === 'dual-ordinary-canary-v1';
+  const dual = ['dual-ordinary-canary-v1', 'dual-ordinary-canary-v2'].includes(format);
   if (dual) physical(directory, 'directory');
   const dataPath = name => {
     const path = join(directory, name);

@@ -12,6 +12,8 @@ import { releasePlan, validateReleaseMetadata, validateSourceIdentity, discoverA
   verifyFreshPositiveUsageClient } from './native-asar-release-smoke.mjs';
 import { hashFile, sha256 } from '../tools/native-runtime-integrity.mjs';
 import { settingsV3Fixture, settingsV3Negatives, nativeComposerFixture, composerNegatives } from './helpers/native-composer-fixture.mjs';
+import { createDualV2Fixture } from './helpers/native-dual-v2-fixture.mjs';
+import { verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
 const lockPath = fileURLToPath(new URL('../deployments/windows-copilot.lock.json', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(lockPath, 'utf8'));
 test('fresh settings schema3 accepts only the explicit retirement producer shape (inert)', t => {
@@ -528,4 +530,30 @@ test('CLI has no implicit run or confirmation bypass and sanitizes failures', ()
     const data = JSON.parse(result.stdout); assert.equal(data.valid, false); assert.equal(data.modelResponseVerified, false);
     assert.match(data.reason, /^native-/);
   }
+});
+
+test('dual-v2 fresh settings remain bound to actual own-run observations, not formal geometry or pins', t => {
+  const f = createDualV2Fixture(t), fresh = f.fresh();
+  const accepted = verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, fresh.run);
+  assert.equal(accepted.schemaVersion, 3);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, accepted, fresh.directory), undefined);
+  assert.notDeepEqual(accepted.settingsAcceptance, f.get('acceptance.json').settingsAcceptance);
+  assert.notDeepEqual(accepted.nativeComposer.geometry, f.get('acceptance.json').nativeComposer.geometry);
+  const settings = fresh.get('initial-settings-readonly.json'); settings.accountViewLoaded = false;
+  fresh.put('initial-settings-readonly.json', settings);
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, accepted, fresh.directory), /native-packaged-evidence-invalid/);
+});
+
+test('dual-v2 installed Client check cannot use the absent legacy positive-proof early return', t => {
+  const f = createDualV2Fixture(t);
+  assert.equal(f.lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance, undefined);
+  const profile = join(f.directory, 'inert-client-profile');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile));
+  const directory = join(profile, 'node_modules', 'dsh-github-copilot', 'lib'); mkdirSync(directory, { recursive: true });
+  const client = join(directory, 'client.js'); writeFileSync(client, '// INERT wrong Client bytes; never execute');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
+  writeFileSync(client, Buffer.alloc(2 * 1024 * 1024 + 1));
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
+  writeFileSync(client, '');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
 });

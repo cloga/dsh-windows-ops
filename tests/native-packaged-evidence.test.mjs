@@ -632,3 +632,262 @@ for (const field of ['head_sha', 'run_attempt', 'html_url']) test(`dual rejects 
   forbidChildren(t); const f = dualPackagedFixture(t); change(f, 'core-qualification/workflow-run.json', v => { v[field] = 'wrong'; });
   f.seal(); assert.throws(() => verifyDual(f));
 });
+
+// New explicit dual-v2 preparation only: every historical test above remains unchanged.
+import { createDualV2Fixture, resealDualV2Fixture } from './helpers/native-dual-v2-fixture.mjs';
+import { assertV2Native, assertV2Seed, assertV2Settings, reviewedClient35 } from '../tools/native-dual-v2-evidence.mjs';
+const dualV2Added = ['ordinary.initial.settings', 'ordinary.restart.settings', 'ordinary.nativeComposer',
+  'ordinary.nativeComposerSeed', 'packaged.nativeComposer', 'packaged.nativeComposerSeed'];
+const dualV2Files = ['initial-settings-readonly.json', 'restart-settings-readonly.json', 'native-composer-geometry.json',
+  'native-composer-seed.json', 'canary/initial-settings-readonly.json', 'canary/restart-settings-readonly.json',
+  'canary/native-composer-geometry.json', 'canary/native-composer-seed.json'];
+const verifyDualV2 = f => readDualPackagedEvidence(f.lock, f.directory);
+function directNative(f, value = f.get('native-composer-geometry.json')) {
+  const functional = f.get('functional-results.json');
+  return assertV2Native(value, functional, functional.plugin, f.digest('native-composer-seed.json'), reviewedClient35);
+}
+
+test('dual-v2 exact51 raw graph and distinct owned families pass full read-only consumers (inert)', t => {
+  forbidChildren(t); const f = createDualV2Fixture(t);
+  const watched = [...dualV2Files, 'functional-results.json', 'acceptance.json', 'positive-usage.json',
+    'canary/functional-results.json', 'canary/failure.json', 'canary/observer-cleanup.json', 'canary/packaged-suite.json',
+    'core-qualification/qualification.json', 'release.json', 'build-receipt.json'];
+  const before = watched.map(file => f.digest(file));
+  assert.equal(packagedEvidenceFormat(f.lock), 'dual-ordinary-canary-v2');
+  assert.equal(usesCombinedPackagedEvidence(f.lock), false);
+  const accepted = verifyDualV2(f), canary = f.get('canary/functional-results.json');
+  assert.equal(accepted.schemaVersion, 3); assert.equal(accepted.cleanupVerified, true);
+  assert.notEqual(accepted.evidenceId, canary.evidenceId);
+  for (const field of ['versionMenus', 'timeline', 'settingsAcceptance', 'nativeComposer']) assert.notDeepEqual(accepted[field], canary[field]);
+  assert.notEqual(f.get('initial-packaged-graph.json').profile, f.get('canary/initial-packaged-graph.json').profile);
+  const summary = f.get('core-qualification/qualification.json'); assert.equal(summary.schemaVersion, 2);
+  assert.equal(Object.keys(summary.inputs).length, 51); for (const name of dualV2Added) assert.ok(summary.inputs[name]);
+  assert.equal(verifyNativeReleaseEvidence(f.lock, f.directory).valid, true);
+  assert.equal(accepted.nativeComposer.geometry[1].copilot.y > accepted.nativeComposer.geometry[1].usage.y, true);
+  assert.deepEqual(watched.map(file => f.digest(file)), before);
+});
+test('dual-v2 fresh Ops family keeps independent native/settings/menus/paths/time and actual run IDs (inert)', t => {
+  forbidChildren(t); const f = createDualV2Fixture(t), fresh = f.fresh();
+  const accepted = verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, fresh.run);
+  assert.equal(accepted.runId, '456'); assert.equal(accepted.runAttempt, '3');
+  assert.equal(accepted.nativeComposer.runId, '456'); assert.equal(accepted.nativeComposer.runAttempt, '3');
+  for (const field of ['evidenceId', 'versionMenus', 'timeline', 'settingsAcceptance', 'nativeComposer'])
+    assert.notDeepEqual(accepted[field], f.get('acceptance.json')[field]);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, accepted, fresh.directory), undefined);
+  assert.throws(() => verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, { runId: '123', runAttempt: '2' }));
+});
+for (const label of dualV2Added) test(`dual-v2 rejects missing exact51 addition ${label}`, t => {
+  forbidChildren(t); const f = createDualV2Fixture(t); dualSummary(f, v => { delete v.inputs[label]; });
+  assert.throws(() => verifyDualV2(f));
+});
+for (const [name, mutate] of [
+  ['unknown52nd', v => { v.inputs['ordinary.invented'] = '0'.repeat(64); }],
+  ['schema1 with51', v => { v.schemaVersion = 1; }],
+  ['schema2 with45', v => { for (const label of dualV2Added) delete v.inputs[label]; }],
+  ['swapped native families', v => { [v.inputs['ordinary.nativeComposer'], v.inputs['packaged.nativeComposer']] = [v.inputs['packaged.nativeComposer'], v.inputs['ordinary.nativeComposer']]; }],
+  ['source mismatch', v => { v.sourceCommit = '0'.repeat(40); }],
+]) test(`dual-v2 rejects rehashed summary ${name}`, t => {
+  forbidChildren(t); const f = createDualV2Fixture(t); dualSummary(f, mutate); assert.throws(() => verifyDualV2(f));
+});
+for (const file of dualV2Files) {
+  test(`dual-v2 rejects missing original ${file}`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t); unlinkSync(join(f.directory, file)); assert.throws(() => verifyDualV2(f));
+  });
+  test(`dual-v2 rejects unpinned raw newline ${file}`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t); writeFileSync(join(f.directory, file), readFileSync(join(f.directory, file), 'utf8') + '\n');
+    assert.throws(() => verifyDualV2(f));
+  });
+}
+for (const [name, mutate] of [
+  ['v1 selector with new evidence', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.format = 'dual-ordinary-canary-v1'; }],
+  ['settings lock2', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = 2; }],
+  ['legacy positive wrapper', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance = { schemaVersion: 1 }; }],
+  ['functional2', f => change(f, 'functional-results.json', v => { v.schemaVersion = 2; })],
+  ['ordinary2', f => change(f, 'acceptance.json', v => { v.schemaVersion = 2; })],
+  ['canary functional2', f => change(f, 'canary/functional-results.json', v => { v.schemaVersion = 2; })],
+  ['retired top-level flags restored', f => change(f, 'acceptance.json', v => { v.modelRolesViewLoaded = true; v.currentWorkspaceReadOnly = true; })],
+  ['new invented top-level flag', f => change(f, 'acceptance.json', v => { v.accountViewLoaded = true; })],
+  ['final cleanup false', f => change(f, 'acceptance.json', v => { v.cleanupVerified = false; })],
+]) test(`dual-v2 rejects rehashed family fence ${name}`, t => {
+  forbidChildren(t); const f = createDualV2Fixture(t); mutate(f); f.seal(); assert.throws(() => verifyDualV2(f));
+});
+test('dual-v2 selector does not reinterpret old dual-v1 proof bytes', t => {
+  forbidChildren(t); const f = dualPackagedFixture(t);
+  f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.format = 'dual-ordinary-canary-v2';
+  assert.throws(() => verifyDualV2(f));
+});
+for (const prefix of ['', 'canary/']) {
+  for (const field of ['evidenceId', 'sourceCommit', 'sourceTree', 'runId', 'runAttempt', 'planSha256',
+    'runtimeSha256', 'executableSha256', 'provisioningSha256', 'capabilitySha256']) {
+    test(`dual-v2 rejects jointly rehashed ${prefix || 'primary/'}native identity ${field}`, t => {
+      forbidChildren(t); const f = createDualV2Fixture(t);
+      change(f, prefix + 'native-composer-geometry.json', v => { v[field] = field === 'evidenceId' ? '33333333-4444-4555-8666-777777777777' : field === 'runId' || field === 'runAttempt' ? '999' : '0'.repeat(field === 'sourceCommit' || field === 'sourceTree' ? 40 : 64); });
+      const attacked = f.get(prefix + 'native-composer-geometry.json')[field]; resealDualV2Fixture(f);
+      assert.equal(f.get(prefix + 'functional-results.json').nativeComposer[field], attacked);
+      assert.throws(() => verifyDualV2(f));
+    });
+  }
+  for (const [name, mutate] of [
+    ['native schema1', v => { v.schemaVersion = 1; }],
+    ['wrong Client', v => { v.installedClientSha256 = '0'.repeat(64); }],
+    ['wrong source tuple', v => { v.pluginSource.targetCommit = '0'.repeat(40); }],
+    ['native unknown field', v => { v.extra = true; }],
+    ['native missing scope', v => { delete v.scope; }],
+    ['renderer error', v => { v.rendererErrors = ['inert error']; }],
+    ['real model claim', v => { v.realModelRound = true; }],
+    ['wrong quota scope', v => { v.quota = 'live'; }],
+  ]) test(`dual-v2 rejects jointly rehashed ${prefix || 'primary/'}${name}`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t); change(f, prefix + 'native-composer-geometry.json', mutate); f.seal(); assert.throws(() => verifyDualV2(f));
+  });
+  for (const [name, mutate] of [
+    ['seed schema invented', v => { v.schemaVersion = 1; }],
+    ['seed calls string', v => { v.seederModelCalls = '0'; }],
+    ['seed calls model', v => { v.seederModelCalls = 1; }],
+    ['seed wrong Session', v => { v.sessionId = 'other'; }],
+    ['seed unregistered', v => { v.workspaceRegistered = false; }],
+    ['seed live quota', v => { v.liveAccountQuota = true; }],
+  ]) test(`dual-v2 rejects jointly rehashed ${prefix || 'primary/'}${name}`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t); change(f, prefix + 'native-composer-seed.json', mutate); f.seal(); assert.throws(() => verifyDualV2(f));
+  });
+  for (const [name, mutate] of [
+    ['account false', v => { v.accountViewLoaded = false; }],
+    ['retirement false', v => { v.retiredModelRolesAbsent = false; }],
+    ['legacy role key', v => { delete v.retiredModelRolesAbsent; v.modelRolesViewLoaded = true; }],
+    ['settings schema2', v => { v.schemaVersion = 2; }],
+    ['duplicate provider', v => { v.registeredSearchProviders.push('github-copilot-hosted'); }],
+    ['empty provider', v => { v.registeredSearchProviders.push(''); }],
+    ['oversized provider', v => { v.registeredSearchProviders.push('x'.repeat(257)); }],
+    ['real search claim', v => { v.realSearch = true; }],
+  ]) test(`dual-v2 rejects jointly rehashed ${prefix || 'primary/'}settings ${name}`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t);
+    for (const phase of ['initial', 'restart']) change(f, `${prefix}${phase}-settings-readonly.json`, mutate);
+    f.seal(); assert.throws(() => verifyDualV2(f));
+  });
+  test(`dual-v2 rejects rehashed ${prefix || 'primary/'}within-family providers disagreement`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t); change(f, prefix + 'restart-settings-readonly.json', v => v.registeredSearchProviders.push('inert-other'));
+    f.seal(); assert.throws(() => verifyDualV2(f));
+  });
+  for (const [name, mutate] of [
+    ['missing native event', v => { v.timeline.splice(v.timeline.findIndex(row => row.event === 'native-composer:application'), 1); }],
+    ['duplicate native event', v => { v.timeline.push({ ...v.timeline.at(-1) }); }],
+    ['native before restart close', v => { const rows = v.timeline.splice(-5); v.timeline.splice(1, 0, ...rows); v.timeline.forEach((row, i) => { row.milliseconds = i; }); }],
+    ['native observed after close', v => { const row = v.timeline.at(-2); v.timeline[v.timeline.length - 2] = v.timeline.at(-1); v.timeline[v.timeline.length - 1] = row; v.timeline.forEach((entry, i) => { entry.milliseconds = i; }); }],
+    ['negative elapsed', v => { v.timeline[0].milliseconds = -1; }],
+    ['fractional negative elapsed', v => { v.timeline[0].milliseconds = -0.5; }],
+  ]) test(`dual-v2 rejects jointly rehashed ${prefix || 'primary/'}timeline ${name}`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t);
+    for (const file of [prefix + 'functional-results.json', ...(prefix ? [] : ['acceptance.json'])]) change(f, file, mutate);
+    f.seal(); assert.throws(() => verifyDualV2(f));
+  });
+  for (const field of ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
+    'applicationMountPreserved', 'syntheticSiblingPreserved', 'inheritedSessionScopeVerified', 'explicitUndefinedSessionScopeAbsent',
+    'removedSessionRestoresUsage', 'closedSessionHidesUsage', 'closedSessionRestoresUsage', 'restoredProviderShowsUsage', 'subscriptionsReleased', 'syntheticContextDisposed']) {
+    test(`dual-v2 retains jointly rehashed ${prefix || 'primary/'}positive ${field} guard`, t => {
+      forbidChildren(t); const f = createDualV2Fixture(t); change(f, prefix + 'positive-usage.json', v => { v.cases[0][field] = false; });
+      f.seal(); assert.throws(() => verifyDualV2(f));
+    });
+  }
+  for (const [name, mutate] of [
+    ['quota2', v => { v.cases[0].quotaReads = 2; }], ['case extra', v => { v.cases[0].extra = true; }],
+    ['wrong amounts', v => { v.cases[0].usageText = '7 used'; }], ['swapped providers', v => { v.cases.reverse(); }],
+    ['wrong policy Client', v => { v.installedClientSha256 = '0'.repeat(64); }],
+  ]) test(`dual-v2 retains rehashed ${prefix || 'primary/'}positive ${name} guard`, t => {
+    forbidChildren(t); const f = createDualV2Fixture(t); change(f, prefix + 'positive-usage.json', mutate); f.seal(); assert.throws(() => verifyDualV2(f));
+  });
+}
+for (const [name, mutate, options] of [
+  ['stale seed edge', f => change(f, 'native-composer-geometry.json', v => { v.seedSha256 = '0'.repeat(64); }), { seedEdge: false }],
+  ['embedded native mismatch', f => change(f, 'acceptance.json', v => { v.nativeComposer.geometry[0].time.x++; }), { embedNative: false }],
+  ['embedded settings mismatch', f => change(f, 'acceptance.json', v => { v.settingsAcceptance[0].registeredSearchProviders.push('extra'); }), { embedSettings: false }],
+  ['native cross-family copy', f => f.put('native-composer-geometry.json', f.get('canary/native-composer-geometry.json')), {}],
+  ['early observer failure', f => change(f, 'canary/failure.json', v => { v.timeline.at(-1).milliseconds = 0; }), {}],
+  ['wrong canary failure marker', f => change(f, 'canary/failure.json', v => { v.error = 'download 403'; }), {}],
+]) test(`dual-v2 rejects jointly rehashed ${name}`, t => {
+  forbidChildren(t); const f = createDualV2Fixture(t); mutate(f); f.seal(options); assert.throws(() => verifyDualV2(f));
+});
+for (const phase of ['candidate', 'candidate-restart']) test(`dual-v2 rejects historical roles in installed ${phase}`, t => {
+  forbidChildren(t); const f = createDualV2Fixture(t);
+  change(f, `core-qualification/installed/${phase}.json`, v => {
+    v.actualHostSettingsViews = { ...f.get('core-qualification/installed/baseline.json').actualHostSettingsViews,
+      currentWorkspaceReadOnly: true, providerOnlySearchRouting: true, fallbackProviderLabel: true };
+  }); f.seal(); assert.throws(() => verifyDualV2(f));
+});
+test('dual-v2 retains exact old B1 baseline instead of relabeling it settings3', t => {
+  forbidChildren(t); const f = createDualV2Fixture(t), old = dualPackagedFixture(t);
+  assert.equal(f.digest('core-qualification/installed/baseline.json'), old.digest('core-qualification/installed/baseline.json'));
+  change(f, 'core-qualification/installed/baseline.json', v => { v.actualHostSettingsViews = f.get('initial-settings-readonly.json'); });
+  f.seal(); assert.throws(() => verifyDualV2(f));
+});
+
+// Direct pure parser cases preserve NaN/Infinity rather than letting JSON coerce them to null.
+for (const widthIndex of [0, 1]) for (const [name, mutate] of [
+  ['x left of dock', g => { g.time.x = g.dock.x - 2; }],
+  ['x right of dock', g => { g.copilot.x = g.dock.x + g.dock.width; }],
+  ['y above dock', g => { g.time.y = g.dock.y - 2; }],
+  ['y below dock', g => { g.copilot.y = g.dock.y + g.dock.height; }],
+  ['overlap', g => { g.copilot = { ...g.usage }; }],
+  ['NaN', g => { g.time.x = NaN; }], ['Infinity', g => { g.dock.height = Infinity; }],
+  ['string coordinate', g => { g.time.x = '20'; }], ['zero width', g => { g.time.width = 0; }],
+  ['negative height', g => { g.usage.height = -1; }], ['extra box key', g => { g.dock.extra = 1; }],
+  ['missing geometry key', g => { delete g.time; }],
+  ['style mismatch', g => { g.copilotStyle.color = 'red'; }],
+  ['invalid px syntax', g => { g.nativeStyle.fontSize = g.copilotStyle.fontSize = 'badpx'; }],
+  ['zero px', g => { g.nativeStyle.lineHeight = g.copilotStyle.lineHeight = '0px'; }],
+  ['unbounded style', g => { g.nativeStyle.color = g.copilotStyle.color = 'x'.repeat(129); }],
+]) test(`dual-v2 native pure geometry rejects ${widthIndex ? 400 : 1280} ${name}`, t => {
+  forbidChildren(t); const f = createDualV2Fixture(t), value = f.get('native-composer-geometry.json'); mutate(value.geometry[widthIndex]);
+  assert.throws(() => directNative(f, value));
+});
+for (const [name, mutate] of [
+  ['extra geometry row', v => v.geometry.push(v.geometry[0])], ['swapped widths', v => v.geometry.reverse()],
+  ['wide different row', v => { v.geometry[0].copilot.y += 2; }],
+  ['wide usage before time allowed but copilot before usage forbidden', v => { const g = v.geometry[0]; g.copilot.x = g.time.x; g.copilot.width = 60; g.time.x = 350; }],
+  ['native dialog false', v => { v.nativeDialogs.time.focusReturned = false; }],
+  ['native dialog extra', v => { v.nativeDialogs.usage.extra = true; }],
+  ['Copilot dialog invented opened', v => { v.copilotDialog.opened = true; }],
+  ['Copilot epoch', v => { v.copilotDialog.epochTextCount = 1; }],
+  ['Copilot missing focus', v => { delete v.copilotDialog.focusReturned; }],
+]) test(`dual-v2 native pure contract rejects ${name}`, t => {
+  forbidChildren(t); const f = createDualV2Fixture(t), value = f.get('native-composer-geometry.json'); mutate(value); assert.throws(() => directNative(f, value));
+});
+test('dual-v2 pure leaf success and one-pixel containment tolerance retain narrow wrap', t => {
+  forbidChildren(t); const f = createDualV2Fixture(t), value = f.get('native-composer-geometry.json');
+  assertV2Seed(f.get('native-composer-seed.json')); assertV2Settings(f.get('initial-settings-readonly.json'));
+  value.geometry[1].time.x = value.geometry[1].dock.x - 1;
+  value.geometry[1].time.y = value.geometry[1].dock.y - 1;
+  assert.equal(directNative(f, value), undefined);
+});
+test('dual-v2 native vertical containment rejects all controls shifted together at both widths', t => {
+  forbidChildren(t); const f = createDualV2Fixture(t);
+  for (const index of [0, 1]) {
+    const value = f.get('native-composer-geometry.json');
+    for (const name of ['time', 'usage', 'copilot']) value.geometry[index][name].y += 1000;
+    // Equal displacement preserves native wide inline rows and all pairwise separation.
+    // The unchanged dock makes only vertical containment invalid (no invented viewport height).
+    assert.throws(() => directNative(f, value));
+  }
+});
+test('dual-v2 native fixed policy rejects self-consistent unknown source, Client and historical alpha33', t => {
+  forbidChildren(t); const f = createDualV2Fixture(t), old = dualPackagedFixture(t);
+  const functional = f.get('functional-results.json'), original = f.get('native-composer-geometry.json');
+  const seedHash = f.digest('native-composer-seed.json');
+  const source = structuredClone(functional.plugin); source.targetCommit = '0'.repeat(40);
+  const wrongSource = structuredClone(original); wrongSource.pluginSource = source;
+  assert.throws(() => assertV2Native(wrongSource, functional, source, seedHash, reviewedClient35));
+  const wrongClient = structuredClone(original); wrongClient.installedClientSha256 = '0'.repeat(64);
+  assert.throws(() => assertV2Native(wrongClient, functional, functional.plugin, seedHash, wrongClient.installedClientSha256));
+  const oldPositive = old.get('positive-usage.json');
+  const historical = structuredClone(original); historical.pluginSource = oldPositive.pluginSource;
+  historical.installedClientSha256 = oldPositive.installedClientSha256;
+  assert.throws(() => assertV2Native(historical, functional, historical.pluginSource, seedHash, historical.installedClientSha256));
+});
+test('dual-v2 rejects the maintained optional native1 wrapper instead of mixing families', t => {
+  forbidChildren(t); const f = createDualV2Fixture(t), fresh = f.fresh();
+  f.lock.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance = {
+    schemaVersion: 1, sha256: f.digest('native-composer-geometry.json'), installedClientSha256: reviewedClient35,
+  };
+  assert.throws(() => packagedEvidenceFormat(f.lock), /native-packaged-evidence-invalid/);
+  assert.throws(() => verifyDualV2(f), /native-packaged-evidence-invalid/);
+  assert.throws(() => verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, fresh.run), /native-packaged-evidence-invalid/);
+  assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.directory), /native-packaged-evidence-invalid/);
+});

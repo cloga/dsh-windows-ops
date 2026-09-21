@@ -4,7 +4,8 @@ import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 import { packagedV2Fixture, packagedV3Fixture } from './helpers/native-packaged-fixture.mjs';
-import { packagedEvidenceFormat, readCombinedPackagedEvidence, verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
+import { createDualV2Fixture } from './helpers/native-dual-v2-fixture.mjs';
+import { packagedEvidenceFormat, readCombinedPackagedEvidence, readDualPackagedEvidence, verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
 import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
 import { verifyFreshSettingsEvidence, verifyFreshNativeComposerEvidence } from './native-asar-release-smoke.mjs';
 
@@ -16,6 +17,52 @@ const nativeMutation = (f, change) => {
   f.put('functional-results.json', functional); f.seal();
 };
 const reject = f => assert.throws(() => read(f));
+
+// Settings3/alpha35 are shared leaves, not permission to interchange native1/summary1
+// combined evidence with native2/summary2-51 dual evidence. Reseal the changed edges.
+for (const dual of [false, true]) {
+  const label = dual ? 'dual-v2' : 'combined-v3';
+  const make = dual ? createDualV2Fixture : packagedV3Fixture;
+  const formal = dual ? readDualPackagedEvidence : readCombinedPackagedEvidence;
+  test(`${label} rejects the other family's native envelope after resealing`, t => {
+    const f = make(t);
+    assert.doesNotThrow(() => formal(f.lock, f.directory));
+    const value = f.get('native-composer-geometry.json');
+    value.schemaVersion = dual ? 1 : 2;
+    if (dual) delete value.seedSha256;
+    else value.seedSha256 = 'a'.repeat(64);
+    f.put('native-composer-geometry.json', value);
+    const functional = f.get('functional-results.json'); functional.nativeComposer = value;
+    f.put('functional-results.json', functional);
+    f.seal({ seedEdge: false });
+    assert.throws(() => formal(f.lock, f.directory), /native-packaged-evidence-invalid/u);
+  });
+  test(`${label} rejects the other family's summary schema after rehashing`, t => {
+    const f = make(t), file = 'core-qualification/qualification.json';
+    const summary = f.get(file); summary.schemaVersion = dual ? 1 : 2;
+    f.put(file, summary); f.seal();
+    assert.throws(() => formal(f.lock, f.directory), /native-packaged-evidence-invalid/u);
+  });
+  test(`${label} cannot enter the other family's formal reader`, t => {
+    const f = make(t);
+    assert.throws(() => (dual ? readCombinedPackagedEvidence : readDualPackagedEvidence)(f.lock, f.directory),
+      /native-packaged-evidence-invalid/u);
+  });
+  test(`${label} fresh ordinary rejects the other family's native envelope`, t => {
+    const f = make(t);
+    const fresh = dual ? f.fresh() : { ...f, run: f.ordinary() };
+    assert.doesNotThrow(() => verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, fresh.run));
+    const value = fresh.get('native-composer-geometry.json'); value.schemaVersion = dual ? 1 : 2;
+    if (dual) delete value.seedSha256;
+    else value.seedSha256 = 'a'.repeat(64);
+    fresh.put('native-composer-geometry.json', value);
+    for (const file of ['functional-results.json', 'acceptance.json']) {
+      const record = fresh.get(file); record.nativeComposer = value; fresh.put(file, record);
+    }
+    assert.throws(() => verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, fresh.run),
+      /native-packaged-evidence-invalid/u);
+  });
+}
 
 test('explicit v3 accepts only the original-shaped inert graph through the formal reader', t => {
   const f = packagedV3Fixture(t);

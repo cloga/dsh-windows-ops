@@ -112,6 +112,12 @@ formal/Ops proof stays in its [owning record](docs/copilot-alpha33-upgrade-recor
 and cannot qualify `.cloga.17`. Alpha.2 is unpublished and unqualified; this preparation
 does not authorize installation, activation or restart.
 
+See [dual-v2 composer proof preparation](docs/core-016a2-assessment.md#alpha2-dual-v2-composer-proof-preparation):
+explicit51 inputs, functional3/settings3/native2/seed6 and fixed alpha35 Client
+policy, retaining21-key positives, own raw hashes and genuine fresh Ops identity.
+Old formats/current pins stay unchanged; this is not promotion, original-ZIP
+verification or activation permission.
+
 ## Copilot account-discovered route maintenance
 
 For a newer Copilot installation moving from two routes to the account-discovered directory, use the [check-first configuration maintenance flow](docs/copilot-managed-route.md) and separate [`copilot-managed-route.policy.json`](deployments/copilot-managed-route.policy.json). It permits only explicitly approved path-level settings CAS: no component installation, restart, or automatic Session/default changes. It does not replace or downgrade an existing Desktop to the separate deployment target below. The policy release must be verified, its exact plugin version must be loaded, and cold-history implications require acknowledgement. This is not a new full Desktop/Core attestation.

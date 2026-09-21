@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { nativeLayout, preflightAsar, runAsarProbe } from './native-asar-runtime.mjs';
 import { hashFile, physical } from './native-runtime-integrity.mjs';
 import { readNativeProfileMetadata } from './native-profile-metadata.mjs';
+import { verifySettingsV3Evidence, verifyNativeComposerEvidence } from './native-composer-evidence.mjs';
 import { packagedEvidenceFormat, readCombinedPackagedEvidence, readDualPackagedEvidence } from './native-packaged-evidence.mjs';
 
 const fail = (code) => { throw new Error(code); };
@@ -72,7 +73,7 @@ export function verifyPositiveUsageEvidence(lock, accepted, read) {
   const digest = value => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
   requireValue(object(proof) && proof.schemaVersion === 1 && digest(proof.sha256) &&
     digest(proof.installedClientSha256) && native.usageAcceptance?.schemaVersion === 1 &&
-    native.settingsAcceptance?.schemaVersion === 2, code);
+    [2, 3].includes(native.settingsAcceptance?.schemaVersion), code);
   const positive = read('positive-usage.json', proof.sha256);
   const transport = 'not-provided-to-isolated-fixture';
   const plugin = lock.components.copilotIntegration;
@@ -195,7 +196,9 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   // New paired releases carry exact read-only settings proof. Legacy fixtures
   // remain historical; exact alpha.2 requires this gate regardless of sequence.
   // Explicit combined/dual adapters already validate alpha.2's full settings/menu/usage graph.
-  if (!modern && (native.settingsAcceptance !== undefined ||
+  if (!modern && native.settingsAcceptance?.schemaVersion === 3) {
+    verifySettingsV3Evidence(lock, acceptance, read);
+  } else if (!modern && (native.settingsAcceptance !== undefined ||
     (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12))) {
     const settingsProof = native.settingsAcceptance;
     requireValue(object(settingsProof) && (settingsProof.schemaVersion === undefined || settingsProof.schemaVersion === 2) &&
@@ -266,6 +269,7 @@ export function verifyNativeReleaseEvidence(lock, directory) {
       isDeepStrictEqual(observations[0], observations[1]), 'native-release-usage-mismatch');
   }
   if (!dual) verifyPositiveUsageEvidence(lock, acceptance, read); // Dual already requires the exact quota4 policy in both runs.
+  verifyNativeComposerEvidence(lock, acceptance, read);
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
     const graph = read(file, hash);

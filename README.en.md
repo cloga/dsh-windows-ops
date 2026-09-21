@@ -10,6 +10,13 @@
 
 This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
+## UI fixture appendix
+
+Start with the canonical [bounded release-debugging checklist](docs/core-upgrade.md#bounded-release-debugging).
+Its [UI fixture appendix](docs/small-ui-change-validation.md) covers actual renderer
+navigation, physical Slot layout owners and immutable same-run evidence. It is not a
+second release process or permission to install, activate or restart.
+
 ## Offline original-ZIP audit tooling
 
 The [offline ZIP/member audit guide](docs/artifact-zip-audit.md) documents the

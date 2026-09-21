@@ -10,6 +10,12 @@
 
 本仓库沉淀在真实 Windows 环境中验证过的 DSH Desktop/Copilot 部署、诊断、修复和集成经验。它不分发 Desktop、DSH 或第三方插件；正式支持范围由精确锁和验收契约定义。
 
+## UI fixture 附录
+
+统一入口是[有界发布排障清单](docs/core-upgrade.md#bounded-release-debugging)。
+其 [UI fixture 附录](docs/small-ui-change-validation.md)补充真实 renderer 导航、Slot 物理布局容器
+与同次不可变验收证据检查，不另立发布流程，也不授权本机安装、激活或重启。
+
 ## 原始 ZIP 离线审计工具
 
 [ZIP／成员离线审计指南](docs/artifact-zip-audit.md)介绍只读、仅依赖 Python 标准库的

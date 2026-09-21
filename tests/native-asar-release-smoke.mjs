@@ -11,6 +11,7 @@ import { nativeLayout, preflightAsar, probeEnvironment, boundedHeader, headerRun
 import { hashFile, hashValid, inside, object, physical, relativeName, safeReason, sha256 } from '../tools/native-runtime-integrity.mjs';
 import { verifyNativeReleaseEvidence, verifyPositiveUsageEvidence } from '../tools/verify-native-desktop.mjs';
 import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
+import { verifySettingsV3Evidence, verifyNativeComposerEvidence } from '../tools/native-composer-evidence.mjs';
 import { packagedEvidenceFormat, verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
 import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
 
@@ -139,6 +140,7 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
 // Historical formats bind deterministic phase leaves to formal pins; dual verifies
 // its third run's own phase semantics. Neither path claims real search success.
 export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
+  verifyFreshNativeComposerEvidence(lock, accepted, sourceOutput);
   const channel = lock.components.desktop.releaseChannel;
   // Dual's third ordinary run was checked by verifyFreshOrdinaryPackagedEvidence; phase bytes belong to this run.
   if (channel.upstreamVersion === '0.1.6-alpha.2' && packagedEvidenceFormat(lock) === 'dual-ordinary-canary-v1') {
@@ -150,8 +152,14 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
   const proof = channel.nativeProvisioning.settingsAcceptance;
   if (proof === undefined && channel.upstreamVersion !== '0.1.6-alpha.2' &&
     !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
-  need(proof && (proof.schemaVersion === undefined || proof.schemaVersion === 2) &&
-    accepted.modelRolesViewLoaded === true && accepted.searchProviderCatalogLoaded === true &&
+  const settingsV3 = proof?.schemaVersion === 3;
+  if (settingsV3) verifySettingsV3Evidence(lock, accepted, (name, digest) => {
+    const path = physical(join(sourceOutput, name), 'file');
+    need(hashFile(path) === digest, 'source-settings-acceptance-incomplete');
+    return readJson(path);
+  });
+  need(proof && (proof.schemaVersion === undefined || proof.schemaVersion === 2 || settingsV3) &&
+    (settingsV3 || accepted.modelRolesViewLoaded === true) && accepted.searchProviderCatalogLoaded === true &&
     accepted.realSearch === false, 'source-settings-acceptance-incomplete');
   if (proof.schemaVersion === 2) {
     need(accepted.manageCompatibilityDisclosureAbsent === true && accepted.providerOnlySearchRouting === true &&
@@ -160,7 +168,8 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
       accepted.realSearch === false, 'source-settings-acceptance-incomplete');
   }
   let providers; const versionMenus = [];
-  const phases = [['initial', proof.initialSha256, proof.initialVersionMenuSha256],
+  // V3 was checked by its exact retirement contract; never demand retired V2 role fields.
+  const phases = settingsV3 ? [] : [['initial', proof.initialSha256, proof.initialVersionMenuSha256],
     ['restart', proof.restartSha256, proof.restartVersionMenuSha256]];
   for (const [phase, digest, versionDigest] of phases) {
     const path = physical(join(sourceOutput, `${phase}-settings-readonly.json`), 'file');
@@ -217,6 +226,11 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
     need(isDeepStrictEqual(accepted.signedOutCopilotUsage, observations) &&
       isDeepStrictEqual(observations[0], observations[1]), 'source-usage-acceptance-incomplete');
   }
+}
+
+export function verifyFreshNativeComposerEvidence(lock, accepted, sourceOutput) {
+  // Browser pixels/styles belong to this run. Only the formal path compares proof.sha256.
+  verifyNativeComposerEvidence(lock, accepted, name => readJson(physical(join(sourceOutput, name), 'file'), 64 * 1024));
 }
 
 export function verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput) {

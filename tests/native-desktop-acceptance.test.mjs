@@ -14,11 +14,55 @@ import { limits, validateDescriptor } from '../tools/native-runtime-integrity.mj
 import { probe as electronProbe } from '../tools/native-electron-probe.mjs';
 import { readNativeProfileMetadata } from '../tools/native-profile-metadata.mjs';
 import { packagedFixture, dualPackagedFixture } from './helpers/native-packaged-fixture.mjs';
+import { settingsV3Fixture, settingsV3Negatives, nativeComposerFixture, composerNegatives } from './helpers/native-composer-fixture.mjs';
 const asarReader = createRequire(import.meta.url)('../tools/vendor/asar-reader/reader.cjs');
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
 const actualLock = () => JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url), 'utf8'));
 const formalRoot = fileURLToPath(new URL('../' + actualLock().components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
+
+test('explicit settings schema3 accepts account readiness and retired roles without schema2 claims (inert)', t => {
+  const f = settingsV3Fixture(t); assert.equal(verifyNativeReleaseEvidence(f.lock, f.directory).valid, true);
+  assert.equal(actualLock().components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion, 2);
+});
+for (const [name, mutate] of settingsV3Negatives) {
+  test(`formal settings schema3 rejects ${name} even with rehashed synthetic bytes`, t => {
+    const f = settingsV3Fixture(t); mutate(f); f.save();
+    assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.directory), /native-release-settings-v3-mismatch/);
+  });
+}
+test('formal schema3 authenticates bytes before semantic checks', t => {
+  const f = settingsV3Fixture(t); const path = join(f.directory, 'restart-settings-readonly.json');
+  writeFileSync(path, readFileSync(path, 'utf8') + '\n');
+  assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.directory), /native-release-file-hash-mismatch/);
+});
+
+test('optional formal native composer proof accepts source-owned fields in synthetic copies only', t => {
+  const f = nativeComposerFixture(t); assert.equal(verifyNativeReleaseEvidence(f.lock, f.directory).valid, true);
+  assert.equal(actualLock().components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance, undefined);
+});
+for (const [name, mutate] of composerNegatives) {
+  test(`formal composer rejects rehashed ${name}`, t => {
+    const f = nativeComposerFixture(t); mutate(f); f.save();
+    assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.directory), /native-release-composer-mismatch/);
+  });
+}
+for (const proof of [null, false, {}, { schemaVersion: '1' }]) {
+  test(`formal composer rejects malformed explicit proof ${JSON.stringify(proof)}`, t => {
+    const f = nativeComposerFixture(t); f.native.nativeComposerAcceptance = proof;
+    assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.directory), /native-release-composer-mismatch/);
+  });
+}
+test('formal composer authenticates its own raw file before semantic checks', t => {
+  const f = nativeComposerFixture(t); const path = join(f.directory, 'native-composer-geometry.json');
+  writeFileSync(path, readFileSync(path, 'utf8') + '\n');
+  assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.directory), /native-release-file-hash-mismatch/);
+});
+test('formal composer remains optional for explicitly unselected historical proof', t => {
+  const f = nativeComposerFixture(t); delete f.native.nativeComposerAcceptance;
+  unlinkSync(join(f.directory, 'native-composer-geometry.json'));
+  assert.equal(verifyNativeReleaseEvidence(f.lock, f.directory).valid, true);
+});
 
 for (const bom of ['', '\uFEFF']) {
   test(`CLI waits for fragmented UTF-8 stdin${bom ? ' with BOM' : ''}`, async (t) => {
@@ -436,7 +480,7 @@ test('signed-out usage requires deterministic phase equality even when both phas
 
 test('settings evidence rejects an unknown schema version', t => {
   const { root, lock } = providerNavigationFixture(t);
-  lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = 3;
+  lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.schemaVersion = 4;
   assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-settings-mismatch/);
 });
 

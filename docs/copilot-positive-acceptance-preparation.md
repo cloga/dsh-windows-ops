@@ -12,8 +12,9 @@ at exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`; formal proof
 alone is not that qualification. This later documentation/evidence-only follow-up
 records that code-head result, not a native rerun of its own head. The
 [deployment lock](../deployments/windows-copilot.lock.json) and [authoritative guide](local-core-desktop-copilot.md#authoritative-baseline)
-define the current candidate; the [`.cloga.17` owning record](desktop-external-links-17.md)
-records verified publication and **still-pending fresh hosted Native Ops qualification**.
+define the current published target; the [`.cloga.17` owning record](desktop-external-links-17.md)
+records verified publication and **fresh hosted Native Ops run `35595040585` attempt 1
+SUCCESS at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`**, not a later evidence commit or merge.
 No `.cloga.16` hash or success receipt transfers to `.17`. No live profile,
 Core, installed Desktop or running Session is modified.
 

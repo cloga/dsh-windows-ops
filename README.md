@@ -22,7 +22,7 @@
 
 本次 [0.1.6-alpha.2 官方对照与迁移决定](docs/core-016a2-assessment.md)记录已审视的
 官方替代、必须保留的差异和已发现的接口问题；源码评估不是新部署基线。
-后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron、Playwright 与 Copilot alpha.28 的历史发布证据继续保留。当前候选 Ops 目标为已独立核验发布制品的 Desktop `0.1.6-alpha.1.cloga.17` / sequence 28 / bundled Core alpha.1 / Copilot alpha.33；全新 hosted Native Ops qualification 仍待执行，见[外链维护发布记录](docs/desktop-external-links-17.md)。Alpha.33 虽兼容官方 Core alpha.2，但另行负责、仍为 draft 的 Desktop PR 68 尚未合格，本维护发布不提升 Core。正式发布与来源验收不代表本机已安装/激活，也不证明真实 compaction、OAuth、model 或 search。
+后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron、Playwright 与 Copilot alpha.28 的历史发布证据继续保留。当前已发布 Ops 目标为已独立核验发布制品的 Desktop `0.1.6-alpha.1.cloga.17` / sequence 28 / bundled Core alpha.1 / Copilot alpha.33；全新 hosted Native Ops run `35595040585` attempt 1 已在精确 code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9` 通过，见[外链维护发布记录](docs/desktop-external-links-17.md)。Alpha.33 虽兼容官方 Core alpha.2，但另行负责、仍为 draft 的 Desktop PR 68 尚未合格，本维护发布不提升 Core。正式发布与来源验收不代表本机已安装/激活，也不证明真实 compaction、OAuth、model 或 search。
 另见[原生加载依赖与镜像验证](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification)：
 `node-addon-require-builtin@0.1.6` 属于官方启动层；旧版 `0.1.5` 虽通过独立 Node 测试，却在 Electron 44 的实际原生调用中失败；历史已验证部署中的 `0.1.6` 文件在同一载体通过主线程及两个 Worker 对照，因此保留 `0.1.6`。这不等于取得 npm 原始包或完成整个 Core 验收。该节也区分可选 CUA 测试依赖与 Desktop 运行需要，并记录 pnpm 11 筛选安装仍包含根项目的限制。
 
@@ -39,7 +39,7 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 
 **Alpha.2 兼容准备仍独立：** native descriptor 校验仅对精确 Core
 `0.1.6-alpha.2` 要求 Host protocol 4，保留旧版 protocol 3 与 synthetic-only 检查。
-当前候选 Ops 目标 Desktop `.cloga.17` 仍内置 Core alpha.1；Alpha.33 的 alpha.2 admission
+当前已发布 Ops 目标 Desktop `.cloga.17` 仍内置 Core alpha.1；Alpha.33 的 alpha.2 admission
 不等于 draft alpha.2 Desktop 已合格或已部署。详见[严格准备边界](docs/core-016a2-assessment.md#strict-native-compatibility-preparation)。
 
 **组合证据准备不代表提升基线：** [Ops #181 准备工作](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
@@ -50,8 +50,9 @@ Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读�
 合成 Client 单元测试不等于在托管环境中执行实际已发布 Client。
 真实 Ops 调用方身份与经过验证的 Core 检出身份分开保留；私有 Ops 源码归档不是 Git 检出目录。
 精确且成功的 Core CI 摘要可以证明执行过未完整归档根记录的安装检查，但不能提供完整离线重放。
-此 alpha.2 准备工作不修改六资产公开契约，也不改变当前候选 `.cloga.17`/alpha.33
-目标的 Core alpha.1 范围；该目标的全新 hosted Native Ops qualification 仍待执行。
+此 alpha.2 准备工作不修改六资产公开契约，也不改变当前 `.cloga.17`/alpha.33
+目标的 Core alpha.1 范围；该目标已由全新 hosted Native Ops run `35595040585` attempt 1
+在精确 code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9` 独立验收。
 历史 `.cloga.16` 的正式/Ops 证据见[原 owning record](docs/copilot-alpha33-upgrade-record.md)，
 不能移用到 `.cloga.17`。Alpha.2 尚未发布、尚未合格；此准备工作不授权安装、激活或重启。
 
@@ -65,20 +66,24 @@ Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读�
 记录原生“关于”菜单中的完整版本，区分 Core 与可用更新，并为旧版提供只读的可执行文件
 元数据检查。该功能首次随已验证的不可变 [Desktop `0.1.6-alpha.1.cloga.12`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.12) 发布；正式来源证据不代表本机安装或激活。
 
-## 当前候选 Ops 部署目标（制品已发布）
+## 当前已发布 Ops 部署目标（精确 code head 已验收）
 
-机器可执行契约以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准。当前候选目标的发布制品与正式证据已于 **2026-09-21** 独立核验；**`.cloga.17` 的全新 hosted Native Ops qualification 仍待执行**，不能继承旧目标的成功。
+机器可执行契约以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准。发布制品与正式证据已于 **2026-09-21** 独立核验；**`.cloga.17` 的全新 hosted Native Ops run `35595040585` attempt 1 已通过**，验收只绑定下列精确 code head，不继承旧目标的成功，也不把后续文档/证据提交或合并提交称为 native-qualified。
 
-| 组件 | 候选目标身份 |
+| 组件 | 目标身份 |
 |---|---|
 | DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.17`，sequence 28，不可变 Release `392847203`，source `f25506b4ad190ce090b8a4e9602c7ad36179db6b` |
 | Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `eca8a91da4737f625716323d0be8a51156b24934183904a41d06599ffafe36bd`；ASAR root 跟随实际 EXE |
 | 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.33`，source `aa90fe434da8b2172faa1446afa0a0fd006afe00`；由 `desktopNativeVerifiedRelease` 接管 |
 | 正式 packaged 证据 | [run `35583602522`](https://github.com/cloga/deepseek-harness/actions/runs/35583602522) attempt 1 **SUCCESS**；来源绑定的 initial/restart settings/version-menu、signed-out usage 与 synthetic positive usage proof |
-| Native Ops qualification | **待执行**：须记录 `.cloga.17` 的精确 Ops code head、run/attempt 和原始 summary；历史 `.cloga.16` run `35577921833` 不适用 |
+| Native Ops qualification | [run `35595040585`](https://github.com/cloga/dsh-windows-ops/actions/runs/35595040585) attempt 1 **SUCCESS**，精确 code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`；native job `106318363183` 与全部 4 个 jobs 通过；[原始 summary](tests/fixtures/desktop-native-verified-release/ops-cloga016-17/qualification.json)及[来源记录](tests/fixtures/desktop-native-verified-release/ops-cloga016-17/README.md)独立绑定 |
 
-本次为 runtime-only Desktop 外链维护，Core 与 Copilot 版本不变；不是 Core alpha.2 提升。
+本次为 runtime-only Desktop 外链维护，Core 与 Copilot 版本不变；不提升 Core alpha.2，也不采用 Copilot alpha.34。
 [外链维护发布记录](docs/desktop-external-links-17.md)保存六资产、来源/哈希和验收边界。
+新 Ops summary 为 1,073 bytes，SHA-256 `6ad0298788578353c6ef306ddeec225c785d335631f06b7d38c1f879cc526fee`；
+whole-carrier/model-response/installer-upgrade flags 仍为 false。首次 native run `35590167413`
+的启动失败原因仍未知，原始 not-ready 证据保留；后续诊断不证明已修复其原因。
+普通 CI `35593395998` 的 LF/CRLF 测试提取缺陷由 `bb7a0a3…` 的 test-only 修改修复，不能说成 runtime 故障。
 实际 Electron DOM 激活的外链 fixture 使用替代 OS opener，不证明真实浏览器导航或 OAuth。
 保持 **stage-only**，不在本机安装、激活或重启。
 
@@ -105,7 +110,7 @@ model/search、save/create、本机安装或重启；external-navigation success
 
 ### 当前目标的运行与安全边界
 
-Lock 更新表示经过评审的目标，不代表本机状态，也不替代待执行的 `.cloga.17` hosted Native Ops qualification。已安装 Desktop 仍为 `.cloga.10`
+Lock 更新表示经过评审的目标，不代表本机状态；`.cloga.17` hosted Native Ops 成功仅绑定精确 `bb7a0a366e789b19918be6d8a6e40266c46a94f9` code head。已安装 Desktop 仍为 `.cloga.10`
 时，不得针对 future lock 运行 current-machine Check；预期 drift 不是发布缺陷。
 Managed helper 仍是交互式流程，需要单独确认 active Sessions 影响及 Windows/UAC，
 本次明确选择 **stage-only**：不在本机安装、激活或重启；live account 验证留待未来人类请求，
@@ -127,7 +132,7 @@ positive proof 与 synthetic/downstream 边界；PR #157 通过官方 `useSessio
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
 release. Recovery requires the independently verified lock-selected installer,
-completion of that target's qualification (still pending for `.cloga.17`), explicit interruption consent and a clean Desktop/Host exit, coordinated by the
+that target's exact-head qualification (`.cloga.17` run `35595040585` at `bb7a0a366e789b19918be6d8a6e40266c46a94f9`), explicit interruption consent and a clean Desktop/Host exit, coordinated by the
 operator outside the broken helper. Do not patch live files or install missing
 dependencies into an update operation. Generic direct registry probe failures
 are not evidence that the supported provisioner failed.

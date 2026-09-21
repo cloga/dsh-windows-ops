@@ -103,7 +103,7 @@
         "evidence": [
           {
             "kind": "deployment-lock",
-            "description": "The proposed Windows deployment lock selects published immutable Desktop 0.1.6-alpha.1.cloga.17 sequence 28, bundled Core 0.1.6-alpha.1, and unchanged Copilot 0.4.0-alpha.33. Formal release run 35583602522 attempt 1 and its source-bound original artifacts/packaged startup, restart, settings, signed-out and positive usage evidence are verified. Fresh exact-head Windows Ops native-ASAR qualification is pending for this target; neither prior .cloga.16 nor alpha32 qualification is transferred. No local installation or activation is claimed.",
+            "description": "The Windows deployment lock selects published immutable Desktop 0.1.6-alpha.1.cloga.17 sequence 28, bundled Core 0.1.6-alpha.1, and unchanged Copilot 0.4.0-alpha.33. Formal release run 35583602522 attempt 1 and original packaged evidence are verified. Fresh native-ASAR run 35595040585 attempt 1 passed at exact Ops code head bb7a0a366e789b19918be6d8a6e40266c46a94f9, including native job106318363183 and all four jobs. This later docs/evidence-only record is not relabeled as the qualified code head. Prior .16/alpha33 and .14/alpha32 evidence is not transferred; the first .17 startup failure remains unexplained. No local installation or activation is claimed.",
             "path": "deployments/windows-copilot.lock.json"
           },
           {
@@ -118,8 +118,13 @@
           },
           {
             "kind": "functional-smoke",
-            "description": "Formal source run 35583602522 attempt 1 verified packaged Electron initial/restart provisioning, signed-out account and retained alpha33 Model roles views, read-only workspace, provider-only search routing, Fallback labeling, Desktop version menus, graph isolation, helper handoff and cleanup for 0.1.6-alpha.1.cloga.17/0.4.0-alpha.33. Positive usage uses released Client bytes and isolated synthetic Session/quota for both Copilot routes without Host transport. Separate external-link renderer tests use actual Electron clicks with a substituted OS opener; real browser loading/OAuth/model/search and installer upgrade remain unverified. Fresh Ops qualification is pending, not implied by the formal source workflow.",
+            "description": "Formal source run 35583602522 attempt 1 verified packaged Electron initial/restart provisioning, signed-out account and retained alpha33 Model roles views, read-only workspace, provider-only search routing, Fallback labeling, Desktop version menus, graph isolation, helper handoff and cleanup for 0.1.6-alpha.1.cloga.17/0.4.0-alpha.33. Positive usage uses released Client bytes and isolated synthetic Session/quota for both Copilot routes without Host transport. Separate external-link renderer tests use actual Electron clicks with a substituted OS opener; real browser loading/OAuth/model/search and installer upgrade remain unverified. Separate fresh Ops run 35595040585 passed at exact code head bb7a0a366e789b19918be6d8a6e40266c46a94f9; its driver enforced the locked formal inputs. That result is independent of formal publication and is not execution at this later evidence-recording commit.",
             "path": "tests/fixtures/desktop-native-verified-release/formal-cloga016-17/acceptance.json"
+          },
+          {
+            "kind": "import-probe",
+            "description": "Fresh .17 registered-caller run 35595040585 attempt 1 / native job106318363183 passed at exact Ops code head bb7a0a366e789b19918be6d8a6e40266c46a94f9. Authenticated artifact10636930492 original ZIP is731bytes, SHA256 bde376fbf0325e81b30748478b8de365f26097ecb936919e4d8e6fa8babaa9e5; its sole byte-exact1073-byte qualification.json is SHA2566ad0298788578353c6ef306ddeec225c785d335631f06b7d38c1f879cc526fee. Schema1 verifies9806 runtime files, full application package identity/SHA2569dbc8d4f5239e17db08be4745accc48661396bbe538ce5cf5be461d461cde7e4, metadata+CJS+ESM resolution, one observer call, private-profile cleanup and three rejected descriptor/version/absent-home request copies. Formal positive proof is driver-enforced, not invented summary fields. Whole-carrier/model/installer-upgrade remain false. Earlier startup failure35590167413 remains unknown; later qualification success is not a root-cause repair. Runtime/test/workflow/lock bytes remain equal to qualified bb7; later record/merge SHAs are not native-run heads. No local activation.",
+            "path": "tests/fixtures/desktop-native-verified-release/ops-cloga016-17/qualification.json"
           },
           {
             "kind": "import-probe",
@@ -161,7 +166,7 @@
           "This entry pins the required plugin in the full deployment target, not the separate newer managed-route maintenance contract. See docs/copilot-managed-route.md and deployments/copilot-managed-route.policy.json for separately approved configuration-only maintenance; no implicit component upgrade or full-baseline attestation is provided."
         ]
       },
-      "summary": "The locked DSH companion for Copilot sign-in, account-aware models, provider-scoped Tool compatibility, provider-only primary/fallback search routing and official transport delegation. Alpha.33 fixes the required Session selector in the usage UI and remains a plugin, not official Core; the managed Desktop retains bundled Core alpha.1. Formal release evidence is available; independent new Windows Ops native qualification is pending."
+      "summary": "The locked DSH companion for Copilot sign-in, account-aware models, provider-scoped Tool compatibility, provider-only primary/fallback search routing and official transport delegation. Alpha.33 fixes the required Session selector in the usage UI and remains a plugin, not official Core; the managed Desktop retains bundled Core alpha.1. Formal publication and fresh .17 Windows Ops native qualification are verified at recorded exact source heads; this does not install or activate the target locally."
     },
     {
       "id": "dsh-playwright-host",

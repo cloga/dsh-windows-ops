@@ -66,8 +66,10 @@ Cron/Playwright remain Web-only and outside native Desktop acceptance; the
 native base entry rejects `-IncludeCompanionSuite` and delegated mutations.
 The [deployment lock](../../deployments/windows-copilot.lock.json) and
 [authoritative guide](../local-core-desktop-copilot.md#authoritative-baseline) define
-the current candidate target; the [`.cloga.17` owning record](../desktop-external-links-17.md)
-separates verified publication from still-pending fresh hosted Native Ops qualification.
+the current published target; the [`.cloga.17` owning record](../desktop-external-links-17.md)
+records verified publication and fresh hosted Native Ops run `35595040585` attempt 1
+SUCCESS at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`. Later evidence
+commits/merges are not that native-qualified head; native success does not qualify this optional Web path.
 The `.cloga.12` / sequence 22 / Copilot alpha.30 formal run `35528552640` is historical:
 its initial/restart settings and version-menu proof does not establish real
 OAuth/navigation/model/search or qualify this optional Web path. Older `.cloga.2`

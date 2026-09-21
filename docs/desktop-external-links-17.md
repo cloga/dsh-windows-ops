@@ -4,7 +4,7 @@ Issue [#214](https://github.com/cloga/dsh-windows-ops/issues/214) synchronizes t
 
 ## Target and scope
 
-The proposed lock selects immutable [Desktop `0.1.6-alpha.1.cloga.17`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.17), sequence **28**, Release **392847203**, source `f25506b4ad190ce090b8a4e9602c7ad36179db6b`, tree `24f46ed7803bcafdebc326da5c469712868481bc`. The reviewed PR head is `49d22a555429e1c08efbd4af5f04878b3628b28d`; its tree is identical to the release tree.
+The lock selects immutable [Desktop `0.1.6-alpha.1.cloga.17`](https://github.com/cloga/deepseek-harness/releases/tag/dsh-desktop-v0.1.6-alpha.1.cloga.17), sequence **28**, Release **392847203**, source `f25506b4ad190ce090b8a4e9602c7ad36179db6b`, tree `24f46ed7803bcafdebc326da5c469712868481bc`. The reviewed PR head is `49d22a555429e1c08efbd4af5f04878b3628b28d`; its tree is identical to the release tree.
 
 Bundled Core stays `0.1.6-alpha.1` and the complete Copilot `0.4.0-alpha.33` source/artifact/checksum lock is unchanged. This is not an alpha.2 promotion or adoption of separately published Copilot alpha.34. The latter's removal of Model roles is not included in this Desktop pin.
 
@@ -32,7 +32,11 @@ The [new formal fixture generation](../tests/fixtures/desktop-native-verified-re
 
 ## Fresh Windows Ops qualification
 
-**Pending for this proposed .17 lock.** The exact branch's registered `plugin-catalog.yml` caller must run with `qualify_native_asar=true` and `confirm_version=0.1.6-alpha.1.cloga.17`. It must verify source/lock/asset identity, extract the installer as data, use the maintained isolated observer and source-owned checks, and retain the authenticated raw `qualification.json`. No prior .16 run or receipt is relabeled as .17 evidence.
+**Passed at exact Ops code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`.** Registered caller [run `35595040585`, attempt 1](https://github.com/cloga/dsh-windows-ops/actions/runs/35595040585), including native job `106318363183` and all four jobs, succeeded for `confirm_version=0.1.6-alpha.1.cloga.17`. It verified source/lock/asset identity, extracted the installer as data, and ran the maintained isolated observer and source-owned checks. The [original new summary and acquisition record](../tests/fixtures/desktop-native-verified-release/ops-cloga016-17/README.md) are retained separately from all prior generations.
+
+Authenticated artifact `10636930492` is a 731-byte original ZIP, SHA-256 `bde376fbf0325e81b30748478b8de365f26097ecb936919e4d8e6fa8babaa9e5`. Its sole raw `qualification.json` is 1,073 bytes, SHA-256 `6ad0298788578353c6ef306ddeec225c785d335631f06b7d38c1f879cc526fee`. It reports 9,806 runtime files, exact application package `cloga-deepseek-harness-desktop@0.1.6-alpha.1.cloga.17` with SHA-256 `9dbc8d4f5239e17db08be4745accc48661396bbe538ce5cf5be461d461cde7e4`, public metadata/CJS/ESM resolution, one observer call, private-profile cleanup and three rejected descriptor-digest/version/absent-home requests. Whole-carrier, model-response and installer-upgrade flags remain false.
+
+This documentation/evidence-only follow-up records native execution at `bb7a0a3`, not at its later commit or eventual merge SHA. Runtime, test, workflow, lock and all 21 formal files remain byte-equal to that qualified head. Final-head ordinary CI and parent review are required before merge; no prior .16 run or receipt is relabeled as .17 evidence.
 
 The prior approved .16/alpha33 native qualification, including run `35577921833` at `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`, remains historical in the [alpha33 record](copilot-alpha33-upgrade-record.md). Alpha.2 adapters and their negative tests remain retained but do not promote Core.
 
@@ -46,6 +50,8 @@ The earlier diagnostic vocabulary omitted the fixture's version-menu and usage m
 
 Producer inspection is pinned to released Core `f25506b4ad190ce090b8a4e9602c7ad36179db6b`: `apps/desktop/src/github-release.ts` supplies the bounded status message; `plugin-source.ts` supplies its fixed subject; `startup-error.ts` flattens error messages; `renderer/startup.js` displays them; `tests/fixtures/copilot-release-smoke.ts` wraps startup text and records phases. No Core/release bytes, settings, credentials, timing, retry policy or acceptance assertions change. New diagnostics require reviewed new code and a separately approved fresh qualifier; a subsequent pass cannot retroactively diagnose this failed attempt.
 
+Ordinary Windows CI `35593395998` on diagnostic head `c0bc3646c6ae9533bd56c17096a7aad1f23d7d4e` failed the LF-only test boundary assertion before the PowerShell guard executed; 1,150 other tests passed. A controlled reproduction failed with CRLF and passed with LF; the original CI checkout bytes were not retained. The `bb7a0a3` correction normalizes only the in-memory workflow test input, checks identical LF/CRLF guard statements, retains both missing-marker negatives and executes unchanged privacy/type/unknown-field controls for both variants. Workflow, diagnostic and publication/evidence bytes were not normalized or changed. Its ordinary checks passed before the newly approved native run. The later native success does not prove that diagnostics or this test correction repaired the first startup failure.
+
 ## Installation and evidence limits
 
 `installerUpgradeVerified=false`; real OAuth, model rounds, search and live account quota are not established. A source-owned packaged startup/restart and isolated native-ASAR observer are not execution of NSIS or the operator's installed profile. The installer remains unsigned by the established fork channel, not a weakened signature exception.
@@ -54,6 +60,6 @@ This synchronization changes source-controlled pins and evidence only. It does n
 
 ## 中文摘要
 
-本次拟将 Ops 锁同步至已发布的 Desktop `.cloga.17`／序号 28，保留 Core alpha.1 和 Copilot alpha.33；不提升 alpha.2，也不采用另行发布的 alpha.34。正式发布 run `35583602522` attempt 1 已通过，六个不可变制品及校验和已独立核验；新增 formal-cloga016-17 原始证据，不重写旧证据。
+本次将 Ops 锁同步至已发布的 Desktop `.cloga.17`／序号 28，保留 Core alpha.1 和 Copilot alpha.33；不提升 alpha.2，也不采用另行发布的 alpha.34。正式发布 run `35583602522` attempt 1 已通过，六个不可变制品及校验和已独立核验；新增 formal-cloga016-17 原始证据，不重写旧证据。新的 Native Ops run `35595040585` attempt 1 已在精确 code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9` 通过四个 jobs；原始 ZIP 与唯一 summary 的大小、哈希和内容已认证，新增 ops-cloga016-17 保留原件。
 
-链接测试通过真实 Electron 点击路径，但替换系统浏览器打开函数；不证明真实浏览器加载、OAuth 或安装升级。新的 Ops exact-head native-ASAR 资格尚未完成，不能把旧 .16 的成功移植到本版。首次 run `35590167413` 的原始 not-ready 失败记录保留不变；其泛化启动错误和被过滤后的阶段不能确定根因。后续只增强固定词汇的失败诊断和已记录阶段，不输出原始内容、不改变超时或重试、不修改 Core 制品，须另行评审后才运行一次新诊断验收。当前不安装、不启动 Desktop、不写 profile、不激活或重启。
+链接测试通过真实 Electron 点击路径，但替换系统浏览器打开函数；不证明真实浏览器加载、OAuth 或安装升级。首次 run `35590167413` 的原始 not-ready 失败记录保留不变，根因仍未知；固定词汇诊断改进和后续通过不能证明它被修复。另一次普通 Windows CI 在只识别 LF 的测试边界断言失败；受控复现中 CRLF 失败而 LF 通过，未保留原始 CI checkout 字节。修正仅规范化内存中的测试输入并实测两种行尾，不改变产品或证据字节。本次后续提交仅记录 qualified code head `bb7a0a3` 的成功，不宣称其自身或 merge SHA 执行了 Native Ops；仍须最终普通 CI 和父代理审核。当前不安装、不启动 Desktop、不写 profile、不激活或重启。

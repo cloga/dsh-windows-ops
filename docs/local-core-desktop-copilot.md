@@ -60,11 +60,13 @@ of the operator's live application.
 ## Authoritative baseline
 
 [`deployments/windows-copilot.lock.json`](../deployments/windows-copilot.lock.json)
-is the machine-readable deployment contract. The current candidate Ops target is
-published Desktop `.cloga.17` / sequence 28, retaining Core alpha.1 and Copilot alpha.33.
+is the machine-readable deployment contract. The current published Ops target is
+Desktop `.cloga.17` / sequence 28, retaining Core alpha.1 and Copilot alpha.33.
 Published artifacts and source-bound formal proof were independently verified on
-**2026-09-21**. **Fresh hosted Native Ops qualification for `.cloga.17` is pending**;
-record its exact Ops code head, run/attempt and original summary only after that run.
+**2026-09-21**. **Fresh hosted Native Ops run `35595040585` attempt 1 passed** at exact
+qualified code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`, including native job
+`106318363183` and all four jobs. Later documentation/evidence commits or a merge
+are not relabeled as that native-qualified head.
 Historical `.cloga.16` runs cannot qualify this target. See the
 [external-link maintenance release record](desktop-external-links-17.md).
 The stable deployment ID remains `windows-copilot-2026-09-15`; this date update
@@ -105,7 +107,8 @@ plain-Node ASAR fallback or port-3080 ownership claim is accepted. Historical
 The formal EXE has PE ProductVersion `0.1.6.0`, CompanyName `GitHub, Inc.` and
 Authenticode `NotSigned`; its semantic release is `0.1.6-alpha.1.cloga.17`.
 
-**Current candidate `.cloga.17`: publication verified; fresh hosted Native Ops qualification pending.**
+**Current `.cloga.17`: publication verified; fresh hosted Native Ops qualification passed
+at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9` in run `35595040585` attempt 1.**
 [Formal run `35583602522` attempt 1](https://github.com/cloga/deepseek-harness/actions/runs/35583602522)
 succeeded for the source/tree above. All six public assets, remote digests, checksum
 manifests, source inputs and packaged acceptance are independently verified. The
@@ -260,9 +263,10 @@ is not a claim of local application activation or a fresh model response.
 
 The historical [Copilot alpha.33 formal acceptance record](copilot-alpha33-upgrade-record.md)
 extends the [historical alpha.32 record](copilot-alpha32-upgrade-plan.md) with the
-official selector fix and authenticated positive usage proof. The current candidate
+official selector fix and authenticated positive usage proof. The current published
 [`.cloga.17` release](desktop-external-links-17.md) keeps bundled Core alpha.1 and
-Copilot alpha.33; its fresh hosted Ops qualification is pending. Historical `.16`
+Copilot alpha.33; its fresh hosted Ops run `35595040585` attempt 1 passed at exact
+code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`. Historical `.16`
 run `35575187267` at `a59f586df4e329c3bc8b3f885013fdb5493f4970` cannot transfer.
 Separately owned draft Desktop alpha.2 PR 68 remains unqualified and out of scope.
 
@@ -328,12 +332,35 @@ runtime replacement or authorize unconditional feature removal or activation.
 
 ## Scoped Ops CI qualification
 
-**Current candidate `.cloga.17` / sequence 28 / Core alpha.1 / Copilot alpha.33:
-fresh hosted Native Ops qualification pending.** Formal run `35583602522` attempt 1
-and published-artifact verification do not replace this separate gate. Record the
-actual Ops code head, run/attempt, native job and byte-bound original summary in
-[the owning `.17` record](desktop-external-links-17.md) after the fresh run succeeds.
-No earlier `.16`, `.14`, `.12` or `.2` run qualifies `.17`; no local activation is authorized.
+**Current `.cloga.17` / sequence 28 / Core alpha.1 / Copilot alpha.33:
+fresh hosted Native Ops qualification passed.** [Run `35595040585`](https://github.com/cloga/dsh-windows-ops/actions/runs/35595040585)
+attempt 1 qualified exact Ops **code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`**.
+Native [job `106318363183`](https://github.com/cloga/dsh-windows-ops/actions/runs/35595040585/job/106318363183)
+and all four jobs passed. Formal run `35583602522` attempt 1 and independently
+verified published assets remain separate evidence. Later documentation/evidence
+commits or an eventual merge are not relabeled as this native-qualified head.
+
+Original artifact `10636930492` is a **731-byte ZIP**, SHA-256
+`bde376fbf0325e81b30748478b8de365f26097ecb936919e4d8e6fa8babaa9e5`.
+Its sole [raw `qualification.json`](../tests/fixtures/desktop-native-verified-release/ops-cloga016-17/qualification.json)
+is **1,073 bytes**, SHA-256 `6ad0298788578353c6ef306ddeec225c785d335631f06b7d38c1f879cc526fee`.
+See the [original-artifact provenance](../tests/fixtures/desktop-native-verified-release/ops-cloga016-17/README.md)
+and [owning `.17` record](desktop-external-links-17.md). The summary binds Desktop source
+`f25506b4ad190ce090b8a4e9602c7ad36179db6b`, tree `24f46ed7803bcafdebc326da5c469712868481bc`,
+and the exact installer/EXE/descriptor above. It records **9,806 runtime files**,
+application package SHA-256 `9dbc8d4f5239e17db08be4745accc48661396bbe538ce5cf5be461d461cde7e4`,
+public resolver `metadata-cjs-esm`, `observerCalls:1`, `profileRemoved:true`, and
+three invalid request-copy rejections. `wholeCarrierAttested`, `modelResponseVerified`
+and `installerUpgradeVerified` remain false.
+
+First native [run `35590167413`](https://github.com/cloga/dsh-windows-ops/actions/runs/35590167413)
+remains an unexplained startup failure; the original
+[not-ready raw evidence](evidence/desktop-links-17-initial-failure/qualification.json) is retained unchanged.
+Later diagnostics did not repair or prove the startup cause. Ordinary CI `35593395998`
+instead exposed an LF/CRLF test-extraction defect; `bb7a0a3…` fixed that test only,
+not a runtime failure. A later successful native run does not erase the first failure.
+No earlier `.16`, `.14`, `.12` or `.2` run qualifies `.17`; no local installation,
+activation or restart, Core alpha.2 or Copilot alpha.34 adoption is authorized.
 
 ### Historical `.cloga.16` qualification
 
@@ -510,8 +537,9 @@ SHA-256 is `34a56d9d8bf8d2ffcd584b90b4af1e1140c388eb5c7ddb35e99c02f00600d27b`.
 
 At the time of that additive notice guidance, the [deployment lock](../deployments/windows-copilot.lock.json)
 selected the separate `.cloga.7` baseline from [ops PR #178](https://github.com/cloga/dsh-windows-ops/pull/178).
-The current candidate target is published `0.1.6-alpha.1.cloga.17`, sequence 28;
-its fresh hosted Ops qualification is pending. The `.cloga.8` record above remains
+The current published target is `0.1.6-alpha.1.cloga.17`, sequence 28;
+fresh hosted Ops run `35595040585` attempt 1 passed at exact code head
+`bb7a0a366e789b19918be6d8a6e40266c46a94f9`. The `.cloga.8` record above remains
 historical and is not relabeled as current Ops observer proof.
 [Run `35210215981`](#scoped-ops-ci-qualification) remains historical `.cloga.1`
 proof, and native Ops run `35278350619` is historical `.cloga.2`/alpha.24 proof.
@@ -550,7 +578,7 @@ still need separate consent.
 unresolved `semver` import and fail before ACK without `node_modules`. A new
 release cannot repair an already installed broken helper. Use the independently
 verified lock-selected installer only after required target checks
-(fresh hosted Ops qualification is still pending for candidate `.cloga.17`), explicit interruption
+(`.cloga.17` hosted Ops run `35595040585` passed at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`), explicit interruption
 consent and a clean Desktop/Host exit, with normal interactive Windows/UAC
 handling. Do not reuse the failed handoff, patch live helper files, add operation
 dependencies or bypass session protection. The historical `.cloga.2` repaired
@@ -941,8 +969,10 @@ in Verify/DryRun; Native Apply/Rollback remains delegated. The [historical Ops
 qualification](#scoped-ops-ci-qualification) in run `35210215981` applies only to
 `.cloga.1`/alpha.22. Historical `.cloga.2`/alpha.24 qualification passed in run
 `35278350619`; historical `.cloga.16`/alpha.33 hosted Ops run `35575187267` passed at
-exact code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`. Current candidate `.cloga.17`
-requires fresh hosted Ops qualification, still pending; these runs cannot transfer.
+exact code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`. Current `.cloga.17`
+passed its own fresh hosted Ops run `35595040585` attempt 1 at exact code head
+`bb7a0a366e789b19918be6d8a6e40266c46a94f9`; older runs cannot transfer, and later
+evidence commits/merges are not relabeled as that native-qualified head.
 Read-only replay neither substitutes for qualification nor broadens its scope.
 
 The Electron Host uses parent-owned byte pipes and `dsh-app://`, not an HTTP

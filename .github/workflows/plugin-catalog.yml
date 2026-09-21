@@ -94,6 +94,24 @@ jobs:
           package-manager-cache: false
       - run: node tools/validate-repository-content.mjs
       - run: node --test tests/repository-content.test.mjs tests/core-upgrade.test.mjs
+      - name: Set up offline ZIP audit test runtime
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+      - name: Record ZIP audit runtime and source binding
+        shell: bash
+        run: |
+          python -I -B -c 'import json, platform, sys, zlib; assert sys.version_info[:3] == (3, 12, 10); print(json.dumps({"python": sys.version, "platform": platform.platform(), "zlibCompile": zlib.ZLIB_VERSION, "zlibRuntime": zlib.ZLIB_RUNTIME_VERSION}))'
+          printf 'checkoutCommit='; git rev-parse HEAD
+          printf 'checkoutTree='; git rev-parse 'HEAD^{tree}'
+          sha256sum tools/artifact-zip-audit.py tests/artifact-zip-audit-tests.py
+          printf 'repository=%s event=%s githubSha=%s job=%s\n' "$GITHUB_REPOSITORY" "$GITHUB_EVENT_NAME" "$GITHUB_SHA" "$GITHUB_JOB"
+          printf 'run=%s/%s/actions/runs/%s/attempts/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+      - name: Test offline ZIP auditor (59 inert tests; Linux evidence only)
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: python -I -B tests/artifact-zip-audit-tests.py
 
   repository-policy:
     runs-on: ubuntu-latest

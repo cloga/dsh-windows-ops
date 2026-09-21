@@ -53,6 +53,7 @@ for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles'
     const lock = actualLock(), output = temporary(t); forbidChildren(t);
     const legacyProof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
     delete legacyProof.schemaVersion; delete legacyProof.initialVersionMenuSha256; delete legacyProof.restartVersionMenuSha256;
+    delete lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance;
     lock.components.desktop.releaseChannel.upstreamVersion = upstream;
     // alpha.2 must require settings even below alpha.1's historical sequence threshold.
     if (upstream === '0.1.6-alpha.2') lock.components.desktop.releaseChannel.sequence = 1;
@@ -88,8 +89,23 @@ function providerNavigationSourceEvidence(t) {
     const versionPath = join(output, `${phase}-version-menu.json`); writeFileSync(versionPath, JSON.stringify(versionMenu));
     proof[`${phase}VersionMenuSha256`] = hashFile(versionPath); versionMenus.push(versionMenu);
   }
+  const capability = { id: 'account-quota-composer-usage', required: true,
+    evidenceScope: 'synthetic-quota-and-public-remote-ui-contracts-not-live-account-access',
+    signedOutNetworkRegressionDeclared: true, lifecycleRegressionDeclared: true };
+  const signedOut = { usageTriggerCount: 0, accountUsageTextCount: 0, usageSurfaceAbsent: true,
+    hostQuotaRequestInstrumentation: 'not-available-in-packaged-smoke' };
+  const usageProof = { schemaVersion: 1 }; const observations = [];
+  for (const phase of ['initial', 'restart']) {
+    const path = join(output, `${phase}-usage-readonly.json`); writeFileSync(path, JSON.stringify({ capability, signedOut }));
+    usageProof[`${phase}Sha256`] = hashFile(path); observations.push(signedOut);
+  }
+  channel.nativeProvisioning.usageAcceptance = usageProof;
   const accepted = { versionMenus, modelRolesViewLoaded: true, searchProviderCatalogLoaded: true,
     manageCompatibilityDisclosureAbsent: true, providerOnlySearchRouting: true,
+    copilotUsageCapability: capability, signedOutCopilotUsage: observations,
+    hostQuotaNoNetworkEvidence: 'immutable-plugin-ci-regression-only', liveAccountQuota: false,
+    timeline: [{ event: 'initial:account' }, { event: 'initial:usage-readonly' },
+      { event: 'restart:account' }, { event: 'restart:usage-readonly' }],
     realOAuth: false, verificationNavigationExercised: false, manualVerificationAddressObserved: false,
     realModelRound: false, realSearch: false };
   return { lock, output, accepted };
@@ -126,6 +142,20 @@ for (const [mode, mutate, rehash] of [
     const path = join(output, 'restart-version-menu.json'); mutate(path);
     if (rehash) lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartVersionMenuSha256 = hashFile(path);
     assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
+}
+
+for (const [mode, mutate] of [
+  ['live quota claim', ({ accepted }) => { accepted.liveAccountQuota = true; }],
+  ['usage trigger', ({ usage }) => { usage.signedOut.usageTriggerCount = 1; }],
+  ['usage before account', ({ accepted }) => { accepted.timeline = [{ event: 'initial:usage-readonly' }, { event: 'initial:account' }, { event: 'restart:account' }, { event: 'restart:usage-readonly' }]; }],
+]) {
+  test(`fresh usage evidence rejects ${mode}`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+    const path = join(output, 'initial-usage-readonly.json'); const usage = JSON.parse(readFileSync(path));
+    mutate({ accepted, usage }); writeFileSync(path, JSON.stringify(usage));
+    lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance.initialSha256 = hashFile(path);
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-usage-acceptance-incomplete/);
   });
 }
 

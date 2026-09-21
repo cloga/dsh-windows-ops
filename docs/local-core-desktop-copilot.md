@@ -52,7 +52,7 @@ an application that has not yet been restarted. Version identification does not
 authorize installation, activation, or interruption of live Sessions.
 
 The formal release's isolated initial/restart acceptance records the full
-`About Desktop 0.1.6-alpha.1.cloga.12…` menu label and one About callback dispatch
+`About Desktop 0.1.6-alpha.1.cloga.14…` menu label and one About callback dispatch
 in each phase. The modal call is intercepted (`nativeModalOpened: false`): this
 proves neither native About window rendering nor an installer upgrade or activation
 of the operator's live application.
@@ -66,13 +66,13 @@ identifies the reviewed published target, not a new local installation.
 
 | Component | Locked identity |
 |---|---|
-| Desktop | fork-owned `0.1.6-alpha.1.cloga.12`, sequence 22, immutable Release `392534651`, tag `dsh-desktop-v0.1.6-alpha.1.cloga.12`, source `d19be3ff5524948c40cb9929cdd4d67d5cb35059` |
-| Desktop artifact | [`cloga-deepseek-harness-0.1.6-alpha.1.cloga.12-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.12/cloga-deepseek-harness-0.1.6-alpha.1.cloga.12-win-x64.exe), 171,323,022 bytes, SHA-256 `f1fadab2922b9a2f56d72e07b3072c8b871d5ccce9696b82fcc62c22824fcd16` |
+| Desktop | fork-owned `0.1.6-alpha.1.cloga.14`, sequence 24, immutable Release `392640510`, tag `dsh-desktop-v0.1.6-alpha.1.cloga.14`, source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` |
+| Desktop artifact | [`cloga-deepseek-harness-0.1.6-alpha.1.cloga.14-win-x64.exe`](https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.14/cloga-deepseek-harness-0.1.6-alpha.1.cloga.14-win-x64.exe), 171,318,565 bytes, SHA-256 `81d73c63541d3b4464e27f1bae1651a3a996dfea4eaf89cc094f70c77b6eea0e` |
 | Desktop-managed runtime | virtual root `%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\app.asar\dsh`; Windows Ops follows the actual installed EXE path |
-| Expected installed Desktop identity | executable SHA-256 `ef6d3b63d2e495d7fb421327c5f7d9fb48970dbb44f55b1ff245890b52d4dada`; virtual descriptor SHA-256 `3e20cd0ace516569c9ead2403acffe16ed0a3e99b1ef45d17e0bca3cc7bd06f3`; formal source evidence, not local installation |
-| Runtime attestation | release manifest schema 3, self SHA-256 `4c76bdd67a0f021cc6375418d985877a9da82794f5dd1b037c2ea63ffe3d5bea`, raw SHA-256 `7b6d0ff3394f72b8d50587a7f014b9c0bcbfc42570f7fee0bfbc5e4f7de4a7b1`; bundled `@deepseek-ai/dsh@0.1.6-alpha.1`, Host protocol 3 |
-| Copilot plugin | immutable `dsh-github-copilot@0.4.0-alpha.30`, source `b75eac570cd418497c52e80a3ce47958cdcc6b26`; not official Core |
-| Plugin artifact | [`dsh-github-copilot-0.4.0-alpha.30.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.30/dsh-github-copilot-0.4.0-alpha.30.tgz), 694,316 bytes, SHA-256 `12af04aa61caef9a8c8e92526d6e3d9ec94b1d624097138540bcd5fd7cc29207`, SRI `sha512-MukLmoQSIUbs4WlVVF24MJU94b/HoxemEkFtrP6wkiWFoRwiiYqKDqLBnelW4xGIlVZxn/yuInt1e/PGLTvmew==`; checksum digest `af6c4c5d2b54027c36600b4b199e64d9a004b2392c1657753e3f119b541e437e` |
+| Expected installed Desktop identity | executable SHA-256 `ff93b2388818f3b935e1bf0433117070ff27d290b26d465a7c8fd0be3f784608`; virtual descriptor SHA-256 `8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55`; formal source evidence, not local installation |
+| Runtime attestation | release manifest schema 3, self SHA-256 `00fc3d57bab93f76ac7321ee6273a862a30765db1a9ebe385dd2781d84def5b8`, raw SHA-256 `3516a6062010f1adf139f9ce0874e2d2460f6a7883344f1cae78702200995767`; bundled `@deepseek-ai/dsh@0.1.6-alpha.1`, Host protocol 3 |
+| Copilot plugin | immutable `dsh-github-copilot@0.4.0-alpha.32`, source `76d190aed688e073df930adb3c753d2a749519c9`; not official Core |
+| Plugin artifact | [`dsh-github-copilot-0.4.0-alpha.32.tgz`](https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.32/dsh-github-copilot-0.4.0-alpha.32.tgz), 723,822 bytes, SHA-256 `8f5b55488fd1bb9949ef8aa23b1bf2d41b3da52584b38497685ce07559290e32`, SRI `sha512-lbZNmi4EQrCB018C1RE+mwb6m0nK/a7eJtpB1T4/MI+VKRllMJfrVJGmauSPsn4lV2xGGA48cEA23hK0u9T+Og==`; checksum digest `a8e7dd1906b0478d80d5540217d80bb09837079d46b17c71143597de2726c7c2` |
 | Desktop native capability | `desktopNativeVerifiedRelease`; `automaticProvisioning=false` remains manifest compatibility, while exact startup provisioning is bound separately |
 
 Do not independently upgrade or substitute a locked component. Update the lock,
@@ -97,19 +97,21 @@ the attested policy's exact file URL, Host entry, virtual runtime root, and
 plain-Node ASAR fallback or port-3080 ownership claim is accepted. Historical
 `.5` physical-runtime checks remain separately version/layout-scoped.
 The formal EXE has PE ProductVersion `0.1.6.0`, CompanyName `GitHub, Inc.` and
-Authenticode `NotSigned`; its semantic release is `0.1.6-alpha.1.cloga.12`.
+Authenticode `NotSigned`; its semantic release is `0.1.6-alpha.1.cloga.14`.
 
-**Published paired source target; genuine current native Ops qualification pending:**
-formal run [`35528552640`](https://github.com/cloga/deepseek-harness/actions/runs/35528552640)
-at source `d19be3ff5524948c40cb9929cdd4d67d5cb35059` passed build, immutable
-publication and packaged read-only acceptance on attempt 1. All 66 original ZIP
-entries were independently byte-bound; 18 authoritative JSON files are tracked
-under [`formal-cloga016-12`](../tests/fixtures/desktop-native-verified-release/formal-cloga016-12).
-Schema 2 binds initial/restart settings and version-menu evidence. No live OAuth,
-verification navigation, model/search, install or restart occurred. The registered
-same-commit native Ops caller remains required before final merge; publication
-does not install or activate this target locally. See the
-[alpha.30 formal record](copilot-alpha30-upgrade-plan.md).
+**Published paired source and genuine native Ops qualification:**
+formal run [`35549412610`](https://github.com/cloga/deepseek-harness/actions/runs/35549412610)
+at source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` passed build, immutable
+publication and packaged read-only acceptance on attempt 1. All 70 original ZIP
+entries were independently byte-bound; 20 authoritative JSON files are tracked
+under [`formal-cloga016-14`](../tests/fixtures/desktop-native-verified-release/formal-cloga016-14).
+Schema 2 binds initial/restart settings and version-menu evidence; usage schema 1
+binds signed-out absence after account readiness without Host request instrumentation.
+Registered native run [`35553019059`](https://github.com/cloga/dsh-windows-ops/actions/runs/35553019059)
+passed at exact Ops head `68a1218ef6a50f06870bae483d64f52d6de244aa`; its raw
+summary is tracked under `ops-cloga016-14`. No live quota, OAuth, verification
+navigation, model/search, install or restart occurred. Publication does not install
+or activate this target locally. See the [alpha.32 formal record](copilot-alpha32-upgrade-plan.md).
 
 ### Historical `.cloga.2` / alpha.24 evidence
 
@@ -210,10 +212,10 @@ files, not the formal Actions ZIPs. Its fresh source-owned settings observations
 must match both locked deterministic settings digests. This acquisition history
 is not a claim of local application activation or a fresh model response.
 
-The [Copilot alpha.30 formal acceptance record](copilot-alpha30-upgrade-plan.md)
-defines the provider-navigation/version-menu schema, authenticated immutable
+The [Copilot alpha.32 formal acceptance record](copilot-alpha32-upgrade-plan.md)
+defines the provider-navigation/version-menu/usage schemas, authenticated immutable
 asset transaction, synthetic/downstream boundaries and official-first decisions.
-The paired `.cloga.12` release keeps bundled Core alpha.1; separately owned draft
+The paired `.cloga.14` release keeps bundled Core alpha.1; separately owned draft
 Desktop alpha.2 PR 68 remains unqualified and out of scope.
 
 The build toolchain remains Node `24.13.0` / pnpm `11.7.0`, not the Host engine

@@ -375,14 +375,14 @@ function New-TestFingerprint {
         $caseRoot = Join-Path $TestDrive 'profile-coherence'
         New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
         $dshHome = Join-Path $caseRoot '.dsh'
-        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.30.tgz'
+        $artifact = Join-Path $caseRoot 'dsh-github-copilot-0.4.0-alpha.32.tgz'
         $stage = Join-Path $caseRoot 'stage'
         $package = Join-Path $stage 'package'
         New-Item -ItemType Directory -Path $package -Force | Out-Null
-        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.30' } |
+        @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.32' } |
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $package 'package.json') `
                 -Encoding UTF8
-        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.30' } } |
+        @{ package = @{ name = 'dsh-github-copilot'; version = '0.4.0-alpha.32' } } |
             ConvertTo-Json -Depth 5 |
                 Set-Content -LiteralPath (Join-Path $package 'deployment-baseline.json') `
                     -Encoding UTF8
@@ -408,11 +408,11 @@ importers:
     dependencies:
       dsh-github-copilot:
         specifier: $dependency
-        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.30.tgz
+        version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.32.tgz
 packages:
-  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.30.tgz:
-    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.30.tgz}
-    version: 0.4.0-alpha.30
+  dsh-github-copilot@file:../../artifacts/dsh-github-copilot-0.4.0-alpha.32.tgz:
+    resolution: {tarball: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.32.tgz}
+    version: 0.4.0-alpha.32
 "@ | Set-Content -LiteralPath (Join-Path $root 'pnpm-lock.yaml') -Encoding UTF8
         }
 
@@ -421,7 +421,7 @@ packages:
         @($coherent.profiles).Count | Should -Be 2
         (Get-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Raw).
             Replace(
-                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.30.tgz',
+                'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.32.tgz',
                 'version: file:../../artifacts/dsh-github-copilot-0.4.0-alpha.17.tgz'
             ) |
             Set-Content -LiteralPath (Join-Path $dshHome 'profiles\headless\pnpm-lock.yaml') -Encoding UTF8
@@ -1217,7 +1217,9 @@ packages:
         $result.valid | Should -Be $true
         $result.sourceVerified | Should -Be $true
         $result.artifactVerified | Should -Be $false
-        @($result.capabilities).Count | Should -Be 34
+        @($result.capabilities).Count | Should -Be 36
+        @($result.capabilities) | Should -Contain 'account-quota-composer-usage'
+        @($result.capabilities) | Should -Contain 'managed-http-auth-rejection-recovery'
         @($result.capabilities) | Should -Contain 'desktop-shared-package-ownership'
         @($result.capabilities) | Should -Contain 'client-module-loader-handoff'
         @($result.capabilities) | Should -Contain 'copilot-optional-tool-arguments'
@@ -1261,7 +1263,7 @@ packages:
         $tampered = $lock | ConvertTo-Json -Depth 30 | ConvertFrom-Json
         $tampered.components.copilotIntegration.package.attestedFiles = @(
             $tampered.components.copilotIntegration.package.attestedFiles |
-                Where-Object { $_ -ne 'lib/search-routing-pFLux0W7.js' }
+                Where-Object { $_ -ne 'lib/search-routing-DqLKem1c.js' }
         )
         { Test-WindowsCopilotLock -Lock $tampered } |
             Should -Throw '*all six published JavaScript*'
@@ -1603,14 +1605,14 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
 
     It 'pins actual formal .6 ASAR metadata without claiming a physical wrapper or observer success' {
         Test-WindowsCopilotLock -Lock $lock | Should -BeTrue
-        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.12'
-        $lock.components.desktop.source.pullRequest | Should -Be 87
-        $lock.components.desktop.source.commit | Should -Be 'd19be3ff5524948c40cb9929cdd4d67d5cb35059'
-        $lock.components.desktop.source.reviewedHead | Should -Be '3e277c3f0821264d4becca825636b5fcd8112bcd'
-        $lock.components.desktop.source.tree | Should -Be '681980cf0d3448679529628477d9ff79ea927cc4'
-        $lock.components.desktop.releaseChannel.sequence | Should -Be 22
-        $lock.components.desktop.artifact.releaseId | Should -Be 392534651
-        $lock.components.desktop.artifact.assetId | Should -Be 577349351
+        $lock.components.desktop.version | Should -Be '0.1.6-alpha.1.cloga.14'
+        $lock.components.desktop.source.pullRequest | Should -Be 105
+        $lock.components.desktop.source.commit | Should -Be 'a0f0144f4cddc90c45f8be93c61c0cd6cec470c7'
+        $lock.components.desktop.source.reviewedHead | Should -Be '1a070a3b8cc09950e0ebaa7c4d36001a4b5efa12'
+        $lock.components.desktop.source.tree | Should -Be '8e636d110dcbd2e9662deb6d36e6e75b3f3fb0b2'
+        $lock.components.desktop.releaseChannel.sequence | Should -Be 24
+        $lock.components.desktop.artifact.releaseId | Should -Be 392640510
+        $lock.components.desktop.artifact.assetId | Should -Be 577940485
         $lock.components.desktop.installedExecutable.productVersion | Should -Be '0.1.6.0'
         $lock.components.desktop.installedRuntimeDescriptor.relativePath | Should -Be 'resources\app.asar\dsh\desktop-runtime.json'
         $lock.acceptance.runtimeSchema.layout | Should -Be 'electron-asar'
@@ -1619,7 +1621,7 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         $lock.acceptance.runtimeSchema.package.version | Should -Be '0.1.6-alpha.1'
         $lock.acceptance.runtimeSchema.package.entrypointSize | Should -Be 9165
         $lock.acceptance.runtimeSchema.PSObject.Properties['wrapper'] | Should -BeNullOrEmpty
-        $lock.components.copilotIntegration.package.version | Should -Be '0.4.0-alpha.30'
+        $lock.components.copilotIntegration.package.version | Should -Be '0.4.0-alpha.32'
     }
 
     It 'rejects formal .6 pin or ASAR metadata drift: <Field>' -TestCases @(
@@ -1628,7 +1630,7 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
         @{ Field = 'built-size' }, @{ Field = 'built-hash' }, @{ Field = 'built-inventory' },
         @{ Field = 'source-pr' }, @{ Field = 'reviewed-head' }, @{ Field = 'asset-id' }, @{ Field = 'build-input' },
         @{ Field = 'channel-version' }, @{ Field = 'upstream-version' }, @{ Field = 'channel-source' },
-        @{ Field = 'stale-desktop-cloga2' }, @{ Field = 'stale-plugin-alpha24' }, @{ Field = 'physical-root' }
+        @{ Field = 'stale-desktop-cloga12' }, @{ Field = 'stale-plugin-alpha30' }, @{ Field = 'physical-root' }
     ) {
         param($Field)
         $changed = $lock | ConvertTo-Json -Depth 100 | ConvertFrom-Json
@@ -1650,8 +1652,8 @@ It 'requires the Desktop 0.10.3 official-only runtime contract' -Skip:$script:Sk
             channel-version { $changed.components.desktop.releaseChannel.version = '0.1.5-rc.3.cloga.7' }
             upstream-version { $changed.components.desktop.releaseChannel.upstreamVersion = '0.1.5-rc.2' }
             channel-source { $changed.components.desktop.releaseChannel.source.commit = '0' * 40 }
-            stale-desktop-cloga2 { $changed.components.desktop.version = '0.1.6-alpha.1.cloga.2' }
-            stale-plugin-alpha24 { $changed.components.copilotIntegration.package.version = '0.4.0-alpha.24' }
+            stale-desktop-cloga12 { $changed.components.desktop.version = '0.1.6-alpha.1.cloga.12' }
+            stale-plugin-alpha30 { $changed.components.copilotIntegration.package.version = '0.4.0-alpha.30' }
             physical-root {
                 $changed.components.desktop.runtimeSelectors[0].root = '%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\dsh'
                 $changed.acceptance.runtimeSchema.root = $changed.components.desktop.runtimeSelectors[0].root
@@ -1696,7 +1698,7 @@ It 'rejects tampered runtime and Copilot plugin identity metadata' {
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.source.reviewedHead = ('0' * 40) -join ''
         { Test-WindowsCopilotLock -Lock $tampered } |
-            Should -Throw '*reviewed PR #151*'
+            Should -Throw '*reviewed PR #155*'
 
         $tampered = $lock | ConvertTo-Json -Depth 40 | ConvertFrom-Json
         $tampered.components.copilotIntegration.package.artifact.releaseCommit = ('0' * 40) -join ''

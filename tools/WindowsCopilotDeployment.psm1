@@ -257,16 +257,16 @@ function Test-WindowsCopilotLock {
         }
     } elseif ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness') {
         $channel = $desktop.releaseChannel
-        if ($desktopVersion -cne '0.1.6-alpha.1.cloga.12' -or
-            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.6-alpha.1.cloga.12' -or
-            [string]$desktop.source.commit -cne 'd19be3ff5524948c40cb9929cdd4d67d5cb35059' -or
-            [string]$desktop.source.tree -cne '681980cf0d3448679529628477d9ff79ea927cc4' -or
-            [string]$desktop.source.reviewedHead -cne '3e277c3f0821264d4becca825636b5fcd8112bcd' -or
-            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.6-alpha.1.cloga.12-win-x64.exe' -or
-            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.12/cloga-deepseek-harness-0.1.6-alpha.1.cloga.12-win-x64.exe' -or
-            [string]$desktop.artifact.sha256 -cne 'f1fadab2922b9a2f56d72e07b3072c8b871d5ccce9696b82fcc62c22824fcd16' -or
-            [string]$desktop.artifact.sha512 -cne 'AgU39uOIxrFFAmvNZxfE2Qa7kec2/teEURT84zVzn+SFfNu2HmRYLWcpdG/OJm+rYM+/EvCuOnb2hGFuNxIC+A==' -or
-            [long]$desktop.artifact.size -ne 171323022 -or
+        if ($desktopVersion -cne '0.1.6-alpha.1.cloga.14' -or
+            [string]$desktop.source.releaseTag -cne 'dsh-desktop-v0.1.6-alpha.1.cloga.14' -or
+            [string]$desktop.source.commit -cne 'a0f0144f4cddc90c45f8be93c61c0cd6cec470c7' -or
+            [string]$desktop.source.tree -cne '8e636d110dcbd2e9662deb6d36e6e75b3f3fb0b2' -or
+            [string]$desktop.source.reviewedHead -cne '1a070a3b8cc09950e0ebaa7c4d36001a4b5efa12' -or
+            [string]$desktop.artifact.name -cne 'cloga-deepseek-harness-0.1.6-alpha.1.cloga.14-win-x64.exe' -or
+            [string]$desktop.artifact.url -cne 'https://github.com/cloga/deepseek-harness/releases/download/dsh-desktop-v0.1.6-alpha.1.cloga.14/cloga-deepseek-harness-0.1.6-alpha.1.cloga.14-win-x64.exe' -or
+            [string]$desktop.artifact.sha256 -cne '81d73c63541d3b4464e27f1bae1651a3a996dfea4eaf89cc094f70c77b6eea0e' -or
+            [string]$desktop.artifact.sha512 -cne 'kogj9c5nbtEIUTnd5GBF919PpDAC4JfUj2xBkkdtV+QWSF6QYKg4ZLyjJ0mc3Dm12r1eo2fEtakNfThSw+BQhQ==' -or
+            [long]$desktop.artifact.size -ne 171318565 -or
             $desktop.artifact.releaseImmutable -ne $true -or
             [string]$channel.version -cne $desktopVersion -or
             [string]$channel.upstreamVersion -cne '0.1.6-alpha.1' -or
@@ -277,47 +277,47 @@ function Test-WindowsCopilotLock {
             [int]$channel.schemaVersion -ne 3 -or
             [string]$channel.owner -cne 'cloga/deepseek-harness' -or
             [string]$channel.mode -cne 'interactive-windows-installer' -or
-            [int]$desktop.source.pullRequest -ne 87 -or
-            [long]$desktop.artifact.releaseId -ne 392534651 -or
-            [long]$desktop.artifact.assetId -ne 577349351 -or
-            [int]$channel.sequence -ne 22 -or
-            [string]$channel.manifestRawSha256 -cne '7b6d0ff3394f72b8d50587a7f014b9c0bcbfc42570f7fee0bfbc5e4f7de4a7b1' -or
-            [string]$channel.manifestSha256 -cne '4c76bdd67a0f021cc6375418d985877a9da82794f5dd1b037c2ea63ffe3d5bea' -or
-            [string]$channel.buildReceipt.sha256 -cne '160e30810f24314d539de2ce7eeb25c81b527f558b10bfbe9972595fe69e7165' -or
-            [string]$channel.buildReceipt.receiptSha256 -cne 'd0b74b9a1ba42dcd31a2c0c46ac4d060c2944fc45ebec529023efb5a6d1b08e0') {
+            [int]$desktop.source.pullRequest -ne 105 -or
+            [long]$desktop.artifact.releaseId -ne 392640510 -or
+            [long]$desktop.artifact.assetId -ne 577940485 -or
+            [int]$channel.sequence -ne 24 -or
+            [string]$channel.manifestRawSha256 -cne '3516a6062010f1adf139f9ce0874e2d2460f6a7883344f1cae78702200995767' -or
+            [string]$channel.manifestSha256 -cne '00fc3d57bab93f76ac7321ee6273a862a30765db1a9ebe385dd2781d84def5b8' -or
+            [string]$channel.buildReceipt.sha256 -cne '4525cf68029b8f14cc62c984d91215b698125feb6d4a45191db548c979f7ab4d' -or
+            [string]$channel.buildReceipt.receiptSha256 -cne '3af03c005e576c05e118d16b374864ce5ea50514d7cfa2d6ee61ee9ae33b7b9b') {
             throw 'Desktop identity must match the immutable cloga fork-owned 0.1.6 release.'
         }
         if ([int]$channel.managedCapability.schemaVersion -ne 3 -or
-            [int]$channel.managedCapability.currentSequence -ne 22 -or
+            [int]$channel.managedCapability.currentSequence -ne 24 -or
             [int]$channel.managedCapability.minimumSequence -ne 2 -or
             $channel.pluginCompatibility.automaticProvisioning -ne $false -or
             $channel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning -ne $true -or
             [string]$channel.nativeProvisioning.capabilitySha256 -cne
-                '4b5b95609f65ba7e74221ded8d9b3a5f7fe98a82a5473a90b1c5262229637545' -or
+                'd36c76be950b055cf809663cd93d355fdb9d4e0deede683c981fd83a132b1635' -or
             [string]$channel.nativeProvisioning.helperSha256 -cne
                 '9819e8f7c7ee8ed6343b412cab4456a1eed13e04dc7764666de0ef7ceb8a1b70' -or
             [string]$channel.nativeProvisioning.plan.sha256 -cne
-                '6e18f1b61f2c6f0f8bc7bd9003b605e64e2215d5f31629bd50719aebfb4a52fa' -or
+                'e06d4f95ae1087bcbf076d692b4814e13442b387dc0eaa235729fac6d947e076' -or
             [string]$channel.nativeProvisioning.plan.planSha256 -cne
-                '9ad8a0b6d88ba5bd1d20f747bdd97c83f48ba7bc374e4850bb424d15155801d9' -or
+                '12d9a833379504723cab8c8291b964072d7bdfe7aa96f6593a09476f6f4638d4' -or
             [string]$channel.managedCapability.provisioning.planSha256 -cne
                 [string]$channel.nativeProvisioning.plan.planSha256) {
             throw 'Desktop recovery must preserve legacy update compatibility and exact native startup provisioning evidence.'
         }
-        if ([long]$channel.manifestAssetId -ne 577349522 -or
-            [long]$channel.buildReceipt.assetId -ne 577349343 -or
-            [long]$channel.sha256Sums.assetId -ne 577349315 -or [long]$channel.sha256Sums.size -ne 380 -or
-            [string]$channel.sha256Sums.sha256 -cne '2812f89ad4c997f35de558ab2c3cd928c0b188a71c07059930fe12e8674b4333' -or
-            [long]$channel.sha512Sums.assetId -ne 577349331 -or [long]$channel.sha512Sums.size -ne 476 -or
-            [string]$channel.sha512Sums.sha256 -cne 'ee1dd6e9ab918ef92889aa19bd14faecf0b0f0413bcb9724720ffc94a210146e' -or
-            [long]$channel.nativeProvisioning.plan.assetId -ne 577349512 -or [long]$channel.nativeProvisioning.plan.size -ne 1309 -or
-            [string]$channel.nativeProvisioning.fixtureRoot -cne 'tests\fixtures\desktop-native-verified-release\formal-cloga016-12' -or
-            [string]$channel.nativeProvisioning.ancestorIsolation.acceptanceSha256 -cne '81aac2b2fdff06b967e48ee402c84d866bc250f2e869dec90c1287a5c5f33add' -or
-            [string]$channel.nativeProvisioning.ancestorIsolation.initialGraphSha256 -cne '3c44cb1e01c6dbd6a8147565594eda6dcb28115363c9814107b2a06b86770a9f' -or
-            [string]$channel.nativeProvisioning.ancestorIsolation.restartGraphSha256 -cne '3c44cb1e01c6dbd6a8147565594eda6dcb28115363c9814107b2a06b86770a9f' -or
+        if ([long]$channel.manifestAssetId -ne 577940636 -or
+            [long]$channel.buildReceipt.assetId -ne 577940481 -or
+            [long]$channel.sha256Sums.assetId -ne 577940454 -or [long]$channel.sha256Sums.size -ne 380 -or
+            [string]$channel.sha256Sums.sha256 -cne 'c94c3f2ce79371b0be1102ba8355a533e0ce3afc31fb8922628d8915467abe7f' -or
+            [long]$channel.sha512Sums.assetId -ne 577940461 -or [long]$channel.sha512Sums.size -ne 476 -or
+            [string]$channel.sha512Sums.sha256 -cne 'c8ffee3f3ebbc94bb04ba70e58fd877e16881e0c59e1ce17699d72b726f5d4a7' -or
+            [long]$channel.nativeProvisioning.plan.assetId -ne 577940621 -or [long]$channel.nativeProvisioning.plan.size -ne 1309 -or
+            [string]$channel.nativeProvisioning.fixtureRoot -cne 'tests\fixtures\desktop-native-verified-release\formal-cloga016-14' -or
+            [string]$channel.nativeProvisioning.ancestorIsolation.acceptanceSha256 -cne 'f71e607a3882f076bbcbda219b79286c327fbc3dc6aa1ac0df90b818ed35c9ca' -or
+            [string]$channel.nativeProvisioning.ancestorIsolation.initialGraphSha256 -cne '2b9b46a17e9454d8dbb1bc899f546623b66f51c5bfa5219e5fe2df31f69f1460' -or
+            [string]$channel.nativeProvisioning.ancestorIsolation.restartGraphSha256 -cne '2b9b46a17e9454d8dbb1bc899f546623b66f51c5bfa5219e5fe2df31f69f1460' -or
             [string]$channel.build.lockfileSha256 -cne 'f14668d76eee14646543910878fc400fcbfa2a848b1ea177f2fc1cb2d0f21322' -or
-            [string]$channel.build.planSha256 -cne '0c69e0845d2b356013b7e1a6a5a299d34386551baeffd8f1a10ddf1a9070e43c' -or
-            [string]$channel.build.runUrl -cne 'https://github.com/cloga/deepseek-harness/actions/runs/35528552640' -or [int]$channel.build.attempt -ne 1) {
+            [string]$channel.build.planSha256 -cne 'ec53ccb7f7da3f8181373f908aa43a5ab4cccedc4bcbc5769d6c6455aad966f0' -or
+            [string]$channel.build.runUrl -cne 'https://github.com/cloga/deepseek-harness/actions/runs/35549412610' -or [int]$channel.build.attempt -ne 1) {
             throw 'Desktop assets and build inputs must match the exact formal 0.1.6 release.'
         }
     } else {
@@ -339,7 +339,7 @@ function Test-WindowsCopilotLock {
     if ($desktopSourceRepository -ceq 'https://github.com/cloga/deepseek-harness' -and (
         [string]$installedDesktop.relativePath -cne 'cloga-deepseek-harness.exe' -or
         [string]$installedDesktop.sha256 -cne
-            'ef6d3b63d2e495d7fb421327c5f7d9fb48970dbb44f55b1ff245890b52d4dada' -or
+            'ff93b2388818f3b935e1bf0433117070ff27d290b26d465a7c8fd0be3f784608' -or
         [string]$installedDesktop.productName -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.fileDescription -cne 'DeepSeek Harness (cloga)' -or
         [string]$installedDesktop.companyName -cne 'GitHub, Inc.' -or
@@ -347,16 +347,16 @@ function Test-WindowsCopilotLock {
         [string]$installedDesktop.authenticodeStatus -cne 'NotSigned' -or
         [string]$desktop.installedRuntimeDescriptor.relativePath -cne 'resources\app.asar\dsh\desktop-runtime.json' -or
         [string]$desktop.installedRuntimeDescriptor.sha256 -cne
-            '3e20cd0ace516569c9ead2403acffe16ed0a3e99b1ef45d17e0bca3cc7bd06f3')) {
+            '8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55')) {
         throw 'Installed Desktop executable identity must match the reviewed cloga fork release evidence.'
     }
     $copilotSource = $Lock.components.copilotIntegration.source
     if ([string]$copilotSource.repository -cne 'https://github.com/cloga/dsh-github-copilot' -or
-        [int]$copilotSource.pullRequest -ne 151 -or
-        [string]$copilotSource.commit -cne 'b75eac570cd418497c52e80a3ce47958cdcc6b26' -or
-        [string]$copilotSource.reviewedHead -cne 'c4d7e0d19a26a775472d34d4d499340c67a24ea3' -or
-        [string]$copilotSource.mergeCommit -cne 'b75eac570cd418497c52e80a3ce47958cdcc6b26') {
-        throw 'Copilot integration source must match reviewed PR #151 and its exact merge identity.'
+        [int]$copilotSource.pullRequest -ne 155 -or
+        [string]$copilotSource.commit -cne '76d190aed688e073df930adb3c753d2a749519c9' -or
+        [string]$copilotSource.reviewedHead -cne '03f9042c428f0ccbe17a18b686f5ce1bfc116648' -or
+        [string]$copilotSource.mergeCommit -cne '76d190aed688e073df930adb3c753d2a749519c9') {
+        throw 'Copilot integration source must match reviewed PR #155 and its exact merge identity.'
     }
 
     foreach ($commit in @(
@@ -542,7 +542,7 @@ function Test-WindowsCopilotLock {
         }
     } elseif ([string]$officialSelector.id -ceq 'desktop-fork-managed') {
         if ([string]$officialSelector.source -cne 'desktop-managed-release' -or
-            [string]$officialSelector.desktopVersion -cne '0.1.6-alpha.1.cloga.12' -or
+            [string]$officialSelector.desktopVersion -cne '0.1.6-alpha.1.cloga.14' -or
             [string]$officialSelector.root -cne '%LOCALAPPDATA%\Programs\DeepSeek Harness (cloga)\resources\app.asar\dsh' -or
             [string]$officialSelector.package.name -cne '@deepseek-ai/dsh' -or
             [string]$officialSelector.package.version -cne '0.1.6-alpha.1' -or
@@ -569,11 +569,11 @@ function Test-WindowsCopilotLock {
         [string]$providerArtifact.url -cne $expectedProviderArtifactUrl -or
         [string]$providerArtifact.releaseTag -cne $expectedProviderReleaseTag -or
         [string]$providerArtifact.releaseCommit -cne
-            'b75eac570cd418497c52e80a3ce47958cdcc6b26' -or
+            '76d190aed688e073df930adb3c753d2a749519c9' -or
         $providerArtifact.releaseImmutable -isnot [bool] -or $providerArtifact.releaseImmutable -ne $true -or
-        (Get-LockProperty $providerArtifact 'releaseId') -ne 392419629 -or
-        (Get-LockProperty $providerArtifact 'assetId') -ne 576752000 -or
-        (Get-LockProperty $providerArtifact.checksumManifest 'assetId') -ne 576752015 -or
+        (Get-LockProperty $providerArtifact 'releaseId') -ne 392444623 -or
+        (Get-LockProperty $providerArtifact 'assetId') -ne 576880049 -or
+        (Get-LockProperty $providerArtifact.checksumManifest 'assetId') -ne 576880065 -or
         [int]$providerArtifact.size -le 0 -or
         [string]$providerArtifact.sha256 -notmatch '^[0-9a-f]{64}$' -or
         [string]$providerArtifact.sha512 -notmatch '^[0-9a-f]{128}$' -or
@@ -593,7 +593,7 @@ function Test-WindowsCopilotLock {
         'lib/client.js',
         'lib/remote.js',
         'lib/routed-web.js',
-        'lib/search-routing-pFLux0W7.js',
+        'lib/search-routing-DqLKem1c.js',
         'lib/web-delegate.js'
     )
     if ($providerAttestedFiles.Count -ne $expectedProviderAttestedFiles.Count -or
@@ -1035,6 +1035,7 @@ function Test-WindowsCopilotLock {
     }
     $baseline = $Lock.components.copilotIntegration.package.deploymentBaseline
     $expectedCapabilities = @(
+        'account-quota-composer-usage',
         'desktop-shared-package-ownership',
         'readonly-search-composition-preflight',
         'session-model-search-routing',
@@ -1045,6 +1046,7 @@ function Test-WindowsCopilotLock {
         'account-scoped-discovery-snapshot',
         'public-adapter-account-model-route',
         'managed-model-generation-and-lifetime',
+        'managed-http-auth-rejection-recovery',
         'account-discovery-native-oauth',
         'responses-public-reasoning-and-safe-replay-delegation',
         'replay-safe-copilot-reasoning-presentation',
@@ -1072,7 +1074,7 @@ function Test-WindowsCopilotLock {
     )
     $lockedCapabilities = @($baseline.requiredCapabilities)
     if ($lockedCapabilities.Count -ne $expectedCapabilities.Count) {
-        throw 'Copilot integration baseline must lock exactly thirty-four required capabilities.'
+        throw 'Copilot integration baseline must lock exactly thirty-six required capabilities.'
     }
     foreach ($capability in $expectedCapabilities) {
         if ($lockedCapabilities -notcontains $capability) {

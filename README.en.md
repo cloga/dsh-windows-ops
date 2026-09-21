@@ -67,7 +67,11 @@ qualify or deploy the draft alpha.2 Desktop. See [strict preparation boundaries]
 **Combined-evidence preparation is not promotion:** [Ops #181 preparation](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
 separates imported formal functional/failure/observer/suite evidence, with ordinary
 acceptance absent, from a fresh Ops resolver observer that succeeds through the
-ordinary acceptance path after cleanup. Genuine Ops caller identity stays separate
+ordinary acceptance path after cleanup. Explicit `combined-suite-v2` preparation
+requires functional/ordinary schema 2 and original-hash-bound `positive-usage.json`
+under the reviewed Copilot alpha.33 Client policy; v1 and legacy alpha.1 readers
+and history remain intact. Synthetic Client unit tests are not hosted execution
+of the actual released Client. Genuine Ops caller identity stays separate
 from verified Core checkout identity; the private Ops source archive is not a Git
 checkout. The exact successful Core CI summary can
 attest installed checks whose root records were not archived; it does not enable

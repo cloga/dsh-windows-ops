@@ -5,7 +5,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import { readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { packagedFixture } from './helpers/native-packaged-fixture.mjs';
+import { packagedFixture, packagedV2Fixture } from './helpers/native-packaged-fixture.mjs';
 import { usesCombinedPackagedEvidence, readCombinedPackagedEvidence, verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
 import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
 import { verifyFreshSettingsEvidence, validateSourceIdentity } from './native-asar-release-smoke.mjs';
@@ -226,4 +226,147 @@ test('historical alpha1 remains explicit ordinary behavior without combined desc
   const lock = JSON.parse(readFileSync(new URL('../deployments/windows-copilot.lock.json', import.meta.url)));
   assert.equal(lock.components.desktop.releaseChannel.upstreamVersion, '0.1.6-alpha.1');
   assert.equal(usesCombinedPackagedEvidence(lock), false);
+});
+
+// V2 inputs contain reviewed metadata, not executed Client bytes or a claim of alpha.33/runtime qualification.
+test('explicit v2 validates schema2 positive observations through the formal consumer (inert)', t => {
+  forbidChildren(t); const f = packagedV2Fixture(t); const accepted = verify(f);
+  assert.equal(accepted.schemaVersion, 2); assert.equal(accepted.normalAcceptanceCompleted, false);
+  assert.equal(accepted.installerUpgradeVerified, false); assert.equal(accepted.liveAccountQuota, false);
+  assert.deepEqual(accepted.positiveCopilotUsage.map(value => value.provider), ['github-copilot', 'github-copilot-preview']);
+  assert.ok(accepted.positiveCopilotUsage.every(value => Object.keys(value).length === 21));
+  assert.equal(verifyNativeReleaseEvidence(f.lock, f.directory).valid, true);
+});
+test('fresh v2 ordinary keeps its own run and text bytes, not formal byte equality (inert)', t => {
+  forbidChildren(t); const f = packagedV2Fixture(t); const originalPositiveDigest = f.digest('positive-usage.json');
+  const run = f.ordinary();
+  for (const file of ['functional-results.json', 'acceptance.json']) change(f, file, v => {
+    v.positiveCopilotUsage[0].usageText = 'Credits: 7 used · 13 left';
+  });
+  change(f, 'positive-usage.json', v => { v.cases[0].usageText = 'Credits: 7 used · 13 left'; });
+  assert.notEqual(f.digest('positive-usage.json'), originalPositiveDigest);
+  const accepted = verifyFreshOrdinaryPackagedEvidence(f.lock, f.directory, run);
+  assert.equal(accepted.schemaVersion, 2); assert.equal(accepted.normalAcceptanceCompleted, true);
+  assert.equal(accepted.runId, '456'); assert.equal(accepted.runAttempt, '3');
+  assert.equal(accepted.installerUpgradeVerified, false);
+});
+test('positive filename cannot implicitly select v2 for a v1 receipt (inert)', t => {
+  forbidChildren(t); const f = packagedFixture(t); f.put('positive-usage.json', {});
+  assert.equal(verify(f).schemaVersion, 1); assert.equal(verify(f).positiveCopilotUsage, undefined);
+});
+for (const [name, mutate] of [
+  ['v2 format without v2 functional schema', f => { change(f, 'functional-results.json', v => { v.schemaVersion = 1; }); f.seal(); }],
+  ['v1 format with v2 functional schema', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.format = 'combined-suite-v1'; }],
+  ['unknown v3 format', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.format = 'combined-suite-v3'; }],
+  ['missing functional positive array', f => { change(f, 'functional-results.json', v => { delete v.positiveCopilotUsage; }); f.seal(); }],
+  ['missing functional transport', f => { change(f, 'functional-results.json', v => { delete v.positiveUsageHostTransport; }); f.seal(); }],
+  ['functional Host transport claim', f => { change(f, 'functional-results.json', v => { v.positiveUsageHostTransport = 'live'; }); f.seal(); }],
+  ['missing positive file', f => unlinkSync(join(f.directory, 'positive-usage.json'))],
+  ['changed original positive bytes', f => writeFileSync(join(f.directory, 'positive-usage.json'), readFileSync(join(f.directory, 'positive-usage.json'), 'utf8') + '\n')],
+  ['oversized positive bytes', f => writeFileSync(join(f.directory, 'positive-usage.json'), Buffer.alloc(64 * 1024 + 1))],
+  ['missing summary positive input', f => { const summary = f.get('core-qualification/qualification.json'); delete summary.inputs['packaged.positiveUsage']; f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.qualificationSha256 = f.put('core-qualification/qualification.json', summary); }],
+  ['wrong summary positive digest', f => { const summary = f.get('core-qualification/qualification.json'); summary.inputs['packaged.positiveUsage'] = '0'.repeat(64); f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.qualificationSha256 = f.put('core-qualification/qualification.json', summary); }],
+  ['forged declared Client override', f => { f.lock.components.desktop.releaseChannel.nativeProvisioning.packagedAcceptance.expectedClientSha256 = '0'.repeat(64); }],
+  ['missing archived installed evidence', f => unlinkSync(join(f.directory, 'core-qualification/installed/installer-upgrade.json'))],
+]) test(`v2 rejects ${name}`, t => { forbidChildren(t); const f = packagedV2Fixture(t); mutate(f); assert.throws(() => verify(f)); });
+for (const [name, mutate] of [
+  ['unknown positive key', v => { v.extra = true; }],
+  ['wrong runtime', v => { v.runtimeSha256 = '0'.repeat(64); }],
+  ['arbitrary valid Client digest', v => { v.installedClientSha256 = 'a'.repeat(64); }],
+  ['uppercase Client digest', v => { v.installedClientSha256 = v.installedClientSha256.toUpperCase(); }],
+  ['self-authorized Client digest', v => { v.expectedClientSha256 = v.installedClientSha256 = 'a'.repeat(64); }],
+  ['original application not restored', v => { v.originalSignedOutApplicationRestored = false; }],
+  ['string restoration flag', v => { v.originalSignedOutApplicationRestored = 'true'; }],
+  ['provided Host transport', v => { v.hostTransport = 'provided'; }],
+  ['source version drift', v => { v.pluginSource.version = '0.4.0-alpha.34'; }],
+  ['source commit drift', v => { v.pluginSource.targetCommit = 'f'.repeat(40); }],
+  ['source tar digest drift', v => { v.pluginSource.sha256 = 'f'.repeat(64); }],
+  ['source asset drift', v => { v.pluginSource.assetId++; }],
+  ['source registry drift', v => { v.pluginSource.dependencyRegistry = 'https://registry.npmjs.org/'; }],
+  ['source checksum drift', v => { v.pluginSource.checksumManifest.sha256 = 'f'.repeat(64); }],
+  ['source unknown field', v => { v.pluginSource.expectedClientSha256 = v.installedClientSha256; }],
+  ...['runtimeSha256', 'installedClientSha256', 'pluginSource', 'cases', 'originalSignedOutApplicationRestored', 'hostTransport'].map(key => [`missing ${key}`, v => { delete v[key]; }]),
+]) test(`v2 rejects rehashed ${name}`, t => {
+  forbidChildren(t); const f = packagedV2Fixture(t); change(f, 'positive-usage.json', mutate); f.seal();
+  assert.throws(() => verify(f), /native-packaged-evidence-invalid/);
+});
+const positiveBoolKeys = ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
+  'applicationMountPreserved', 'syntheticSiblingPreserved', 'inheritedSessionScopeVerified', 'explicitUndefinedSessionScopeAbsent',
+  'removedSessionRestoresUsage', 'closedSessionHidesUsage', 'closedSessionRestoresUsage', 'restoredProviderShowsUsage', 'subscriptionsReleased', 'syntheticContextDisposed'];
+const mutateBothCases = (f, mutate) => {
+  const record = f.get('positive-usage.json'); mutate(record.cases); f.put('positive-usage.json', record);
+  change(f, 'functional-results.json', value => { value.positiveCopilotUsage = record.cases; });
+};
+for (const [name, mutate] of [
+  ['one route only', cases => cases.pop()], ['extra route', cases => cases.push(cases[0])], ['route order', cases => cases.reverse()],
+  ['duplicate provider', cases => { cases[1].provider = cases[0].provider; }],
+  ['unknown case field', cases => { cases[0].surprise = true; }],
+  ['wrong scope', cases => { cases[1].scope = 'live-quota'; }],
+  ['wrong case transport', cases => { cases[1].hostTransport = 'provided'; }],
+  ['selector error', cases => { cases[0].selectorErrors = 1; }],
+  ['remote call', cases => { cases[1].forbiddenRemoteCalls = 1; }],
+  ...[2, 3, 5, '4', false].map(count => [`quotaReads=${JSON.stringify(count)}`, cases => { cases[0].quotaReads = count; }]),
+  ...['17 used13 left', '0.7 used13 left', '7 used113 left', '7 used0.13 left', '7 used13 leftover', '7 used', '13 left', '7 used13 left' + 'x'.repeat(257)]
+    .map(text => [`wrong usage text ${text.slice(0, 30)}`, cases => { cases[0].usageText = text; }]),
+  ...positiveBoolKeys.map((key, index) => [`false ${key}`, cases => { cases[index % 2][key] = false; }]),
+  ...positiveBoolKeys.map((key, index) => [`missing ${key}`, cases => { delete cases[index % 2][key]; }]),
+  ['string cleanup flag', cases => { cases[1].syntheticContextDisposed = 'true'; }],
+]) test(`v2 rejects jointly rehashed case ${name}`, t => {
+  forbidChildren(t); const f = packagedV2Fixture(t); mutateBothCases(f, mutate); f.seal();
+  assert.throws(() => verify(f), /native-packaged-evidence-invalid/);
+});
+function deferredTimeline(events, phase, after, count = 1) {
+  const rows = structuredClone(events);
+  const index = after === 'end' ? rows.length : rows.findIndex(row => row.event === `${phase}:${after}`) + 1;
+  rows.splice(index, 0, ...Array.from({ length: count }, () => ({ event: `${phase}:provider-deferred`, milliseconds: 0 })));
+  return rows;
+}
+function resealTimeline(f, events) {
+  events.forEach((row, index) => { row.milliseconds = index; });
+  change(f, 'functional-results.json', value => { value.timeline = events; });
+  change(f, 'failure.json', value => { value.timeline = [...events, { event: 'failure', milliseconds: events.length }]; });
+  f.seal(); // Rebind functional/failure -> observer/suite -> summary; rejection must be semantic.
+}
+for (const selected of [['initial'], ['restart'], ['initial', 'restart']]) {
+  test(`v2 permits exactly one deferred event immediately after application for ${selected.join('+')}`, t => {
+    forbidChildren(t); const f = packagedV2Fixture(t); let events = f.get('functional-results.json').timeline;
+    for (const phase of selected) events = deferredTimeline(events, phase, 'application');
+    resealTimeline(f, events); assert.equal(verify(f).schemaVersion, 2);
+    const run = f.ordinary(); assert.equal(verifyFreshOrdinaryPackagedEvidence(f.lock, f.directory, run).schemaVersion, 2);
+  });
+}
+test('v1 historical deferred-event filter is preserved unchanged', t => {
+  forbidChildren(t); const f = packagedFixture(t);
+  resealTimeline(f, deferredTimeline(f.get('functional-results.json').timeline, 'initial', 'end', 2));
+  assert.equal(verify(f).schemaVersion, 1);
+});
+for (const [name, mutate] of [
+  ...['initial', 'restart'].flatMap(phase => [
+    [`duplicate ${phase} provider-deferred`, events => deferredTimeline(events, phase, 'application', 2)],
+    [`${phase} provider-deferred before application`, events => deferredTimeline(events, phase, 'version-menu')],
+    [`${phase} provider-deferred after account`, events => deferredTimeline(events, phase, 'account')],
+    [`${phase} provider-deferred after timeline`, events => deferredTimeline(events, phase, 'end')],
+  ]),
+  ['missing positive event', events => events.filter(row => row.event !== 'restart:positive-usage')],
+  ['positive in initial phase', events => events.map(row => ({ ...row, event: row.event === 'restart:positive-usage' ? 'initial:positive-usage' : row.event }))],
+  ['positive after closed', events => { const rows = [...events]; [rows[rows.length - 1], rows[rows.length - 2]] = [rows[rows.length - 2], rows[rows.length - 1]]; return rows; }],
+  ['duplicate positive event', events => [...events, { event: 'restart:positive-usage', milliseconds: events.length }]],
+]) test(`v2 rejects strict timeline ${name}`, t => {
+  forbidChildren(t); const f = packagedV2Fixture(t);
+  resealTimeline(f, mutate(f.get('functional-results.json').timeline));
+  assert.throws(() => verify(f), /native-packaged-evidence-invalid/);
+  const run = f.ordinary();
+  assert.throws(() => verifyFreshOrdinaryPackagedEvidence(f.lock, f.directory, run), /native-packaged-evidence-invalid/);
+});
+for (const [name, mutate] of [
+  ['missing positive file', f => unlinkSync(join(f.directory, 'positive-usage.json'))],
+  ['wrong positive source', f => change(f, 'positive-usage.json', v => { v.pluginSource.targetCommit = 'f'.repeat(40); })],
+  ['arbitrary Client digest', f => change(f, 'positive-usage.json', v => { v.installedClientSha256 = 'f'.repeat(64); })],
+  ['unrestored signed-out app', f => change(f, 'positive-usage.json', v => { v.originalSignedOutApplicationRestored = false; })],
+  ['case mismatch', f => change(f, 'positive-usage.json', v => { v.cases[0].usageText = 'Credits: 7 used, 13 left'; })],
+  ['schema1 ordinary receipt', f => change(f, 'acceptance.json', v => { v.schemaVersion = 1; })],
+  ['wrong fresh run', f => change(f, 'acceptance.json', v => { v.runId = '123'; })],
+]) test(`fresh v2 rejects ${name}`, t => {
+  forbidChildren(t); const f = packagedV2Fixture(t); const run = f.ordinary(); mutate(f);
+  assert.throws(() => verifyFreshOrdinaryPackagedEvidence(f.lock, f.directory, run));
 });

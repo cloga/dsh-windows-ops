@@ -60,14 +60,11 @@ Before an installation agent emits every `pwsh` tool call:
 
 ## Release feedback and execution scope
 
-- Before expensive qualification, use the existing [release scope and short feedback
-  checklist](docs/core-upgrade.md#release-scope-and-short-feedback-loops): record the
-  cutoff and exact candidate, run the cheapest faithful checks first, classify failures
-  before bounded retries, and separate diagnostic artifact/script identities.
-- Keep one writer per mutable scope, one watcher per run and one current handoff;
-  review the final immutable source. Preserve observer error lifetimes and every
-  required release/security/restart gate. Proposed fast native checks are not existing
-  qualification lanes, and documentation-only improvements need no product bump.
+- Before expensive qualification, use the [bounded release-debugging checklist and
+  preflight template](docs/core-upgrade.md#bounded-release-debugging). Freeze scope,
+  classify failures before retrying, preserve separate package/script identities,
+  and keep one writer per scope, one watcher per run and one current handoff.
+  Final immutable review, release/security gates and restart authorization still apply.
 
 ## Restricted local npm: CI-first qualification
 

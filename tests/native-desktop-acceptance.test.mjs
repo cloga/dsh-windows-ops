@@ -13,6 +13,7 @@ import { preflightAsar, headerRuntimeInventory, probeEnvironment } from '../tool
 import { limits, validateDescriptor } from '../tools/native-runtime-integrity.mjs';
 import { probe as electronProbe } from '../tools/native-electron-probe.mjs';
 import { readNativeProfileMetadata } from '../tools/native-profile-metadata.mjs';
+import { packagedFixture } from './helpers/native-packaged-fixture.mjs';
 const asarReader = createRequire(import.meta.url)('../tools/vendor/asar-reader/reader.cjs');
 
 const hash = (value, algorithm = 'sha256', encoding = 'hex') => createHash(algorithm).update(value).digest(encoding);
@@ -410,20 +411,16 @@ test('settings evidence rejects an unknown schema version', t => {
 for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles', 'string-catalog', 'real-search',
   'initial-tamper', 'restart-tamper', 'missing-hosted-provider', 'installer-upgrade-claim']) {
   test(`alpha.2 settings gate ${mode} (inert rehashed copy, not release evidence)`, t => {
-    const root = mkdtempSync(join(tmpdir(), 'native-alpha2-settings-unit-'));
-    t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true }); noChild(t);
-    const lock = actualLock(); const channel = lock.components.desktop.releaseChannel;
-    channel.upstreamVersion = '0.1.6-alpha.2';
-    const native = channel.nativeProvisioning;
-    const path = join(root, 'acceptance.json'); const acceptance = JSON.parse(readFileSync(path));
-    acceptance.runtimeVersion = channel.upstreamVersion;
+    const f = packagedFixture(t); noChild(t);
+    const { lock, directory: root } = f; const native = lock.components.desktop.releaseChannel.nativeProvisioning;
+    const path = join(root, 'functional-results.json'); const acceptance = JSON.parse(readFileSync(path));
     if (mode === 'missing-contract') delete native.settingsAcceptance;
     if (mode === 'false-contract') native.settingsAcceptance = false;
     if (mode === 'false-roles') acceptance.modelRolesViewLoaded = false;
     if (mode === 'string-catalog') acceptance.searchProviderCatalogLoaded = 'true';
     if (mode === 'real-search') acceptance.realSearch = true;
     if (mode === 'installer-upgrade-claim') acceptance.installerUpgradeVerified = true;
-    write(path, acceptance); native.ancestorIsolation.acceptanceSha256 = hash(readFileSync(path));
+    write(path, acceptance); f.seal();
     if (mode.endsWith('-tamper')) write(join(root, `${mode.split('-')[0]}-settings-readonly.json`), '{}');
     if (mode === 'missing-hosted-provider') {
       const settingsPath = join(root, 'restart-settings-readonly.json');
@@ -434,9 +431,7 @@ for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles'
       assert.equal(acceptance.installerUpgradeVerified, false);
       assert.equal(verifyNativeReleaseEvidence(lock, root).valid, true);
     } else {
-      const reason = mode.endsWith('-tamper') ? 'file-hash' :
-        mode === 'installer-upgrade-claim' ? 'ancestor-isolation' : 'settings';
-      assert.throws(() => verifyNativeReleaseEvidence(lock, root), new RegExp(`native-release-${reason}-mismatch`));
+      assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-packaged-evidence-invalid/);
     }
   });
 }

@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { nativeLayout, preflightAsar, runAsarProbe } from './native-asar-runtime.mjs';
 import { hashFile, physical } from './native-runtime-integrity.mjs';
 import { readNativeProfileMetadata } from './native-profile-metadata.mjs';
+import { usesCombinedPackagedEvidence, readCombinedPackagedEvidence } from './native-packaged-evidence.mjs';
 
 const fail = (code) => { throw new Error(code); };
 const requireValue = (condition, code) => { if (!condition) fail(code); };
@@ -110,6 +111,7 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   const desktop = lock.components.desktop;
   const channel = desktop.releaseChannel;
   const native = channel.nativeProvisioning;
+  const combined = usesCombinedPackagedEvidence(lock);
   const read = (name, hash) => {
     const bytes = readFileSync(join(directory, name));
     requireValue(sha256(bytes) === hash, 'native-release-file-hash-mismatch');
@@ -169,7 +171,7 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   'native-release-plan-mismatch');
   const plugin = lock.components.copilotIntegration;
   const isolation = native.ancestorIsolation;
-  const acceptance = read('acceptance.json', isolation.acceptanceSha256);
+  const acceptance = combined ? readCombinedPackagedEvidence(lock, directory) : read('acceptance.json', isolation.acceptanceSha256);
   requireValue(acceptance.sourceCommit === desktop.source.commit &&
     acceptance.desktopVersion === desktop.version && acceptance.runtimeVersion === channel.upstreamVersion &&
     acceptance.ancestorSdkJunction === true && acceptance.ancestorSdkLoaded === false &&
@@ -180,8 +182,9 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   'native-release-ancestor-isolation-mismatch');
   // New paired releases carry exact read-only settings proof. Legacy fixtures
   // remain historical; exact alpha.2 requires this gate regardless of sequence.
-  if (native.settingsAcceptance !== undefined || channel.upstreamVersion === '0.1.6-alpha.2' ||
-    (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) {
+  // The combined adapter already validates alpha.2's full settings/menu/usage graph.
+  if (!combined && (native.settingsAcceptance !== undefined ||
+    (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12))) {
     const settingsProof = native.settingsAcceptance;
     requireValue(object(settingsProof) && (settingsProof.schemaVersion === undefined || settingsProof.schemaVersion === 2) &&
       acceptance.modelRolesViewLoaded === true && acceptance.searchProviderCatalogLoaded === true &&
@@ -222,7 +225,7 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     }
     if (providerNavigation) requireValue(isDeepStrictEqual(acceptance.versionMenus, versionMenus), 'native-release-settings-mismatch');
   }
-  if (native.usageAcceptance !== undefined) {
+  if (!combined && native.usageAcceptance !== undefined) {
     const proof = native.usageAcceptance;
     const capability = acceptance.copilotUsageCapability;
     requireValue(object(proof) && proof.schemaVersion === 1 && object(capability) &&

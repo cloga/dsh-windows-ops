@@ -343,6 +343,8 @@ jobs:
           try {
             # tsx resolves from the exact verified source, not from an Ops/ambient install.
             # The source observer awaits Ops checks before its owned-profile finally cleanup.
+            # Alpha.2 captures genuine Ops caller identity, then omits only GITHUB_SHA around the Core call
+            # inside this dedicated CLI and restores it in finally. Never spoof a Core GITHUB_SHA.
             & node --import tsx/esm (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --run --lock (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') --confirm-version $env:CONFIRM_VERSION --source-root $source --application $application --output (Join-Path $env:PRIVATE_ROOT 'output') --evidence-root (Join-Path $env:PRIVATE_ROOT 'evidence') > (Join-Path $env:PRIVATE_ROOT 'logs/run.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/run.stderr')
             if ($LASTEXITCODE -ne 0) { throw 'native-asar-real-release-qualification-failed-see-sanitized-summary' }
           } finally { Pop-Location }
@@ -356,7 +358,23 @@ jobs:
           $file = Get-Item -LiteralPath $path -Force
           if ($file.PSIsContainer -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $file.Length -gt 16384) { throw 'native-asar-summary-artifact-invalid' }
           $summary = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable
-          if ($summary.schemaVersion -ne 1 -or $summary.valid -isnot [bool] -or $summary.modelResponseVerified -cne $false -or
+          $lock = Get-Content -LiteralPath (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') -Raw | ConvertFrom-Json
+          $alpha2 = $lock.components.desktop.releaseChannel.upstreamVersion -ceq '0.1.6-alpha.2'
+          $schema = if ($alpha2) { 2 } else { 1 }
+          if ($alpha2) {
+            if ($summary.valid -eq $true -and ($summary.sourceCommit -cne $lock.components.desktop.source.commit -or
+                $summary.sourceTree -cne $lock.components.desktop.source.tree)) { throw 'native-asar-core-identity-invalid' }
+            $caller = $summary.caller
+            if ($caller -isnot [System.Collections.IDictionary] -or
+                (($caller.psbase.Keys | Sort-Object) -join ',') -cne 'repository,runAttempt,runId,sourceCommit' -or
+                $caller.repository -isnot [string] -or $caller.sourceCommit -isnot [string] -or
+                $caller.runId -isnot [string] -or $caller.runAttempt -isnot [string] -or
+                $caller.repository -cne 'cloga/dsh-windows-ops' -or $caller.repository -cne $env:GITHUB_REPOSITORY -or
+                $caller.sourceCommit -cnotmatch '^[a-f0-9]{40}$' -or $caller.sourceCommit -cne $env:GITHUB_SHA -or
+                $caller.runId -cnotmatch '^[1-9][0-9]*$' -or $caller.runId -cne $env:GITHUB_RUN_ID -or
+                $caller.runAttempt -cnotmatch '^[1-9][0-9]*$' -or $caller.runAttempt -cne $env:GITHUB_RUN_ATTEMPT) { throw 'native-asar-caller-identity-invalid' }
+          }
+          if ($summary.schemaVersion -ne $schema -or $summary.valid -isnot [bool] -or $summary.modelResponseVerified -cne $false -or
               $summary.observerCalls -isnot [long] -and $summary.observerCalls -isnot [int]) { throw 'native-asar-summary-artifact-invalid' }
           if ($summary.valid) {
             $keys = 'applicationPackageName,applicationPackageSha256,applicationPackageVersion,descriptorSha256,executableSha256,installerSha256,installerUpgradeVerified,invalidRequests,modelResponseVerified,observerCalls,profileRemoved,publicResolver,qualification,runtimeFileCount,schemaVersion,sourceCommit,sourceTree,valid,version,wholeCarrierAttested'
@@ -389,6 +407,7 @@ jobs:
                 $diagnostic.sourcePhase -isnot [string] -or $diagnostic.sourcePhase -cnotin $phases -or
                 $diagnostic.sourceFailure -isnot [string] -or $diagnostic.sourceFailure -cnotin @('absent','present','unreadable')) { throw 'native-asar-summary-artifact-invalid' }
           }
+          if ($alpha2) { $keys = ((@($keys.Split(',')) + @('caller') | Sort-Object) -join ',') }
           if ((($summary.psbase.Keys | Sort-Object) -join ',') -cne $keys) { throw 'native-asar-summary-artifact-invalid' }
 
       - name: Retain only the sanitized qualification summary

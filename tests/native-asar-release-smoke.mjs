@@ -11,6 +11,8 @@ import { nativeLayout, preflightAsar, probeEnvironment, boundedHeader, headerRun
 import { hashFile, hashValid, inside, object, physical, relativeName, safeReason, sha256 } from '../tools/native-runtime-integrity.mjs';
 import { verifyNativeReleaseEvidence, verifyPositiveUsageEvidence } from '../tools/verify-native-desktop.mjs';
 import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
+import { verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
+import { captureOpsCaller, withCoreFixtureEnvironment } from '../tools/native-core-fixture-caller.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFixture = 'apps/desktop/tests/fixtures/copilot-release-smoke.ts';
@@ -140,6 +142,7 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
   // Do not let the historical settings early-return bypass explicit positive proof.
   verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput);
   const channel = lock.components.desktop.releaseChannel;
+  if (channel.upstreamVersion === '0.1.6-alpha.2') return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput);
   const proof = channel.nativeProvisioning.settingsAcceptance;
   if (proof === undefined && channel.upstreamVersion !== '0.1.6-alpha.2' &&
     !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
@@ -366,6 +369,9 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
   let calls = 0; let observedHome; let positive; let completed = false;
   let diagnosticStage = 'source-import';
   const invalidRequests = {};
+  // Ops source is a workflow-created git archive, not a checkout. Bind genuine caller leaves, not invented tree evidence.
+  const caller = plan.upstreamVersion === '0.1.6-alpha.2' ? captureOpsCaller() : undefined;
+  const summaryIdentity = caller === undefined ? { schemaVersion: 1 } : { schemaVersion: 2, caller };
   try {
     // No token, source .env, or arbitrary DSH/Node loader overrides enter the fixture.
     for (const [key, value] of Object.entries(process.env)) {
@@ -373,6 +379,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
         need(key === 'DSH_TELEMETRY_DISABLED' && value === '1', 'sensitive-environment');
       }
     }
+    const invokeCore = async () => {
     const { runPackagedCopilotAcceptance } = await import(pathToFileURL(join(sourceRoot, sourceFixture)).href);
     need(typeof runPackagedCopilotAcceptance === 'function', 'observer-api-unavailable');
     diagnosticStage = 'source-fixture';
@@ -406,9 +413,14 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       need(preflightAsar(lock, dirname(application)).archiveSha256 === before.archiveSha256, 'runtime-mutated');
       diagnosticStage = 'source-fixture';
     } });
+    };
+    // Core reads actual git HEAD/tree; an inherited Ops GITHUB_SHA would name a different repository.
+    if (caller === undefined) await invokeCore();
+    else await withCoreFixtureEnvironment(caller, invokeCore);
     diagnosticStage = 'post-acceptance';
     need(calls === 1 && observedHome && !entryExists(observedHome), 'observer-cleanup-incomplete');
-    const accepted = readJson(join(sourceOutput, 'acceptance.json'));
+    const accepted = caller === undefined ? readJson(join(sourceOutput, 'acceptance.json')) :
+      verifyFreshOrdinaryPackagedEvidence(lock, sourceOutput, caller);
     need(accepted.sourceCommit === plan.sourceCommit && accepted.desktopVersion === plan.version &&
       accepted.runtimeVersion === plan.upstreamVersion && accepted.actualGraphVerified === true &&
       accepted.accountEntryVisible === true && accepted.ancestorSdkJunction === true && accepted.ancestorSdkLoaded === false &&
@@ -421,7 +433,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     need(after.archiveSha256 === before.archiveSha256 &&
       isDeepStrictEqual(readApplicationPackageIdentity(lock, after), applicationIdentity), 'runtime-mutated');
     completed = true;
-    const summary = { schemaVersion: 1, valid: true, qualification: 'locked-release-ops-observer',
+    const summary = { ...summaryIdentity, valid: true, qualification: 'locked-release-ops-observer',
       version: plan.version, sourceCommit: plan.sourceCommit, sourceTree: plan.sourceTree,
       installerSha256: lock.components.desktop.artifact.sha256, executableSha256: before.executableSha256,
       descriptorSha256: before.descriptorSha256, runtimeFileCount: positive.runtime.fileCount,
@@ -431,7 +443,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     writeFileSync(join(output, 'qualification.json'), JSON.stringify(summary, null, 2) + '\n', { flag: 'wx' });
     return summary;
   } catch (error) {
-    const summary = { schemaVersion: 1, valid: false, qualification: 'not-ready', reason: safeReason(error),
+    const summary = { ...summaryIdentity, valid: false, qualification: 'not-ready', reason: safeReason(error),
       observerCalls: calls, profileRemoved: observedHome ? !entryExists(observedHome) : null, modelResponseVerified: false,
       diagnostic: sourceFailureDiagnostic(sourceOutput, diagnosticStage, error) };
     writeFileSync(join(output, 'qualification.json'), JSON.stringify(summary, null, 2) + '\n', { flag: 'wx' });

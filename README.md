@@ -75,11 +75,11 @@ Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读�
 | Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `b5b9b31ce34871ab320f63a91254ba601fd71edc447609d261360d84e4b929e8`；ASAR root 跟随实际 EXE |
 | 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.33`，source `aa90fe434da8b2172faa1446afa0a0fd006afe00`；由 `desktopNativeVerifiedRelease` 接管 |
 | 正式 packaged 证据 | run `35569892548` attempt 2 SUCCESS；schema-2 settings/version-menu、schema-1 signed-out usage 与已认证的可选 positive usage proof |
-| Native Ops qualification | [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267) attempt 1 **SUCCESS**，精确 Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`；native job `106255672689` 与全部 4 个 jobs 通过 |
+| Native Ops qualification | [run `35577921833`](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833) attempt 1 **SUCCESS**，精确组合 Ops code head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`；native job `106264308921` 与全部 4 个 jobs 通过 |
 
-文档/证据专用提交 `c868c689…` 只记录上述 code head 的结果，不宣称新提交本身执行了 native qualification。
-随后合入 protected master `43630e4…` / PR #212 还包含 alpha.2 adapter/test 准备，
-**新的组合 head 仍须重新执行 native qualification**，不能继承之前的成功。
+初始 `a59f586…` 验收与 `c868c689…` 文档/证据提交保留为历史。合入 protected master
+`43630e4…` / PR #212 后，**组合 head `cd384495…` 已通过上述独立的新 native run**，未继承之前的成功。
+本次最终提交只更新 provenance，保留 code/lock/raw evidence 字节，不冒称自身为 native run 的 head。
 参见[并行 master 集成记录](docs/copilot-alpha33-upgrade-record.md#concurrent-master-integration-checkpoint)。
 1,073-byte raw summary SHA-256 为 `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`；
 fresh positive proof 由该精确 driver 强制校验，不是新增 summary flags。Whole-carrier、model-response、

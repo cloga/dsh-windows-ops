@@ -113,8 +113,9 @@ run can supply that released-Client renderer evidence. Neither scope establishes
 live quota, OAuth, model/search, Session billing or installed upgrade acceptance.
 This v2 work remains source preparation. The separately reviewed current target is
 `.cloga.16`/Core alpha.1/Copilot alpha.33; its exact `a59f586…` Ops qualification
-remains historical to that code head. Merging the v2 adapter/test changes requires
-fresh qualification of the combined head and does not promote alpha.2.
+remains historical to that code head. After merging the v2 adapter/test changes,
+fresh run `35577921833` passed at exact combined head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`.
+That verifies the unchanged alpha.1 target, not promotion or hosted qualification of alpha.2.
 
 Fresh Ops qualification is a different contract. `tests/native-asar-release-smoke.mjs`
 uses the real ordinary Core owner with a successful read-only resolver observer,
@@ -154,7 +155,8 @@ unpublished and unqualified, with no installation, activation or restart authori
 两条 route 的正向证据须涵盖 Session 继承／显式缺席、删除／关闭后的隐藏与恢复、provider 恢复、
 可见 Client 释放和原应用恢复。合成 Client 单元测试不等于实际已发布 Client 的托管 renderer 证明，
 也不证明真实额度、Session 计费或安装升级。独立评审的当前目标为 `.cloga.16`/Core alpha.1/alpha.33；
-`a59f586…` 的 Ops 成功仅属于该精确 code head。合入 v2 adapter/test 后须重新验收组合 head，不提升 alpha.2。
+`a59f586…` 的 Ops 成功仅属于该精确 code head。合入 v2 adapter/test 后，run `35577921833`
+已独立验收精确组合 head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0` 的 alpha.1 目标，不提升或验收 alpha.2。
 
 组合格式只适用于经过明确评审的正式导入证据；全新 Ops resolver observer 仍成功走普通验收路径，
 清理后才提交普通 acceptance。Ops 调用方身份来自实际 job，与调用前后核验的 Core 检出身份分开；

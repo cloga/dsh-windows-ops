@@ -26,8 +26,9 @@ contract. No Core fallback, Core patch or persistent data migration is introduce
 succeeded. Parent verification authenticated the published records/assets and
 source-owned acceptance; the original three Actions ZIP bytes were independently
 audited. **Fresh hosted Native Ops qualification passed** in
-[run `35575187267`, attempt 1](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267)
-at exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`.
+[combined-head run `35577921833`, attempt 1](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833)
+at exact Ops code head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`.
+The initial `a59f586…` run remains separately recorded below.
 Historical `.cloga.14`/alpha.32 run `35553019059` is not proof of this target.
 Publication and this reviewed repin neither install nor activate it locally.
 
@@ -99,7 +100,7 @@ a release or cleanup gate; that success does not erase or explain attempt 1.
 All historical formal/Ops evidence stays historical. Hosted qualification is now
 complete at the exact code head below; local activation remains deliberately deferred.
 
-## Authenticated hosted Ops qualification
+## Initial authenticated hosted Ops qualification
 
 The registered caller [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267),
 attempt 1, completed all four jobs successfully. Its native
@@ -136,14 +137,27 @@ passed separately on the evidence-recording head.
 Protected master subsequently advanced to `43630e4d073de81c0644b24e426a0ae5aed1ccbf`
 ([Ops PR #212](https://github.com/cloga/dsh-windows-ops/pull/212)), adding explicit
 alpha.2 `combined-suite-v2` positive Client evidence preparation. The same PR #211
-now merges that work without dropping either stream. This later merge includes
-adapter and test changes: it is **not** another documentation-only successor, and
-the earlier `a59f586…` success does not qualify the new combined head. Fresh exact-head
-hosted native qualification is required before merge; until it succeeds, no combined-head
-success is claimed. The `.cloga.16`/sequence-27/Core-alpha.1/alpha.33 deployment lock,
-its positive-proof pins and original formal/Ops bytes remain unchanged. Alpha.2
-is not promoted. A new run's exact identity and result must be recorded separately,
-not by relabeling run `35575187267` or adding fields to its raw summary.
+merged that work at `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0` without dropping
+either stream. This merge includes adapter and test changes: it is **not** another
+documentation-only successor, so the earlier `a59f586…` success was not inherited.
+
+Fresh [run `35577921833`](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833)
+attempt 1 passed all four jobs at **exact combined code head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`**;
+its [native job `106264308921`](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833/job/106264308921)
+passed independently. Artifact `10627994685`, `native-asar-qualification-35577921833-1`,
+is **733 bytes**, original ZIP SHA-256
+`919251b434d11b865e8f5f385db9902e3a3ebdb8c2c9540aa6d7347d45f6cce6`.
+Its sole `qualification.json` is **1,073 bytes**, SHA-256
+`26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`,
+byte-identical to the committed original summary. Freshness is established by the
+new authenticated run/head/job and original ZIP, **not** by changing that summary
+or reusing the earlier run identity. The runtime/source/observer/boundary observations
+remain as described above; positive checks were enforced by the exact combined driver.
+
+The final follow-up only records this new provenance in documentation and catalog
+descriptions; code/tests/workflows/lock/raw evidence stay identical to `cd384495…`.
+It is not relabeled as the native run's head. The `.cloga.16`/sequence-27/Core-alpha.1/
+alpha.33 target and positive-proof pins remain unchanged; alpha.2 is not promoted.
 
 The user explicitly chose **stage only, without interrupting Sessions**. No local
 installation, activation or restart was performed; live-account UI validation is

@@ -104,13 +104,13 @@ Formal source evidence does not install or activate it locally.
 | Desktop-managed DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`; descriptor SHA-256 `b5b9b31ce34871ab320f63a91254ba601fd71edc447609d261360d84e4b929e8`; default ASAR root follows the installed EXE |
 | Required `dsh-github-copilot` | immutable `0.4.0-alpha.33`, source `aa90fe434da8b2172faa1446afa0a0fd006afe00`; delegated through `desktopNativeVerifiedRelease` |
 | Formal packaged evidence | run `35569892548`, attempt 2 SUCCESS; schema-2 settings/version-menu, schema-1 signed-out usage and authenticated optional positive usage proof |
-| Native Ops qualification | [run `35575187267`](https://github.com/cloga/dsh-windows-ops/actions/runs/35575187267) attempt 1 **SUCCESS**, exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`; native job `106255672689` and all four jobs passed |
+| Native Ops qualification | [run `35577921833`](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833) attempt 1 **SUCCESS**, exact combined Ops code head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`; native job `106264308921` and all four jobs passed |
 
-Evidence-only follow-up `c868c689…` records that code-head result; it is not a
-native qualification of the later head. The subsequent merge of protected master
-`43630e4…` / PR #212 also carries alpha.2 adapter/test preparation, so fresh native
-qualification of that **combined head remains required**; the earlier success is
-not transferred. See the [integration checkpoint](docs/copilot-alpha33-upgrade-record.md#concurrent-master-integration-checkpoint). The 1,073-byte raw summary's
+Initial qualification at `a59f586…` and evidence-only follow-up `c868c689…` remain
+history. After merging protected master `43630e4…` / PR #212, the **combined head
+`cd384495…` passed its own fresh native run** above; earlier success was not transferred.
+This final provenance-only follow-up preserves code/lock/raw evidence and is not itself
+the native run's head. See the [integration checkpoint](docs/copilot-alpha33-upgrade-record.md#concurrent-master-integration-checkpoint). The 1,073-byte raw summary's
 SHA-256 is `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`.
 Fresh positive proof is enforced by that exact driver, not new summary flags.
 Whole-carrier/model-response/installer-upgrade flags remain false; historical

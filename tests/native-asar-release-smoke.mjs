@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { nativeLayout, preflightAsar, probeEnvironment, boundedHeader, headerRuntimeInventory } from '../tools/native-asar-runtime.mjs';
 import { hashFile, hashValid, inside, object, physical, relativeName, safeReason, sha256 } from '../tools/native-runtime-integrity.mjs';
-import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
+import { verifyNativeReleaseEvidence, verifyPositiveUsageEvidence } from '../tools/verify-native-desktop.mjs';
 import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
 import { verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
 import { captureOpsCaller, withCoreFixtureEnvironment } from '../tools/native-core-fixture-caller.mjs';
@@ -139,6 +139,8 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
 // Exact immutable source emits deterministic read-only settings leaves. This
 // gate binds freshly executed phases to formal proof, never real search success.
 export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
+  // Do not let the historical settings early-return bypass explicit positive proof.
+  verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput);
   const channel = lock.components.desktop.releaseChannel;
   if (channel.upstreamVersion === '0.1.6-alpha.2') return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput);
   const proof = channel.nativeProvisioning.settingsAcceptance;
@@ -208,8 +210,25 @@ export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
         events.indexOf(`${phase}:usage-readonly`) > events.indexOf(`${phase}:account`),
       'source-usage-acceptance-incomplete');
     }
-    need(isDeepStrictEqual(accepted.signedOutCopilotUsage, observations), 'source-usage-acceptance-incomplete');
+    need(isDeepStrictEqual(accepted.signedOutCopilotUsage, observations) &&
+      isDeepStrictEqual(observations[0], observations[1]), 'source-usage-acceptance-incomplete');
   }
+}
+
+export function verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput) {
+  verifyPositiveUsageEvidence(lock, accepted, (name, digest) => {
+    const path = physical(join(sourceOutput, name), 'file');
+    need(hashFile(path) === digest, 'source-positive-usage-acceptance-incomplete');
+    return readJson(path);
+  });
+}
+
+export function verifyFreshPositiveUsageClient(lock, profile) {
+  const proof = lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+  if (proof === undefined) return;
+  need(object(proof) && hashValid(proof.installedClientSha256) &&
+    hashFile(physical(join(profile, 'node_modules/dsh-github-copilot/lib/client.js'), 'file')) ===
+      proof.installedClientSha256, 'source-positive-usage-client-mismatch');
 }
 
 export function validateSourceIdentity(lock, confirmation, identity) {
@@ -370,6 +389,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       inspectObserverPaths(paths, sourceRoot, application, sourceOutput); observedHome = paths.home;
       const metadataPaths = ['package.json', 'desktop-plugin-receipts.json', 'desktop-plugin-provisioning-state.json'];
       const metadataBefore = metadataPaths.map(name => hashFile(physical(join(paths.profile, name), 'file')));
+      verifyFreshPositiveUsageClient(lock, paths.profile);
       const input = inspectionInput(lock, paths, output);
       positive = integration(input, output, 'positive');
       if (positive.valid === false) throw new Error(positive.reason); // already bounded, owned error code only

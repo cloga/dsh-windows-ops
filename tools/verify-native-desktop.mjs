@@ -61,6 +61,52 @@ function canonical(value) {
   return JSON.stringify(value);
 }
 
+// Opt-in, version-independent contract for the source-owned restart-only fixture.
+// The caller authenticates bytes; these observations never prove live account access.
+export function verifyPositiveUsageEvidence(lock, accepted, read) {
+  const desktop = lock.components.desktop;
+  const native = desktop.releaseChannel.nativeProvisioning;
+  const proof = native.usagePositiveAcceptance;
+  if (proof === undefined) return;
+  const code = 'native-release-positive-usage-mismatch';
+  const digest = value => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+  requireValue(object(proof) && proof.schemaVersion === 1 && digest(proof.sha256) &&
+    digest(proof.installedClientSha256) && native.usageAcceptance?.schemaVersion === 1 &&
+    native.settingsAcceptance?.schemaVersion === 2, code);
+  const positive = read('positive-usage.json', proof.sha256);
+  const transport = 'not-provided-to-isolated-fixture';
+  const plugin = lock.components.copilotIntegration;
+  requireValue(object(positive) && positive.runtimeSha256 === desktop.installedRuntimeDescriptor.sha256 &&
+    positive.installedClientSha256 === proof.installedClientSha256 && object(positive.pluginSource) &&
+    isDeepStrictEqual(positive.pluginSource, accepted.plugin) &&
+    positive.pluginSource.sha256 === plugin.package.artifact.sha256 &&
+    positive.pluginSource.targetCommit === plugin.source.commit &&
+    positive.pluginSource.version === plugin.package.version &&
+    positive.pluginSource.assetId === plugin.package.artifact.assetId &&
+    positive.originalSignedOutApplicationRestored === true && positive.hostTransport === transport &&
+    accepted.positiveUsageHostTransport === transport && accepted.liveAccountQuota === false &&
+    accepted.realOAuth === false && accepted.realModelRound === false && accepted.realSearch === false &&
+    Array.isArray(positive.cases) && positive.cases.length === 2 &&
+    isDeepStrictEqual(positive.cases, accepted.positiveCopilotUsage), code);
+  for (const [index, provider] of ['github-copilot', 'github-copilot-preview'].entries()) {
+    const observation = positive.cases[index];
+    requireValue(object(observation) && observation.provider === provider &&
+      observation.scope === 'packaged-renderer-released-client-synthetic-session-and-quota' &&
+      typeof observation.usageText === 'string' && /7 used/u.test(observation.usageText) &&
+      observation.quotaReads === 2 && observation.sessionSubscribed === true &&
+      observation.removedSessionHidesUsage === true && observation.otherProviderHidesUsage === true &&
+      observation.clientDisposalRemovesUsage === true && observation.selectorErrors === 0 &&
+      observation.forbiddenRemoteCalls === 0 && observation.hostTransport === transport &&
+      observation.applicationMountPreserved === true && observation.syntheticSiblingPreserved === true, code);
+  }
+  requireValue(Array.isArray(accepted.timeline), code);
+  const events = accepted.timeline.map(entry => entry?.event);
+  const orderedEvents = ['restart:account', 'restart:usage-readonly', 'restart:packaged-graph',
+    'restart:positive-usage', 'restart:closed'];
+  requireValue(orderedEvents.every((event, index) => events.filter(value => value === event).length === 1 &&
+    (index === 0 || events.indexOf(event) > events.indexOf(orderedEvents[index - 1]))), code);
+}
+
 export function verifyNativeReleaseEvidence(lock, directory) {
   const desktop = lock.components.desktop;
   const channel = desktop.releaseChannel;
@@ -204,8 +250,10 @@ export function verifyNativeReleaseEvidence(lock, directory) {
         events.indexOf(`${phase}:usage-readonly`) > events.indexOf(`${phase}:account`),
       'native-release-usage-mismatch');
     }
-    requireValue(isDeepStrictEqual(acceptance.signedOutCopilotUsage, observations), 'native-release-usage-mismatch');
+    requireValue(isDeepStrictEqual(acceptance.signedOutCopilotUsage, observations) &&
+      isDeepStrictEqual(observations[0], observations[1]), 'native-release-usage-mismatch');
   }
+  verifyPositiveUsageEvidence(lock, acceptance, read);
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
     const graph = read(file, hash);

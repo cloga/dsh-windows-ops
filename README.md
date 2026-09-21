@@ -22,7 +22,7 @@
 
 本次 [0.1.6-alpha.2 官方对照与迁移决定](docs/core-016a2-assessment.md)记录已审视的
 官方替代、必须保留的差异和已发现的接口问题；源码评估不是新部署基线。
-后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron、Playwright 与 Copilot alpha.28 的历史发布证据继续保留。当前部署锁已选择独立核验的 Desktop `0.1.6-alpha.1.cloga.14` / bundled Core alpha.1 / Copilot alpha.32。Alpha.32 虽兼容官方 Core alpha.2，但另行负责、仍为 draft 的 Desktop PR 68 尚未合格，本维护发布不提升 Core。正式发布与来源验收不代表本机已安装/激活，也不证明真实 compaction、OAuth、model 或 search。
+后续合并、发布、哈希与验收范围见[适配交付证据](docs/core-016a2-delivery.md)；Cron、Playwright 与 Copilot alpha.28 的历史发布证据继续保留。当前部署锁已选择独立核验的 Desktop `0.1.6-alpha.1.cloga.16` / bundled Core alpha.1 / Copilot alpha.33。Alpha.33 虽兼容官方 Core alpha.2，但另行负责、仍为 draft 的 Desktop PR 68 尚未合格，本维护发布不提升 Core。正式发布与来源验收不代表本机已安装/激活，也不证明真实 compaction、OAuth、model 或 search。
 另见[原生加载依赖与镜像验证](docs/core-016a2-assessment.md#native-loader-dependency-and-mirror-qualification)：
 `node-addon-require-builtin@0.1.6` 属于官方启动层；旧版 `0.1.5` 虽通过独立 Node 测试，却在 Electron 44 的实际原生调用中失败；历史已验证部署中的 `0.1.6` 文件在同一载体通过主线程及两个 Worker 对照，因此保留 `0.1.6`。这不等于取得 npm 原始包或完成整个 Core 验收。该节也区分可选 CUA 测试依赖与 Desktop 运行需要，并记录 pnpm 11 筛选安装仍包含根项目的限制。
 
@@ -39,7 +39,7 @@ Desktop 仍交付既有 installer，不用 tarball 替代，不暗增启动时�
 
 **Alpha.2 兼容准备仍独立：** native descriptor 校验仅对精确 Core
 `0.1.6-alpha.2` 要求 Host protocol 4，保留旧版 protocol 3 与 synthetic-only 检查。
-已发布 lock 的 Desktop `.cloga.14` 仍内置 Core alpha.1；Alpha.32 的 alpha.2 admission
+已发布 lock 的 Desktop `.cloga.16` 仍内置 Core alpha.1；Alpha.33 的 alpha.2 admission
 不等于 draft alpha.2 Desktop 已合格或已部署。详见[严格准备边界](docs/core-016a2-assessment.md#strict-native-compatibility-preparation)。
 
 **组合证据准备不代表提升基线：** [Ops #181 准备工作](docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
@@ -50,8 +50,10 @@ Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读�
 合成 Client 单元测试不等于在托管环境中执行实际已发布 Client。
 真实 Ops 调用方身份与经过验证的 Core 检出身份分开保留；私有 Ops 源码归档不是 Git 检出目录。
 精确且成功的 Core CI 摘要可以证明执行过未完整归档根记录的安装检查，但不能提供完整离线重放。
-六个公开资产与已合格的 `.cloga.14`/alpha.32 lock 均保持不变。Alpha.2 尚未发布、尚未合格；
-此准备工作不授权安装、激活或重启。
+此 alpha.2 准备工作不修改六资产公开契约，也不提升当前独立评审的 `.cloga.16`/alpha.33
+目标；该目标的正式证据已认证，hosted Native Ops run `35575187267` 已在精确 Ops code head
+`a59f586df4e329c3bc8b3f885013fdb5493f4970` 通过。Alpha.2 尚未发布、
+尚未合格；此准备工作不授权安装、激活或重启。
 
 ## Copilot 自动识别路由维护
 
@@ -65,25 +67,39 @@ Copilot alpha.33 Client 策略的 `positive-usage.json`；v1 与旧 alpha.1 读�
 
 ## 当前已发布部署目标
 
-机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前验证日期为 **2026-09-20**：
+机器可执行基线以 [`deployments/windows-copilot.lock.json`](deployments/windows-copilot.lock.json) 为准，当前发布制品与正式证据独立核验日期为 **2026-09-21**；新目标的 hosted Native Ops qualification 已在下列精确 code head 通过：
 
 | 组件 | 锁定版本 |
 |---|---|
-| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.14`，sequence 24，不可变 Release `392640510`，source `a0f0144f4cddc90c45f8be93c61c0cd6cec470c7` |
-| Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55`；ASAR root 跟随实际 EXE |
-| 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.32`，source `76d190aed688e073df930adb3c753d2a749519c9`；由 `desktopNativeVerifiedRelease` 接管 |
-| 正式 packaged 证据 | run `35549412610` attempt 1；20 个逐字节正式 JSON fixtures，schema-2 settings/version-menu 与 schema-1 signed-out usage 证据 |
-| Native Ops qualification | registered caller run `35553019059` 已在精确 head `68a1218ef6a50f06870bae483d64f52d6de244aa` 通过；原始摘要 SHA-256 `bc90877cad62f68e7816d35035a1bbffa9a678b773d79884c2ae680941c3ec00` |
+| DeepSeek Harness Desktop | fork-owned `0.1.6-alpha.1.cloga.16`，sequence 27，不可变 Release `392765616`，source `2c4f20904887240f83f776c79d8d69a42ce6c1e6` |
+| Desktop 管理的 DSH runtime | bundled `@deepseek-ai/dsh@0.1.6-alpha.1`；descriptor SHA-256 `b5b9b31ce34871ab320f63a91254ba601fd71edc447609d261360d84e4b929e8`；ASAR root 跟随实际 EXE |
+| 必需的 `dsh-github-copilot` | 不可变 `0.4.0-alpha.33`，source `aa90fe434da8b2172faa1446afa0a0fd006afe00`；由 `desktopNativeVerifiedRelease` 接管 |
+| 正式 packaged 证据 | run `35569892548` attempt 2 SUCCESS；schema-2 settings/version-menu、schema-1 signed-out usage 与已认证的可选 positive usage proof |
+| Native Ops qualification | [run `35577921833`](https://github.com/cloga/dsh-windows-ops/actions/runs/35577921833) attempt 1 **SUCCESS**，精确组合 Ops code head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`；native job `106264308921` 与全部 4 个 jobs 通过 |
+
+初始 `a59f586…` 验收与 `c868c689…` 文档/证据提交保留为历史。合入 protected master
+`43630e4…` / PR #212 后，**组合 head `cd384495…` 已通过上述独立的新 native run**，未继承之前的成功。
+本次最终提交只更新 provenance，保留 code/lock/raw evidence 字节，不冒称自身为 native run 的 head。
+参见[并行 master 集成记录](docs/copilot-alpha33-upgrade-record.md#concurrent-master-integration-checkpoint)。
+1,073-byte raw summary SHA-256 为 `26c85a04e6be4616168bba93d08e838e21c45077dd3043e27855c2b51ba096d1`；
+fresh positive proof 由该精确 driver 强制校验，不是新增 summary flags。Whole-carrier、model-response、
+installer-upgrade flags 仍为 false，历史 `.cloga.14`/alpha.32 run `35553019059` 不能移用。
 
 正式验收在首次启动与重启验证只读 current workspace、Model roles、相同的
 `deepseek-official`/`github-copilot-hosted` 目录、provider-only routing、Fallback
-label、精确 Desktop About-menu identity 与 account readiness 后缺席的 signed-out usage surface。未执行 Host request instrumentation、live quota、OAuth、verification navigation、
+label、精确 Desktop About-menu identity 与 account readiness 后缺席的 signed-out usage surface。
+新增的 schema-1 `usagePositiveAcceptance` 使用已发布 Client 与实际 renderer、SessionProvider/Slot，
+但 Session/quota/test mount 为 synthetic；canonical/preview 两条路由只在 restart graph 后执行一次。
+[正式证据与哈希](docs/copilot-alpha33-upgrade-record.md)已经认证，不再是待提供制品；
+它不证明 live account/network。正式发布 run `35569892548` attempt 1 的 `EBUSY` helper cleanup 失败仍保留为历史。
+未执行 Host request instrumentation、live quota、OAuth、verification navigation、
 model/search、save/create、本机安装或重启；external-navigation success 仍未合格。
 
 Lock 更新表示经过评审的目标，不代表本机状态。已安装 Desktop 仍为 `.cloga.10`
 时，不得针对 future lock 运行 current-machine Check；预期 drift 不是发布缺陷。
 Managed helper 仍是交互式流程，需要单独确认 active Sessions 影响及 Windows/UAC，
-本次不授权无人值守安装。
+本次明确选择 **stage-only**：不在本机安装、激活或重启；live account 验证留待未来人类请求，
+不是发布/CI 完成后的自动下一步。
 
 Legacy-compatible update manifest 保持 `automaticProvisioning=false`；独立 hash-bound
 build receipt/capability 管理精确 startup provisioning。Native dependency registry
@@ -92,14 +108,15 @@ source build 使用 `https://registry.npmjs.org/`。不得修改 live plan 或�
 历史 formal/Ops fixtures 与失败记录均保持不变。
 
 每次升级必须执行[官方优先检查清单](docs/local-core-desktop-copilot.md#official-first-upgrade-checklist)。
-[Alpha.32 正式验收记录](docs/copilot-alpha32-upgrade-plan.md)列出 official/delegated
-Core primitives、保留的 plugin/Desktop gaps、精确来源/资产、schema-2 证据及
-synthetic/downstream 边界。Alpha.32 不是“官方 Core”；兼容 alpha.2 不等于提升
-另行负责、仍为 draft 的 Desktop PR 68。
+[Alpha.33 正式验收记录](docs/copilot-alpha33-upgrade-record.md)列出精确来源/资产、
+positive proof 与 synthetic/downstream 边界；PR #157 通过官方 `useSession` selector
+契约修复插件，不改 Core。[Alpha.32 历史记录](docs/copilot-alpha32-upgrade-plan.md)
+继续保留 official/delegated primitives 与 plugin/Desktop gaps。Alpha.33 不是“官方 Core”；
+兼容 alpha.2 不等于提升另行负责、仍为 draft 的 Desktop PR 68。
 
 Historical `0.1.5-rc.3.cloga.1`/`.cloga.2` copied helpers cannot bootstrap because of an
 unresolved `semver` import. They cannot repair themselves by discovering a newer
-release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.14` installer,
+release. Recovery requires the independently verified current `0.1.6-alpha.1.cloga.16` installer,
 explicit interruption consent and a clean Desktop/Host exit, coordinated by the
 operator outside the broken helper. Do not patch live files or install missing
 dependencies into an update operation. Generic direct registry probe failures

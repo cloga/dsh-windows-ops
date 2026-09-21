@@ -66,7 +66,7 @@ for (const [name, mutate, code] of [
   ['manifest provisioning upgraded in lock', (l) => { l.components.desktop.releaseChannel.pluginCompatibility.automaticProvisioning = true; }, 'capability'],
   ['startup provisioning disabled', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.buildReceiptCompatibility.automaticProvisioning = false; }, 'capability'],
   ['different canonical plan', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.plan.planSha256 = '0'.repeat(64); }, 'plan'],
-  ['different plugin source', (l) => { l.components.copilotIntegration.source.commit = '0'.repeat(40); }, 'plugin'],
+  ['different plugin source', (l) => { l.components.copilotIntegration.source.commit = '0'.repeat(40); }, 'positive-usage'],
   ['modified raw fixture identity', (l) => { l.components.desktop.releaseChannel.buildReceipt.sha256 = '0'.repeat(64); }, 'file-hash'],
   ['defective historical helper', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.helperSha256 = '92c396c690f9e507ae4bacd8c158c4c236ec542ee04c30f603c6832a594a5830'; }, 'helper'],
   ['missing standalone ACK', (l) => { l.components.desktop.releaseChannel.nativeProvisioning.helperAcceptance.validSyntheticHandoffAcknowledged = false; }, 'helper'],
@@ -99,7 +99,7 @@ test('formal plugin dependency registry differs from the frozen workspace build 
   assert.equal(read('release.json').build.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(read('build-receipt.json').buildInputs.packageRegistry, 'https://registry.npmjs.org/');
   assert.equal(actualLock().components.desktop.releaseChannel.build.packageRegistry, 'https://registry.npmjs.org/');
-  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.32');
+  assert.equal(plan.plugins[0].source.version, '0.4.0-alpha.33');
   assert.equal(read('release.json').upstreamVersion, '0.1.6-alpha.1');
 });
 
@@ -206,6 +206,7 @@ function providerNavigationFixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'native-provider-navigation-evidence-'));
   t.after(() => removeFixturePath(root)); cpSync(formalRoot, root, { recursive: true });
   const lock = actualLock();
+  delete lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance; // Inert settings fixture, not copied positive success.
   const proof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
   proof.schemaVersion = 2;
   const acceptancePath = join(root, 'acceptance.json');
@@ -299,6 +300,118 @@ for (const [mode, mutate] of [
     assert.throws(() => verifyNativeReleaseEvidence(lock, root), /native-release-usage-mismatch/);
   });
 }
+
+// Entirely synthetic/rehashed temporary copies: never published release evidence.
+function positiveUsageFixture(t) {
+  const fixture = providerNavigationFixture(t);
+  const { root, lock } = fixture;
+  const accepted = JSON.parse(readFileSync(join(root, 'acceptance.json')));
+  const positive = {
+    runtimeSha256: lock.components.desktop.installedRuntimeDescriptor.sha256,
+    installedClientSha256: hash('inert unit Client bytes, not a published artifact'),
+    pluginSource: accepted.plugin,
+    cases: ['github-copilot', 'github-copilot-preview'].map(provider => ({
+      scope: 'packaged-renderer-released-client-synthetic-session-and-quota', provider,
+      usageText: '7 used', quotaReads: 2, sessionSubscribed: true,
+      removedSessionHidesUsage: true, otherProviderHidesUsage: true, clientDisposalRemovesUsage: true,
+      selectorErrors: 0, forbiddenRemoteCalls: 0, hostTransport: 'not-provided-to-isolated-fixture',
+      applicationMountPreserved: true, syntheticSiblingPreserved: true,
+    })),
+    originalSignedOutApplicationRestored: true, hostTransport: 'not-provided-to-isolated-fixture',
+  };
+  accepted.positiveCopilotUsage = positive.cases;
+  accepted.positiveUsageHostTransport = positive.hostTransport;
+  accepted.timeline.push(...['restart:packaged-graph', 'restart:positive-usage', 'restart:closed'].map(event => ({ event })));
+  const proof = { schemaVersion: 1, installedClientSha256: positive.installedClientSha256 };
+  lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance = proof;
+  const save = () => {
+    write(join(root, 'positive-usage.json'), positive);
+    proof.sha256 = hash(readFileSync(join(root, 'positive-usage.json')));
+    write(join(root, 'acceptance.json'), accepted);
+    lock.components.desktop.releaseChannel.nativeProvisioning.ancestorIsolation.acceptanceSha256 = hash(readFileSync(join(root, 'acceptance.json')));
+  };
+  save(); return { ...fixture, accepted, positive, proof, save };
+}
+
+test('optional positive proof accepts both synthetic routes without altering formal proof', t => {
+  const original = actualLock().components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+  const { lock, root } = positiveUsageFixture(t);
+  assert.equal(verifyNativeReleaseEvidence(lock, root).valid, true);
+  assert.deepEqual(actualLock().components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance, original);
+});
+test('current formal release requires hash-bound positive canonical and preview evidence', () => {
+  const lock = actualLock();
+  const proof = lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+  assert.equal(proof.schemaVersion, 1);
+  assert.equal(proof.sha256, 'a1515b7ee5af44ff8e7ad86fa07ce8faedaa13f157d02ad99e4a4f99ee174b45');
+  assert.equal(proof.installedClientSha256, '6d6a7df36c377b7485b31d45511a8b582f5b745a1030a7f6e4c35a181ad52435');
+  assert.equal(hash(readFileSync(join(formalRoot, 'positive-usage.json'))), proof.sha256);
+  assert.equal(verifyNativeReleaseEvidence(lock, formalRoot).valid, true);
+});
+for (const field of ['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage',
+  'clientDisposalRemovesUsage', 'applicationMountPreserved', 'syntheticSiblingPreserved']) {
+  for (const value of [false, 'true', 1, null]) {
+    test(`positive proof rejects preview ${field}=${JSON.stringify(value)} even rehashed`, t => {
+      const f = positiveUsageFixture(t); f.positive.cases[1][field] = value; f.save();
+      assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.root), /native-release-positive-usage-mismatch/);
+    });
+  }
+}
+for (const [name, mutate] of [
+  ['wrong scope', f => { f.positive.cases[0].scope = 'live-account'; }],
+  ['missing preview', f => { f.positive.cases.pop(); }],
+  ['duplicate canonical', f => { f.positive.cases[1].provider = 'github-copilot'; }],
+  ['non-Copilot route', f => { f.positive.cases[0].provider = 'other-provider'; }],
+  ['missing usage text', f => { f.positive.cases[0].usageText = ''; }],
+  ['wrong quota count', f => { f.positive.cases[0].quotaReads = 1; }],
+  ['string quota count', f => { f.positive.cases[0].quotaReads = '2'; }],
+  ['selector failure', f => { f.positive.cases[0].selectorErrors = 1; }],
+  ['string selector count', f => { f.positive.cases[0].selectorErrors = '0'; }],
+  ['remote call', f => { f.positive.cases[0].forbiddenRemoteCalls = 1; }],
+  ['string remote count', f => { f.positive.cases[0].forbiddenRemoteCalls = '0'; }],
+  ['case Host transport', f => { f.positive.cases[0].hostTransport = 'provided'; }],
+  ['runtime mismatch', f => { f.positive.runtimeSha256 = '0'.repeat(64); }],
+  ['Client mismatch', f => { f.positive.installedClientSha256 = '0'.repeat(64); }],
+  ['source mismatch', f => { f.positive.pluginSource = { ...f.accepted.plugin, version: 'wrong' }; }],
+  ['main cases mismatch', f => { f.accepted.positiveCopilotUsage = []; }],
+  ['main Host transport', f => { f.accepted.positiveUsageHostTransport = 'provided'; }],
+  ['positive Host transport', f => { f.positive.hostTransport = 'provided'; }],
+  ['string restoration', f => { f.positive.originalSignedOutApplicationRestored = 'true'; }],
+  ['missing restoration', f => { delete f.positive.originalSignedOutApplicationRestored; }],
+  ['positive event missing', f => { f.accepted.timeline = f.accepted.timeline.filter(x => x.event !== 'restart:positive-usage'); }],
+  ['positive before account', f => { f.accepted.timeline.unshift(f.accepted.timeline.splice(-2, 1)[0]); }],
+  ['duplicate positive event', f => { f.accepted.timeline.push({ event: 'restart:positive-usage' }); }],
+  ['wrong proof schema', f => { f.proof.schemaVersion = 2; }],
+  ['invalid Client digest', f => { f.proof.installedClientSha256 = ''; }],
+]) {
+  test(`positive proof rejects ${name} (synthetic rehashed copies)`, t => {
+    const f = positiveUsageFixture(t); mutate(f); f.save();
+    assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.root), /native-release-positive-usage-mismatch/);
+  });
+}
+for (const proof of [null, false, {}, { schemaVersion: '1' }]) {
+  test(`positive proof rejects malformed explicit contract ${JSON.stringify(proof)}`, t => {
+    const f = positiveUsageFixture(t);
+    f.lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance = proof;
+    assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.root), /native-release-positive-usage-mismatch/);
+  });
+}
+test('positive proof authenticates bytes before evaluating observations', t => {
+  const f = positiveUsageFixture(t);
+  write(join(f.root, 'positive-usage.json'), readFileSync(join(f.root, 'positive-usage.json'), 'utf8') + '\n');
+  assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.root), /native-release-file-hash-mismatch/);
+});
+test('explicit positive proof cannot replace signed-out usage schema 1', t => {
+  const f = positiveUsageFixture(t); delete f.lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance;
+  assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.root), /native-release-positive-usage-mismatch/);
+});
+test('signed-out usage requires deterministic phase equality even when both phases rehash', t => {
+  const f = positiveUsageFixture(t); const path = join(f.root, 'restart-usage-readonly.json');
+  const usage = JSON.parse(readFileSync(path)); usage.signedOut.unexpectedPhaseDifference = true;
+  f.accepted.signedOutCopilotUsage[1] = usage.signedOut; write(path, usage);
+  f.lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance.restartSha256 = hash(readFileSync(path)); f.save();
+  assert.throws(() => verifyNativeReleaseEvidence(f.lock, f.root), /native-release-usage-mismatch/);
+});
 
 test('settings evidence rejects an unknown schema version', t => {
   const { root, lock } = providerNavigationFixture(t);

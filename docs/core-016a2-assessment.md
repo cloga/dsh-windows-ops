@@ -37,8 +37,14 @@ real search, OAuth or model proof; `installerUpgradeVerified:false` stays false.
 No legacy rc.2 build/install tooling or runtime trust boundary is changed.
 
 **This is pre-publication preparation, not a qualified or deployed alpha.2 baseline.**
-The qualified published Desktop `0.1.6-alpha.1.cloga.14` / Core `0.1.6-alpha.1` /
-Copilot alpha.32 pins remain authoritative. Earlier `.cloga.2`/alpha.24 records
+The current reviewed target is published Desktop `0.1.6-alpha.1.cloga.16` /
+Core `0.1.6-alpha.1` / Copilot alpha.33. Its formal artifacts and positive proof
+are authenticated; fresh hosted Native Ops run `35575187267` attempt 1 passed at
+exact Ops code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`
+([record](copilot-alpha33-upgrade-record.md)). The later documentation/evidence-only
+follow-up records that result, not a native qualification of its own head.
+Historical `.cloga.14`/alpha.32
+qualification is not transferred to the new pair. Earlier `.cloga.2`/alpha.24 records
 remain historical Ops evidence and the separately owned Core installer-upgrade
 fixture baseline, not the current Ops deployment. Unit tests use temporary inert
 copies, never relabeled formal evidence. After alpha.2 publication, a separate
@@ -50,7 +56,10 @@ new pair. This preparation neither installs/activates/restarts nor changes
 profiles or state.
 
 本节仅记录发布前严格兼容准备，不宣称 alpha.2 已发布、已通过正式验收或已部署。
-当前已合格 Ops 基线保持 alpha.1.cloga.14/Core alpha.1/Copilot alpha.32；
+当前评审目标为 alpha.1.cloga.16/Core alpha.1/Copilot alpha.33；正式制品与 positive proof
+已独立认证，新目标的 hosted Native Ops run `35575187267` attempt 1 已在精确 code head
+`a59f586df4e329c3bc8b3f885013fdb5493f4970` 通过，而非继承 `.cloga.14` 的记录；后续文档/证据
+提交只记录该 head 的结果。用户明确选择 stage-only，不安装、激活或重启，live account 验证留待后续人类请求；
 旧 `.cloga.2`/alpha.24 仍是历史 Ops 证据和 Core 安装升级 fixture 基线，而非当前 Ops 部署。
 Alpha.2 发布后仍须另行核验制品、评审提升 lock/catalog/fixtures，并执行新的 hosted qualification。
 
@@ -59,8 +68,11 @@ Alpha.2 发布后仍须另行核验制品、评审提升 lock/catalog/fixtures�
 Ops #181 prepares an explicit adapter for the alpha.2 candidate's combined
 packaged evidence. This is source compatibility work, not qualification or
 promotion of an unpublished release. Historical ordinary acceptance and original
-formal/Ops fixtures remain unchanged; the current qualified `.cloga.14`/alpha.32
-deployment is not replaced.
+formal/Ops fixtures remain unchanged. This alpha.2 preparation does not replace
+the current `.cloga.16`/alpha.33 reviewed target or substitute for its separate
+successful hosted Ops run `35575187267` at code head
+`a59f586df4e329c3bc8b3f885013fdb5493f4970`. That independent maintenance repin
+preserves bundled Core alpha.1; it does not qualify alpha.2.
 
 Imported formal evidence requires the complete original `functional-results.json`,
 finalized `failure.json`, `observer-cleanup.json` and last-written
@@ -99,8 +111,11 @@ test-only admission policy; they exercise parsing and rejection, not the hosted
 released Client or original-archive parity. Only the separately qualified hosted
 run can supply that released-Client renderer evidence. Neither scope establishes
 live quota, OAuth, model/search, Session billing or installed upgrade acceptance.
-This v2 work remains source preparation, with the current qualified
-`.cloga.14`/Copilot alpha.32 deployment unchanged.
+This v2 work remains source preparation. The separately reviewed current target is
+`.cloga.16`/Core alpha.1/Copilot alpha.33; its exact `a59f586…` Ops qualification
+remains historical to that code head. After merging the v2 adapter/test changes,
+fresh run `35577921833` passed at exact combined head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`.
+That verifies the unchanged alpha.1 target, not promotion or hosted qualification of alpha.2.
 
 Fresh Ops qualification is a different contract. `tests/native-asar-release-smoke.mjs`
 uses the real ordinary Core owner with a successful read-only resolver observer,
@@ -139,7 +154,9 @@ unpublished and unqualified, with no installation, activation or restart authori
 以原始哈希及已独立评审的 alpha.33 来源／Client 字节策略绑定；v1 和旧 alpha.1 读取器与历史保留。
 两条 route 的正向证据须涵盖 Session 继承／显式缺席、删除／关闭后的隐藏与恢复、provider 恢复、
 可见 Client 释放和原应用恢复。合成 Client 单元测试不等于实际已发布 Client 的托管 renderer 证明，
-也不证明真实额度、Session 计费或安装升级；当前 `.cloga.14`/alpha.32 已合格部署保持不变。
+也不证明真实额度、Session 计费或安装升级。独立评审的当前目标为 `.cloga.16`/Core alpha.1/alpha.33；
+`a59f586…` 的 Ops 成功仅属于该精确 code head。合入 v2 adapter/test 后，run `35577921833`
+已独立验收精确组合 head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0` 的 alpha.1 目标，不提升或验收 alpha.2。
 
 组合格式只适用于经过明确评审的正式导入证据；全新 Ops resolver observer 仍成功走普通验收路径，
 清理后才提交普通 acceptance。Ops 调用方身份来自实际 job，与调用前后核验的 Core 检出身份分开；

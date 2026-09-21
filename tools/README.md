@@ -62,9 +62,14 @@ scope, removal/closure and provider restoration, and visible Client disposal;
 synthetic Client unit tests are not hosted released-Client proof. V1 and legacy
 alpha.1 readers and original evidence remain intact. The fresh caller keeps genuine Ops job identity
 separate from the verified Core checkout: an archived private Ops source has no
-`.git` or derived Ops tree. Only the unrelated Ops `GITHUB_SHA` is temporarily
-omitted during the Core fixture call and restored afterward; real run/attempt
-identity is retained and no Core SHA is fabricated. Original Core CI qualification summaries attest
+`.git` or derived Ops tree. Alpha.2 passes `expectedCoreSource` with seven lock-bound,
+independently preflight-verified Core facts (commit, tree, Desktop/upstream versions,
+executable/runtime/plan hashes), then checks the Core owner's returned observations.
+The actual Ops environment, including `GITHUB_SHA`, remains present and unchanged
+through import, invocation and failure; no SHA omission or spoofing is allowed.
+Historical alpha.1 invocation is unchanged and does not receive this future API.
+This caller-only preparation does not migrate the separate formal evidence graph
+or qualify alpha.2. Original Core CI qualification summaries attest
 unarchived installed checks only within their bound source/run scope; missing
 root ownership/validation records prevent complete offline replay. These are
 internal evidence adapters, not new public assets, deployment pins or activation

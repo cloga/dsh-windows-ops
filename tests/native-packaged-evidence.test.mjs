@@ -9,7 +9,7 @@ import { packagedFixture, packagedV2Fixture } from './helpers/native-packaged-fi
 import { usesCombinedPackagedEvidence, readCombinedPackagedEvidence, verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
 import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
 import { verifyFreshSettingsEvidence, validateSourceIdentity } from './native-asar-release-smoke.mjs';
-import { captureOpsCaller, withCoreFixtureEnvironment } from '../tools/native-core-fixture-caller.mjs';
+import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
 
 function forbidChildren(t) {
   const mocks = ['spawn', 'spawnSync', 'execFile', 'execFileSync'].map(name => t.mock.method(childProcess, name, () => { throw new Error('unexpected child'); }));
@@ -174,28 +174,89 @@ for (const phase of ['baseline', 'candidate', 'candidate-restart']) test(`archiv
 });
 
 const ambient = () => ({ GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'cloga/dsh-windows-ops', GITHUB_SHA: 'a'.repeat(40), GITHUB_RUN_ID: '456', GITHUB_RUN_ATTEMPT: '3', KEEP: 'unchanged' });
-for (const failure of [false, true]) test(`isolated Core invocation omits only unrelated SHA and restores on ${failure ? 'rejection' : 'success'}`, async t => {
-  forbidChildren(t); const env = ambient(); const before = { ...env }; const caller = captureOpsCaller(env);
-  const marker = new Error('private marker'); let invoked = false;
-  const promise = withCoreFixtureEnvironment(caller, async () => {
-    invoked = true; assert.equal(Object.hasOwn(env, 'GITHUB_SHA'), false);
-    assert.deepEqual(env, Object.fromEntries(Object.entries(before).filter(([key]) => key !== 'GITHUB_SHA')));
-    if (failure) throw marker; return 'finished';
-  }, env);
-  if (failure) await assert.rejects(promise, error => error === marker); else assert.equal(await promise, 'finished');
-  assert.equal(invoked, true); assert.deepEqual(env, before);
+const coreFacts = () => ({ commit: 'b'.repeat(40), tree: 'c'.repeat(40), version: '0.1.6-alpha.2.cloga.1',
+  upstreamVersion: '0.1.6-alpha.2', executableSha256: 'd'.repeat(64), runtimeSha256: 'e'.repeat(64), planSha256: 'f'.repeat(64) });
+function sourceContract() {
+  const facts = coreFacts();
+  const lock = { components: { desktop: { source: { commit: facts.commit, tree: facts.tree }, version: facts.version,
+    releaseChannel: { upstreamVersion: facts.upstreamVersion, build: { planSha256: facts.planSha256 } },
+    installedExecutable: { sha256: facts.executableSha256 }, installedRuntimeDescriptor: { sha256: facts.runtimeSha256 } } } };
+  const verifiedSource = { sourceRepository: 'cloga/deepseek-harness', sourceCommit: facts.commit,
+    sourceTree: facts.tree, version: facts.version, upstreamVersion: facts.upstreamVersion };
+  return { facts, lock, verifiedSource };
+}
+test('explicit seven Core facts come from the source-verified lock, not ambient Ops identity', t => {
+  forbidChildren(t); const { facts, lock, verifiedSource } = sourceContract();
+  const expected = expectedCoreSource(lock, verifiedSource);
+  assert.deepEqual(expected, facts); assert.equal(Object.isFrozen(expected), true);
+  assert.notEqual(expected.commit, ambient().GITHUB_SHA);
+  lock.components.desktop.source.commit = '0'.repeat(40);
+  assert.deepEqual(expected, facts); assert.throws(() => expectedCoreSource(lock, verifiedSource), /caller-invalid/);
 });
+for (const field of ['sourceRepository', 'sourceCommit', 'sourceTree', 'version', 'upstreamVersion']) {
+  test(`source adapter rejects drifted verified ${field}`, t => {
+    forbidChildren(t); const { lock, verifiedSource } = sourceContract();
+    assert.throws(() => expectedCoreSource(lock, { ...verifiedSource, [field]: 'wrong' }), /caller-invalid/);
+  });
+}
+for (const outcome of ['success', 'import-rejection', 'observer-rejection', 'undefined']) {
+  test(`explicit Core invocation preserves all Ops environment during ${outcome}`, async t => {
+    forbidChildren(t); const env = Object.freeze(ambient()); const before = { ...env }; const caller = captureOpsCaller(env);
+    const marker = outcome === 'undefined' ? undefined : new Error(outcome); let invoked = false;
+    const expected = coreFacts();
+    const promise = invokeCoreFixture(caller, expected, async received => {
+      invoked = true; assert.deepEqual(env, before); assert.deepEqual(received, expected);
+      assert.equal(Object.isFrozen(received), true); assert.notEqual(received, expected);
+      await Promise.resolve(); assert.deepEqual(env, before);
+      if (outcome !== 'success') throw marker;
+      return { ...received }; // Independent observed result, as returned by the future Core API.
+    }, env);
+    if (outcome === 'success') assert.deepEqual(await promise, expected);
+    else await promise.then(() => assert.fail('must reject'), error => assert.equal(error, marker));
+    assert.equal(invoked, true); assert.deepEqual(env, before);
+  });
+}
 for (const field of ['GITHUB_ACTIONS', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT']) {
-  test(`invalid ${field} is rejected before Core invocation`, async t => {
+  test(`invalid ${field} is rejected before Core import/invocation`, async t => {
     forbidChildren(t); const env = ambient(); const caller = captureOpsCaller(env); env[field] = 'wrong';
-    let invoked = false; await assert.rejects(withCoreFixtureEnvironment(caller, () => { invoked = true; }, env), /caller-invalid/);
+    let invoked = false; await assert.rejects(invokeCoreFixture(caller, coreFacts(), () => { invoked = true; }, env), /caller-invalid/);
     assert.equal(invoked, false); assert.equal(env[field], 'wrong');
   });
 }
+for (const field of Object.keys(coreFacts())) {
+  for (const mode of ['missing', 'malformed']) test(`rejects ${mode} Core ${field} before import/invocation`, async t => {
+    forbidChildren(t); const env = ambient(); const expected = coreFacts();
+    if (mode === 'missing') delete expected[field]; else expected[field] = 'wrong';
+    let invoked = false;
+    await assert.rejects(invokeCoreFixture(captureOpsCaller(env), expected, () => { invoked = true; }, env), /caller-invalid/);
+    assert.equal(invoked, false);
+  });
+  test(`rejects a returned observed Core ${field} differing from the lock`, async t => {
+    forbidChildren(t); const env = ambient();
+    await assert.rejects(invokeCoreFixture(captureOpsCaller(env), coreFacts(), async facts => ({ ...facts, [field]: 'wrong' }), env), /caller-invalid/);
+  });
+}
+test('old void API, absent or extra explicit facts fail closed without a fallback', async t => {
+  forbidChildren(t); const env = ambient(); const caller = captureOpsCaller(env);
+  await assert.rejects(invokeCoreFixture(caller, coreFacts(), async () => undefined, env), /caller-invalid/);
+  for (const value of [undefined, null, { ...coreFacts(), caller }]) {
+    let invoked = false;
+    await assert.rejects(invokeCoreFixture(caller, value, () => { invoked = true; }, env), /caller-invalid/);
+    assert.equal(invoked, false);
+  }
+});
 test('missing caller SHA stays absent and cannot invoke Core', async t => {
   forbidChildren(t); const env = ambient(); const caller = captureOpsCaller(env); delete env.GITHUB_SHA;
-  let invoked = false; await assert.rejects(withCoreFixtureEnvironment(caller, () => { invoked = true; }, env), /caller-invalid/);
+  let invoked = false; await assert.rejects(invokeCoreFixture(caller, coreFacts(), () => { invoked = true; }, env), /caller-invalid/);
   assert.equal(invoked, false); assert.equal(Object.hasOwn(env, 'GITHUB_SHA'), false);
+});
+for (const fails of [false, true]) test(`caller drift is detected without environment repair or primary masking (failure=${fails})`, async t => {
+  forbidChildren(t); const env = ambient(); const caller = captureOpsCaller(env); const marker = new Error('Core failed');
+  const promise = invokeCoreFixture(caller, coreFacts(), async facts => {
+    env.GITHUB_SHA = '0'.repeat(40); if (fails) throw marker; return { ...facts };
+  }, env);
+  await assert.rejects(promise, error => fails ? error === marker : /caller-invalid/.test(error.message));
+  assert.equal(env.GITHUB_SHA, '0'.repeat(40));
 });
 
 test('fresh identity validation continues to reject a Core checkout that differs from lock', t => {
@@ -207,13 +268,13 @@ test('fresh identity validation continues to reject a Core checkout that differs
   for (const field of ['head', 'tree', 'dirty']) assert.throws(() => validateSourceIdentity(f.lock, d.version, { ...identity, [field]: 'foreign' }), /checkout-mismatch/);
 });
 
-test('default environment lifecycle restores this isolated Node test worker after a thrown undefined', async t => {
+test('default environment keeps the genuine Ops SHA during a thrown undefined', async t => {
   forbidChildren(t);
   const values = ambient(); const saved = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
   try {
     Object.assign(process.env, values); const caller = captureOpsCaller(); let invoked = false;
-    await withCoreFixtureEnvironment(caller, () => {
-      invoked = true; assert.equal(process.env.GITHUB_SHA, undefined);
+    await invokeCoreFixture(caller, coreFacts(), () => {
+      invoked = true; assert.equal(process.env.GITHUB_SHA, caller.sourceCommit);
       assert.equal(process.env.GITHUB_RUN_ID, caller.runId); throw undefined;
     }).then(() => assert.fail('must reject'), error => assert.equal(error, undefined));
     assert.equal(invoked, true); assert.equal(process.env.GITHUB_SHA, values.GITHUB_SHA);

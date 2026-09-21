@@ -444,8 +444,20 @@ test('manual workflow preserves acquisition, token and source-loader boundaries 
   assert.ok(workflow.includes("'repository,runAttempt,runId,sourceCommit'"));
   assert.ok(!workflow.includes('$env:GITHUB_SHA ='));
   const driver = readFileSync(new URL('./native-asar-release-smoke.mjs', import.meta.url), 'utf8');
-  assert.ok(driver.indexOf('verifySource(lock, confirmation, sourceRoot);') < driver.indexOf('const caller ='));
-  assert.ok(driver.includes('else await withCoreFixtureEnvironment(caller, invokeCore);'));
+  const verified = driver.indexOf('const verifiedSource = verifySource(lock, confirmation, sourceRoot);');
+  assert.ok(verified >= 0 && verified < driver.indexOf('const caller ='));
+  assert.ok(driver.includes("const caller = plan.upstreamVersion === '0.1.6-alpha.2' ? captureOpsCaller() : undefined;"));
+  assert.ok(driver.includes('if (caller === undefined) await invokeCore();'));
+  assert.ok(driver.includes('else await invokeCoreFixture(caller, expectedCoreSource(lock, verifiedSource), invokeCore);'));
+  assert.ok(driver.includes('...(expected === undefined ? {} : { expectedCoreSource: expected })'));
+  assert.ok(driver.includes('return await runPackagedCopilotAcceptance('));
+  assert.ok(driver.indexOf('const invokeCore = async expected =>') < driver.indexOf('await import(pathToFileURL(join(sourceRoot, sourceFixture)).href)'));
+  assert.ok(driver.lastIndexOf('verifySource(lock, confirmation, sourceRoot);') > driver.indexOf('else await invokeCoreFixture('));
+  const callerSource = readFileSync(new URL('../tools/native-core-fixture-caller.mjs', import.meta.url), 'utf8');
+  for (const source of [driver, callerSource]) {
+    assert.ok(!source.includes('withCoreFixtureEnvironment'));
+    assert.ok(!/(?:delete\s+(?:process\.env|environment)\.|(?:process\.env|environment)\.GITHUB_\w+\s*=(?!=))/u.test(source));
+  }
   assert.ok(driver.includes('verifyFreshOrdinaryPackagedEvidence(lock, sourceOutput, caller)'));
   assert.ok(!driver.includes('localGit(opsRoot'));
   assert.ok(!/Start-Process|& \$installer(?:\s|$)|& \$application(?:\s|$)/mu.test(workflow));

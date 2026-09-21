@@ -343,8 +343,8 @@ jobs:
           try {
             # tsx resolves from the exact verified source, not from an Ops/ambient install.
             # The source observer awaits Ops checks before its owned-profile finally cleanup.
-            # Alpha.2 captures genuine Ops caller identity, then omits only GITHUB_SHA around the Core call
-            # inside this dedicated CLI and restores it in finally. Never spoof a Core GITHUB_SHA.
+            # Alpha.2 passes seven independently verified Core facts via expectedCoreSource.
+            # Preserve the genuine Ops GITHUB_SHA through import/call; never omit or spoof caller identity.
             & node --import tsx/esm (Join-Path $env:OPS_ROOT 'tests/native-asar-release-smoke.mjs') --run --lock (Join-Path $env:OPS_ROOT 'deployments/windows-copilot.lock.json') --confirm-version $env:CONFIRM_VERSION --source-root $source --application $application --output (Join-Path $env:PRIVATE_ROOT 'output') --evidence-root (Join-Path $env:PRIVATE_ROOT 'evidence') > (Join-Path $env:PRIVATE_ROOT 'logs/run.stdout') 2> (Join-Path $env:PRIVATE_ROOT 'logs/run.stderr')
             if ($LASTEXITCODE -ne 0) { throw 'native-asar-real-release-qualification-failed-see-sanitized-summary' }
           } finally { Pop-Location }

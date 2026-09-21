@@ -127,11 +127,17 @@ The fresh run preserves two independent source identities: the genuine Ops calle
 repository/commit/run/attempt and the actual Core checkout. Private Ops source is
 provided as a Git archive without `.git`; it supplies no locally derived Ops
 source-tree claim. The dedicated caller validates Core checkout identity before
-and after invoking its ordinary fixture, temporarily omits only the unrelated
-Ops `GITHUB_SHA` for that invocation, and restores it in `finally`. It never
-substitutes a fabricated Core `GITHUB_SHA`; the real Ops run ID and attempt remain
-unchanged. Workflow validation binds caller evidence back to the genuine Ops job
-context rather than treating a Core commit as the Ops caller commit.
+and after invoking its ordinary fixture. Alpha.2 passes the explicit seven-field
+`expectedCoreSource`: `commit`, `tree`, `version`, `upstreamVersion`,
+`executableSha256`, `runtimeSha256` and `planSha256`, from the acquisition/source-
+verified lock, and checks the owner's independently observed returned facts.
+The genuine Ops `GITHUB_SHA`, repository, run ID and attempt remain present and
+unchanged during import, invocation, success and failure; no omission, spoofing
+or environment restoration shim is used. Workflow validation still binds caller
+evidence back to the actual Ops job. Historical alpha.1 calls omit this API option
+and retain their existing behavior. This caller-only preparation under #181 does
+not migrate the combined formal evidence reader to the final independent ordinary
+primary/outer-canary graph, promote a lock, or establish alpha.2 qualification.
 
 The exact successful Core CI qualification summary attests the installed-record
 checks for its bound source/run and listed input hashes. Current hosted archives
@@ -160,8 +166,12 @@ unpublished and unqualified, with no installation, activation or restart authori
 
 组合格式只适用于经过明确评审的正式导入证据；全新 Ops resolver observer 仍成功走普通验收路径，
 清理后才提交普通 acceptance。Ops 调用方身份来自实际 job，与调用前后核验的 Core 检出身份分开；
-私有 Ops 归档没有 `.git`，不宣称本地派生的 Ops tree。调用期间仅临时移除无关的 Ops `GITHUB_SHA`，
-并在 `finally` 还原，保留真实 run/attempt，绝不伪造 Core SHA。Core CI 的精确成功摘要可以证明执行过安装检查，但归档缺少
+私有 Ops 归档没有 `.git`，不宣称本地派生的 Ops tree。alpha.2 通过显式 `expectedCoreSource`
+传入经 acquisition/source 预检的锁定 Core commit/tree、Desktop/upstream 版本及 executable/runtime/plan 哈希，
+再核验 Core 返回的实际观察值。import、调用及成功／失败期间始终保留真实 Ops `GITHUB_SHA`、repository、run/attempt，
+不删除、不伪造，也不使用环境还原 shim。历史 alpha.1 不接收此 API 参数，调用行为保持不变。
+此次 #181 caller-only 准备不迁移正式普通主验收／独立 outer-canary 双证据图，不提升锁或宣称 alpha.2 已验收。
+Core CI 的精确成功摘要可以证明执行过安装检查，但归档缺少
 根 owner/validated/retained 记录，不能完整离线重放。六个公开资产、当前已合格部署和历史原始字节
 保持不变；alpha.2 准备工作不等于发布、安装或激活。
 

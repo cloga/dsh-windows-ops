@@ -12,7 +12,7 @@ import { hashFile, hashValid, inside, object, physical, relativeName, safeReason
 import { verifyNativeReleaseEvidence, verifyPositiveUsageEvidence } from '../tools/verify-native-desktop.mjs';
 import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
 import { verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
-import { captureOpsCaller, withCoreFixtureEnvironment } from '../tools/native-core-fixture-caller.mjs';
+import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFixture = 'apps/desktop/tests/fixtures/copilot-release-smoke.ts';
@@ -357,7 +357,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     need(typeof path === 'string' && resolve(path) !== runnerTemp && inside(runnerTemp, resolve(path)), 'private-run-path-required');
   }
   verifyAcquisition(lock, confirmation, evidenceRoot);
-  verifySource(lock, confirmation, sourceRoot);
+  const verifiedSource = verifySource(lock, confirmation, sourceRoot);
   physical(application, 'file'); physical(output, 'directory'); probeEnvironment(output);
   need(process.cwd() === sourceRoot && !inside(sourceRoot, output) && !inside(dirname(application), output) &&
     !inside(opsRoot, output) && !entryExists(join(output, 'qualification.json')), 'output-or-cwd-invalid');
@@ -379,11 +379,12 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
         need(key === 'DSH_TELEMETRY_DISABLED' && value === '1', 'sensitive-environment');
       }
     }
-    const invokeCore = async () => {
+    const invokeCore = async expected => {
     const { runPackagedCopilotAcceptance } = await import(pathToFileURL(join(sourceRoot, sourceFixture)).href);
     need(typeof runPackagedCopilotAcceptance === 'function', 'observer-api-unavailable');
     diagnosticStage = 'source-fixture';
-    await runPackagedCopilotAcceptance({ application, output: sourceOutput, inspectProfile: async paths => {
+    return await runPackagedCopilotAcceptance({ application, output: sourceOutput,
+      ...(expected === undefined ? {} : { expectedCoreSource: expected }), inspectProfile: async paths => {
       diagnosticStage = 'observer';
       need(++calls === 1, 'observer-count-invalid');
       inspectObserverPaths(paths, sourceRoot, application, sourceOutput); observedHome = paths.home;
@@ -414,9 +415,9 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       diagnosticStage = 'source-fixture';
     } });
     };
-    // Core reads actual git HEAD/tree; an inherited Ops GITHUB_SHA would name a different repository.
+    // Historical alpha.1 has no explicit API. Alpha.2 receives verified Core facts, never a rewritten Ops SHA.
     if (caller === undefined) await invokeCore();
-    else await withCoreFixtureEnvironment(caller, invokeCore);
+    else await invokeCoreFixture(caller, expectedCoreSource(lock, verifiedSource), invokeCore);
     diagnosticStage = 'post-acceptance';
     need(calls === 1 && observedHome && !entryExists(observedHome), 'observer-cleanup-incomplete');
     const accepted = caller === undefined ? readJson(join(sourceOutput, 'acceptance.json')) :

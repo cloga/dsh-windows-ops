@@ -10,6 +10,16 @@
 
 本仓库沉淀在真实 Windows 环境中验证过的 DSH Desktop/Copilot 部署、诊断、修复和集成经验。它不分发 Desktop、DSH 或第三方插件；正式支持范围由精确锁和验收契约定义。
 
+## 原始 ZIP 离线审计工具
+
+[ZIP／成员离线审计指南](docs/artifact-zip-audit.md)介绍只读、仅依赖 Python 标准库的
+审计工具，以及在既有 Linux repository-content CI job 中执行的 59 项惰性数据测试。
+[Run 35648331069](https://github.com/cloga/dsh-windows-ops/actions/runs/35648331069/job/106494196178)
+在 Linux／Python 3.12.10／zlib 1.3 上 **59/59 通过**，绑定受测 head `88cc734`
+（tree `e558600`）；精确检出与哈希见指南，不代表后续文档提交已通过检查。
+**Windows 验证失败，仍为 HOLD USE**；Linux 证据不能替代 Windows／产品验收，
+也不授权实际制品使用。工具不下载、解压、安装、执行归档代码或激活 Desktop。
+
 ## DSH Core 新版本适配入口
 
 以后要求“做 DSH Core 新版本适配”时，先按[官方优先适配流程](docs/core-upgrade.md)

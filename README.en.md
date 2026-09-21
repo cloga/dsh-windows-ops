@@ -10,6 +10,18 @@
 
 This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
+## Offline original-ZIP audit tooling
+
+The [offline ZIP/member audit guide](docs/artifact-zip-audit.md) documents the
+read-only, stdlib-only auditor and its 59 inert tests in the existing Linux
+repository-content CI job. [Run 35648331069](https://github.com/cloga/dsh-windows-ops/actions/runs/35648331069/job/106494196178)
+passed **59/59** on Linux with Python 3.12.10/zlib 1.3 at tested head `88cc734`
+(tree `e558600`); the guide records the exact checkout and hashes. This is not
+qualification of the later documentation commit. **Windows validation failed
+and remains HOLD USE**; Linux evidence neither qualifies Windows/the product
+nor approves real-artifact use. The tool does not download, extract, install,
+execute archive code or activate Desktop.
+
 ## DSH Core upgrade entrypoint
 
 For "adapt to a new DSH Core release", start with the [official-first upgrade

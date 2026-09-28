@@ -234,7 +234,7 @@ node tools\validate-plugin-catalog.mjs
 - **官方源码本地 Desktop**：`official-desktop-local-build.md`（`PackageLocal` 默认无更新通道；另有远端 Check、显式 one-click Install 和 Package/Stage/Complete 恢复流程）
 - **插件治理与可选 overlays**：`docs/plugins/`（包括 `computer-use.md`、`scheduling.md`、`better-sidebar.md`）及 `catalog/`
 - **诊断与迁移**：`tools/README.md`、`windows-replay-tooling.md`、`session-move-workspace-groups.md`
-- **事故与平台问题**：`startup-60s-timeout.md`、`powershell-5.1-pitfalls.md`、`github-network.md`
+- **事故与平台问题**：`startup-60s-timeout.md`、[升级后 Desktop 启动与设置恢复](docs/desktop-upgrade-startup-recovery.md)、`powershell-5.1-pitfalls.md`、`github-network.md`
 - **维护状态**：`improvement-portfolio.md`、`windows-replay-tooling.md`
 
 ## 安全铁律

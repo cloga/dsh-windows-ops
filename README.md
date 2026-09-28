@@ -10,6 +10,12 @@
 
 本仓库沉淀在真实 Windows 环境中验证过的 DSH Desktop/Copilot 部署、诊断、修复和集成经验。它不分发 Desktop、DSH 或第三方插件；正式支持范围由精确锁和验收契约定义。
 
+**定时/自动化状态：Official Schedule first。** Windows Ops 后续常规任务优先采用官方
+Schedule；`dsh-cron` **暂停功能演进**，仅在迁移阻断或严重回归时作为临时回退参考，
+不是默认方案。官方能力目前公开可核实于 Harness `dsh-v0.2.0-rc.1` 的可选
+experimental bundle，**并非当前已验证的 Desktop 部署基线**。
+差异、迁移和回退边界见[调度决策](docs/plugins/scheduling.md)。
+
 ## UI fixture 附录
 
 统一入口是[有界发布排障清单](docs/core-upgrade.md#bounded-release-debugging)。

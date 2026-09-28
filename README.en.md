@@ -10,6 +10,14 @@
 
 This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
+**Scheduling/automation status: Official Schedule first.** Windows Ops prefers
+official Schedule for future ordinary tasks. `dsh-cron` **feature development is
+paused**; it is only a temporary fallback reference for migration blockers or
+serious regressions, not the default. The publicly verifiable official capability
+is the optional experimental bundle in Harness `dsh-v0.2.0-rc.1`, **not the
+currently qualified Desktop deployment baseline**. See the
+[scheduling decision](docs/plugins/scheduling.md) for gaps, migration and rollback.
+
 ## UI fixture appendix
 
 Start with the canonical [bounded release-debugging checklist](docs/core-upgrade.md#bounded-release-debugging).

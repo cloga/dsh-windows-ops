@@ -10,6 +10,14 @@
 
 This repository captures DSH Desktop/Copilot deployments, diagnostics, recovery procedures, and integrations verified on real Windows systems. It does not redistribute Desktop, DSH, or third-party plugins. Exact locks and acceptance contracts define the supported baseline.
 
+**Scheduling/automation status: Official Schedule first.** Windows Ops prefers
+official Schedule for future ordinary tasks. `dsh-cron` **feature development is
+paused**; it is only a temporary fallback reference for migration blockers or
+serious regressions, not the default. The publicly verifiable official capability
+is the optional experimental bundle in Harness `dsh-v0.2.0-rc.1`, **not the
+currently qualified Desktop deployment baseline**. See the
+[scheduling decision](docs/plugins/scheduling.md) for gaps, migration and rollback.
+
 ## UI fixture appendix
 
 Start with the canonical [bounded release-debugging checklist](docs/core-upgrade.md#bounded-release-debugging).
@@ -234,7 +242,7 @@ confirmation instead.
 | Distinguish Desktop registry packages, verified Releases, and published source-snapshot installation not yet locally activated; reinstall or recover a damaged snapshot | [`docs/plugins/desktop-source-installation.md`](docs/plugins/desktop-source-installation.md) |
 | Understand plugin validation levels | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | Evaluate Computer Use and browser automation | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
-| Operate the optional Session scheduler | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
+| Official-first Schedule decision and legacy Cron migration | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md#official-first-decision-source-review-2026-09-29) |
 | Check or install the optional Copilot, Cron, and Playwright suite together | [`docs/plugins/optional-companion-suite.md`](docs/plugins/optional-companion-suite.md) |
 | Read the machine-readable plugin catalog | [`catalog/plugins.json`](catalog/plugins.json) |
 | Track improvements, ownership, PR status, and evidence | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |

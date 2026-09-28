@@ -6,6 +6,11 @@ support does not update the lock or authorize installation/restart.
 
 The optional companion suite is a single **installation entry**, not a merged plugin. It stages three independently versioned Web Profile Bundles:
 
+For new automation tasks, follow the [official-first scheduling decision](scheduling.md#official-first-decision-source-review-2026-09-29).
+The locked Cron member below remains a historical optional Web overlay; this
+suite's existence does not make it the preferred scheduler or certify the
+experimental official bundle on the current Desktop.
+
 | Bundle | Responsibility | Important boundary |
 |---|---|---|
 | [`dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | GitHub Copilot sign-in, account-aware route reconciliation, Copilot tool-schema compatibility, and provider-hosted search | Does not own DSH's general model adapter or unrelated automation |

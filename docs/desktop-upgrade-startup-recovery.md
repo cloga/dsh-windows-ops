@@ -121,6 +121,14 @@ it. Desktop-native provisioning owns that profile.
    copy/merge profiles or reset state. No live Session was stopped or restarted
    during the verified incident recovery.
 
+The diagnostic-attached launch process later exited with code 0; why it exited
+is unknown. A separate read-only check then found a responsive Desktop main
+window and Host child launched normally by the Windows shell, without a
+debugger. No new crash, main-process, or Host logs appeared after recovery. Do
+not attribute the earlier process exit to a crash or user action. This
+shell-launched instance is a separate observation from the HMR acceptance above;
+no machine-specific process identifiers are recorded.
+
 The repairer's isolated Node 24/Electron-as-Node test fixture passed 3/3
 checks: composed patch/import behavior, persisted seven-row state plus retained
 rollback snapshots, and equality of saved fields with the official Config

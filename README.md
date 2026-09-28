@@ -183,7 +183,7 @@ confirmation instead.
 | 区分 Desktop 注册表包、已验证 Release 与已发布但未在本机激活的源码快照安装能力；了解重新安装和损坏快照恢复 | [`docs/plugins/desktop-source-installation.md`](docs/plugins/desktop-source-installation.md) |
 | 理解插件验证等级 | [`docs/plugins/plugin-validation.md`](docs/plugins/plugin-validation.md) |
 | 评估 Computer Use / 浏览器自动化 | [`docs/plugins/computer-use.md`](docs/plugins/computer-use.md) |
-| 运维可选的 Session 定时调度 | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md) |
+| 官方 Schedule 优先决策与旧版 Cron 迁移 | [`docs/plugins/scheduling.md`](docs/plugins/scheduling.md#official-first-decision-source-review-2026-09-29) |
 | 一次检查或安装 Copilot、Cron 与 Playwright 可选套件 | [`docs/plugins/optional-companion-suite.md`](docs/plugins/optional-companion-suite.md) |
 | 查看机器可读插件目录 | [`catalog/plugins.json`](catalog/plugins.json) |
 | 查看改进归属、PR 状态和验证证据 | [`docs/improvement-portfolio.md`](docs/improvement-portfolio.md) |

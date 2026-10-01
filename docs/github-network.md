@@ -1,5 +1,9 @@
 # Cross-repository GitHub network policy / 跨仓库 GitHub 网络策略
 
+已验证调用组合与跨会话交付排查入口：[Git 交付操作指引](git-delivery-playbook.md)。先查用户级指引中的本机 Git 路径，再按该文档做只读对照，不必重新寻找旧会话脚本。
+
+Verified invocation profiles and cross-session delivery diagnosis: [Git delivery playbook](git-delivery-playbook.md). Read the machine-specific Git path from user-level instructions, then use its read-only comparison sequence rather than rediscovering scratch scripts.
+
 ## Default: ordinary Git / 默认普通 Git
 
 Ordinary Git over official HTTPS is the default. The wrapper is OPTIONAL, not a prerequisite and not a connectivity repair service. Keep it for opt-in safety checks, bounded retries and verified downloads; a missing or failed wrapper must not by itself block ordinary Git.

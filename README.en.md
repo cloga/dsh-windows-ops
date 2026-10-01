@@ -293,7 +293,9 @@ Use each script's header and linked guide for full parameters. Desktop identity 
 - **Official local source Desktop:** `official-desktop-local-build.md` (`PackageLocal` has no update channel by default; the separate unsigned flow is Package/Check/Stage/user-run installer/Complete)
 - **Plugin governance and optional overlays:** `docs/plugins/`, including `computer-use.md`, `scheduling.md`, and `better-sidebar.md`, plus `catalog/`
 - **Diagnostics and migration:** `tools/README.md`, `windows-replay-tooling.md`, `session-move-workspace-groups.md`
-- **Incidents and platform issues:** `startup-60s-timeout.md`, [upgraded Desktop startup and settings recovery](docs/desktop-upgrade-startup-recovery.md), `powershell-5.1-pitfalls.md`, `github-network.md`
+- **Incidents and platform issues:** `startup-60s-timeout.md`, `powershell-5.1-pitfalls.md`, `github-network.md`
+- **Git push / PR delivery entrypoint:** [Verified profiles and safe diagnosis](docs/git-delivery-playbook.md), with the machine-specific executable lookup, bounded attempts and uncertain-write reconciliation.
+- **Upgraded Desktop startup and settings recovery:** [Operations guide](docs/desktop-upgrade-startup-recovery.md)
 - **Maintenance status:** `improvement-portfolio.md`, `windows-replay-tooling.md`
 
 ## Security rules

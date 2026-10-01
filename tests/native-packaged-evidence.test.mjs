@@ -1,4 +1,6 @@
 // All alpha.2 inputs are generated inert copies. No executable/application is launched.
+// The existing required CI entry owns these v3 cases too; no workflow list expansion.
+import './native-packaged-v3-cases.mjs';
 import assert from 'node:assert/strict';
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';

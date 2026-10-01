@@ -268,8 +268,9 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     requireValue(isDeepStrictEqual(acceptance.signedOutCopilotUsage, observations) &&
       isDeepStrictEqual(observations[0], observations[1]), 'native-release-usage-mismatch');
   }
-  if (!dual) verifyPositiveUsageEvidence(lock, acceptance, read); // Dual already requires the exact quota4 policy in both runs.
-  verifyNativeComposerEvidence(lock, acceptance, read);
+  if (!dual && format !== 'combined-suite-v3') verifyPositiveUsageEvidence(lock, acceptance, read);
+  // V3's mandatory full-identity native sidecar and quota4 proof were checked by its closed adapter.
+  if (format !== 'combined-suite-v3') verifyNativeComposerEvidence(lock, acceptance, read);
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
     const graph = read(file, hash);

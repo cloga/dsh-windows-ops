@@ -198,6 +198,10 @@ function Assert-LocalLauncherOwnership {
     if($savedHash -and (&$Operations.GetHash $launcher) -ceq $savedHash){return}
     $expected=Get-LocalLauncherContent $Check.installRoot $Check.dataRoot $Check.home.path
     if(($Check.sharedHomeExplicit -or $Check.isolatedHomeExplicit) -and (&$Operations.ReadText $launcher) -ceq $expected){return}
+    $legacyExe=Join-Path $Check.installRoot 'DeepSeek Harness.exe'
+    $legacyUserData=Join-Path $Check.dataRoot 'electron-user-data'
+    $legacy="@echo off`r`nsetlocal`r`nset `"DSH_HOME=$($Check.home.path)`"`r`nstart `"`" `"$legacyExe`" `"--user-data-dir=$legacyUserData`" %*`r`n"
+    if(($Check.sharedHomeExplicit -or $Check.isolatedHomeExplicit) -and (&$Operations.ReadText $launcher) -ceq $legacy){return}
     throw 'launcher-modified-review-required'
 }
 
@@ -205,5 +209,5 @@ function Get-LocalLauncherContent {
     param([string]$InstallRoot,[string]$DataRoot,[string]$HarnessHome)
     $exe=Join-Path $InstallRoot 'DeepSeek Harness.exe'
     $userData=Join-Path $DataRoot 'electron-user-data'
-    return "@echo off`r`nsetlocal`r`nset `"DSH_HOME=$HarnessHome`"`r`nstart `"`" `"$exe`" `"--user-data-dir=$userData`" %*`r`n"
+    return "@echo off`r`nsetlocal`r`nset `"DSH_HOME=$HarnessHome`"`r`nset `"NODE_USE_SYSTEM_CA=1`"`r`nstart `"`" `"$exe`" `"--user-data-dir=$userData`" %*`r`n"
 }

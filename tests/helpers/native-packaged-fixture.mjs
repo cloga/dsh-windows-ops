@@ -13,6 +13,8 @@ export function packagedFixture(t) {
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const d = lock.components.desktop; const c = d.releaseChannel; const n = c.nativeProvisioning;
   delete n.usagePositiveAcceptance; // This inert alpha.2 fixture does not exercise the optional positive contract.
+  delete n.nativeComposerAcceptance;
+  n.settingsAcceptance.schemaVersion = 2; // Historical v1/v2 fixture, not the current schema3 target.
   cpSync(join(root, n.fixtureRoot.replaceAll('\\', '/')), directory, { recursive: true });
   const get = file => JSON.parse(readFileSync(join(directory, file)));
   const put = (file, value) => { const path = join(directory, file); mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, JSON.stringify(value)); return digest(file); };

@@ -112,6 +112,7 @@ for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles'
     delete legacyProof.schemaVersion; delete legacyProof.initialVersionMenuSha256; delete legacyProof.restartVersionMenuSha256;
     delete lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance;
     delete lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+    delete lock.components.desktop.releaseChannel.nativeProvisioning.nativeComposerAcceptance;
     lock.components.desktop.releaseChannel.upstreamVersion = upstream;
     const fixture = fileURLToPath(new URL('../' + lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
     for (const phase of ['initial', 'restart']) {
@@ -133,6 +134,7 @@ for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles'
 function providerNavigationSourceEvidence(t) {
   const lock = actualLock(), output = temporary(t), channel = lock.components.desktop.releaseChannel;
   delete channel.nativeProvisioning.usagePositiveAcceptance; // Separate inert settings fixture; positive tests opt in below.
+  delete channel.nativeProvisioning.nativeComposerAcceptance;
   const proof = channel.nativeProvisioning.settingsAcceptance; proof.schemaVersion = 2;
   const versionMenus = [];
   for (const phase of ['initial', 'restart']) {
@@ -300,6 +302,7 @@ test('fresh positive opt-in independently hashes Client bytes without executing 
 test('historical alpha.1 below sequence 12 keeps optional fresh settings gate (inert)', t => {
   const lock = actualLock(); const channel = lock.components.desktop.releaseChannel; forbidChildren(t);
   channel.upstreamVersion = '0.1.6-alpha.1'; channel.sequence = 11;
+  delete channel.nativeProvisioning.nativeComposerAcceptance;
   delete channel.nativeProvisioning.usagePositiveAcceptance;
   delete channel.nativeProvisioning.settingsAcceptance;
   assert.equal(verifyFreshSettingsEvidence(lock, {}, join(temporary(t), 'absent')), undefined);

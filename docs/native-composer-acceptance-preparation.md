@@ -1,18 +1,20 @@
-# Optional settings retirement and native composer acceptance preparation
+# Settings retirement and native composer acceptance contract
 
-Tracking: [Ops #217](https://github.com/cloga/dsh-windows-ops/issues/217).
-This is version-independent verifier preparation against the inspected source-owned
-producer in [Desktop draft PR #110](https://github.com/cloga/deepseek-harness/pull/110),
-not promotion of a new Desktop/plugin version. Current deployment lock, catalog,
-PowerShell pins and original formal evidence remain unchanged. No installer, Core,
-profile, activation or restart is changed by this work.
+Tracking: [Ops #217](https://github.com/cloga/dsh-windows-ops/issues/217) preparation;
+[Ops #228](https://github.com/cloga/dsh-windows-ops/issues/228) formal repin.
+The version-independent preparation originally inspected the source-owned producer
+in [Desktop PR #110](https://github.com/cloga/deepseek-harness/pull/110).
+The contract is now explicitly selected for authenticated published `.cloga.18` /
+Core alpha.1 / Copilot alpha.35; see the [exact delivery record](desktop-inline-composer-18.md).
+New independent hosted Native Ops qualification remains **PENDING**. Historical
+proof is unchanged; no local installation, profile edit, activation or restart is authorized.
 
 ## Explicit settings schema 3
 
 `nativeProvisioning.settingsAcceptance.schemaVersion: 3` explicitly selects the
 retirement contract. It retains the four existing initial/restart settings and
-version-menu SHA-256 pins, to be filled only from independently authenticated
-artifacts during a separate reviewed repin. Schema 2 and older evidence keep their
+version-menu SHA-256 pins, now selected from independently authenticated `.18`
+artifacts in the reviewed repin. Schema 2 and older evidence keep their
 existing meanings; a filename or absent old control never selects schema 3.
 
 The actual `copilot-settings-smoke.ts` producer reports `schemaVersion: 3`,
@@ -36,11 +38,14 @@ ordinary-acceptance gate. Its minimal contract is:
   `usagePositiveAcceptance` proof. The fresh source observer already independently
   hashes the actual isolated profile's `lib/client.js` for that proof.
 
-No new formal digest is provided or invented by this preparation. The gate requires
-settings schema 3, signed-out usage schema 1 and the existing positive proof. It does
-not reinterpret alpha.2 combined/dual evidence; those adapters remain intact.
-An absent native-composer proof leaves the historical path unchanged. A future target
-can require the new proof only when its real release is authenticated and repinned.
+The `.18` formal pin is native-file SHA-256
+`91f92a072b1c4ef80cba49e0c90fb6b03dc3d8e025dd0c6d9347e3296fff4ad3`, with Client
+`7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368` and runtime
+`15dd038067c58882e2efa6f4465e4f7bcf98f86612e4d5a484d01286080b329d`.
+These are authenticated formal bytes, not invented preparation fixtures. The gate
+requires settings schema 3, signed-out usage schema 1 and existing positive proof.
+It does not reinterpret alpha.2 combined/dual evidence; those adapters remain intact.
+An absent native-composer proof leaves the historical path unchanged.
 
 The inspected producer files are `apps/desktop/tests/fixtures/copilot-release-smoke.ts`,
 `native-composer-geometry.ts`, `seed-native-composer.mjs`, and
@@ -90,8 +95,8 @@ Tests use temporary synthetic/rehashed data copies, never fabricated published
 artifacts. The existing native qualification summary remains schema 1 with its
 original fields; no geometry/role-retirement success flags are added. Source-owned
 geometry acceptance is not live quota, real Session billing, OAuth/model/search,
-installer-upgrade or local activation proof. All future pins, hosted native qualification
-and merge remain separate parent-owned work after authenticated assets arrive.
+installer-upgrade or local activation proof. Formal pins are now authenticated;
+fresh independent hosted Native Ops qualification and merge remain separate parent-owned work.
 
 ## Practice: seal observation evidence before owned shutdown
 
@@ -116,10 +121,11 @@ Do not filter generic error strings, clear observations to obtain success, or we
 strict same-run equality. Source repair is not fresh packaged qualification.
 
 Keep the old artifacts unchanged: they cannot be retroactively edited or requalified.
-Require complete, independently authenticated acceptance from the corrected exact
-source before promotion; rehearsal publication remains disabled and later formal
-release verification is still a prerequisite. This lesson changes no Ops code, pins,
-artifact bytes, test expectations or local installation/activation policy.
+The corrected exact `.18` source now has independently authenticated formal
+acceptance; that later success does not requalify this rehearsal. Its publication
+was disabled. The prior `b1bf04d…` formal canary 403 also remains historical; PR #112's
+later success does not prove its root cause. Preserve the original artifact bytes
+and local installation/activation policy.
 
 Preparation checks (no dependency installation):
 
@@ -129,8 +135,7 @@ node tools/validate-plugin-catalog.mjs
 node --test tests/native-desktop-acceptance.test.mjs tests/native-asar-release-smoke.test.mjs tests/native-packaged-evidence.test.mjs
 ```
 
-This unselected internal adapter changes neither the current supported target nor
-user commands. Both README entry points now link the separately requested portable
-[UI fixture appendix](small-ui-change-validation.md) to the canonical release guide; its reusable
-practices do not imply a baseline promotion. A real target repin must synchronize
-the full deployment/docs contract through its own reviewed evidence.
+The initial unselected preparation changed no target or user commands. The current
+formal `.18` selection is a separate reviewed repin, not new independent Ops success.
+Both README entry points retain the [UI fixture appendix](small-ui-change-validation.md)
+under the canonical release guide; it does not create a competing process.

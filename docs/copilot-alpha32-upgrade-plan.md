@@ -5,9 +5,9 @@
 This record preserves `.cloga.14`/alpha.32 evidence; it is not the current target.
 The [deployment lock](../deployments/windows-copilot.lock.json) and
 [authoritative guide](local-core-desktop-copilot.md#authoritative-baseline) define
-the current published target; see the [`.cloga.17` owning record](desktop-external-links-17.md)
-for verified publication and fresh hosted Native Ops run `35595040585` attempt 1 SUCCESS
-at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`, not a later evidence commit or merge.
+the current published target; see the [`.cloga.18` owning record](desktop-inline-composer-18.md)
+for verified publication and new independent hosted Native Ops qualification **PENDING**.
+Historical [`.17` qualification](desktop-external-links-17.md) cannot transfer.
 The [alpha.33 upgrade record](copilot-alpha33-upgrade-record.md) preserves the historical
 `.cloga.16`/sequence-27 repin and its separate hosted Ops run `35575187267` at exact
 code head `a59f586df4e329c3bc8b3f885013fdb5493f4970`.

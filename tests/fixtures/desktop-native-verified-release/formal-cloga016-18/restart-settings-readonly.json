@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "accountViewLoaded": true,
+  "retiredModelRolesAbsent": true,
+  "searchProviderCatalogLoaded": true,
+  "providerOnlySearchRouting": true,
+  "fallbackProviderLabel": true,
+  "registeredSearchProviders": [
+    "deepseek-official",
+    "github-copilot-hosted"
+  ],
+  "realSearch": false
+}

@@ -138,6 +138,10 @@ if ($Action -eq 'Apply') {
         foreach ($path in $profilePaths) {
             $changes += Set-DshCopilotProfilePatch -Path $path -DryRun:$DryRun
         }
+        if (-not $DryRun) {
+            [Environment]::SetEnvironmentVariable('NODE_USE_SYSTEM_CA', '1', 'User')
+            $env:NODE_USE_SYSTEM_CA = '1'
+        }
         $credential = Test-DshCopilotCredentialRecord -DshHome $DshHome
         if ($credential.configured -and $Model) {
             $changes += Set-DshCopilotModelSelection -Path $settingsPath -Model $Model -DryRun:$DryRun

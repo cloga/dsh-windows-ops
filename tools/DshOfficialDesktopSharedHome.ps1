@@ -205,5 +205,5 @@ function Get-LocalLauncherContent {
     param([string]$InstallRoot,[string]$DataRoot,[string]$HarnessHome)
     $exe=Join-Path $InstallRoot 'DeepSeek Harness.exe'
     $userData=Join-Path $DataRoot 'electron-user-data'
-    return "@echo off`r`nsetlocal`r`nset `"DSH_HOME=$HarnessHome`"`r`nstart `"`" `"$exe`" `"--user-data-dir=$userData`" %*`r`n"
+    return "@echo off`r`nsetlocal`r`nset `"DSH_HOME=$HarnessHome`"`r`nset `"NODE_USE_SYSTEM_CA=1`"`r`nstart `"`" `"$exe`" `"--user-data-dir=$userData`" %*`r`n"
 }

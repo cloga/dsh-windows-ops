@@ -228,6 +228,19 @@ function checkShellProc() {
   const ok = n > 0 && wn > 0;
   rec('shell-proc', ok ? 'ok' : 'warn', ok ? ('shell running + dsh web running (' + wn + ')') : (n === 0 ? 'shell NOT running' : 'shell running but no dsh web (' + n + '/' + wn + ')'), n === 0);
 }
+function checkSystemCa() {
+  if (process.platform !== 'win32') return;
+  const inEnv = process.env.NODE_USE_SYSTEM_CA === '1';
+  let inUserReg = false;
+  try {
+    const res = spawnSync('powershell', ['-NoProfile', '-Command', '[Environment]::GetEnvironmentVariable("NODE_USE_SYSTEM_CA", "User")'], { encoding: 'utf8', timeout: 10000 });
+    inUserReg = (res.stdout || '').trim() === '1';
+  } catch {}
+  const ok = inEnv || inUserReg;
+  rec('system-ca', ok ? 'ok' : 'warn',
+    ok ? 'NODE_USE_SYSTEM_CA=1 enabled (Windows system certificate trust)' : 'NODE_USE_SYSTEM_CA not set (may cause TLS failures with local proxies/accelerators like Watt Toolkit)',
+    !ok, null);
+}
 
 // ---------------------------------------------------------------------------
 // fixes
@@ -279,6 +292,12 @@ function fixBanned(present) {
   }
   return moved;
 }
+function fixSystemCa() {
+  try {
+    const res = spawnSync('powershell', ['-NoProfile', '-Command', '[Environment]::SetEnvironmentVariable("NODE_USE_SYSTEM_CA", "1", "User"); [Environment]::SetEnvironmentVariable("NODE_USE_SYSTEM_CA", "1", "Process")'], { encoding: 'utf8', timeout: 10000 });
+    return res.status === 0 ? 'NODE_USE_SYSTEM_CA=1 configured in User environment' : 'FAILED: ' + (res.stderr || '').trim();
+  } catch (e) { return 'FAILED: ' + e.message; }
+}
 
 // ---------------------------------------------------------------------------
 // main
@@ -314,7 +333,7 @@ if (LIST_PLUGINS) {
 // check phase
 await checkConfigYaml(); // uses top-level await; yaml probe inside
 checkShell(); checkCore(); checkPatches(); checkPluginLinks(); checkDuplicateInserts(); checkBanned();
-checkGit(); checkVendor(); checkShellProc();
+checkGit(); checkVendor(); checkShellProc(); checkSystemCa();
 
 const summary = { fixMode: FIX, repairableFailures: report.filter((r) => r.fixable && r.status !== 'ok') };
 if (FIX && summary.repairableFailures.length > 0) {
@@ -326,6 +345,7 @@ if (FIX && summary.repairableFailures.length > 0) {
       else if (r.id === 'plugin-links') { r.fixResult = fixBrokenLinks(r.data || []).map((x) => x.ok ? x.target + ' rebuilt' : x.target + ' ' + (x.reason || '')).join('; '); }
       else if (r.id === 'dup-insert') { r.fixResult = fixDuplicateInserts(r.data || []).map((x) => x.id + ' disabled in ' + x.patchFile).join('; ') || 'no automated match (manual review)'; }
       else if (r.id === 'banned-plugins') { r.fixResult = fixBanned(r.data || []).join('; ') || 'none'; }
+      else if (r.id === 'system-ca') { r.fixResult = fixSystemCa(); }
       else if (r.id === 'vendor-zstd') {
         const here = path.join(path.dirname(fileURLToPath(import.meta.url)), 'vendor', 'dsh-zstd', 'types');
         const configuredVendor = process.env.DSH_ZSTD_VENDOR_DIR;
@@ -350,7 +370,7 @@ function recheck() {
   // simplest correct rerun of the check phase
   report.length = 0;
   checkShell(); checkCore(); checkPatches(); checkPluginLinks(); checkDuplicateInserts(); checkBanned();
-  checkGit(); checkVendor(); checkShellProc();
+  checkGit(); checkVendor(); checkShellProc(); checkSystemCa();
 }
 
 if (SMOKE) {

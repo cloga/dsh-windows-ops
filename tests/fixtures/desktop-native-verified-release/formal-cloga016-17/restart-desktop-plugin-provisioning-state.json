@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "capability": {
+    "id": "desktopNativePluginProvisioning",
+    "schemaVersion": 1,
+    "planSchemaVersion": 1,
+    "stateSchemaVersion": 1,
+    "pluginCapability": {
+      "id": "desktopNativeVerifiedRelease",
+      "schemaVersion": 1,
+      "sourceSchemaVersion": 1,
+      "receiptSchemaVersion": 1
+    }
+  },
+  "planSha256": "61cc01b02478dfd4c67622e3073287e3cc1ca3f2b17636b860178e3441de6392",
+  "composition": "active",
+  "plugins": [
+    {
+      "name": "dsh-github-copilot",
+      "version": "0.4.0-alpha.33",
+      "required": true,
+      "status": "active",
+      "source": {
+        "schemaVersion": 1,
+        "type": "githubRelease",
+        "owner": "cloga",
+        "repo": "dsh-github-copilot",
+        "tag": "v0.4.0-alpha.33",
+        "asset": "dsh-github-copilot-0.4.0-alpha.33.tgz",
+        "assetId": 578199183,
+        "packageName": "dsh-github-copilot",
+        "version": "0.4.0-alpha.33",
+        "size": 724820,
+        "sha256": "b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480",
+        "integrity": "sha512-fMONh2Thsu3YTv26DnGWFDlNg2vx3tYE6Cqm4/Aq5LmLwJo71weRZHTkJpRnenDbWkzcu4yNmk7u+GUJxb0bQw==",
+        "targetCommit": "aa90fe434da8b2172faa1446afa0a0fd006afe00",
+        "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+        "checksumManifest": {
+          "format": "sha256sums",
+          "asset": "SHA256SUMS",
+          "assetId": 578199206,
+          "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/SHA256SUMS",
+          "size": 104,
+          "sha256": "f81df10b7fd6e40b2319a42de1f04c3b7f7eccc57809b51623c9145f2a3df076",
+          "integrity": "sha512-KFNap+UgDynhZycHuHOdd/hbPL/0VR+AdKPP6cebS5IENSJG+g4zo4NtGoCpWMTrTEgqvrlyWCK4MZkzjtzeDQ=="
+        }
+      },
+      "receipt": {
+        "schemaVersion": 1,
+        "capability": {
+          "id": "desktopNativeVerifiedRelease",
+          "schemaVersion": 1,
+          "sourceSchemaVersion": 1,
+          "receiptSchemaVersion": 1
+        },
+        "source": {
+          "schemaVersion": 1,
+          "type": "githubRelease",
+          "owner": "cloga",
+          "repo": "dsh-github-copilot",
+          "tag": "v0.4.0-alpha.33",
+          "asset": "dsh-github-copilot-0.4.0-alpha.33.tgz",
+          "assetId": 578199183,
+          "packageName": "dsh-github-copilot",
+          "version": "0.4.0-alpha.33",
+          "size": 724820,
+          "sha256": "b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480",
+          "integrity": "sha512-fMONh2Thsu3YTv26DnGWFDlNg2vx3tYE6Cqm4/Aq5LmLwJo71weRZHTkJpRnenDbWkzcu4yNmk7u+GUJxb0bQw==",
+          "targetCommit": "aa90fe434da8b2172faa1446afa0a0fd006afe00",
+          "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+          "checksumManifest": {
+            "format": "sha256sums",
+            "asset": "SHA256SUMS",
+            "assetId": 578199206,
+            "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.33/SHA256SUMS",
+            "size": 104,
+            "sha256": "f81df10b7fd6e40b2319a42de1f04c3b7f7eccc57809b51623c9145f2a3df076",
+            "integrity": "sha512-KFNap+UgDynhZycHuHOdd/hbPL/0VR+AdKPP6cebS5IENSJG+g4zo4NtGoCpWMTrTEgqvrlyWCK4MZkzjtzeDQ=="
+          }
+        },
+        "releaseId": 392690464,
+        "assetId": 578199183,
+        "packageName": "dsh-github-copilot",
+        "version": "0.4.0-alpha.33",
+        "artifactSha256": "b293d40351f2e732969bac88c3906280b50c47a011bbeac1dc68bc4a8b0de480",
+        "states": {
+          "staged": true,
+          "health": "passed",
+          "activated": true,
+          "rolledBack": false,
+          "verified": true
+        }
+      }
+    }
+  ],
+  "removed": [],
+  "rolledBack": false,
+  "verified": true
+}

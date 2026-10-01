@@ -7,6 +7,8 @@ import { isDeepStrictEqual } from 'node:util';
 import { nativeLayout, preflightAsar, runAsarProbe } from './native-asar-runtime.mjs';
 import { hashFile, physical } from './native-runtime-integrity.mjs';
 import { readNativeProfileMetadata } from './native-profile-metadata.mjs';
+import { verifySettingsV3Evidence, verifyNativeComposerEvidence } from './native-composer-evidence.mjs';
+import { packagedEvidenceFormat, readCombinedPackagedEvidence, readDualPackagedEvidence } from './native-packaged-evidence.mjs';
 
 const fail = (code) => { throw new Error(code); };
 const requireValue = (condition, code) => { if (!condition) fail(code); };
@@ -60,19 +62,77 @@ function canonical(value) {
   return JSON.stringify(value);
 }
 
+// Opt-in, version-independent contract for the source-owned restart-only fixture.
+// The caller authenticates bytes; these observations never prove live account access.
+export function verifyPositiveUsageEvidence(lock, accepted, read) {
+  const desktop = lock.components.desktop;
+  const native = desktop.releaseChannel.nativeProvisioning;
+  const proof = native.usagePositiveAcceptance;
+  if (proof === undefined) return;
+  const code = 'native-release-positive-usage-mismatch';
+  const digest = value => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value);
+  requireValue(object(proof) && proof.schemaVersion === 1 && digest(proof.sha256) &&
+    digest(proof.installedClientSha256) && native.usageAcceptance?.schemaVersion === 1 &&
+    [2, 3].includes(native.settingsAcceptance?.schemaVersion), code);
+  const positive = read('positive-usage.json', proof.sha256);
+  const transport = 'not-provided-to-isolated-fixture';
+  const plugin = lock.components.copilotIntegration;
+  requireValue(object(positive) && positive.runtimeSha256 === desktop.installedRuntimeDescriptor.sha256 &&
+    positive.installedClientSha256 === proof.installedClientSha256 && object(positive.pluginSource) &&
+    isDeepStrictEqual(positive.pluginSource, accepted.plugin) &&
+    positive.pluginSource.sha256 === plugin.package.artifact.sha256 &&
+    positive.pluginSource.targetCommit === plugin.source.commit &&
+    positive.pluginSource.version === plugin.package.version &&
+    positive.pluginSource.assetId === plugin.package.artifact.assetId &&
+    positive.originalSignedOutApplicationRestored === true && positive.hostTransport === transport &&
+    accepted.positiveUsageHostTransport === transport && accepted.liveAccountQuota === false &&
+    accepted.realOAuth === false && accepted.realModelRound === false && accepted.realSearch === false &&
+    Array.isArray(positive.cases) && positive.cases.length === 2 &&
+    isDeepStrictEqual(positive.cases, accepted.positiveCopilotUsage), code);
+  for (const [index, provider] of ['github-copilot', 'github-copilot-preview'].entries()) {
+    const observation = positive.cases[index];
+    requireValue(object(observation) && observation.provider === provider &&
+      observation.scope === 'packaged-renderer-released-client-synthetic-session-and-quota' &&
+      typeof observation.usageText === 'string' && /7 used/u.test(observation.usageText) &&
+      observation.quotaReads === 2 && observation.sessionSubscribed === true &&
+      observation.removedSessionHidesUsage === true && observation.otherProviderHidesUsage === true &&
+      observation.clientDisposalRemovesUsage === true && observation.selectorErrors === 0 &&
+      observation.forbiddenRemoteCalls === 0 && observation.hostTransport === transport &&
+      observation.applicationMountPreserved === true && observation.syntheticSiblingPreserved === true, code);
+  }
+  requireValue(Array.isArray(accepted.timeline), code);
+  const events = accepted.timeline.map(entry => entry?.event);
+  const orderedEvents = ['restart:account', 'restart:usage-readonly', 'restart:packaged-graph',
+    'restart:positive-usage', 'restart:closed'];
+  requireValue(orderedEvents.every((event, index) => events.filter(value => value === event).length === 1 &&
+    (index === 0 || events.indexOf(event) > events.indexOf(orderedEvents[index - 1]))), code);
+}
+
 export function verifyNativeReleaseEvidence(lock, directory) {
   const desktop = lock.components.desktop;
   const channel = desktop.releaseChannel;
   const native = channel.nativeProvisioning;
+  const format = packagedEvidenceFormat(lock);
+  const modern = format !== undefined;
+  const dual = ['dual-ordinary-canary-v1', 'dual-ordinary-canary-v2'].includes(format);
+  if (dual) physical(directory, 'directory');
+  const dataPath = name => {
+    const path = join(directory, name);
+    if (dual) {
+      physical(path, 'file'); const size = lstatSync(path).size;
+      requireValue(size > 0 && size <= 32 * 1024 * 1024, 'native-release-file-size-invalid');
+    }
+    return path;
+  };
   const read = (name, hash) => {
-    const bytes = readFileSync(join(directory, name));
+    const bytes = readFileSync(dataPath(name));
     requireValue(sha256(bytes) === hash, 'native-release-file-hash-mismatch');
     return JSON.parse(bytes);
   };
   const manifest = read('release.json', channel.manifestRawSha256);
   const receipt = read('build-receipt.json', channel.buildReceipt.sha256);
   const capability = read('capability.json', native.capabilitySha256);
-  const helper = json(join(directory, 'helper-acceptance.json'));
+  const helper = json(dataPath('helper-acceptance.json'));
   requireValue(receipt.artifacts.helperSha256 === native.helperSha256 &&
     helper.helperSha256 === native.helperSha256 &&
     isDeepStrictEqual(helper, native.helperAcceptance) &&
@@ -123,7 +183,8 @@ export function verifyNativeReleaseEvidence(lock, directory) {
   'native-release-plan-mismatch');
   const plugin = lock.components.copilotIntegration;
   const isolation = native.ancestorIsolation;
-  const acceptance = read('acceptance.json', isolation.acceptanceSha256);
+  const acceptance = dual ? readDualPackagedEvidence(lock, directory) :
+    modern ? readCombinedPackagedEvidence(lock, directory) : read('acceptance.json', isolation.acceptanceSha256);
   requireValue(acceptance.sourceCommit === desktop.source.commit &&
     acceptance.desktopVersion === desktop.version && acceptance.runtimeVersion === channel.upstreamVersion &&
     acceptance.ancestorSdkJunction === true && acceptance.ancestorSdkLoaded === false &&
@@ -133,23 +194,82 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     isDeepStrictEqual(acceptance.plugin, plan.plugins[0].source),
   'native-release-ancestor-isolation-mismatch');
   // New paired releases carry exact read-only settings proof. Legacy fixtures
-  // remain historical; a current .6 maintenance target must not omit this gate.
-  if (native.settingsAcceptance !== undefined || (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) {
-    requireValue(object(native.settingsAcceptance) && acceptance.modelRolesViewLoaded === true &&
-      acceptance.searchProviderCatalogLoaded === true && acceptance.realSearch === false,
-    'native-release-settings-mismatch');
-    const phases = [['initial', native.settingsAcceptance.initialSha256], ['restart', native.settingsAcceptance.restartSha256]];
-    let providers;
-    for (const [phase, digest] of phases) {
+  // remain historical; exact alpha.2 requires this gate regardless of sequence.
+  // Explicit combined/dual adapters already validate alpha.2's full settings/menu/usage graph.
+  if (!modern && native.settingsAcceptance?.schemaVersion === 3) {
+    verifySettingsV3Evidence(lock, acceptance, read);
+  } else if (!modern && (native.settingsAcceptance !== undefined ||
+    (channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12))) {
+    const settingsProof = native.settingsAcceptance;
+    requireValue(object(settingsProof) && (settingsProof.schemaVersion === undefined || settingsProof.schemaVersion === 2) &&
+      acceptance.modelRolesViewLoaded === true && acceptance.searchProviderCatalogLoaded === true &&
+      acceptance.realSearch === false, 'native-release-settings-mismatch');
+    const providerNavigation = settingsProof.schemaVersion === 2;
+    if (providerNavigation) {
+      requireValue(acceptance.manageCompatibilityDisclosureAbsent === true &&
+        acceptance.providerOnlySearchRouting === true && acceptance.realOAuth === false &&
+        acceptance.verificationNavigationExercised === false &&
+        acceptance.manualVerificationAddressObserved === false &&
+        acceptance.realModelRound === false && acceptance.realSearch === false,
+      'native-release-settings-mismatch');
+    }
+    const phases = [['initial', settingsProof.initialSha256, settingsProof.initialVersionMenuSha256],
+      ['restart', settingsProof.restartSha256, settingsProof.restartVersionMenuSha256]];
+    let providers; const versionMenus = [];
+    for (const [phase, digest, versionDigest] of phases) {
       const settings = read(`${phase}-settings-readonly.json`, digest);
       const ids = settings.registeredSearchProviders;
       requireValue(settings.modelRolesViewLoaded === true && settings.searchProviderCatalogLoaded === true &&
         settings.realSearch === false && Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) &&
         new Set(ids).size === ids.length && ids.includes('github-copilot-hosted') &&
-        (providers === undefined || isDeepStrictEqual(providers, ids)), 'native-release-settings-mismatch');
+        (providers === undefined || isDeepStrictEqual(providers, ids)) &&
+        (!providerNavigation || (settings.currentWorkspaceReadOnly === true &&
+          settings.providerOnlySearchRouting === true && settings.fallbackProviderLabel === true)),
+      'native-release-settings-mismatch');
       providers = ids;
+      if (providerNavigation) {
+        const versionMenu = read(`${phase}-version-menu.json`, versionDigest);
+        requireValue(versionMenu.applicationMenuLabel === 'Application' &&
+          versionMenu.aboutMenuLabel === `About Desktop ${desktop.version}…` &&
+          versionMenu.desktopVersion === desktop.version && versionMenu.aboutDispatchCount === 1 &&
+          versionMenu.nativeModalOpened === false &&
+          (versionMenus.length === 0 || isDeepStrictEqual(versionMenus[0], versionMenu)),
+        'native-release-settings-mismatch');
+        versionMenus.push(versionMenu);
+      }
     }
+    if (providerNavigation) requireValue(isDeepStrictEqual(acceptance.versionMenus, versionMenus), 'native-release-settings-mismatch');
   }
+  if (!modern && native.usageAcceptance !== undefined) {
+    const proof = native.usageAcceptance;
+    const capability = acceptance.copilotUsageCapability;
+    requireValue(object(proof) && proof.schemaVersion === 1 && object(capability) &&
+      capability.id === 'account-quota-composer-usage' && capability.required === true &&
+      capability.evidenceScope === 'synthetic-quota-and-public-remote-ui-contracts-not-live-account-access' &&
+      capability.signedOutNetworkRegressionDeclared === true && capability.lifecycleRegressionDeclared === true &&
+      acceptance.hostQuotaNoNetworkEvidence === 'immutable-plugin-ci-regression-only' &&
+      acceptance.liveAccountQuota === false && Array.isArray(acceptance.signedOutCopilotUsage) &&
+      acceptance.signedOutCopilotUsage.length === 2 && Array.isArray(acceptance.timeline),
+    'native-release-usage-mismatch');
+    const observations = [];
+    for (const [phase, digest] of [['initial', proof.initialSha256], ['restart', proof.restartSha256]]) {
+      const usage = read(`${phase}-usage-readonly.json`, digest);
+      requireValue(isDeepStrictEqual(usage.capability, capability) && object(usage.signedOut) &&
+        usage.signedOut.usageTriggerCount === 0 && usage.signedOut.accountUsageTextCount === 0 &&
+        usage.signedOut.usageSurfaceAbsent === true &&
+        usage.signedOut.hostQuotaRequestInstrumentation === 'not-available-in-packaged-smoke',
+      'native-release-usage-mismatch');
+      observations.push(usage.signedOut);
+      const events = acceptance.timeline.map(entry => entry?.event);
+      requireValue(events.indexOf(`${phase}:account`) >= 0 &&
+        events.indexOf(`${phase}:usage-readonly`) > events.indexOf(`${phase}:account`),
+      'native-release-usage-mismatch');
+    }
+    requireValue(isDeepStrictEqual(acceptance.signedOutCopilotUsage, observations) &&
+      isDeepStrictEqual(observations[0], observations[1]), 'native-release-usage-mismatch');
+  }
+  if (!dual) verifyPositiveUsageEvidence(lock, acceptance, read); // Dual already requires the exact quota4 policy in both runs.
+  verifyNativeComposerEvidence(lock, acceptance, read);
   for (const [file, hash] of [['initial-packaged-graph.json', isolation.initialGraphSha256],
     ['restart-packaged-graph.json', isolation.restartGraphSha256]]) {
     const graph = read(file, hash);
@@ -179,7 +299,9 @@ export function verifyNativeReleaseEvidence(lock, directory) {
     plan.plugins[0].source.assetId === plugin.package.artifact.assetId,
   'native-release-plugin-mismatch');
   return { valid: true, planSha256, automaticStartupProvisioning: true,
-    legacyUpdateManifestAutomaticProvisioning: false, modelResponseVerified: false };
+    legacyUpdateManifestAutomaticProvisioning: false, modelResponseVerified: false,
+    ...(dual ? { formalEvidenceLimits: { archiveBytesVerified: false, archiveMembershipVerified: false,
+      unarchivedInstalledRootsReplayed: false, scope: 'pinned-api-and-original-json-consistency' } } : {}) };
 }
 
 function verifyRuntime(lock, root) {

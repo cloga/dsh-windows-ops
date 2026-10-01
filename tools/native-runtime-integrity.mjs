@@ -72,10 +72,13 @@ export function validateDescriptor(bytes, expectedHash, version) {
   requireValue(bytes.length <= limits.descriptor && hashValid(expectedHash) && sha256(bytes) === expectedHash, 'native-runtime-descriptor-mismatch');
   const d = JSON.parse(bytes.toString('utf8'));
   const semver = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/u;
+  // The caller supplies the independently pinned Core version, not descriptor-selected policy.
+  // Only exact alpha.2 uses protocol 4; every other version keeps the legacy protocol-3 gate.
+  const expectedHostProtocolVersion = version === '0.1.6-alpha.2' ? 4 : 3;
   const keys = (value, expected) => object(value) && Object.keys(value).sort().join(',') === expected;
   requireValue(keys(d, 'arch,files,platform,release,schemaVersion,sharedPackages') && d.schemaVersion === 1 && d.platform === 'win32' && d.arch === 'x64' &&
     keys(d.release, 'hostProtocolVersion,nodeVersion,pnpmVersion,schemaVersion,version') && d.release.schemaVersion === 1 && d.release.version === version && semver.test(version) &&
-    d.release.hostProtocolVersion === 3 && semver.test(d.release.nodeVersion) && semver.test(d.release.pnpmVersion) &&
+    d.release.hostProtocolVersion === expectedHostProtocolVersion && semver.test(d.release.nodeVersion) && semver.test(d.release.pnpmVersion) &&
     Array.isArray(d.files) && d.files.length > 0 && d.files.length <= limits.files && Array.isArray(d.sharedPackages), 'native-runtime-descriptor-invalid');
   const names = new Set(); let total = 0; let previous = '';
   for (const file of d.files) {

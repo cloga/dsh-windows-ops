@@ -1,0 +1,12 @@
+{
+  "modelRolesViewLoaded": true,
+  "currentWorkspaceReadOnly": true,
+  "searchProviderCatalogLoaded": true,
+  "providerOnlySearchRouting": true,
+  "fallbackProviderLabel": true,
+  "registeredSearchProviders": [
+    "deepseek-official",
+    "github-copilot-hosted"
+  ],
+  "realSearch": false
+}

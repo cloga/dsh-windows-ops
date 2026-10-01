@@ -1,0 +1,15 @@
+{
+  "capability": {
+    "id": "account-quota-composer-usage",
+    "required": true,
+    "evidenceScope": "synthetic-quota-and-public-remote-ui-contracts-not-live-account-access",
+    "signedOutNetworkRegressionDeclared": true,
+    "lifecycleRegressionDeclared": true
+  },
+  "signedOut": {
+    "usageTriggerCount": 0,
+    "accountUsageTextCount": 0,
+    "usageSurfaceAbsent": true,
+    "hostQuotaRequestInstrumentation": "not-available-in-packaged-smoke"
+  }
+}

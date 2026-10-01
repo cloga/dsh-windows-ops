@@ -1,12 +1,9 @@
 Describe 'Required Node workflow failure propagation' {
     It 'stops after failing command <FailureAt> rather than masking its exit code' -TestCases @(
-        @{ FailureAt = 1; ExpectedCount = 1; ExpectedExit = 17 }
-        @{ FailureAt = 2; ExpectedCount = 2; ExpectedExit = 17 }
-        @{ FailureAt = 3; ExpectedCount = 3; ExpectedExit = 17 }
-        @{ FailureAt = 4; ExpectedCount = 4; ExpectedExit = 17 }
-        @{ FailureAt = 16; ExpectedCount = 16; ExpectedExit = 17 }
-        @{ FailureAt = 17; ExpectedCount = 17; ExpectedExit = 17 }
-        @{ FailureAt = 0; ExpectedCount = 17; ExpectedExit = 0 }
+        foreach ($position in 1..20) {
+            @{ FailureAt = $position; ExpectedCount = $position; ExpectedExit = 17 }
+        }
+        @{ FailureAt = 0; ExpectedCount = 20; ExpectedExit = 0 }
     ) {
         param($FailureAt, $ExpectedCount, $ExpectedExit)
         $workflow = Get-Content (Join-Path $PSScriptRoot '..\.github\workflows\plugin-catalog.yml') -Raw
@@ -30,6 +27,10 @@ Describe 'Required Node workflow failure propagation' {
         $body | Should -Match 'tools\\native-asar-extract\.mjs'
         $body | Should -Match 'tests\\native-release-diagnostic\.test\.mjs'
         $body | Should -Match 'tools\\native-release-diagnostic\.mjs'
+        $body | Should -Match 'tests\\native-packaged-evidence\.test\.mjs'
+        $body | Should -Match 'tools\\native-packaged-evidence\.mjs'
+        $body | Should -Match 'tools\\native-core-fixture-caller\.mjs'
+        $body | Should -Match 'tests\\helpers\\native-packaged-fixture\.mjs'
         $script = Join-Path $TestDrive "workflow-$FailureAt.ps1"
         $audit = Join-Path $TestDrive "audit-$FailureAt.txt"
         $prefix = @'

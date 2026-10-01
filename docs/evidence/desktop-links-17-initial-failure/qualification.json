@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "valid": false,
+  "qualification": "not-ready",
+  "reason": "native-evidence-unreadable",
+  "observerCalls": 0,
+  "profileRemoved": null,
+  "modelResponseVerified": false,
+  "diagnostic": {
+    "stage": "source-fixture",
+    "code": "desktop-startup",
+    "sourceFailure": "present",
+    "sourcePhase": "initial:launch"
+  }
+}

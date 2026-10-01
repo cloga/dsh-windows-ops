@@ -12,9 +12,9 @@ Use the narrowest tool for the job. The deployment lock remains authoritative; d
 | Check or explicitly trigger an operations-owned local Desktop update | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\manage-official-desktop-update-channel.ps1 -Action Check\|Install ...` | Remote Check downloads only `release.json` to a temporary directory and is read-only for owned state. Explicit Install downloads and revalidates all declared files, atomically stages them, then starts the unsigned NSIS installer interactively with no silent arguments; Windows installer/UAC confirmation remains visible | Reuses strict Stage and Complete validation, invokes the same transactional plugin provisioner before schema-3 completion, and reports recoverable blocked state if readback/provisioning cannot complete. It never publishes, embeds `app-update.yml`, enables `electron-updater`, bypasses warnings, or stops processes. See [managed update channel](../docs/official-desktop-local-build.md#dsh-windows-ops-managed-update-channel-explicit-one-click-install) |
 | Compare the locked Copilot artifact with its immutable GitHub Release | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\sync-official-desktop-plugin-release.ps1 -Action Check` | Read-only; `Generate` prints exact follow-up commands but edits nothing | Verifies tag/release immutability, commit, asset/checksum names, sizes, and hashes. Never accepts `latest` or persists credentials |
 | Preview or apply the optional community configuration migration | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-official-desktop-local.ps1 -Migrate` / `-Apply -Migrate -AcknowledgeMigrationPlan sha256:<hash>` | Plan is read-only; Apply changes only validated non-secret target settings after exact plan-hash acknowledgement | Never copies secrets, Sessions, workspaces, `node_modules`, or Desktop profile files; plugin entries remain manual intents; requires process/session probes and keeps a target backup. See [migration stage](../docs/official-desktop-local-build.md#optional-configuration-migration-plan-first) |
-| Check the locked Desktop/Copilot target | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | Read-only | Targets published Desktop `0.1.6-alpha.1.cloga.2` / Core `0.1.6-alpha.1` / Copilot alpha.24; audits EXE, `resources/app.asar/dsh/desktop-runtime.json`, virtual/unpacked inventory and native profile proofs. Exact Electron parent/Node-mode Host binding is not a port-3080 check. Genuine native Ops qualification passed in run `35278350619` at `243c33d286f19d9e4c608e238a52de2b9a136b9e`; formal source settings DOM/catalog proof is not local activation, real search or model-response proof |
+| Check the locked Desktop/Copilot target | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1` | Read-only | Published target is Desktop `0.1.6-alpha.1.cloga.17` / sequence 28 / Core `0.1.6-alpha.1` / Copilot alpha.33; audits EXE, runtime descriptor, ASAR inventory and native profile proofs. Fresh hosted Native Ops run `35595040585` attempt 1 passed at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`; this is not qualification of a later evidence commit or merge, and historical `.16` runs cannot transfer. Do not run this future-lock machine Check while installed Desktop remains `.cloga.10`. [Source-bound formal evidence](../docs/desktop-external-links-17.md) is not local activation or live account/network/OAuth/model/search proof |
 | Legacy Web deployment Apply only | Legacy-mode installer with `-Apply`, exact artifacts and optional `-IncludeCompanionSuite`; restart needs exact live-Session acknowledgement | High in supported legacy mode | The current native lock rejects external Apply/restart/companion inclusion and delegates to Desktop's separately authorized native flow. Never build, install or select a second Core to bypass this boundary |
-| Verify the Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Current descriptor SHA-256 `f0de4a61ead7105c41f1576a2f01617908e80e214c6c5383c9b79a13d50a14d1`; exact installed EXE/custom `$INSTDIR` controls the ASAR root. Functional evidence remains `manual-verification-required`/exit 2, never a Web-listener substitute |
+| Verify the Desktop-managed runtime | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Verify` | None | Published `.17` descriptor SHA-256 `eca8a91da4737f625716323d0be8a51156b24934183904a41d06599ffafe36bd`; exact installed EXE/custom `$INSTDIR` controls the ASAR root. Functional evidence remains `manual-verification-required`/exit 2, never a Web-listener substitute |
 | Roll back a legacy installer operation | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools\install-windows-copilot.ps1 -Action Rollback -OperationId <id>` | Backup restore only in supported legacy mode | Current native external rollback is refused; use the native consent-gated recovery flow. Legacy rollback never bypasses live-Session restart safety |
 | Install/select the direct Copilot plugin and search integration | `powershell.exe -File tools\enable-copilot-search-vision.ps1 [-CopilotIntegrationPackage '<locked-url-or-local-tgz>'] [-DeploymentLockPath '<lock>'] [-DesktopExecutablePath '<exe>']` | Configuration | Historical compatibility path; installs no vision fallback. It resolves the canonical locked Release, hash-checks local tarballs, rejects registry/arbitrary specs, upgrades both profiles through the Desktop-managed official CLI, and returns `sign-in-required` until UI authorization completes |
 | Check, stage, or verify the companion suite without replacing Desktop/Core | `powershell.exe -File tools\install-optional-companion-suite.ps1` / `-Apply` / `-Action Verify` | None by default / Web Profile composition | Requires installed Core 0.1.6-alpha.1, compatible Cordis, and the locked API manifests; preserves existing Desktop state and never mutates globals, settings, credentials, gateway, Desktop, Core, or running processes |
@@ -40,26 +40,87 @@ blocks that cutover.
 
 ## ASAR entrypoint boundaries
 
-The lock selects formally published Desktop `.6.cloga.2` (full version
-`0.1.6-alpha.1.cloga.2`, sequence 12), unchanged Core `.6`, and Copilot alpha.24.
-Formal source run [35271210350](../docs/local-core-desktop-copilot.md#authoritative-baseline)
-records actual initial/restart Model roles and search-routing DOM readiness and
-read-only registration catalogs (`deepseek-official`, `github-copilot-hosted`).
-Alpha.24 supplies the Client `remote.githubCopilotSearchRouting` injection missing
-from alpha.23; catalog loading is not a real search, OAuth or model request.
-**Current genuine native Ops qualification passed** in [run `35278350619`](https://github.com/cloga/dsh-windows-ops/actions/runs/35278350619)
-at `243c33d286f19d9e4c608e238a52de2b9a136b9e`; the independently byte-bound
-[current raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-2/qualification.json)
-records 9,806 runtime files, exact archive-package identity, `metadata-cjs-esm`,
-one observer/profile cleanup and three request-copy rejections. Whole-carrier,
-model-response and installed-upgrade claims remain false. Earlier pre-observer
-failure `35276462350` remains unexplained; diagnostic-head success is not root-cause proof.
-Historical
-[Ops run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
-and its retained [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-1/qualification.json)
-qualify only `.cloga.1`/alpha.22, not this paired release. Its three rejected request
-copies did not establish advanced private-peer/custom-home/missing-addon negatives.
-Publication, repinning and CI success do not install or activate it locally.
+**Alpha.2 preparation is not promotion.** `native-runtime-integrity.mjs` selects
+Host protocol 4 only from the independently pinned exact Core version
+`0.1.6-alpha.2`, never from the descriptor or a generic `[3, 4]` allowlist.
+Other versions retain protocol 3; `0.1.6-synthetic-local.1` remains synthetic-only.
+Both native ASAR preflight and Electron probe reuse that validator. Release and
+fresh-source acceptance require alpha.2 initial/restart read-only settings proof,
+without changing `installerUpgradeVerified:false` or runtime trust. Descriptor/release
+schemas remain 1, provisioning plan/state/store 1, managed capability/manifest 3.
+See [pre-publication limits and later promotion](../docs/core-016a2-assessment.md#strict-native-compatibility-preparation).
+Historical alpha.2 [combined packaged-evidence preparation](../docs/core-016a2-assessment.md#alpha2-combined-packaged-evidence-preparation)
+keeps two contracts separate: imported combined-format functional/failure/observer/suite
+records require ordinary acceptance to be absent; a fresh Ops successful resolver
+observer still uses genuine ordinary acceptance after cleanup. Selection must be
+explicitly reviewed for the exact version and format, never inferred from files
+or a failed ordinary parse. The explicit `combined-suite-v2` path requires
+functional/ordinary schema 2 and mandatory original `positive-usage.json` bytes,
+bound by raw hash and the reviewed Copilot alpha.33 source/Client-byte policy in
+both imported and fresh evidence. Both routes must cover inherited/absent Session
+scope, removal/closure and provider restoration, and visible Client disposal;
+synthetic Client unit tests are not hosted released-Client proof. V1 and legacy
+alpha.1 readers and original evidence remain intact. The fresh caller keeps genuine Ops job identity
+separate from the verified Core checkout: an archived private Ops source has no
+`.git` or derived Ops tree. Alpha.2 passes `expectedCoreSource` with seven lock-bound,
+independently preflight-verified Core facts (commit, tree, Desktop/upstream versions,
+executable/runtime/plan hashes), then checks the Core owner's returned observations.
+The actual Ops environment, including `GITHUB_SHA`, remains present and unchanged
+through import, invocation and failure; no SHA omission or spoofing is allowed.
+Historical alpha.1 invocation is unchanged and does not receive this future API.
+The caller contract is separate from the dual-proof adapter below; neither alone
+qualifies alpha.2. Original Core CI qualification summaries attest
+unarchived installed checks only within their bound source/run scope; missing
+root ownership/validation records prevent complete offline replay. These are
+internal evidence adapters, not new public assets, deployment pins or activation
+permission. Alpha.2 remains unpublished and unqualified.
+
+The new explicit [`dual-ordinary-canary-v1` preparation](../docs/core-016a2-assessment.md#alpha2-independent-dual-proof-preparation)
+uses the final immutable Core `3ca51d61bdf39f8c63c26125674cd92fdcf6ed98` contract:
+PRIMARY ordinary originals at the formal root, independent canary originals under
+`canary/`, and the exact 45-input qualification plus authenticated API snapshots
+under `core-qualification/`. Public build objects use Core's six fields, not Ops
+runUrl/attempt. Both graphs require schema2 positive cases (21 keys, quotaReads4)
+and the fixed reviewed Client policy; the fresh Ops ordinary run is a third run
+with its own identity, menus and paths. This adapter does not promote alpha.2;
+historical readers remain unchanged. The offline reader verifies pinned API/original-JSON consistency only:
+its Ops-owned limits explicitly report ZIP bytes/member membership unverified.
+Promotion must separately authenticate all four original ZIPs and audit safe,
+byte-exact selected-member acquisition before real evidence/pins are committed.
+No new download lane, archive parser or activation permission is introduced.
+
+Separate [dual-v2 preparation](../docs/core-016a2-assessment.md#alpha2-dual-v2-composer-proof-preparation)
+adds mandatory functional3/settings3/native2/summary2 exact51 and seed6 (no schema),
+with reviewed alpha35 Client policy and unchanged21-key positive proof. Raw and
+embedded settings/native/seed evidence binds each independent family; fresh Ops
+keeps its own run identity and seven verified Core facts, not formal pixel hashes.
+Old readers, current cloga17 pins and ZIP-provenance limits remain unchanged;
+inert tests do not authorize real promotion, native execution or activation.
+
+The current published Ops target is Desktop `0.1.6-alpha.1.cloga.17`,
+sequence 28, with unchanged bundled Core `0.1.6-alpha.1` and Copilot `0.4.0-alpha.33`.
+[Formal run `35583602522` attempt 1](../docs/desktop-external-links-17.md) succeeded;
+Release `392847203` and all six published assets are source-bound and independently
+verified. Initial/restart settings, version-menu, signed-out usage and synthetic
+released-Client positive usage remain scoped packaged evidence. The external-link
+fixture uses actual Electron DOM activation with a substituted OS opener, not real
+browser navigation or OAuth. **Fresh hosted Native Ops run `35595040585` attempt 1 passed**
+at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`; native job `106318363183`
+and all four jobs succeeded. The [raw summary](../tests/fixtures/desktop-native-verified-release/ops-cloga016-17/qualification.json)
+and [provenance](../tests/fixtures/desktop-native-verified-release/ops-cloga016-17/README.md)
+bind the authenticated original artifact, not a later docs/evidence commit or merge.
+First native failure `35590167413` retains its unknown startup cause and original
+not-ready evidence; later diagnostics did not prove a repair. Ordinary CI `35593395998`
+was a separate LF/CRLF test-extraction defect, fixed test-only at `bb7a0a3…`, not a runtime failure.
+
+Historical `.cloga.16` formal run `35569892548` attempt 2 and Ops runs `35575187267`
+at `a59f586df4e329c3bc8b3f885013fdb5493f4970` and `35577921833` at
+`cd384495ac2fd0c850b3c8cd93223d35c4bc83a0` remain in the
+[alpha.33 owning record](../docs/copilot-alpha33-upgrade-record.md), including attempt 1's
+`EBUSY` helper-cleanup failure. Neither those nor `.cloga.14`/alpha.32 run `35553019059`
+qualify `.17`. Delivery is runtime-only and **stage-only**, without local installation,
+activation or restart; it does not qualify Core alpha.2, live account/network,
+OAuth, model/search, whole-carrier integrity or installer upgrades.
 Apply the [official-first upgrade checklist](../docs/local-core-desktop-copilot.md#official-first-upgrade-checklist)
 before carrying custom code forward; preserve required behavior until parity is verified.
 For the selected ASAR runtime:
@@ -149,11 +210,28 @@ Even with `--probe`, this is only the catalog's **L2** boundary. It does not pro
 - Functional tests must assert an outcome and verify cleanup.
 - New tools must document purpose, mutation level, prerequisites, evidence, rollback, and tests.
 
+## Offline original-ZIP auditor
+
+`python -I -B tools/artifact-zip-audit.py --help` describes the stdlib-only,
+bounded ZIP/member consistency auditor. See the [operational guide](../docs/artifact-zip-audit.md)
+for Python 3.12.10 prerequisites, the two finite profiles, authenticated-input
+responsibilities, inspect-only versus selected-byte comparison, and cleanup.
+Inputs are read-only; an optional report is created exclusively, never overwritten.
+There is no download, extraction, archive-code execution, installation or activation.
+[Linux run 35648331069](https://github.com/cloga/dsh-windows-ops/actions/runs/35648331069/job/106494196178)
+passed **59/59** with Python 3.12.10/zlib 1.3 at head `88cc734`, tree `e558600`;
+see the guide for exact source/hashes, not qualification of this later docs commit.
+**Windows validation failed / HOLD USE**; Linux CI evidence cannot qualify Windows,
+a real product release or approve real-artifact use. No runtime configuration is
+changed, so rollback is limited to removing an explicitly owned optional report;
+preserve original evidence.
+
 ## Test entry points
 
 - Plugin catalog: `node tools\validate-plugin-catalog.mjs`
 - Strict session preflight: `node --test tests\preflight-check.test.mjs`
 - JavaScript syntax: `node --check <script>`
+- Offline ZIP auditor: `python -I -B tests/artifact-zip-audit-tests.py` (all 59 inert tests; existing Linux repository-content job; see the guide's Windows failure boundary)
 - Host Playwright bundle: `node --test tests\host-playwright-bundle.test.mjs`
 - Browser smoke tool: `python -m py_compile tools\dsh-web-smoke.py`; with the existing GUI running, `python tools\dsh-web-smoke.py --expect-text "New Session" --fail-on-console-error --fail-on-request-failure --fail-on-http-error`
 - Windows fixtures: Pester 5.7.1+ against `tests/`

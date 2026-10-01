@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "valid": true,
+  "qualification": "locked-release-ops-observer",
+  "version": "0.1.6-alpha.1.cloga.17",
+  "sourceCommit": "f25506b4ad190ce090b8a4e9602c7ad36179db6b",
+  "sourceTree": "24f46ed7803bcafdebc326da5c469712868481bc",
+  "installerSha256": "2201f5f513cb68bd699fca0c8fa7d254a3baf2a63e53be21f3ddc6d3d5e9e22f",
+  "executableSha256": "43854b829594b742df3810045779cd89f552257a484611a5a6a0aa7ddc6cbe66",
+  "descriptorSha256": "eca8a91da4737f625716323d0be8a51156b24934183904a41d06599ffafe36bd",
+  "runtimeFileCount": 9806,
+  "applicationPackageName": "cloga-deepseek-harness-desktop",
+  "applicationPackageVersion": "0.1.6-alpha.1.cloga.17",
+  "applicationPackageSha256": "9dbc8d4f5239e17db08be4745accc48661396bbe538ce5cf5be461d461cde7e4",
+  "publicResolver": "metadata-cjs-esm",
+  "observerCalls": 1,
+  "profileRemoved": true,
+  "invalidRequests": {
+    "descriptorDigest": "rejected",
+    "version": "rejected",
+    "home": "rejected"
+  },
+  "wholeCarrierAttested": false,
+  "modelResponseVerified": false,
+  "installerUpgradeVerified": false
+}

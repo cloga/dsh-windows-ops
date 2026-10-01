@@ -1,0 +1,128 @@
+{
+  "sourceCommit": "d19be3ff5524948c40cb9929cdd4d67d5cb35059",
+  "desktopVersion": "0.1.6-alpha.1.cloga.12",
+  "versionMenus": [
+    {
+      "applicationMenuLabel": "Application",
+      "aboutMenuLabel": "About Desktop 0.1.6-alpha.1.cloga.12…",
+      "desktopVersion": "0.1.6-alpha.1.cloga.12",
+      "aboutDispatchCount": 1,
+      "nativeModalOpened": false
+    },
+    {
+      "applicationMenuLabel": "Application",
+      "aboutMenuLabel": "About Desktop 0.1.6-alpha.1.cloga.12…",
+      "desktopVersion": "0.1.6-alpha.1.cloga.12",
+      "aboutDispatchCount": 1,
+      "nativeModalOpened": false
+    }
+  ],
+  "runtimeVersion": "0.1.6-alpha.1",
+  "plugin": {
+    "schemaVersion": 1,
+    "type": "githubRelease",
+    "owner": "cloga",
+    "repo": "dsh-github-copilot",
+    "tag": "v0.4.0-alpha.30",
+    "asset": "dsh-github-copilot-0.4.0-alpha.30.tgz",
+    "assetId": 576752000,
+    "packageName": "dsh-github-copilot",
+    "version": "0.4.0-alpha.30",
+    "size": 694316,
+    "sha256": "12af04aa61caef9a8c8e92526d6e3d9ec94b1d624097138540bcd5fd7cc29207",
+    "integrity": "sha512-MukLmoQSIUbs4WlVVF24MJU94b/HoxemEkFtrP6wkiWFoRwiiYqKDqLBnelW4xGIlVZxn/yuInt1e/PGLTvmew==",
+    "targetCommit": "b75eac570cd418497c52e80a3ce47958cdcc6b26",
+    "dependencyRegistry": "https://packagefeedproxy.microsoft.io/npm/",
+    "checksumManifest": {
+      "format": "sha256sums",
+      "asset": "SHA256SUMS",
+      "assetId": 576752015,
+      "url": "https://github.com/cloga/dsh-github-copilot/releases/download/v0.4.0-alpha.30/SHA256SUMS",
+      "size": 104,
+      "sha256": "af6c4c5d2b54027c36600b4b199e64d9a004b2392c1657753e3f119b541e437e",
+      "integrity": "sha512-o/q8jZGqlBdmW+omAHJc8RgblZwzTaUTXkX41w19P0CEsL9e28YccfRg0o/Y8UPW4GVOSVSvZM8i3cIssKEGlw=="
+    }
+  },
+  "transport": "packaged Electron dsh-app byte pipes",
+  "isolatedHome": true,
+  "onboardingNoticeDismissed": true,
+  "restartReceiptSha256": "5006033cce0c374dbe47ddd3117651cfcc2c4e91c949ea3ea62e31a14f47e5bc",
+  "actualGraphVerified": true,
+  "ancestorSdkJunction": true,
+  "ancestorSdkLoaded": false,
+  "accountEntryVisible": true,
+  "manageCompatibilityDisclosureAbsent": true,
+  "modelRolesViewLoaded": true,
+  "currentWorkspaceReadOnly": true,
+  "searchProviderCatalogLoaded": true,
+  "providerOnlySearchRouting": true,
+  "fallbackProviderLabel": true,
+  "realOAuth": false,
+  "verificationNavigationExercised": false,
+  "manualVerificationAddressObserved": false,
+  "realModelRound": false,
+  "realSearch": false,
+  "installerUpgradeVerified": false,
+  "timeline": [
+    {
+      "event": "package-identity",
+      "milliseconds": 26607.3683
+    },
+    {
+      "event": "initial:launch",
+      "milliseconds": 26607.382500000003
+    },
+    {
+      "event": "initial:version-menu",
+      "milliseconds": 27287.832100000003
+    },
+    {
+      "event": "initial:application",
+      "milliseconds": 78375.2243
+    },
+    {
+      "event": "initial:account",
+      "milliseconds": 78708.587
+    },
+    {
+      "event": "initial:settings-readonly",
+      "milliseconds": 79293.5525
+    },
+    {
+      "event": "initial:packaged-graph",
+      "milliseconds": 79621.9358
+    },
+    {
+      "event": "initial:closed",
+      "milliseconds": 79893.51740000001
+    },
+    {
+      "event": "restart:launch",
+      "milliseconds": 79893.52290000001
+    },
+    {
+      "event": "restart:version-menu",
+      "milliseconds": 80468.5203
+    },
+    {
+      "event": "restart:application",
+      "milliseconds": 92494.8288
+    },
+    {
+      "event": "restart:account",
+      "milliseconds": 92743.2038
+    },
+    {
+      "event": "restart:settings-readonly",
+      "milliseconds": 93323.747
+    },
+    {
+      "event": "restart:packaged-graph",
+      "milliseconds": 93669.1838
+    },
+    {
+      "event": "restart:closed",
+      "milliseconds": 93902.08840000001
+    }
+  ]
+}

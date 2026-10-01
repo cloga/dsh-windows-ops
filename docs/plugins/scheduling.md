@@ -1,8 +1,77 @@
-# Optional scheduling with dsh-cron
+# Scheduling decision: official Schedule first
 
-## Scope and status
+## Official-first decision (source review, 2026-09-29)
 
-`dsh-cron` is an **optional Web-profile overlay** for scheduled prompts. The authoritative Windows Copilot lock records its reviewed identity only under `profile.optionalOverlays` with `required: false`; it is excluded from `requiredBundles`, installation success criteria, and the required Desktop/Core/Copilot component set. Install it only when persistent Session automation is wanted, and never promote it implicitly into the required baseline.
+**Decision:** Pause further feature development of `cloga/dsh-cron`. For future
+Windows Ops scheduled/automation tasks, prefer the official Schedule automation
+tasks where the exact runtime has been independently qualified and the task fits
+its contract. The official implementation replaces **most ordinary schedules**,
+not every `dsh-cron` workflow. Keep the plugin as a temporary rollback reference
+only for a migration blocker or serious regression, not as the default solution.
+Reassess an exceptional gap against a pinned upstream release before resuming
+plugin development; this decision does not remove existing task data or silently
+change an installed profile.
+
+**版本口径：**可公开核实的是 DeepSeek Harness
+[`dsh-v0.2.0-rc.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.0-rc.1)
+的**可选 experimental Schedule bundle**，不是稳定版 DSH Desktop 0.2.0，
+也不是本仓库当前 Windows 部署锁已验证或已安装的能力。Windows Ops 对今后的常规定时任务
+选择官方优先，`dsh-cron` 暂停功能演进；仅在迁移受阻或严重回归时临时参考回退。
+
+The comparison is pinned to official Harness
+[`4878cdabd87d4041bdaff61d04c966883b9fd07a`](https://github.com/deepseek-ai/deepseek-harness/commit/4878cdabd87d4041bdaff61d04c966883b9fd07a)
+and plugin [`v0.7.3`](https://github.com/cloga/dsh-cron/releases/tag/v0.7.3),
+source [`850f80842fc9ae80f8f00e7b96de25fed1af9005`](https://github.com/cloga/dsh-cron/commit/850f80842fc9ae80f8f00e7b96de25fed1af9005).
+See the official [Schedule package README](https://github.com/deepseek-ai/deepseek-harness/blob/4878cdabd87d4041bdaff61d04c966883b9fd07a/packages/schedule/schedule/README.md),
+[user guide](https://github.com/deepseek-ai/deepseek-harness/blob/4878cdabd87d4041bdaff61d04c966883b9fd07a/docs/user/guide/schedule.md),
+plugin [README](https://github.com/cloga/dsh-cron/blob/850f80842fc9ae80f8f00e7b96de25fed1af9005/README.md)
+and [package peer dependencies](https://github.com/cloga/dsh-cron/blob/850f80842fc9ae80f8f00e7b96de25fed1af9005/package.json).
+The plugin's bounded peers end at Core `0.1.6-alpha.2`; they do **not**
+certify compatibility with Core `0.2.0-rc.1`.
+
+| Capability | Official Schedule at `dsh-v0.2.0-rc.1` | `dsh-cron@0.7.3` / migration implication |
+|---|---|---|
+| Ordinary timing | One-shot `at` (also relative `after`), intervals **at least 60 seconds**, daily, weekly, five-field cron with explicit IANA zones for wall-clock recurrence | Supports one-shot, daily and five-field cron, plus **10-59 second** intervals; translate and verify each rule, not just its label |
+| Ownership and durability | Host-wide task catalog/management, original-Session cold restoration and persistence across Host restarts; due prompts are queued into the original conversation | Session-bound tasks with cold wake and separate task/history files; neither engine wakes a stopped machine |
+| Controls and outcomes | Edit active task name/instruction/timing and delete; delivery records prove **inbox persistence**, not model completion | Pause/resume, run now, model-run final status/summary and human owner transfer have no equivalent official operation; inspect the Session and business outcome separately |
+| Failure recovery | Pending delivery remains stored after restoration/enqueue failure, but **no automatic retry timer** or backoff; a later wake, management change or restart may retry; exactly-once is not guaranteed | Cold-owner recovery has a bounded 30/60/120/240/300-second tick-based backoff; this is not a guarantee of retrying failed business/model work |
+
+### Migration and rollback boundary
+
+1. Inventory tasks, owners, rule/zone, enabled state and required run-result
+   behavior. Back up `$DSH_HOME/cron-tasks.json` and
+   `$DSH_HOME/cron-history.jsonl` together before editing or removing anything;
+   protect prompts and Session IDs. Official Schedule's storage-domain
+   `schedule.json` format is incompatible with these plugin files: **there is
+   no automatic migration** and no safe JSON copy/rename conversion.
+2. Qualify the exact official runtime/bundle through the normal deployment
+   workflow first. Stop the old task before creating its official replacement;
+   the official creation path does not offer a pause switch. Never run both
+   schedulers for the same task. Do not assume this document
+   authorizes installation, activation, lock promotion or a Host restart.
+3. Recreate each supported task explicitly in its intended original Session,
+   set an explicit IANA zone for each wall-clock rule, compare the next due
+   instant (including DST behavior), and actually trigger a harmless occurrence.
+   Confirm the delivery in that Session and separately verify any required
+   model/business outcome; a saved delivery receipt is not a completion receipt.
+   Keep the backup until every task and its owner are confirmed.
+4. Do not silently approximate sub-minute intervals, pause/resume, run-now,
+   execution-status dependent actions, owner transfer or automatic recovery.
+   Redesign or defer such tasks with the operator; where genuinely blocked,
+   use the old plugin only as a **temporary**, separately qualified fallback
+   on its compatible Web runtime. Disable the official counterpart first and
+   restore from the protected backup only with an explicit data/owner review.
+   Avoid dual dispatch in either rollback direction.
+
+## Scope and status (historical optional dsh-cron overlay)
+
+The following instructions document the **historical locked v0.7.1 Web-profile
+overlay**, not an instruction to prefer or install it for new tasks. The
+authoritative Windows Copilot lock records its reviewed identity only under
+`profile.optionalOverlays` with `required: false`; it is excluded from
+`requiredBundles`, installation success criteria, and the required
+Desktop/Core/Copilot component set. Never promote it implicitly into the
+required baseline.
 
 The reviewed overlay is:
 

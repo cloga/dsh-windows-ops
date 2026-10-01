@@ -6,6 +6,11 @@ support does not update the lock or authorize installation/restart.
 
 The optional companion suite is a single **installation entry**, not a merged plugin. It stages three independently versioned Web Profile Bundles:
 
+For new automation tasks, follow the [official-first scheduling decision](scheduling.md#official-first-decision-source-review-2026-09-29).
+The locked Cron member below remains a historical optional Web overlay; this
+suite's existence does not make it the preferred scheduler or certify the
+experimental official bundle on the current Desktop.
+
 | Bundle | Responsibility | Important boundary |
 |---|---|---|
 | [`dsh-github-copilot`](https://github.com/cloga/dsh-github-copilot) | GitHub Copilot sign-in, account-aware route reconciliation, Copilot tool-schema compatibility, and provider-hosted search | Does not own DSH's general model adapter or unrelated automation |
@@ -64,15 +69,16 @@ qualified workaround. This is a limitation of the current optional installer,
 not a claim that the product intrinsically requires another Core. Optional
 Cron/Playwright remain Web-only and outside native Desktop acceptance; the
 native base entry rejects `-IncludeCompanionSuite` and delegated mutations.
-The current lock selects formally published Desktop `0.1.6-alpha.1.cloga.2`
-(sequence 12), ASAR Core `0.1.6-alpha.1` and Copilot alpha.24. Formal source
-acceptance includes actual initial/restart settings DOM and read-only search
-catalog loading, not a real search/OAuth/model request. Genuine native Ops
-[run `35278350619`](https://github.com/cloga/dsh-windows-ops/actions/runs/35278350619)
-passed at `243c33d286f19d9e4c608e238a52de2b9a136b9e` within the
-[documented native scope](../local-core-desktop-copilot.md#scoped-ops-ci-qualification),
-without whole-carrier or installed-upgrade proof. Earlier pre-observer failure
-`35276462350` remains unexplained, not proven repaired by this success.
+The [deployment lock](../../deployments/windows-copilot.lock.json) and
+[authoritative guide](../local-core-desktop-copilot.md#authoritative-baseline) define
+the current published target; the [`.cloga.17` owning record](../desktop-external-links-17.md)
+records verified publication and fresh hosted Native Ops run `35595040585` attempt 1
+SUCCESS at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`. Later evidence
+commits/merges are not that native-qualified head; native success does not qualify this optional Web path.
+The `.cloga.12` / sequence 22 / Copilot alpha.30 formal run `35528552640` is historical:
+its initial/restart settings and version-menu proof does not establish real
+OAuth/navigation/model/search or qualify this optional Web path. Older `.cloga.2`
+runs likewise remain historical.
 [Historical run `35210215981`](https://github.com/cloga/dsh-windows-ops/actions/runs/35210215981)
 qualifies only `.cloga.1`/alpha.22. Neither source acceptance nor either native proof qualifies this optional
 ASAR Web path, attests user-extra contents, or installs/activates a local component;

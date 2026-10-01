@@ -3,14 +3,18 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { closeSync, lstatSync, openSync, readFileSync, readSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, openSync, readFileSync, readSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { nativeLayout, preflightAsar, probeEnvironment, boundedHeader, headerRuntimeInventory } from '../tools/native-asar-runtime.mjs';
 import { hashFile, hashValid, inside, object, physical, relativeName, safeReason, sha256 } from '../tools/native-runtime-integrity.mjs';
-import { verifyNativeReleaseEvidence } from '../tools/verify-native-desktop.mjs';
+import { verifyNativeReleaseEvidence, verifyPositiveUsageEvidence } from '../tools/verify-native-desktop.mjs';
 import { sourceFailureDiagnostic } from '../tools/native-release-diagnostic.mjs';
+import { verifySettingsV3Evidence, verifyNativeComposerEvidence } from '../tools/native-composer-evidence.mjs';
+import { packagedEvidenceFormat, verifyFreshOrdinaryPackagedEvidence, verifyPackagedPhaseEvidence } from '../tools/native-packaged-evidence.mjs';
+import { captureOpsCaller, expectedCoreSource, invokeCoreFixture } from '../tools/native-core-fixture-caller.mjs';
+import { reviewedClient35 } from '../tools/native-dual-v2-evidence.mjs';
 
 const opsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceFixture = 'apps/desktop/tests/fixtures/copilot-release-smoke.ts';
@@ -134,18 +138,131 @@ export function verifyAcquisition(lock, confirmation, evidenceRoot, metadataOnly
   return plan;
 }
 
-// Exact immutable source emits deterministic read-only settings leaves. This
-// gate binds freshly executed phases to formal proof, never real search success.
+// Historical formats bind deterministic phase leaves to formal pins; dual verifies
+// its third run's own phase semantics. Neither path claims real search success.
 export function verifyFreshSettingsEvidence(lock, accepted, sourceOutput) {
+  verifyFreshNativeComposerEvidence(lock, accepted, sourceOutput);
   const channel = lock.components.desktop.releaseChannel;
-  const proof = channel.nativeProvisioning.settingsAcceptance;
-  if (proof === undefined && !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
-  need(proof && accepted.modelRolesViewLoaded === true && accepted.searchProviderCatalogLoaded === true &&
-    accepted.realSearch === false, 'source-settings-acceptance-incomplete');
-  for (const [phase, digest] of [['initial', proof.initialSha256], ['restart', proof.restartSha256]]) {
-    need(hashFile(physical(join(sourceOutput, `${phase}-settings-readonly.json`), 'file')) === digest,
-      'source-settings-acceptance-incomplete');
+  // Dual's third ordinary run was checked by verifyFreshOrdinaryPackagedEvidence; phase bytes belong to this run.
+  if (channel.upstreamVersion === '0.1.6-alpha.2' && ['dual-ordinary-canary-v1', 'dual-ordinary-canary-v2'].includes(packagedEvidenceFormat(lock))) {
+    return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput, null);
   }
+  // Do not let the historical settings early-return bypass explicit positive proof.
+  verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput);
+  if (channel.upstreamVersion === '0.1.6-alpha.2') return verifyPackagedPhaseEvidence(lock, accepted, sourceOutput);
+  const proof = channel.nativeProvisioning.settingsAcceptance;
+  if (proof === undefined && channel.upstreamVersion !== '0.1.6-alpha.2' &&
+    !(channel.upstreamVersion === '0.1.6-alpha.1' && channel.sequence >= 12)) return;
+  const settingsV3 = proof?.schemaVersion === 3;
+  if (settingsV3) verifySettingsV3Evidence(lock, accepted, (name, digest) => {
+    const path = physical(join(sourceOutput, name), 'file');
+    need(hashFile(path) === digest, 'source-settings-acceptance-incomplete');
+    return readJson(path);
+  });
+  need(proof && (proof.schemaVersion === undefined || proof.schemaVersion === 2 || settingsV3) &&
+    (settingsV3 || accepted.modelRolesViewLoaded === true) && accepted.searchProviderCatalogLoaded === true &&
+    accepted.realSearch === false, 'source-settings-acceptance-incomplete');
+  if (proof.schemaVersion === 2) {
+    need(accepted.manageCompatibilityDisclosureAbsent === true && accepted.providerOnlySearchRouting === true &&
+      accepted.realOAuth === false && accepted.verificationNavigationExercised === false &&
+      accepted.manualVerificationAddressObserved === false && accepted.realModelRound === false &&
+      accepted.realSearch === false, 'source-settings-acceptance-incomplete');
+  }
+  let providers; const versionMenus = [];
+  // V3 was checked by its exact retirement contract; never demand retired V2 role fields.
+  const phases = settingsV3 ? [] : [['initial', proof.initialSha256, proof.initialVersionMenuSha256],
+    ['restart', proof.restartSha256, proof.restartVersionMenuSha256]];
+  for (const [phase, digest, versionDigest] of phases) {
+    const path = physical(join(sourceOutput, `${phase}-settings-readonly.json`), 'file');
+    need(hashFile(path) === digest, 'source-settings-acceptance-incomplete');
+    if (proof.schemaVersion === 2) {
+      const settings = readJson(path); const ids = settings.registeredSearchProviders;
+      need(settings.modelRolesViewLoaded === true && settings.currentWorkspaceReadOnly === true &&
+        settings.searchProviderCatalogLoaded === true && settings.providerOnlySearchRouting === true &&
+        settings.fallbackProviderLabel === true && settings.realSearch === false &&
+        Array.isArray(ids) && ids.every(id => typeof id === 'string' && id.length > 0) &&
+        new Set(ids).size === ids.length && ids.includes('github-copilot-hosted') &&
+        (providers === undefined || isDeepStrictEqual(providers, ids)),
+      'source-settings-acceptance-incomplete');
+      providers = ids;
+      const versionPath = physical(join(sourceOutput, `${phase}-version-menu.json`), 'file');
+      need(hashFile(versionPath) === versionDigest, 'source-settings-acceptance-incomplete');
+      const versionMenu = readJson(versionPath);
+      need(versionMenu.applicationMenuLabel === 'Application' &&
+        versionMenu.aboutMenuLabel === `About Desktop ${channel.version}…` &&
+        versionMenu.desktopVersion === channel.version && versionMenu.aboutDispatchCount === 1 &&
+        versionMenu.nativeModalOpened === false &&
+        (versionMenus.length === 0 || isDeepStrictEqual(versionMenus[0], versionMenu)),
+      'source-settings-acceptance-incomplete');
+      versionMenus.push(versionMenu);
+    }
+  }
+  if (proof.schemaVersion === 2) need(isDeepStrictEqual(accepted.versionMenus, versionMenus), 'source-settings-acceptance-incomplete');
+  const usageProof = channel.nativeProvisioning.usageAcceptance;
+  if (usageProof !== undefined) {
+    const capability = accepted.copilotUsageCapability;
+    need(usageProof.schemaVersion === 1 && object(capability) &&
+      capability.id === 'account-quota-composer-usage' && capability.required === true &&
+      capability.evidenceScope === 'synthetic-quota-and-public-remote-ui-contracts-not-live-account-access' &&
+      capability.signedOutNetworkRegressionDeclared === true && capability.lifecycleRegressionDeclared === true &&
+      accepted.hostQuotaNoNetworkEvidence === 'immutable-plugin-ci-regression-only' &&
+      accepted.liveAccountQuota === false && Array.isArray(accepted.signedOutCopilotUsage) &&
+      accepted.signedOutCopilotUsage.length === 2 && Array.isArray(accepted.timeline),
+    'source-usage-acceptance-incomplete');
+    const observations = [];
+    for (const [phase, digest] of [['initial', usageProof.initialSha256], ['restart', usageProof.restartSha256]]) {
+      const path = physical(join(sourceOutput, `${phase}-usage-readonly.json`), 'file');
+      need(hashFile(path) === digest, 'source-usage-acceptance-incomplete');
+      const usage = readJson(path);
+      need(isDeepStrictEqual(usage.capability, capability) && usage.signedOut?.usageTriggerCount === 0 &&
+        usage.signedOut?.accountUsageTextCount === 0 && usage.signedOut?.usageSurfaceAbsent === true &&
+        usage.signedOut?.hostQuotaRequestInstrumentation === 'not-available-in-packaged-smoke',
+      'source-usage-acceptance-incomplete');
+      observations.push(usage.signedOut);
+      const events = accepted.timeline.map(entry => entry?.event);
+      need(events.indexOf(`${phase}:account`) >= 0 &&
+        events.indexOf(`${phase}:usage-readonly`) > events.indexOf(`${phase}:account`),
+      'source-usage-acceptance-incomplete');
+    }
+    need(isDeepStrictEqual(accepted.signedOutCopilotUsage, observations) &&
+      isDeepStrictEqual(observations[0], observations[1]), 'source-usage-acceptance-incomplete');
+  }
+}
+
+export function verifyFreshNativeComposerEvidence(lock, accepted, sourceOutput) {
+  // Browser pixels/styles belong to this run. Only the formal path compares proof.sha256.
+  verifyNativeComposerEvidence(lock, accepted, name => readJson(physical(join(sourceOutput, name), 'file'), 64 * 1024));
+}
+
+export function verifyFreshPositiveUsageEvidence(lock, accepted, sourceOutput) {
+  verifyPositiveUsageEvidence(lock, accepted, (name, digest) => {
+    const path = physical(join(sourceOutput, name), 'file');
+    need(hashFile(path) === digest, 'source-positive-usage-acceptance-incomplete');
+    return readJson(path);
+  });
+}
+
+export function verifyFreshPositiveUsageClient(lock, profile) {
+  if (packagedEvidenceFormat(lock) === 'dual-ordinary-canary-v2') {
+    const path = physical(join(profile, 'node_modules/dsh-github-copilot/lib/client.js'), 'file');
+    const openedPath = lstatSync(path); const fd = openSync(path, 'r');
+    try {
+      const before = fstatSync(fd); const limit = 2 * 1024 * 1024;
+      need(before.isFile() && before.size > 0 && before.size <= limit &&
+        ['dev', 'ino', 'size', 'mtimeMs'].every(key => openedPath[key] === before[key]), 'source-positive-usage-client-mismatch');
+      const bytes = Buffer.alloc(before.size + 1); let count = 0;
+      for (let next; count < bytes.length && (next = readSync(fd, bytes, count, bytes.length - count, null)) > 0;) count += next;
+      const after = fstatSync(fd);
+      need(count === before.size && ['dev', 'ino', 'size', 'mtimeMs', 'ctimeMs'].every(key => before[key] === after[key]) &&
+        sha256(bytes.subarray(0, count)) === reviewedClient35, 'source-positive-usage-client-mismatch');
+    } finally { closeSync(fd); }
+    return;
+  }
+  const proof = lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+  if (proof === undefined) return;
+  need(object(proof) && hashValid(proof.installedClientSha256) &&
+    hashFile(physical(join(profile, 'node_modules/dsh-github-copilot/lib/client.js'), 'file')) ===
+      proof.installedClientSha256, 'source-positive-usage-client-mismatch');
 }
 
 export function validateSourceIdentity(lock, confirmation, identity) {
@@ -274,7 +391,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     need(typeof path === 'string' && resolve(path) !== runnerTemp && inside(runnerTemp, resolve(path)), 'private-run-path-required');
   }
   verifyAcquisition(lock, confirmation, evidenceRoot);
-  verifySource(lock, confirmation, sourceRoot);
+  const verifiedSource = verifySource(lock, confirmation, sourceRoot);
   physical(application, 'file'); physical(output, 'directory'); probeEnvironment(output);
   need(process.cwd() === sourceRoot && !inside(sourceRoot, output) && !inside(dirname(application), output) &&
     !inside(opsRoot, output) && !entryExists(join(output, 'qualification.json')), 'output-or-cwd-invalid');
@@ -286,6 +403,9 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
   let calls = 0; let observedHome; let positive; let completed = false;
   let diagnosticStage = 'source-import';
   const invalidRequests = {};
+  // Ops source is a workflow-created git archive, not a checkout. Bind genuine caller leaves, not invented tree evidence.
+  const caller = plan.upstreamVersion === '0.1.6-alpha.2' ? captureOpsCaller() : undefined;
+  const summaryIdentity = caller === undefined ? { schemaVersion: 1 } : { schemaVersion: 2, caller };
   try {
     // No token, source .env, or arbitrary DSH/Node loader overrides enter the fixture.
     for (const [key, value] of Object.entries(process.env)) {
@@ -293,15 +413,18 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
         need(key === 'DSH_TELEMETRY_DISABLED' && value === '1', 'sensitive-environment');
       }
     }
+    const invokeCore = async expected => {
     const { runPackagedCopilotAcceptance } = await import(pathToFileURL(join(sourceRoot, sourceFixture)).href);
     need(typeof runPackagedCopilotAcceptance === 'function', 'observer-api-unavailable');
     diagnosticStage = 'source-fixture';
-    await runPackagedCopilotAcceptance({ application, output: sourceOutput, inspectProfile: async paths => {
+    return await runPackagedCopilotAcceptance({ application, output: sourceOutput,
+      ...(expected === undefined ? {} : { expectedCoreSource: expected }), inspectProfile: async paths => {
       diagnosticStage = 'observer';
       need(++calls === 1, 'observer-count-invalid');
       inspectObserverPaths(paths, sourceRoot, application, sourceOutput); observedHome = paths.home;
       const metadataPaths = ['package.json', 'desktop-plugin-receipts.json', 'desktop-plugin-provisioning-state.json'];
       const metadataBefore = metadataPaths.map(name => hashFile(physical(join(paths.profile, name), 'file')));
+      verifyFreshPositiveUsageClient(lock, paths.profile);
       const input = inspectionInput(lock, paths, output);
       positive = integration(input, output, 'positive');
       if (positive.valid === false) throw new Error(positive.reason); // already bounded, owned error code only
@@ -325,9 +448,14 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
       need(preflightAsar(lock, dirname(application)).archiveSha256 === before.archiveSha256, 'runtime-mutated');
       diagnosticStage = 'source-fixture';
     } });
+    };
+    // Historical alpha.1 has no explicit API. Alpha.2 receives verified Core facts, never a rewritten Ops SHA.
+    if (caller === undefined) await invokeCore();
+    else await invokeCoreFixture(caller, expectedCoreSource(lock, verifiedSource), invokeCore);
     diagnosticStage = 'post-acceptance';
     need(calls === 1 && observedHome && !entryExists(observedHome), 'observer-cleanup-incomplete');
-    const accepted = readJson(join(sourceOutput, 'acceptance.json'));
+    const accepted = caller === undefined ? readJson(join(sourceOutput, 'acceptance.json')) :
+      verifyFreshOrdinaryPackagedEvidence(lock, sourceOutput, caller);
     need(accepted.sourceCommit === plan.sourceCommit && accepted.desktopVersion === plan.version &&
       accepted.runtimeVersion === plan.upstreamVersion && accepted.actualGraphVerified === true &&
       accepted.accountEntryVisible === true && accepted.ancestorSdkJunction === true && accepted.ancestorSdkLoaded === false &&
@@ -340,7 +468,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     need(after.archiveSha256 === before.archiveSha256 &&
       isDeepStrictEqual(readApplicationPackageIdentity(lock, after), applicationIdentity), 'runtime-mutated');
     completed = true;
-    const summary = { schemaVersion: 1, valid: true, qualification: 'locked-release-ops-observer',
+    const summary = { ...summaryIdentity, valid: true, qualification: 'locked-release-ops-observer',
       version: plan.version, sourceCommit: plan.sourceCommit, sourceTree: plan.sourceTree,
       installerSha256: lock.components.desktop.artifact.sha256, executableSha256: before.executableSha256,
       descriptorSha256: before.descriptorSha256, runtimeFileCount: positive.runtime.fileCount,
@@ -350,7 +478,7 @@ export async function runReleaseSmoke({ lock, confirmation, sourceRoot, applicat
     writeFileSync(join(output, 'qualification.json'), JSON.stringify(summary, null, 2) + '\n', { flag: 'wx' });
     return summary;
   } catch (error) {
-    const summary = { schemaVersion: 1, valid: false, qualification: 'not-ready', reason: safeReason(error),
+    const summary = { ...summaryIdentity, valid: false, qualification: 'not-ready', reason: safeReason(error),
       observerCalls: calls, profileRemoved: observedHome ? !entryExists(observedHome) : null, modelResponseVerified: false,
       diagnostic: sourceFailureDiagnostic(sourceOutput, diagnosticStage, error) };
     writeFileSync(join(output, 'qualification.json'), JSON.stringify(summary, null, 2) + '\n', { flag: 'wx' });

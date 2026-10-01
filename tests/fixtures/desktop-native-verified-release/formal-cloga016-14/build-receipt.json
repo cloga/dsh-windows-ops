@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "action": "desktop-fork-release",
+  "status": "complete",
+  "createdUtc": "2026-09-21T01:22:04.348Z",
+  "source": {
+    "repository": "cloga/deepseek-harness",
+    "tag": "dsh-desktop-v0.1.6-alpha.1.cloga.14",
+    "version": "0.1.6-alpha.1.cloga.14",
+    "commit": "a0f0144f4cddc90c45f8be93c61c0cd6cec470c7",
+    "tree": "8e636d110dcbd2e9662deb6d36e6e75b3f3fb0b2"
+  },
+  "buildInputs": {
+    "workflow": ".github/workflows/desktop-fork-release.yml",
+    "nodeVersion": "v24.13.0",
+    "pnpmVersion": "11.7.0",
+    "packageRegistry": "https://registry.npmjs.org/",
+    "lockfileSha256": "f14668d76eee14646543910878fc400fcbfa2a848b1ea177f2fc1cb2d0f21322",
+    "planSha256": "ec53ccb7f7da3f8181373f908aa43a5ab4cccedc4bcbc5769d6c6455aad966f0"
+  },
+  "identity": {
+    "appId": "io.github.cloga.deepseek-harness.desktop",
+    "productName": "DeepSeek Harness (cloga)",
+    "packageName": "cloga-deepseek-harness-desktop",
+    "executableName": "cloga-deepseek-harness",
+    "upstreamVersion": "0.1.6-alpha.1",
+    "sequence": 24
+  },
+  "artifacts": {
+    "installer": {
+      "file": "cloga-deepseek-harness-0.1.6-alpha.1.cloga.14-win-x64.exe",
+      "bytes": 171318565,
+      "sha256": "81d73c63541d3b4464e27f1bae1651a3a996dfea4eaf89cc094f70c77b6eea0e",
+      "sha512": "kogj9c5nbtEIUTnd5GBF919PpDAC4JfUj2xBkkdtV+QWSF6QYKg4ZLyjJ0mc3Dm12r1eo2fEtakNfThSw+BQhQ==",
+      "signature": "NotSigned"
+    },
+    "executableSha256": "ff93b2388818f3b935e1bf0433117070ff27d290b26d465a7c8fd0be3f784608",
+    "runtimeSha256": "8cee8fcf841cc28235bc561aa89082e910bfc648cbfc953f735910bc19bfbe55",
+    "helperSha256": "9819e8f7c7ee8ed6343b412cab4456a1eed13e04dc7764666de0ef7ceb8a1b70",
+    "capabilitySha256": "d36c76be950b055cf809663cd93d355fdb9d4e0deede683c981fd83a132b1635",
+    "provisioning": {
+      "file": "desktop-provisioning.json",
+      "sha256": "e06d4f95ae1087bcbf076d692b4814e13442b387dc0eaa235729fac6d947e076",
+      "planSha256": "12d9a833379504723cab8c8291b964072d7bdfe7aa96f6593a09476f6f4638d4"
+    }
+  },
+  "validation": {
+    "helperStandalone": true,
+    "nativeUpdaterEnabled": false,
+    "appUpdateYmlPresent": false,
+    "managedCapabilityMatches": true,
+    "provisioningPlanMatches": true,
+    "installerStarted": false,
+    "installedDesktopTouched": false
+  },
+  "network": {
+    "manifestOrigin": "https://github.com",
+    "apiOrigin": "https://api.github.com",
+    "allowedRedirectHosts": [
+      "github.com",
+      "objects.githubusercontent.com",
+      "release-assets.githubusercontent.com"
+    ]
+  },
+  "installation": {
+    "interaction": "required",
+    "installerArguments": [],
+    "uac": "installer-controlled",
+    "completion": "post-restart-installed-evidence"
+  },
+  "pluginCompatibility": {
+    "capability": {
+      "id": "desktopNativeVerifiedRelease",
+      "schemaVersion": 1,
+      "sourceSchemaVersion": 1,
+      "receiptSchemaVersion": 1
+    },
+    "automaticProvisioning": true,
+    "provisioning": {
+      "capability": {
+        "id": "desktopNativePluginProvisioning",
+        "schemaVersion": 1,
+        "planSchemaVersion": 1,
+        "stateSchemaVersion": 1,
+        "pluginCapability": {
+          "id": "desktopNativeVerifiedRelease",
+          "schemaVersion": 1,
+          "sourceSchemaVersion": 1,
+          "receiptSchemaVersion": 1
+        }
+      },
+      "planSha256": "12d9a833379504723cab8c8291b964072d7bdfe7aa96f6593a09476f6f4638d4"
+    }
+  },
+  "receiptSha256": "3af03c005e576c05e118d16b374864ce5ea50514d7cfa2d6ee61ee9ae33b7b9b"
+}

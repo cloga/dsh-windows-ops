@@ -8,10 +8,66 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { releasePlan, validateReleaseMetadata, validateSourceIdentity, discoverApplication, runReleaseSmoke, verifySource,
-  validateApplicationPackageMetadata, readApplicationPackageIdentity, verifyFreshSettingsEvidence } from './native-asar-release-smoke.mjs';
+  validateApplicationPackageMetadata, readApplicationPackageIdentity, verifyFreshSettingsEvidence,
+  verifyFreshPositiveUsageClient } from './native-asar-release-smoke.mjs';
 import { hashFile, sha256 } from '../tools/native-runtime-integrity.mjs';
+import { settingsV3Fixture, settingsV3Negatives, nativeComposerFixture, composerNegatives } from './helpers/native-composer-fixture.mjs';
+import { createDualV2Fixture } from './helpers/native-dual-v2-fixture.mjs';
+import { verifyFreshOrdinaryPackagedEvidence } from '../tools/native-packaged-evidence.mjs';
 const lockPath = fileURLToPath(new URL('../deployments/windows-copilot.lock.json', import.meta.url));
 const actualLock = () => JSON.parse(readFileSync(lockPath, 'utf8'));
+test('fresh settings schema3 accepts only the explicit retirement producer shape (inert)', t => {
+  forbidChildren(t); const f = settingsV3Fixture(t);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), undefined);
+});
+for (const [name, mutate] of settingsV3Negatives) {
+  test(`fresh settings schema3 rejects ${name} even with rehashed synthetic bytes`, t => {
+    forbidChildren(t); const f = settingsV3Fixture(t); mutate(f); f.save();
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /native-release-settings-v3-mismatch/);
+  });
+}
+test('fresh schema3 deterministic settings bytes remain hash-bound', t => {
+  forbidChildren(t); const f = settingsV3Fixture(t); const path = join(f.directory, 'initial-settings-readonly.json');
+  writeFileSync(path, readFileSync(path, 'utf8') + '\n');
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /source-settings-acceptance-incomplete/);
+});
+
+test('fresh composer accepts its own dynamic measurements without formal cross-run byte equality', t => {
+  forbidChildren(t); const f = nativeComposerFixture(t); const original = f.native.nativeComposerAcceptance.sha256;
+  for (const geometry of f.value.geometry) {
+    for (const name of ['dock', 'time', 'usage', 'copilot']) { geometry[name].x += 2.5; geometry[name].y += 7; }
+    geometry.nativeStyle.color = geometry.copilotStyle.color = 'rgb(101, 102, 103)';
+  }
+  f.save(false);
+  assert.notEqual(hashFile(join(f.directory, 'native-composer-geometry.json')), original);
+  assert.equal(f.native.nativeComposerAcceptance.sha256, original, 'Formal proof is not rewritten for a fresh run');
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), undefined);
+});
+for (const [name, mutate] of composerNegatives) {
+  test(`fresh composer rejects ${name} despite skipping cross-run pixel hash equality`, t => {
+    forbidChildren(t); const f = nativeComposerFixture(t); mutate(f); f.save(false);
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /native-release-composer-mismatch/);
+  });
+}
+for (const [name, mutate] of [
+  ['schema2 settings', f => { f.native.settingsAcceptance.schemaVersion = 2; }],
+  ['missing signed-out proof', f => { delete f.native.usageAcceptance; }],
+  ['missing positive proof', f => { delete f.native.usagePositiveAcceptance; }],
+  ['different positive Client proof', f => { f.native.usagePositiveAcceptance.installedClientSha256 = '0'.repeat(64); }],
+  ['malformed formal geometry digest', f => { f.native.nativeComposerAcceptance.sha256 = ''; }],
+  ['non-ordinary format', f => { f.native.packagedAcceptance = { format: 'combined-suite-v2' }; }],
+]) {
+  test(`fresh composer rejects ${name} before any alternate/legacy path`, t => {
+    forbidChildren(t); const f = nativeComposerFixture(t); mutate(f);
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), /native-release-composer-mismatch/);
+  });
+}
+test('fresh composer opt-in absence does not read a geometry file', t => {
+  forbidChildren(t); const f = settingsV3Fixture(t);
+  assert.equal(existsSync(join(f.directory, 'native-composer-geometry.json')), false);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.directory), undefined);
+});
+
 function inertLock() {
   const lock = actualLock(); const d = lock.components.desktop;
   d.version = '0.1.6-inert-unit.1'; d.releaseChannel.version = d.version;
@@ -47,9 +103,16 @@ function forbidChildren(t) {
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); assert.equal(calls, 0, 'validation failure must execute zero subprocesses'); });
 }
 
-for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog', 'real-search', 'initial-tamper', 'restart-tamper']) {
-  test(`fresh settings evidence ${mode} is bound to exact formal leaves without execution`, t => {
+// Alpha.2 now uses the explicit full proof fixture in native-packaged-evidence.test.mjs.
+for (const upstream of ['0.1.6-alpha.1'])
+for (const mode of ['valid', 'missing-contract', 'false-contract', 'false-roles', 'string-catalog', 'real-search', 'initial-tamper', 'restart-tamper']) {
+  test(`fresh settings gate ${upstream}/${mode} binds copied leaves without execution (inert inputs)`, t => {
     const lock = actualLock(), output = temporary(t); forbidChildren(t);
+    const legacyProof = lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+    delete legacyProof.schemaVersion; delete legacyProof.initialVersionMenuSha256; delete legacyProof.restartVersionMenuSha256;
+    delete lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance;
+    delete lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+    lock.components.desktop.releaseChannel.upstreamVersion = upstream;
     const fixture = fileURLToPath(new URL('../' + lock.components.desktop.releaseChannel.nativeProvisioning.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
     for (const phase of ['initial', 'restart']) {
       const name = `${phase}-settings-readonly.json`;
@@ -57,6 +120,7 @@ for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog'
     }
     const accepted = { modelRolesViewLoaded: true, searchProviderCatalogLoaded: true, realSearch: false };
     if (mode === 'missing-contract') delete lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance;
+    if (mode === 'false-contract') lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance = false;
     if (mode === 'false-roles') accepted.modelRolesViewLoaded = false;
     if (mode === 'string-catalog') accepted.searchProviderCatalogLoaded = 'true';
     if (mode === 'real-search') accepted.realSearch = true;
@@ -65,6 +129,183 @@ for (const mode of ['valid', 'missing-contract', 'false-roles', 'string-catalog'
     else assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
   });
 }
+
+function providerNavigationSourceEvidence(t) {
+  const lock = actualLock(), output = temporary(t), channel = lock.components.desktop.releaseChannel;
+  delete channel.nativeProvisioning.usagePositiveAcceptance; // Separate inert settings fixture; positive tests opt in below.
+  const proof = channel.nativeProvisioning.settingsAcceptance; proof.schemaVersion = 2;
+  const versionMenus = [];
+  for (const phase of ['initial', 'restart']) {
+    const settings = { modelRolesViewLoaded: true, currentWorkspaceReadOnly: true,
+      searchProviderCatalogLoaded: true, providerOnlySearchRouting: true, fallbackProviderLabel: true,
+      registeredSearchProviders: ['deepseek-official', 'github-copilot-hosted'], realSearch: false };
+    const path = join(output, `${phase}-settings-readonly.json`); writeFileSync(path, JSON.stringify(settings));
+    proof[`${phase}Sha256`] = hashFile(path);
+    const versionMenu = { applicationMenuLabel: 'Application', aboutMenuLabel: `About Desktop ${channel.version}…`,
+      desktopVersion: channel.version, aboutDispatchCount: 1, nativeModalOpened: false };
+    const versionPath = join(output, `${phase}-version-menu.json`); writeFileSync(versionPath, JSON.stringify(versionMenu));
+    proof[`${phase}VersionMenuSha256`] = hashFile(versionPath); versionMenus.push(versionMenu);
+  }
+  const capability = { id: 'account-quota-composer-usage', required: true,
+    evidenceScope: 'synthetic-quota-and-public-remote-ui-contracts-not-live-account-access',
+    signedOutNetworkRegressionDeclared: true, lifecycleRegressionDeclared: true };
+  const signedOut = { usageTriggerCount: 0, accountUsageTextCount: 0, usageSurfaceAbsent: true,
+    hostQuotaRequestInstrumentation: 'not-available-in-packaged-smoke' };
+  const usageProof = { schemaVersion: 1 }; const observations = [];
+  for (const phase of ['initial', 'restart']) {
+    const path = join(output, `${phase}-usage-readonly.json`); writeFileSync(path, JSON.stringify({ capability, signedOut }));
+    usageProof[`${phase}Sha256`] = hashFile(path); observations.push(signedOut);
+  }
+  channel.nativeProvisioning.usageAcceptance = usageProof;
+  const accepted = { versionMenus, modelRolesViewLoaded: true, searchProviderCatalogLoaded: true,
+    manageCompatibilityDisclosureAbsent: true, providerOnlySearchRouting: true,
+    copilotUsageCapability: capability, signedOutCopilotUsage: observations,
+    hostQuotaNoNetworkEvidence: 'immutable-plugin-ci-regression-only', liveAccountQuota: false,
+    timeline: [{ event: 'initial:account' }, { event: 'initial:usage-readonly' },
+      { event: 'restart:account' }, { event: 'restart:usage-readonly' }],
+    realOAuth: false, verificationNavigationExercised: false, manualVerificationAddressObserved: false,
+    realModelRound: false, realSearch: false };
+  return { lock, output, accepted };
+}
+
+test('fresh schema 2 provider-navigation evidence is exact and call-free', t => {
+  forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+  assert.equal(verifyFreshSettingsEvidence(lock, accepted, output), undefined);
+});
+for (const [field, value] of [['manageCompatibilityDisclosureAbsent', false], ['providerOnlySearchRouting', false],
+  ['verificationNavigationExercised', true], ['manualVerificationAddressObserved', true]]) {
+  test(`fresh schema 2 rejects main ${field}=${value}`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t); accepted[field] = value;
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
+}
+for (const field of ['currentWorkspaceReadOnly', 'providerOnlySearchRouting', 'fallbackProviderLabel']) {
+  test(`fresh schema 2 rejects per-phase ${field}=false`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+    const path = join(output, 'restart-settings-readonly.json'); const settings = JSON.parse(readFileSync(path));
+    settings[field] = false; writeFileSync(path, JSON.stringify(settings));
+    lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartSha256 = hashFile(path);
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
+}
+for (const [mode, mutate, rehash] of [
+  ['tampered bytes', (path) => writeFileSync(path, readFileSync(path, 'utf8') + '\n'), false],
+  ['typed dispatch count', (path) => { const value = JSON.parse(readFileSync(path)); value.aboutDispatchCount = '1'; writeFileSync(path, JSON.stringify(value)); }, true],
+  ['wrong version', (path) => { const value = JSON.parse(readFileSync(path)); value.desktopVersion = '0.1.6-wrong'; writeFileSync(path, JSON.stringify(value)); }, true],
+  ['phase mismatch', (path) => { const value = JSON.parse(readFileSync(path)); value.aboutMenuLabel += ' mismatch'; writeFileSync(path, JSON.stringify(value)); }, true],
+]) {
+  test(`fresh schema 2 rejects version-menu ${mode}`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+    const path = join(output, 'restart-version-menu.json'); mutate(path);
+    if (rehash) lock.components.desktop.releaseChannel.nativeProvisioning.settingsAcceptance.restartVersionMenuSha256 = hashFile(path);
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-settings-acceptance-incomplete/);
+  });
+}
+
+for (const [mode, mutate] of [
+  ['live quota claim', ({ accepted }) => { accepted.liveAccountQuota = true; }],
+  ['usage trigger', ({ usage }) => { usage.signedOut.usageTriggerCount = 1; }],
+  ['usage before account', ({ accepted }) => { accepted.timeline = [{ event: 'initial:usage-readonly' }, { event: 'initial:account' }, { event: 'restart:account' }, { event: 'restart:usage-readonly' }]; }],
+]) {
+  test(`fresh usage evidence rejects ${mode}`, t => {
+    forbidChildren(t); const { lock, output, accepted } = providerNavigationSourceEvidence(t);
+    const path = join(output, 'initial-usage-readonly.json'); const usage = JSON.parse(readFileSync(path));
+    mutate({ accepted, usage }); writeFileSync(path, JSON.stringify(usage));
+    lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance.initialSha256 = hashFile(path);
+    assert.throws(() => verifyFreshSettingsEvidence(lock, accepted, output), /source-usage-acceptance-incomplete/);
+  });
+}
+
+function positiveSourceEvidence(t) {
+  const f = providerNavigationSourceEvidence(t);
+  const native = f.lock.components.desktop.releaseChannel.nativeProvisioning;
+  const formal = fileURLToPath(new URL('../' + native.fixtureRoot.replaceAll('\\', '/') + '/', import.meta.url));
+  f.accepted.plugin = JSON.parse(readFileSync(join(formal, 'desktop-provisioning.json'))).plugins[0].source;
+  const positive = { runtimeSha256: f.lock.components.desktop.installedRuntimeDescriptor.sha256,
+    installedClientSha256: sha256('inert unit Client bytes; never published'), pluginSource: f.accepted.plugin,
+    cases: ['github-copilot', 'github-copilot-preview'].map(provider => ({
+      scope: 'packaged-renderer-released-client-synthetic-session-and-quota', provider, usageText: '7 used',
+      quotaReads: 2, sessionSubscribed: true, removedSessionHidesUsage: true, otherProviderHidesUsage: true,
+      clientDisposalRemovesUsage: true, selectorErrors: 0, forbiddenRemoteCalls: 0,
+      hostTransport: 'not-provided-to-isolated-fixture', applicationMountPreserved: true, syntheticSiblingPreserved: true,
+    })), originalSignedOutApplicationRestored: true, hostTransport: 'not-provided-to-isolated-fixture' };
+  f.accepted.positiveCopilotUsage = positive.cases; f.accepted.positiveUsageHostTransport = positive.hostTransport;
+  f.accepted.timeline.push(...['restart:packaged-graph', 'restart:positive-usage', 'restart:closed'].map(event => ({ event })));
+  const proof = { schemaVersion: 1, installedClientSha256: positive.installedClientSha256 };
+  native.usagePositiveAcceptance = proof;
+  const save = () => {
+    writeFileSync(join(f.output, 'positive-usage.json'), JSON.stringify(positive));
+    proof.sha256 = hashFile(join(f.output, 'positive-usage.json'));
+  };
+  save(); return { ...f, positive, proof, save };
+}
+test('fresh optional positive proof accepts synthetic cases only, with existing settings/usage gates', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), undefined);
+});
+for (const [name, mutate] of [
+  ['preview removed', f => { f.positive.cases.pop(); }],
+  ['main cases differ', f => { f.accepted.positiveCopilotUsage = []; }],
+  ['Client hash differs', f => { f.positive.installedClientSha256 = '0'.repeat(64); }],
+  ['runtime hash differs', f => { f.positive.runtimeSha256 = '0'.repeat(64); }],
+  ['source differs', f => { f.positive.pluginSource = { ...f.accepted.plugin, targetCommit: '0'.repeat(40) }; }],
+  ['live quota claim', f => { f.accepted.liveAccountQuota = true; }],
+  ['restoration is string', f => { f.positive.originalSignedOutApplicationRestored = 'true'; }],
+  ['wrong host boundary', f => { f.positive.hostTransport = 'live'; }],
+  ['missing restart event', f => { f.accepted.timeline.pop(); }],
+  ['positive event too early', f => { f.accepted.timeline.unshift(f.accepted.timeline.splice(-2, 1)[0]); }],
+  ['unknown schema', f => { f.proof.schemaVersion = '1'; }],
+  ['missing signed-out proof', f => { delete f.lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance; }],
+  ['missing settings despite old sequence', f => {
+    const c = f.lock.components.desktop.releaseChannel; c.sequence = 1; delete c.nativeProvisioning.settingsAcceptance;
+  }],
+  ...['sessionSubscribed', 'removedSessionHidesUsage', 'otherProviderHidesUsage', 'clientDisposalRemovesUsage',
+    'applicationMountPreserved', 'syntheticSiblingPreserved'].flatMap(field => [false, 'true'].map(value =>
+    [`${field}=${value}`, f => { f.positive.cases[1][field] = value; }])),
+  ...['quotaReads', 'selectorErrors', 'forbiddenRemoteCalls'].map(field =>
+    [`string ${field}`, f => { f.positive.cases[1][field] = String(f.positive.cases[1][field]); }]),
+]) {
+  test(`fresh positive proof rejects ${name} without execution (inert rehashed input)`, t => {
+    forbidChildren(t); const f = positiveSourceEvidence(t); mutate(f); f.save();
+    assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), /native-release-positive-usage-mismatch/);
+  });
+}
+test('fresh positive proof rejects changed bytes rather than trusting success fields', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t);
+  writeFileSync(join(f.output, 'positive-usage.json'), JSON.stringify(f.positive) + '\n');
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), /source-positive-usage-acceptance-incomplete/);
+});
+test('fresh signed-out usage requires phase equality with matching main leaves', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t);
+  const path = join(f.output, 'restart-usage-readonly.json'); const usage = JSON.parse(readFileSync(path));
+  usage.signedOut.unexpectedPhaseDifference = true; f.accepted.signedOutCopilotUsage[1] = usage.signedOut;
+  writeFileSync(path, JSON.stringify(usage));
+  f.lock.components.desktop.releaseChannel.nativeProvisioning.usageAcceptance.restartSha256 = hashFile(path);
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, f.accepted, f.output), /source-usage-acceptance-incomplete/);
+});
+test('fresh positive opt-in independently hashes Client bytes without executing them', t => {
+  forbidChildren(t); const f = positiveSourceEvidence(t); const profile = join(f.output, 'profile');
+  const directory = join(profile, 'node_modules/dsh-github-copilot/lib'); mkdirSync(directory, { recursive: true });
+  const path = join(directory, 'client.js'); writeFileSync(path, 'inert unit Client bytes; never published');
+  assert.equal(verifyFreshPositiveUsageClient(f.lock, profile), undefined);
+  writeFileSync(path, 'changed inert Client bytes');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, join(f.output, 'absent')), /ENOENT/);
+  delete f.lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance;
+  assert.equal(verifyFreshPositiveUsageClient(f.lock, join(f.output, 'absent')), undefined);
+  const source = readFileSync(new URL('./native-asar-release-smoke.mjs', import.meta.url), 'utf8');
+  assert.ok(source.includes('verifyFreshPositiveUsageClient(lock, paths.profile)'));
+});
+
+test('historical alpha.1 below sequence 12 keeps optional fresh settings gate (inert)', t => {
+  const lock = actualLock(); const channel = lock.components.desktop.releaseChannel; forbidChildren(t);
+  channel.upstreamVersion = '0.1.6-alpha.1'; channel.sequence = 11;
+  delete channel.nativeProvisioning.usagePositiveAcceptance;
+  delete channel.nativeProvisioning.settingsAcceptance;
+  assert.equal(verifyFreshSettingsEvidence(lock, {}, join(temporary(t), 'absent')), undefined);
+  channel.nativeProvisioning.settingsAcceptance = false;
+  assert.throws(() => verifyFreshSettingsEvidence(lock, {}, join(temporary(t), 'absent')), /source-settings-acceptance-incomplete/);
+});
 
 test('physical .5 lock request fails the release gate before effects (inert)', async t => {
   const lock = actualLock();
@@ -249,6 +490,31 @@ test('manual workflow preserves acquisition, token and source-loader boundaries 
   assert.ok(workflow.includes('pnpm run build:lib:host'));
   assert.ok(workflow.includes('node --import tsx/esm'));
   assert.ok(workflow.includes('/output/qualification.json'));
+  // Alpha.2-only summary v2 binds the true Ops caller, not the independently verified Core checkout.
+  assert.ok(workflow.includes("$alpha2 = $lock.components.desktop.releaseChannel.upstreamVersion -ceq '0.1.6-alpha.2'"));
+  assert.ok(workflow.includes('$schema = if ($alpha2) { 2 } else { 1 }'));
+  for (const [leaf, environment] of [['repository', 'GITHUB_REPOSITORY'], ['sourceCommit', 'GITHUB_SHA'], ['runId', 'GITHUB_RUN_ID'], ['runAttempt', 'GITHUB_RUN_ATTEMPT']]) {
+    assert.ok(workflow.includes(`$caller.${leaf} -cne $env:${environment}`));
+  }
+  assert.ok(workflow.includes("'repository,runAttempt,runId,sourceCommit'"));
+  assert.ok(!workflow.includes('$env:GITHUB_SHA ='));
+  const driver = readFileSync(new URL('./native-asar-release-smoke.mjs', import.meta.url), 'utf8');
+  const verified = driver.indexOf('const verifiedSource = verifySource(lock, confirmation, sourceRoot);');
+  assert.ok(verified >= 0 && verified < driver.indexOf('const caller ='));
+  assert.ok(driver.includes("const caller = plan.upstreamVersion === '0.1.6-alpha.2' ? captureOpsCaller() : undefined;"));
+  assert.ok(driver.includes('if (caller === undefined) await invokeCore();'));
+  assert.ok(driver.includes('else await invokeCoreFixture(caller, expectedCoreSource(lock, verifiedSource), invokeCore);'));
+  assert.ok(driver.includes('...(expected === undefined ? {} : { expectedCoreSource: expected })'));
+  assert.ok(driver.includes('return await runPackagedCopilotAcceptance('));
+  assert.ok(driver.indexOf('const invokeCore = async expected =>') < driver.indexOf('await import(pathToFileURL(join(sourceRoot, sourceFixture)).href)'));
+  assert.ok(driver.lastIndexOf('verifySource(lock, confirmation, sourceRoot);') > driver.indexOf('else await invokeCoreFixture('));
+  const callerSource = readFileSync(new URL('../tools/native-core-fixture-caller.mjs', import.meta.url), 'utf8');
+  for (const source of [driver, callerSource]) {
+    assert.ok(!source.includes('withCoreFixtureEnvironment'));
+    assert.ok(!/(?:delete\s+(?:process\.env|environment)\.|(?:process\.env|environment)\.GITHUB_\w+\s*=(?!=))/u.test(source));
+  }
+  assert.ok(driver.includes('verifyFreshOrdinaryPackagedEvidence(lock, sourceOutput, caller)'));
+  assert.ok(!driver.includes('localGit(opsRoot'));
   assert.ok(!/Start-Process|& \$installer(?:\s|$)|& \$application(?:\s|$)/mu.test(workflow));
   const cleanup = workflow.slice(workflow.indexOf('- name: Remove private source'));
   assert.ok(cleanup.includes('ReparsePoint'));
@@ -264,4 +530,30 @@ test('CLI has no implicit run or confirmation bypass and sanitizes failures', ()
     const data = JSON.parse(result.stdout); assert.equal(data.valid, false); assert.equal(data.modelResponseVerified, false);
     assert.match(data.reason, /^native-/);
   }
+});
+
+test('dual-v2 fresh settings remain bound to actual own-run observations, not formal geometry or pins', t => {
+  const f = createDualV2Fixture(t), fresh = f.fresh();
+  const accepted = verifyFreshOrdinaryPackagedEvidence(f.lock, fresh.directory, fresh.run);
+  assert.equal(accepted.schemaVersion, 3);
+  assert.equal(verifyFreshSettingsEvidence(f.lock, accepted, fresh.directory), undefined);
+  assert.notDeepEqual(accepted.settingsAcceptance, f.get('acceptance.json').settingsAcceptance);
+  assert.notDeepEqual(accepted.nativeComposer.geometry, f.get('acceptance.json').nativeComposer.geometry);
+  const settings = fresh.get('initial-settings-readonly.json'); settings.accountViewLoaded = false;
+  fresh.put('initial-settings-readonly.json', settings);
+  assert.throws(() => verifyFreshSettingsEvidence(f.lock, accepted, fresh.directory), /native-packaged-evidence-invalid/);
+});
+
+test('dual-v2 installed Client check cannot use the absent legacy positive-proof early return', t => {
+  const f = createDualV2Fixture(t);
+  assert.equal(f.lock.components.desktop.releaseChannel.nativeProvisioning.usagePositiveAcceptance, undefined);
+  const profile = join(f.directory, 'inert-client-profile');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile));
+  const directory = join(profile, 'node_modules', 'dsh-github-copilot', 'lib'); mkdirSync(directory, { recursive: true });
+  const client = join(directory, 'client.js'); writeFileSync(client, '// INERT wrong Client bytes; never execute');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
+  writeFileSync(client, Buffer.alloc(2 * 1024 * 1024 + 1));
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
+  writeFileSync(client, '');
+  assert.throws(() => verifyFreshPositiveUsageClient(f.lock, profile), /source-positive-usage-client-mismatch/);
 });

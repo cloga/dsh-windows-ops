@@ -15,6 +15,326 @@ by this document. Follow [the upgrade workflow](core-upgrade.md).
 优先官方实现，但不能因为功能同名就丢失日历调度、冷会话恢复、完整性校验或账号权限保证。
 现有部署锁保持不变；安装和重启仍另行授权。
 
+## Strict native compatibility preparation
+
+Ops #181 prepares the shared native descriptor validator for exact Core
+`0.1.6-alpha.2` → Host protocol **4**, matching the exact official
+[host-protocol source](https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/apps/desktop/src/host-protocol.ts).
+The independently pinned caller version selects the expectation; the descriptor
+cannot select its own policy. Alpha.1/protocol 3 remains valid, alpha.1/4 and
+alpha.2/3 fail closed, and future versions do not inherit protocol-4 acceptance.
+The `0.1.6-synthetic-local.1`/3 fixture proves only synthetic integrity, not a
+release or runtime. Hash/version rejection still occurs before child launch.
+
+Descriptor and embedded release schemas stay **1**, provisioning plan/state/store
+stay **1**, and managed capability/release manifest stay **3**. Both
+`native-asar-runtime.mjs` and `native-electron-probe.mjs` share the validator;
+public resolution APIs and the existing Host/PluginManager ownership are unchanged.
+The formal evidence verifier and fresh release smoke require alpha.2's initial
+and restart read-only Model roles/search-provider evidence regardless of sequence;
+alpha.1's historical sequence-12 threshold is preserved. Settings readiness is not
+real search, OAuth or model proof; `installerUpgradeVerified:false` stays false.
+No legacy rc.2 build/install tooling or runtime trust boundary is changed.
+
+**This is pre-publication preparation, not a qualified or deployed alpha.2 baseline.**
+The current published Ops target is Desktop `0.1.6-alpha.1.cloga.17` /
+sequence 28 / Core `0.1.6-alpha.1` / Copilot `0.4.0-alpha.33`. Its published artifacts
+and source-bound formal run `35583602522` attempt 1 SUCCESS are independently verified;
+**fresh hosted Native Ops run `35595040585` attempt 1 passed at exact code head
+`bb7a0a366e789b19918be6d8a6e40266c46a94f9`** ([owning record](desktop-external-links-17.md)).
+Later documentation/evidence commits or a merge are not that native-qualified head.
+This runtime-only maintenance does not promote Core alpha.2 or authorize local installation/restart.
+Historical `.cloga.16` Ops runs `35575187267` at `a59f586df4e329c3bc8b3f885013fdb5493f4970`
+and `35577921833` at `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0` stay in the
+[alpha.33 record](copilot-alpha33-upgrade-record.md); neither these nor `.cloga.14`/alpha.32
+qualification transfers to `.17`. Earlier `.cloga.2`/alpha.24 records
+remain historical Ops evidence and the separately owned Core installer-upgrade
+fixture baseline, not the current Ops deployment. Unit tests use temporary inert
+copies, never relabeled formal evidence. After alpha.2 publication, a separate
+reviewed promotion must independently verify immutable assets/source/hashes,
+update `deployments/windows-copilot.lock.json`, `catalog/plugins.json`, formal
+release fixtures and their dependent assertions/docs, and obtain fresh hosted
+Native Ops qualification. Old source/qualification receipts cannot certify the
+new pair. This preparation neither installs/activates/restarts nor changes
+profiles or state.
+
+本节仅记录发布前严格兼容准备，不宣称 alpha.2 已发布、已通过正式验收或已部署。
+当前已发布 Ops 目标为 alpha.1.cloga.17/sequence 28/Core alpha.1/Copilot alpha.33；
+发布制品与正式 run `35583602522` attempt 1 SUCCESS 已独立认证，全新 hosted Native Ops
+run `35595040585` attempt 1 已在精确 code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9` 通过；
+不是后续文档/证据或合并提交的 native 验收，也不继承 `.16` 或 `.14` 记录，详见[外链维护记录](desktop-external-links-17.md)。
+保持 stage-only，不安装、激活或重启，live account 验证留待后续人类请求；
+旧 `.cloga.2`/alpha.24 仍是历史 Ops 证据和 Core 安装升级 fixture 基线，而非当前 Ops 部署。
+Alpha.2 发布后仍须另行核验制品、评审提升 lock/catalog/fixtures，并执行新的 hosted qualification。
+
+## Alpha2 combined packaged evidence preparation
+
+Ops #181 prepares an explicit adapter for the alpha.2 candidate's combined
+packaged evidence. This is source compatibility work, not qualification or
+promotion of an unpublished release. Historical ordinary acceptance and original
+formal/Ops fixtures remain unchanged. This alpha.2 preparation does not replace
+the current `.cloga.17`/alpha.33 target or substitute for its separate fresh hosted
+Native Ops run `35595040585` attempt 1, passed at exact code head
+`bb7a0a366e789b19918be6d8a6e40266c46a94f9`. That independent runtime-only
+maintenance preserves bundled Core alpha.1; it does not qualify alpha.2. Historical
+`.cloga.16` qualification remains in its [owning record](copilot-alpha33-upgrade-record.md).
+
+Historical combined-format formal evidence requires the complete original `functional-results.json`,
+finalized `failure.json`, `observer-cleanup.json` and last-written
+`packaged-suite.json` graph, with ordinary `acceptance.json` absent. Provisional
+functional observations are not ordinary acceptance or suite success. The reviewed
+exact version and declared format select the adapter; file existence, broad
+version ranges and catch/fallback cannot select another interpretation. Source,
+tree, run/attempt, plan and raw artifact/receipt hashes must remain bound to the
+same independently reviewed evidence. Never rename or reinterpret one receipt as
+another.
+
+The explicitly reviewed `combined-suite-v2` format requires schema-2 functional
+observations and schema-2 fresh ordinary acceptance, with mandatory
+`positive-usage.json`. It does not replace `combined-suite-v1` or legacy alpha.1
+readers, tests or original evidence. Do not infer v2 from a filename, plugin
+version or extra field, and do not fall back from an unknown or invalid format.
+
+Both imported and fresh v2 paths hash the bounded original positive record and
+bind its runtime, plugin source and installed Client digest to the independently
+reviewed original Copilot alpha.33 artifact policy. Positive cases must agree with
+the functional/ordinary receipt, and the formal summary binds the raw positive
+hash as `packaged.positiveUsage`. A well-formed digest alone is not original-byte
+parity; production evidence cannot select another Client policy.
+
+The required observations exercise `github-copilot` and `github-copilot-preview`
+through the actual renderer and Session/Slot APIs with synthetic Session/quota
+data and no Host transport. They cover inherited Session scope, explicit absence,
+removed and closed Sessions hiding and restoring usage, provider switching and
+restoration, visible Client disposal, subscription cleanup and restoration of the
+original signed-out application. Hidden signed-out controls alone cannot prove a
+working eligible Session. Fresh window IDs, timings and receipt bytes belong to
+that run and must not be compared byte-for-byte with another formal run.
+
+Pure unit tests use explicitly synthetic Client bytes and real hashing under a
+test-only admission policy; they exercise parsing and rejection, not the hosted
+released Client or original-archive parity. Only the separately qualified hosted
+run can supply that released-Client renderer evidence. Neither scope establishes
+live quota, OAuth, model/search, Session billing or installed upgrade acceptance.
+This v2 work remains source preparation. The separately reviewed current target
+is `.cloga.17`/Core alpha.1/Copilot alpha.33; fresh hosted Ops run `35595040585` attempt 1
+passed at exact code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`, not a later evidence commit/merge.
+Historical `.cloga.16` qualification at `a59f586…` remains bound to that code head.
+After merging the v2 adapter/test changes, historical run `35577921833` passed at exact
+combined head `cd384495ac2fd0c850b3c8cd93223d35c4bc83a0`. That verifies only the then-unchanged
+`.cloga.16` alpha.1 target, not `.cloga.17` or promotion/hosted qualification of alpha.2.
+
+Fresh Ops qualification is a different contract. `tests/native-asar-release-smoke.mjs`
+uses the real ordinary Core owner with a successful read-only resolver observer,
+not the throwing combined canary. Its ordinary acceptance is finalized only after
+cleanup. Resolver, request-copy, snapshot and removal checks remain required; a
+formal combined suite cannot substitute for that fresh run.
+
+The fresh run preserves two independent source identities: the genuine Ops caller
+repository/commit/run/attempt and the actual Core checkout. Private Ops source is
+provided as a Git archive without `.git`; it supplies no locally derived Ops
+source-tree claim. The dedicated caller validates Core checkout identity before
+and after invoking its ordinary fixture. Alpha.2 passes the explicit seven-field
+`expectedCoreSource`: `commit`, `tree`, `version`, `upstreamVersion`,
+`executableSha256`, `runtimeSha256` and `planSha256`, from the acquisition/source-
+verified lock, and checks the owner's independently observed returned facts.
+The genuine Ops `GITHUB_SHA`, repository, run ID and attempt remain present and
+unchanged during import, invocation, success and failure; no omission, spoofing
+or environment restoration shim is used. Workflow validation still binds caller
+evidence back to the actual Ops job. Historical alpha.1 calls omit this API option
+and retain their existing behavior. The caller-only preparation under #181 is
+separate from the explicitly selected dual-proof adapter below. Neither adapter
+preparation promotes a lock or establishes alpha.2 qualification.
+
+The exact successful Core CI qualification summary attests the installed-record
+checks for its bound source/run and listed input hashes. Current hosted archives
+retain phase evidence and baseline acquisition metadata, but omit root
+`owner.json`, `validated.json` and `retained.json`. Ops can verify retained bytes
+and the successful bound CI verifier, not fully replay the original ownership,
+validation and retained-home graph offline. Do not fabricate missing records,
+rewrite observed paths or probe deleted hosted directories on an operator machine.
+This limit neither demonstrates a publisher bypass nor permits broadening the
+packaged/fresh-Ops `installerUpgradeVerified:false` scope.
+
+The six public release assets stay unchanged: qualification summaries and combined
+receipts are internal evidence, not a seventh asset. Same-version plugin choices
+are not cross-installer retention; native popup/modal rendering, live quota,
+OAuth, model/search and Session billing remain outside these observations.
+Synthetic adapter tests are not hosted or installed qualification. Alpha.2 remains
+unpublished and unqualified, with no installation, activation or restart authorized.
+
+显式 `combined-suite-v2` 要求功能／普通验收 schema 2 和必需的原始 `positive-usage.json`，
+以原始哈希及已独立评审的 alpha.33 来源／Client 字节策略绑定；v1 和旧 alpha.1 读取器与历史保留。
+两条 route 的正向证据须涵盖 Session 继承／显式缺席、删除／关闭后的隐藏与恢复、provider 恢复、
+可见 Client 释放和原应用恢复。合成 Client 单元测试不等于实际已发布 Client 的托管 renderer 证明，
+也不证明真实额度、Session 计费或安装升级。独立评审的当前目标为 `.cloga.17`/Core alpha.1/alpha.33，
+全新 hosted Ops run `35595040585` attempt 1 已在精确 code head `bb7a0a366e789b19918be6d8a6e40266c46a94f9`
+通过，不等于后续文档/证据或合并提交也执行了 native 验收。历史 `.16` 的 `a59f586…` Ops 成功仅属于该精确 code head；
+合入 v2 adapter/test 后的历史 run `35577921833` 独立验收了精确组合 head
+`cd384495ac2fd0c850b3c8cd93223d35c4bc83a0` 的 `.cloga.16` alpha.1 目标，不能转作 `.17` 或 alpha.2 验收。
+
+组合格式只适用于经过明确评审的正式导入证据；全新 Ops resolver observer 仍成功走普通验收路径，
+清理后才提交普通 acceptance。Ops 调用方身份来自实际 job，与调用前后核验的 Core 检出身份分开；
+私有 Ops 归档没有 `.git`，不宣称本地派生的 Ops tree。alpha.2 通过显式 `expectedCoreSource`
+传入经 acquisition/source 预检的锁定 Core commit/tree、Desktop/upstream 版本及 executable/runtime/plan 哈希，
+再核验 Core 返回的实际观察值。import、调用及成功／失败期间始终保留真实 Ops `GITHUB_SHA`、repository、run/attempt，
+不删除、不伪造，也不使用环境还原 shim。历史 alpha.1 不接收此 API 参数，调用行为保持不变。
+#181 caller-only 准备与下文显式选择的普通主验收／独立 outer-canary 双证据 adapter 分开；两者均不提升锁或宣称 alpha.2 已验收。
+Core CI 的精确成功摘要可以证明执行过安装检查，但归档缺少
+根 owner/validated/retained 记录，不能完整离线重放。六资产公开契约、独立 Ops 目标和历史原始字节
+不受此 alpha.2 准备工作影响；该准备不等于发布、安装或激活。
+
+## Alpha2 independent dual-proof preparation
+
+The new Ops declaration `dual-ordinary-canary-v1` follows the final immutable
+[Core qualifier](https://github.com/cloga/deepseek-harness/blob/3ca51d61bdf39f8c63c26125674cd92fdcf6ed98/apps/desktop/scripts/verify-fork-qualification.ts)
+and its [two-run workflow](https://github.com/cloga/deepseek-harness/blob/3ca51d61bdf39f8c63c26125674cd92fdcf6ed98/.github/workflows/desktop-fork-release.yml).
+This is an explicit new Ops reader format, not a new Core receipt schema and not
+an automatic reinterpretation of `combined-suite-v1/v2` or historical alpha.1.
+Unknown formats and mixed declarations fail closed. No current production lock,
+catalog, original fixture or PowerShell lock-admission policy is changed.
+
+The exact `nativeProvisioning.packagedAcceptance` declaration has `schemaVersion:1`,
+`format`, `runId`, `runAttempt`, `suiteSha256`, `qualificationSha256`,
+`workflowRunSha256`, `workflowJobSha256`, **`ordinaryAcceptanceSha256`** and
+**`workflowArtifactsSha256`**. The ordinary hash must equal the existing ancestor
+acceptance pin; all settings/usage/menu/ancestor phase pins continue to describe
+PRIMARY. The legacy alpha.1 `usagePositiveAcceptance` quota2 declaration is not
+accepted alongside this dual quota4 format. Real hashes are supplied only during
+separately reviewed promotion, never placeholder pins in this preparation.
+
+Fixed locations under the existing formal root:
+
+- Root: original public `release.json`, `build-receipt.json`,
+  `desktop-provisioning.json`; PRIMARY `acceptance.json`, original provisional
+  `functional-results.json`, `helper-acceptance.json`, positive/runtime/capability/
+  provisioning/executable JSON and initial/restart observations.
+- `canary/`: original canary functional/failure/observer/suite plus its own positive,
+  runtime/capability/provisioning/executable JSON and initial/restart observations.
+  Ordinary acceptance, helper and copied public release metadata are forbidden here.
+- `core-qualification/`: original `qualification.json`, `workflow-run.json`,
+  `workflow-job.json`, `workflow-artifacts.json`, and seven original installed
+  records under `installed/` (acquisition, installer-upgrade, baseline, candidate,
+  candidate-restart, profile-cleanup and package-acceptance).
+
+Each family's raw edges and owner UUID agree internally. Independent PRIMARY and
+canary UUIDs, menu IDs, timing and temporary profile paths are not forced equal;
+shared Core source/tree/run/attempt and release identities are. Normal PRIMARY
+acceptance is required after cleanup, whereas canary normal completion remains
+false with finalized failure/observer cleanup. Both positive files require the
+reviewed alpha33 source/Client digest and two ordered 21-key cases: fourteen true
+observations, quotaReads4, bounded `7 used`/`13 left`, zero selector/forbidden-Remote
+errors and synthetic/no-Host scope. Fresh Ops ordinary remains a third run using
+actual Ops run/attempt and its own observed phase bytes. The merged explicit
+seven-field Core caller is retained unchanged; no Ops SHA omission is permitted.
+
+The qualifier summary remains Core schema1 with
+`normalPackagedAcceptanceCompleted:true` and `canaryNormalAcceptanceCompleted:false`.
+Its **45 exact input labels** are checked without inventing PRIMARY inputs:
+
+- `ordinary.helper`, `ordinary.acceptance`, `ordinary.positiveUsage` only;
+- `packaged.runtime`, `.provisioning`, `.capability`, `.executable`, `.functional`,
+  `.failure`, `.observer`, `.suite`, `.positiveUsage`;
+- `packaged.initial` and `packaged.restart` each with `.settings`, `.menu`, `.usage`,
+  `.graph`, `.receipts`, `.provisioning`, `.profile`;
+- `plan`, `candidate.manifest`, `.receipt`, `.installer`, `.provisioning`;
+- CI-attested-only `baselinePin`, `baseline.manifest`, `.receipt`, `.installer`,
+  `upgrade.owner`, `.validated`, `.retained`;
+- Archived `baseline.acquisition`, `upgrade.result`, `.baseline`, `.candidate`,
+  `.candidate-restart`, `.cleanup`, `.packages`.
+
+PRIMARY's other original files receive their own lock/semantic/identity checks;
+they are **not** falsely described as additional Core summary inputs. Public
+manifest/receipt build objects are exactly Core's six fields (`workflow`,
+`lockfileSha256`, `planSha256`, `nodeVersion`, `pnpmVersion`, `packageRegistry`).
+Ops-only `runUrl`/`attempt` are checked separately against original workflow
+metadata, never added to or reserialized into the public receipts.
+
+The pinned original artifacts API response must be one complete page (at most100
+records); incomplete pagination needs a separately reviewed format. Four exact
+selected names bind IDs, API ZIP digests/sizes, repository/source/run and expiry:
+`desktop-copilot-acceptance-<version>`, `desktop-copilot-observer-canary-<version>`,
+`desktop-fork-qualification-<version>-<source>-<attempt>` and
+`desktop-installer-upgrade-<version>`. No nonexistent artifact `run_attempt` field
+is invented. Original job metadata must show one successful PRIMARY, independent
+observer, installed qualification, complete qualification and qualified-summary
+upload in order.
+
+**Offline boundary:** this reader checks pinned API metadata plus original JSON
+consistency, not archive bytes or ZIP-member membership. The Ops-owned result's
+`formalEvidenceLimits` states `archiveBytesVerified:false`,
+`archiveMembershipVerified:false`, `unarchivedInstalledRootsReplayed:false`, scope
+`pinned-api-and-original-json-consistency`. These are Ops result limits, not fields
+inserted into Core evidence. An API digest alone cannot prove imported JSON was a
+member of that archive. At promotion, an independent authenticated audit **must**
+download all four original ZIPs, verify API size/digest, reject unsafe/duplicate/
+linked/traversal members, compare selected original member bytes exactly and retain
+reviewable acquisition provenance before committing real proof or pins. Missing
+original archives cannot be replaced with synthetic fixtures or reconstructed
+receipts. No collector, broader token, ZIP parser, runtime command or workflow lane
+is added by this preparation. Seven unavailable installed root/baseline inputs
+remain explicitly CI-attested, not offline replayed.
+
+新增 `dual-ordinary-canary-v1` 严格遵循上述 Core3ca51d 最终契约：普通 PRIMARY 原件位于根目录，
+独立 canary 原件位于 `canary/`，摘要／API 元数据及安装记录位于固定 `core-qualification/`。
+两组内部身份和原始哈希各自闭合，不强行比较跨运行 UUID、窗口 ID、时间或临时目录。
+Core 摘要精确45个 input，不伪造额外 `ordinary.*`；公开 build 只有6字段，Ops runUrl/attempt 另验。
+两组均强制21键／14真值／quotaReads4／固定已评审 Client 策略；fresh Ops 是第三次普通验收。
+离线 reader **不证明 ZIP 原字节或成员来源**，输出明确 false 限制；正式提升前必须独立下载4个原始 ZIP，
+核验 API 大小／哈希、安全成员及逐字节来源，再提交真实证据和锁。此准备只使用惰性测试数据，
+保留旧格式、当前 alpha.1 锁、原 fixtures 和真实 Ops SHA；不发布、提升、安装或激活。
+
+## Alpha2 dual-v2 composer proof preparation
+
+[Ops #221](https://github.com/cloga/dsh-windows-ops/issues/221) prepares the separate,
+explicit `dual-ordinary-canary-v2` family. It does not reinterpret dual-v1 above,
+select an optional composer adapter, or promote the current `.cloga.17` lock.
+The preparation contract is functional/ordinary **3**, settings **3**, native
+composer **2**, qualification summary **2/exact51 inputs**. Failure2/observer3/
+suite1 remain distinct unchanged contracts. The seed is exactly six fields with
+**no schemaVersion**. The producer/qualifier and pure leaves were crosschecked
+against immutable Core `9ca7cc3f06c9f7b90128e24687a5ce6e960b6618`, tree
+`44c41519827fc1f9b25d5bdb35e7a7f35ff57116`; 83 data-only predicate parity cases
+passed against its exact sources. This is source/contract evidence, not a claim
+that Core CI, packaged acceptance or installed qualification passed. Earlier WIP
+snapshots are not the final binding.
+
+Keep all old45 labels and add only `ordinary.initial.settings`,
+`ordinary.restart.settings`, `ordinary.nativeComposer`, `ordinary.nativeComposerSeed`,
+`packaged.nativeComposer`, `packaged.nativeComposerSeed`. Each root owns its raw
+settings, `native-composer-geometry.json` and `native-composer-seed.json`; embedded
+observations equal their own originals, and native seedSha256 closes its own raw
+seed edge. Ordinary settings also retain lock phase pins. No reconstructed JSON,
+shared cross-run geometry hash, missing label or legacy-schema fallback is accepted.
+
+V2 requires the independently reviewed immutable Copilot alpha35 tuple and Client
+SHA256 `7b4566ef30e1c3c11e64aee527cea8bc5adbf0f22ca356cc8bd3ab07661fd368`;
+historical alpha33 policy is unchanged. Positive usage retains all21 keys,
+14 true lifecycle flags, quotaReads4 and both providers. Settings3 proves loaded
+account/search views and retired roles absent; it cannot be substituted for the
+historical B1 baseline settings. Only current candidate/candidate-restart use it.
+
+Strict native evidence checks both axes of dock containment, finite bounded
+rectangles/styles, ordered1280/400 observations, nonoverlap, wide-only inline
+ordering, exact dialogs and empty renderer errors. Native phase events are
+`seeded`, `launch`, `application`, `observed`, `closed`, in order after initial/
+restart/positive usage, with finite nonnegative nondecreasing elapsed values;
+the external observer follows successful owned closure.
+The fresh Ops ordinary execution uses its **own** run/attempt, UUID, menus,
+provider inventory and native bytes, retaining the unchanged seven verified Core
+facts. It is not required to reproduce another run's dynamic geometry hashes.
+
+This is pure data-reader/inert-test preparation only: no workflow, lock, catalog,
+real fixture or admission gate changes, and no native dispatch or activation.
+The offline reader still reports ZIP/member provenance unverified; authenticated
+original-byte audits, exact qualified Core source and a fresh independent Ops
+native run remain later promotion gates. ZIP-auditor Windows HOLD remains intact.
+
+中文：新增 v2 是显式选择的51输入／functional3／settings3／native2契约，保留 v1 与当前锁。
+两组 settings/native/seed 原字节各自绑定，fresh Ops 保留自己的真实运行身份与七项 Core 事实；
+不得跨运行比较像素哈希，不得伪造 seed schema 或将旧角色加载记录改称退役证明。
+惰性适配测试不是原始 ZIP 来源、实际安装、模型／账号使用或正式提升证据。
+
 ## Audited starting points
 
 | Component | Audited source | Starting release | Adaptation tracking |
